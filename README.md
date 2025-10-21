@@ -50,45 +50,11 @@ The system processes IQ data from WebSDR receivers, extracts mel-spectrograms fo
 
 ## Development Status
 
-Currently in development phase. See [AGENTS.md](AGENTS.md) for detailed project planning and progress tracking.
-
-**Project timeline:** 21 days across 10 phases
-**Critical path:** Repository → Infrastructure → Services → RF Acquisition → Training → Inference → Frontend → Deployment → Testing → Documentation
+Currently in development phase.
 
 ## License
 
 Creative Commons Non-Commercial. Developed by fulgidus for the amateur radio community.
-
----
-
-## 🏆 Awards & Recognition
-
-*"Heimdall represents the future of amateur radio—where traditional hobby meets cutting-edge AI."*  
-— **Ham Radio Magazine** (Anticipated Review)
-
-*"A game-changer for emergency communications and public safety."*  
-— **Emergency Communications Association** (Projected Endorsement)
-
-*"The most innovative amateur radio project in decades."*  
-— **ARRL Technical Innovation Award** (Nomination Pending)
-
----
-
-## 🌟 Get Started Today
-
-### **Try the Demo**
-Experience Heimdall in action with our **live demonstration** using real WebSDR data. No registration required—just pure radio magic.
-
-### **Join the Community**
-Connect with radio operators, researchers, and developers from around the world. Share your discoveries, report bugs, and suggest new features.
-
-### **Contribute**
-Whether you're a programmer, radio operator, or just enthusiastic about the project, there are many ways to contribute to this revolutionary platform.
-
-### **Spread the Word**
-Help us build the world's largest radio sensing network by telling your friends about Heimdall. The more participants we have, the more powerful the system becomes.
-
----
 
 ## 🎯 Mission Statement
 
