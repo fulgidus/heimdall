@@ -1,101 +1,61 @@
-# 📡 Heimdall - AI-Powered Radio Source Localization
-
-> *An intelligent platform for real-time radio signal localization*
+# Heimdall - Radio Source Localization
 
 [![License: CC Non-Commercial](https://img.shields.io/badge/License-CC%20Non--Commercial-orange.svg)](LICENSE)
 [![Status: In Development](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](AGENTS.md)
 [![Community: Amateur Radio](https://img.shields.io/badge/Community-Amateur%20Radio-blue.svg)](https://www.iaru.org/)
 
----
+An AI-powered platform that locates radio transmissions in real-time using machine learning and distributed WebSDR receivers.
 
-## What is Heimdall?
+## Overview
 
-Heimdall is an open-source platform that uses artificial intelligence to locate radio sources in real-time. By analyzing signals received from multiple WebSDR stations around the world, it can determine where radio transmissions are coming from with high accuracy.
+Heimdall analyzes radio signals from multiple WebSDR stations to triangulate transmission sources. The system uses neural networks trained on radio propagation data to predict location coordinates with uncertainty estimates.
 
-Named after the Norse god known for his far-sight, Heimdall connects amateur radio enthusiasts into a collaborative network for radio source localization and spectrum monitoring.
+**Key specifications:**
+- Target accuracy: ±30m (68% confidence)
+- Processing latency: <500ms
+- Network: 7 distributed WebSDR receivers
+- Frequency bands: 2m/70cm amateur radio
 
----
+## Architecture
 
-## How it works
-
-### Real-Time Localization
-Heimdall analyzes radio signals received by multiple WebSDR stations to triangulate transmission sources. The system processes signal characteristics and timing differences to calculate position coordinates.
-
-### AI-Enhanced Accuracy
-Machine learning algorithms improve location accuracy and provide uncertainty estimates for each prediction. The neural networks are trained on real radio propagation data to handle various atmospheric conditions.
-
-### Global Network
-The platform connects 7 WebSDR receivers strategically positioned across different geographic regions, creating a distributed sensing network for radio source localization.
-
-### Fast Processing
-Location results are delivered in under 500 milliseconds, making the system suitable for real-time applications and live signal tracking.
-
----
+- **Backend**: Python microservices (FastAPI, Celery)
+- **ML Pipeline**: PyTorch Lightning with MLflow tracking
+- **Frontend**: React + TypeScript + Mapbox
+- **Infrastructure**: PostgreSQL + TimescaleDB, Redis, RabbitMQ, MinIO
+- **Deployment**: Kubernetes with Helm charts
 
 ## Applications
 
-### Amateur Radio
-- **DX Hunting**: Identify the location of distant stations
-- **Interference Tracking**: Locate sources of radio frequency interference
-- **Contest Verification**: Validate station locations during competitions
-- **Emergency Communications**: Support disaster response coordination
+**Amateur Radio**
+- DX station localization
+- Interference source tracking
+- Contest verification
+- Emergency communication support
 
-### Emergency Services
-- **Search & Rescue**: Locate emergency beacons and distress signals
-- **Public Safety**: Monitor and track unauthorized transmissions
-- **Disaster Response**: Coordinate first responder communications
+**Emergency Services**
+- Search and rescue beacon location
+- First responder coordination
+- Unauthorized transmission monitoring
 
-### Research & Education
-- **Spectrum Management**: Assist with radio frequency coordination
-- **Propagation Studies**: Provide data for atmospheric research
-- **Educational Tool**: Demonstrate radio wave propagation principles
+**Research**
+- Radio propagation studies
+- Spectrum management
+- Educational demonstrations
 
-### Open Source
-All data and algorithms are open source and freely available for research and educational purposes.
+## Technical Details
 
-### Community-Driven
-Contributors from the global amateur radio community help improve accuracy and expand capabilities.
+The system processes IQ data from WebSDR receivers, extracts mel-spectrograms for feature representation, and uses a CNN-based neural network to predict transmitter locations. A Gaussian negative log-likelihood loss function enables uncertainty quantification for each prediction.
 
----
+## Development Status
 
-## Technical Features
+Currently in development phase. See [AGENTS.md](AGENTS.md) for detailed project planning and progress tracking.
 
-### Interactive Visualization
-Real-time map display showing signal locations with confidence ellipses indicating uncertainty levels.
+**Project timeline:** 21 days across 10 phases
+**Critical path:** Repository → Infrastructure → Services → RF Acquisition → Training → Inference → Frontend → Deployment → Testing → Documentation
 
-### Self-Improving AI
-Machine learning models continuously improve accuracy as more data is processed through the system.
+## License
 
-### Cloud-Based Operation
-Runs continuously in the cloud infrastructure, accessible through any web browser without software installation.
-
-### Multi-Platform Support
-Compatible with desktop computers, tablets, and mobile devices for field operations.
-
----
-
-## Project Goals
-
-The Heimdall platform aims to:
-
-- Improve radio source localization accuracy using modern AI techniques
-- Create an accessible tool for amateur radio operators and researchers
-- Support emergency communications and public safety applications
-- Advance radio propagation research through collaborative data collection
-- Provide educational resources for understanding radio wave behavior
-
----
-
-## Getting Started
-
-### Try the Demo
-Experience the platform using live WebSDR data. No registration required.
-
-### Join the Community
-Connect with radio operators, researchers, and developers working on the project.
-
-### Contribute
-The project welcomes contributions from programmers, radio operators, and anyone interested in advancing radio science.
+Creative Commons Non-Commercial. Developed by fulgidus for the amateur radio community.
 
 ---
 
