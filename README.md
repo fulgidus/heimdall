@@ -1,6 +1,6 @@
-# 🛰️ Heimdall - AI-Powered Radio Source Localization
+# 📡 Heimdall - AI-Powered Radio Source Localization
 
-> *"The All-Seeing Guardian of the Radio Spectrum"*
+> *An intelligent platform for real-time radio signal localization*
 
 [![License: CC Non-Commercial](https://img.shields.io/badge/License-CC%20Non--Commercial-orange.svg)](LICENSE)
 [![Status: In Development](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](AGENTS.md)
@@ -8,101 +8,94 @@
 
 ---
 
-## 🌟 Imagine This...
+## What is Heimdall?
 
-Picture a world where **every radio transmission** leaves an invisible footprint across the airwaves. Now imagine an **AI guardian** that can follow these footprints back to their source, anywhere in the world, in real-time.
+Heimdall is an open-source platform that uses artificial intelligence to locate radio sources in real-time. By analyzing signals received from multiple WebSDR stations around the world, it can determine where radio transmissions are coming from with high accuracy.
 
-**Heimdall** is that guardian.
-
-Named after the Norse god who could see across all nine realms, our platform transforms the amateur radio hobby into a **global sensing network** capable of pinpointing radio sources with unprecedented accuracy.
+Named after the Norse god known for his far-sight, Heimdall connects amateur radio enthusiasts into a collaborative network for radio source localization and spectrum monitoring.
 
 ---
 
-## 🎯 What Does Heimdall Do?
+## How it works
 
-### 🔍 **Real-Time Radio Detective**
-Ever heard a mysterious signal and wondered "Where is that coming from?" Heimdall **automatically triangulates** the location of any radio transmission using signals received by multiple WebSDR stations across the globe.
+### Real-Time Localization
+Heimdall analyzes radio signals received by multiple WebSDR stations to triangulate transmission sources. The system processes signal characteristics and timing differences to calculate position coordinates.
 
-### 🧠 **AI-Powered Intelligence**
-Our advanced neural networks don't just calculate positions—they understand the **uncertainty** of each prediction, giving you confidence levels and precision estimates that traditional methods simply can't match.
+### AI-Enhanced Accuracy
+Machine learning algorithms improve location accuracy and provide uncertainty estimates for each prediction. The neural networks are trained on real radio propagation data to handle various atmospheric conditions.
 
-### 🌍 **Global Collaboration**
-By connecting **7 strategically placed WebSDR receivers** across different continents, Heimdall creates the world's first **crowd-sourced radio localization network**.
+### Global Network
+The platform connects 7 WebSDR receivers strategically positioned across different geographic regions, creating a distributed sensing network for radio source localization.
 
-### ⚡ **Lightning Fast**
-Get location results in **under 500 milliseconds**. Fast enough for live tracking, emergency response, and real-time interference hunting.
-
----
-
-## 🚀 Why This Changes Everything
-
-### **For Amateur Radio Operators**
-- **DX Hunting**: Instantly know where that rare DX station is transmitting from
-- **Interference Tracking**: Locate sources of interference destroying your favorite repeaters
-- **Emergency Communications**: Help coordinate disaster response by tracking emergency traffic
-- **Contest Verification**: Validate contacts and catch cheaters in real-time
-
-### **For Emergency Services**
-- **Search & Rescue**: Locate emergency beacons and distress calls with pinpoint accuracy
-- **Disaster Response**: Track first responder communications and coordinate resources
-- **Public Safety**: Monitor and locate unauthorized transmissions
-
-### **For Radio Enthusiasts**
-- **Educational Tool**: Learn about radio propagation by visualizing signal paths
-- **Spectrum Management**: Help authorities locate unlicensed transmitters
-- **Research Platform**: Contribute to radio science and atmospheric studies
-
-### **For Everyone**
-- **Citizen Science**: Be part of the largest radio sensing network ever created
-- **Open Innovation**: All data and algorithms are open source and freely available
-- **Global Community**: Connect with radio enthusiasts and researchers worldwide
+### Fast Processing
+Location results are delivered in under 500 milliseconds, making the system suitable for real-time applications and live signal tracking.
 
 ---
 
-## ✨ The Magic Behind The Scenes
+## Applications
 
-### 🎨 **Beautiful Real-Time Visualization**
-Watch signals appear on an **interactive world map** with elegant uncertainty ellipses showing confidence levels. See the radio world come alive before your eyes.
+### Amateur Radio
+- **DX Hunting**: Identify the location of distant stations
+- **Interference Tracking**: Locate sources of radio frequency interference
+- **Contest Verification**: Validate station locations during competitions
+- **Emergency Communications**: Support disaster response coordination
 
-### 🤖 **Self-Learning AI**
-Our neural networks get **smarter with every signal** they analyze. The more the community uses Heimdall, the more accurate it becomes for everyone.
+### Emergency Services
+- **Search & Rescue**: Locate emergency beacons and distress signals
+- **Public Safety**: Monitor and track unauthorized transmissions
+- **Disaster Response**: Coordinate first responder communications
 
-### 🔄 **Continuous Operation**
-Heimdall runs **24/7** in the cloud, constantly listening and learning. No need to install software or maintain equipment—just point your browser and start exploring.
+### Research & Education
+- **Spectrum Management**: Assist with radio frequency coordination
+- **Propagation Studies**: Provide data for atmospheric research
+- **Educational Tool**: Demonstrate radio wave propagation principles
 
-### 📱 **Works Everywhere**
-Whether you're at home with a desktop computer, in the field with a tablet, or mobile with your smartphone, Heimdall adapts to your device and provides the same powerful experience.
+### Open Source
+All data and algorithms are open source and freely available for research and educational purposes.
 
----
-
-## 🌈 A Vision for the Future
-
-Imagine a world where:
-
-- **Lost hikers** are found in minutes, not hours, thanks to their emergency beacons
-- **Radio interference** becomes a thing of the past because sources are located instantly
-- **Atmospheric research** advances rapidly with real-time propagation data
-- **Amateur radio contests** are completely fair and transparent
-- **Emergency communications** are coordinated with military precision
-- **Radio spectrum** is managed efficiently and fairly for all users
-
-This isn't science fiction. This is **Heimdall**.
+### Community-Driven
+Contributors from the global amateur radio community help improve accuracy and expand capabilities.
 
 ---
 
-## 🎪 Join the Revolution
+## Technical Features
 
-### **For Radio Operators**
-You don't need any special equipment or technical knowledge. If you can operate a web browser, you can use Heimdall. Your participation helps make the network more accurate for everyone.
+### Interactive Visualization
+Real-time map display showing signal locations with confidence ellipses indicating uncertainty levels.
 
-### **For WebSDR Operators**
-Share your receiver with the network and become a **guardian node**. Your contribution enables localization across your region and helps protect the radio spectrum.
+### Self-Improving AI
+Machine learning models continuously improve accuracy as more data is processed through the system.
 
-### **For Developers**
-The entire platform is **open source**. Contribute to the AI algorithms, improve the user interface, or create new applications using our APIs.
+### Cloud-Based Operation
+Runs continuously in the cloud infrastructure, accessible through any web browser without software installation.
 
-### **For Researchers**
-Access unprecedented amounts of **real-time radio propagation data**. Use our platform for atmospheric research, spectrum management studies, or educational purposes.
+### Multi-Platform Support
+Compatible with desktop computers, tablets, and mobile devices for field operations.
+
+---
+
+## Project Goals
+
+The Heimdall platform aims to:
+
+- Improve radio source localization accuracy using modern AI techniques
+- Create an accessible tool for amateur radio operators and researchers
+- Support emergency communications and public safety applications
+- Advance radio propagation research through collaborative data collection
+- Provide educational resources for understanding radio wave behavior
+
+---
+
+## Getting Started
+
+### Try the Demo
+Experience the platform using live WebSDR data. No registration required.
+
+### Join the Community
+Connect with radio operators, researchers, and developers working on the project.
+
+### Contribute
+The project welcomes contributions from programmers, radio operators, and anyone interested in advancing radio science.
 
 ---
 
