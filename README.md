@@ -140,8 +140,6 @@ We believe that **radio waves belong to everyone**, and everyone should have the
 
 **Heimdall** is developed by **fulgidus** and a growing community of passionate radio operators, AI researchers, and open-source contributors from around the world.
 
-We're not just building software—we're building the **future of radio**.
-
 ---
 
 ## 🚀 Ready to See the Invisible?
@@ -150,10 +148,8 @@ We're not just building software—we're building the **future of radio**.
 **Today, we make it visible.**  
 **Tomorrow, we make it yours.**
 
-### [🌟 Start Your Journey →](#)
+### [🌟 Start Your Journey →](https://fulgidus.github.io/heimdall)
 
 ---
 
 *Heimdall - Where Radio Waves Meet Artificial Intelligence*
-
-**Made with ❤️ by the global amateur radio community**
