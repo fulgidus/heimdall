@@ -1,0 +1,551 @@
+# Heimdall SDR - GitHub Copilot Instructions
+
+## Project Vision
+
+Heimdall is an advanced Software-Defined Radio (SDR) monitoring and analysis platform that aggregates data from multiple WebSDR receivers across Europe to detect, analyze, and predict radio frequency anomalies. The system implements real-time signal processing, machine learning-driven anomaly detection, and comprehensive data visualization capabilities.
+
+### Core Objectives
+
+1. **Real-time WebSDR Integration**: Continuous monitoring of 7+ European WebSDR stations
+2. **Intelligent Signal Processing**: Advanced DSP algorithms for signal characterization
+3. **ML-Driven Anomaly Detection**: Predictive models for unusual radio activity
+4. **Comprehensive Visualization**: Interactive dashboards and real-time monitoring
+5. **Scalable Architecture**: Microservices-based design supporting horizontal scaling
+
+## System Architecture
+
+### High-Level Components
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │   API Gateway   │    │   WebSDR        │
+│   (React/Next)  │◄──►│   (FastAPI)     │◄──►│   Collectors    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Database      │    │   Message       │    │   ML Pipeline   │
+│   (PostgreSQL)  │◄──►│   Queue         │◄──►│   (MLflow)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Object Store  │    │   Cache Layer   │    │   Monitoring    │
+│   (MinIO)       │◄──►│   (Redis)       │◄──►│   (Prometheus)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### Service Architecture
+
+1. **websdr-collector**: WebSDR data acquisition service
+2. **signal-processor**: DSP and feature extraction service
+3. **ml-detector**: Anomaly detection and prediction service
+4. **api-gateway**: REST API and WebSocket gateway
+5. **frontend**: React-based user interface
+6. **scheduler**: Task orchestration and job scheduling
+
+### Technology Stack
+
+- **Backend**: Python 3.11+, FastAPI, asyncio, numpy/scipy
+- **Frontend**: React 18, Next.js 14, TypeScript, TailwindCSS
+- **Database**: PostgreSQL 15+, SQLAlchemy, Alembic
+- **Message Queue**: RabbitMQ with Celery
+- **ML Platform**: MLflow, scikit-learn, TensorFlow/PyTorch
+- **Caching**: Redis 7+
+- **Storage**: MinIO (S3-compatible)
+- **Monitoring**: Prometheus, Grafana
+- **Deployment**: Docker, Kubernetes, Helm
+
+## Development Phases
+
+### Phase 0: Repository Setup ✅
+- Repository structure and scaffolding
+- CI/CD pipeline foundation
+- Documentation framework
+- Development environment configuration
+
+### Phase 1: Core Infrastructure (Week 1-2)
+- WebSDR collector service implementation
+- Database schema and migrations
+- Message queue integration
+- Basic API endpoints
+
+### Phase 2: Signal Processing (Week 3-4)
+- DSP pipeline development
+- Feature extraction algorithms
+- Real-time processing capabilities
+- Data validation and quality checks
+
+### Phase 3: ML Pipeline (Week 5-6)
+- Anomaly detection models
+- Training pipeline setup
+- Model versioning and deployment
+- Performance monitoring
+
+### Phase 4: Frontend Development (Week 7-8)
+- React application structure
+- Real-time dashboard components
+- Data visualization libraries
+- User interface implementation
+
+### Phase 5: Integration & Testing (Week 9-10)
+- End-to-end integration
+- Performance optimization
+- Security hardening
+- Comprehensive testing
+
+### Phase 6: Deployment & Production (Week 11-12)
+- Kubernetes deployment
+- Production monitoring
+- Documentation completion
+- Community engagement
+
+## Coding Conventions
+
+### Python Code Standards
+
+1. **Code Style**: Follow PEP 8 with Black formatting
+2. **Type Hints**: Mandatory for all functions and methods
+3. **Docstrings**: Google-style docstrings for all public APIs
+4. **Error Handling**: Structured exception handling with custom exceptions
+5. **Async/Await**: Use asyncio for I/O-bound operations
+6. **Testing**: Minimum 90% code coverage with pytest
+
+```python
+# Example function structure
+async def process_signal_data(
+    websdr_data: WebSDRData,
+    frequency_range: FrequencyRange,
+    processing_config: ProcessingConfig
+) -> ProcessedSignal:
+    """Process raw WebSDR data through DSP pipeline.
+    
+    Args:
+        websdr_data: Raw signal data from WebSDR receiver
+        frequency_range: Target frequency band for processing
+        processing_config: DSP algorithm configuration
+        
+    Returns:
+        ProcessedSignal: Processed signal with extracted features
+        
+    Raises:
+        SignalProcessingError: If DSP pipeline fails
+        ValidationError: If input data is invalid
+    """
+    try:
+        # Implementation here
+        pass
+    except Exception as e:
+        logger.error(f"Signal processing failed: {e}")
+        raise SignalProcessingError(f"Processing failed: {e}")
+```
+
+### TypeScript/React Standards
+
+1. **Components**: Functional components with TypeScript interfaces
+2. **State Management**: React Query for server state, Zustand for client state
+3. **Styling**: TailwindCSS with component-based organization
+4. **Testing**: React Testing Library with Jest
+5. **Performance**: Lazy loading and React.memo optimization
+
+```typescript
+// Example component structure
+interface SignalVisualizationProps {
+  signalData: SignalData[];
+  frequency: number;
+  onFrequencyChange: (freq: number) => void;
+}
+
+export const SignalVisualization: React.FC<SignalVisualizationProps> = ({
+  signalData,
+  frequency,
+  onFrequencyChange
+}) => {
+  // Component implementation
+};
+```
+
+### Database Conventions
+
+1. **Naming**: snake_case for tables and columns
+2. **Primary Keys**: Use UUIDs for distributed systems
+3. **Timestamps**: Include created_at and updated_at for all tables
+4. **Indexes**: Strategic indexing for query performance
+5. **Migrations**: Alembic for schema versioning
+
+```sql
+-- Example table structure
+CREATE TABLE signal_detections (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    websdr_station_id UUID NOT NULL REFERENCES websdr_stations(id),
+    frequency_hz BIGINT NOT NULL,
+    signal_strength_db FLOAT NOT NULL,
+    anomaly_score FLOAT,
+    detection_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_signal_detections_frequency ON signal_detections(frequency_hz);
+CREATE INDEX idx_signal_detections_timestamp ON signal_detections(detection_timestamp);
+```
+
+## WebSDR Integration
+
+### Supported Receivers
+
+The system integrates with 7 European WebSDR stations:
+
+1. **University of Twente, Netherlands**
+   - URL: http://websdr.ewi.utwente.nl:8901/
+   - Coverage: 0-29 MHz, Western Europe
+   - API: HTTP streaming with frequency selection
+
+2. **Hack Green, UK**
+   - URL: http://hackgreensdr.org:8073/
+   - Coverage: 0-30 MHz, British Isles
+   - API: WebSocket-based real-time streaming
+
+3. **Bratislava, Slovakia**
+   - URL: http://websdr.ok2kkw.com:8073/
+   - Coverage: 0-30 MHz, Central Europe
+   - API: HTTP polling with JSON responses
+
+4. **Doorn, Netherlands**
+   - URL: http://websdr.pa3weg.nl:8073/
+   - Coverage: 0-180 MHz, Netherlands
+   - API: RESTful endpoints with authentication
+
+5. **Graz University, Austria**
+   - URL: http://oe3xec.oevsv.at:8073/
+   - Coverage: 0-30 MHz, Alpine region
+   - API: WebSocket streaming with metadata
+
+6. **Linkoping University, Sweden**
+   - URL: http://websdr.sm3ulc.se:8073/
+   - Coverage: 0-30 MHz, Scandinavia
+   - API: HTTP streaming with real-time updates
+
+7. **Enschede, Netherlands**
+   - URL: http://websdr.org:8901/
+   - Coverage: 0-29 MHz, Netherlands
+   - API: Legacy HTTP interface with polling
+
+### Data Collection Strategy
+
+1. **Frequency Scanning**: Systematic sweeps across HF/VHF bands
+2. **Real-time Monitoring**: Continuous monitoring of key frequencies
+3. **Event-Driven Collection**: Triggered collection based on signal thresholds
+4. **Metadata Enrichment**: Geographic, temporal, and technical annotations
+
+## Machine Learning Pipeline
+
+### Anomaly Detection Models
+
+1. **Isolation Forest**: Unsupervised outlier detection
+2. **LSTM Networks**: Temporal pattern recognition
+3. **Variational Autoencoders**: Signal reconstruction-based detection
+4. **Ensemble Methods**: Combination of multiple detection algorithms
+
+### Feature Engineering
+
+1. **Spectral Features**: FFT, spectrogram analysis, peak detection
+2. **Temporal Features**: Signal duration, periodicity, trend analysis
+3. **Statistical Features**: Mean, variance, skewness, kurtosis
+4. **Geometric Features**: Signal envelope, rise/fall times
+
+### Model Training Pipeline
+
+```python
+# Example training pipeline structure
+@pipeline
+def train_anomaly_detection_model(
+    training_data: Dataset,
+    model_config: ModelConfig
+) -> TrainedModel:
+    """Train anomaly detection model with cross-validation."""
+    
+    # Data preprocessing
+    processed_data = preprocess_signal_data(training_data)
+    
+    # Feature extraction
+    features = extract_signal_features(processed_data)
+    
+    # Model training
+    model = train_isolation_forest(features, model_config)
+    
+    # Validation
+    metrics = validate_model(model, features)
+    
+    # Model registration
+    registered_model = register_model(model, metrics)
+    
+    return registered_model
+```
+
+## API Design Patterns
+
+### RESTful Endpoints
+
+```python
+# Example API structure
+@app.get("/api/v1/signals/detections")
+async def get_signal_detections(
+    frequency_min: int = Query(..., description="Minimum frequency in Hz"),
+    frequency_max: int = Query(..., description="Maximum frequency in Hz"),
+    time_start: datetime = Query(..., description="Start time for query"),
+    time_end: datetime = Query(..., description="End time for query"),
+    websdr_station: Optional[str] = Query(None, description="Filter by station"),
+    anomaly_threshold: Optional[float] = Query(None, description="Anomaly score threshold")
+) -> List[SignalDetection]:
+    """Retrieve signal detections within specified parameters."""
+    pass
+
+@app.post("/api/v1/signals/analyze")
+async def analyze_signal(
+    signal_data: SignalAnalysisRequest
+) -> SignalAnalysisResponse:
+    """Analyze uploaded signal data for anomalies."""
+    pass
+```
+
+### WebSocket Events
+
+```python
+# Real-time event streaming
+@app.websocket("/ws/signals/live")
+async def websocket_live_signals(websocket: WebSocket):
+    """Stream live signal detections to connected clients."""
+    await websocket.accept()
+    
+    try:
+        while True:
+            # Get latest signals
+            signals = await get_latest_signals()
+            
+            # Send to client
+            await websocket.send_json({
+                "type": "signal_update",
+                "data": signals,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            await asyncio.sleep(1)
+    except WebSocketDisconnect:
+        logger.info("Client disconnected from live signals stream")
+```
+
+## Testing Strategy
+
+### Unit Testing
+
+1. **Coverage Target**: Minimum 90% code coverage
+2. **Test Structure**: Arrange-Act-Assert pattern
+3. **Mocking**: External services and dependencies
+4. **Fixtures**: Reusable test data and configurations
+
+```python
+# Example test structure
+@pytest.fixture
+def mock_websdr_data():
+    """Generate mock WebSDR data for testing."""
+    return WebSDRData(
+        frequency_hz=14235000,
+        signal_strength_db=-73.5,
+        timestamp=datetime.utcnow(),
+        station_id="twente-nl"
+    )
+
+async def test_signal_processing_pipeline(mock_websdr_data):
+    """Test complete signal processing pipeline."""
+    # Arrange
+    processor = SignalProcessor(config=test_config)
+    
+    # Act
+    result = await processor.process(mock_websdr_data)
+    
+    # Assert
+    assert result.anomaly_score is not None
+    assert 0 <= result.anomaly_score <= 1
+    assert result.features is not None
+```
+
+### Integration Testing
+
+1. **Database Integration**: Test with real PostgreSQL instance
+2. **Message Queue**: Test RabbitMQ message handling
+3. **API Testing**: Full request/response cycle testing
+4. **WebSDR Integration**: Mock external WebSDR services
+
+### Performance Testing
+
+1. **Load Testing**: Simulate high-volume data ingestion
+2. **Stress Testing**: Test system limits and recovery
+3. **Memory Profiling**: Monitor memory usage patterns
+4. **Latency Testing**: Measure real-time processing delays
+
+## Security Considerations
+
+### Authentication & Authorization
+
+1. **JWT Tokens**: Stateless authentication with refresh tokens
+2. **Role-Based Access**: Admin, operator, and read-only roles
+3. **API Rate Limiting**: Prevent abuse and ensure fair usage
+4. **Input Validation**: Comprehensive data sanitization
+
+### Data Protection
+
+1. **Encryption**: At-rest and in-transit encryption
+2. **Sensitive Data**: Secure handling of configuration secrets
+3. **Audit Logging**: Track all system access and modifications
+4. **Backup Security**: Encrypted backup storage
+
+## Monitoring & Observability
+
+### Application Metrics
+
+1. **Signal Processing**: Throughput, latency, error rates
+2. **ML Model Performance**: Accuracy, precision, recall
+3. **WebSDR Connectivity**: Uptime, response times, errors
+4. **System Resources**: CPU, memory, disk, network usage
+
+### Logging Strategy
+
+```python
+# Example logging configuration
+import structlog
+
+logger = structlog.get_logger()
+
+async def process_websdr_signal(signal_data: WebSDRData):
+    """Process WebSDR signal with comprehensive logging."""
+    
+    logger.info(
+        "Processing WebSDR signal",
+        station_id=signal_data.station_id,
+        frequency_hz=signal_data.frequency_hz,
+        signal_strength_db=signal_data.signal_strength_db
+    )
+    
+    try:
+        result = await signal_processor.process(signal_data)
+        
+        logger.info(
+            "Signal processing completed",
+            anomaly_score=result.anomaly_score,
+            processing_time_ms=result.processing_time_ms
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(
+            "Signal processing failed",
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        raise
+```
+
+## Deployment Guidelines
+
+### Development Environment
+
+1. **Docker Compose**: Local development stack
+2. **Hot Reload**: Automatic code reloading
+3. **Debug Configuration**: IDE integration and breakpoints
+4. **Test Data**: Realistic sample datasets
+
+### Production Deployment
+
+1. **Kubernetes**: Container orchestration
+2. **Helm Charts**: Application deployment templates
+3. **Rolling Updates**: Zero-downtime deployments
+4. **Health Checks**: Readiness and liveness probes
+
+### Environment Configuration
+
+```yaml
+# Example Kubernetes deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: heimdall-signal-processor
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: heimdall-signal-processor
+  template:
+    metadata:
+      labels:
+        app: heimdall-signal-processor
+    spec:
+      containers:
+      - name: signal-processor
+        image: ghcr.io/fulgidus/heimdall-signal-processor:latest
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: heimdall-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: heimdall-config
+              key: redis-url
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+```
+
+## Troubleshooting Guide
+
+### Common Issues
+
+1. **WebSDR Connection Failures**
+   - Check network connectivity and firewall rules
+   - Verify WebSDR station availability
+   - Monitor rate limiting and timeout settings
+
+2. **High Memory Usage**
+   - Review signal buffer sizes
+   - Check for memory leaks in processing pipeline
+   - Monitor garbage collection patterns
+
+3. **ML Model Performance Degradation**
+   - Retrain models with recent data
+   - Adjust hyperparameters based on new patterns
+   - Monitor data drift and model decay
+
+### Debugging Tools
+
+1. **Performance Profiling**: cProfile, memory_profiler
+2. **Database Queries**: Query analysis and optimization
+3. **Network Monitoring**: Request tracing and latency analysis
+4. **Log Analysis**: Structured logging with correlation IDs
+
+### Support Resources
+
+1. **Documentation**: Comprehensive API and deployment docs
+2. **Community**: GitHub Discussions and issue tracking
+3. **Monitoring**: Grafana dashboards and alert rules
+4. **Runbooks**: Step-by-step incident response procedures
+
+---
+
+**Last Updated**: December 2024  
+**Version**: 1.0  
+**Maintainer**: fulgidus  
+**License**: CC Non-Commercial
