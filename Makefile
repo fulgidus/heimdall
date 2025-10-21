@@ -7,24 +7,72 @@
 help:
 	@echo "Heimdall SDR Development Commands:"
 	@echo ""
-	@echo "  dev-up          Start development environment (docker-compose)"
-	@echo "  dev-down        Stop development environment"
-	@echo "  test            Run all tests with coverage"
-	@echo "  lint            Run code linting (Black + Ruff)"
-	@echo "  format          Auto-format all Python code"
-	@echo "  build-docker    Build all Docker images"
-	@echo "  db-migrate      Run database migrations"
-	@echo "  clean           Clean up generated files and containers"
+	@echo "  INFRASTRUCTURE (Phase 1):"
+	@echo "    dev-up                Start development environment"
+	@echo "    dev-down              Stop development environment"
+	@echo "    infra-status          Show docker-compose status"
+	@echo "    health-check          Run health check script"
+	@echo "    postgres-connect      Connect to PostgreSQL CLI"
+	@echo "    redis-cli             Connect to Redis CLI"
+	@echo ""
+	@echo "  UI DASHBOARDS:"
+	@echo "    rabbitmq-ui           Open RabbitMQ management UI"
+	@echo "    minio-ui              Open MinIO console"
+	@echo "    grafana-ui            Open Grafana dashboards"
+	@echo "    prometheus-ui         Open Prometheus metrics"
+	@echo ""
+	@echo "  DEVELOPMENT:"
+	@echo "    test                  Run all tests"
+	@echo "    lint                  Run code linting"
+	@echo "    format                Auto-format code"
+	@echo "    db-migrate            Run database migrations"
+	@echo ""
+	@echo "  MAINTENANCE:"
+	@echo "    clean                 Clean all generated files"
+	@echo "    setup                 Initial setup"
 	@echo ""
 
 # Development Environment
 dev-up:
 	docker-compose up -d
-	@echo "Development environment started. Check status with: docker-compose ps"
+	@echo "Development environment started. Waiting for services to be healthy..."
+	@timeout /t 10 /nobreak
+	docker-compose ps
 
 dev-down:
 	docker-compose down
 	@echo "Development environment stopped."
+
+dev-logs:
+	docker-compose logs -f
+
+# Infrastructure Operations (Phase 1)
+infra-status:
+	docker-compose ps
+
+infra-logs:
+	docker-compose logs -f
+
+postgres-connect:
+	docker-compose exec postgres psql -U heimdall_user -d heimdall
+
+postgres-cli:
+	docker-compose exec postgres bash
+
+redis-cli:
+	docker-compose exec redis redis-cli -a changeme
+
+rabbitmq-ui:
+	@echo "RabbitMQ UI: http://localhost:15672 (guest/guest)"
+
+minio-ui:
+	@echo "MinIO UI: http://localhost:9001 (minioadmin/minioadmin)"
+
+grafana-ui:
+	@echo "Grafana UI: http://localhost:3000 (admin/admin)"
+
+prometheus-ui:
+	@echo "Prometheus UI: http://localhost:9090"
 
 # Testing
 test:
@@ -86,7 +134,19 @@ clean:
 # Health Checks
 health-check:
 	@echo "Checking service health..."
-	@python scripts/health-check-all.py
+	python scripts/health-check.py
+
+health-check-postgres:
+	docker-compose exec postgres pg_isready -U heimdall_user
+
+health-check-rabbitmq:
+	docker-compose exec rabbitmq rabbitmq-diagnostics -q ping
+
+health-check-redis:
+	docker-compose exec redis redis-cli -a changeme ping
+
+health-check-minio:
+	@curl -f http://localhost:9000/minio/health/live || echo "MinIO health check failed"
 
 # Quick setup for new developers
 setup:

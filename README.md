@@ -50,7 +50,33 @@ The system processes IQ data from WebSDR receivers, extracts mel-spectrograms fo
 
 ## Development Status
 
-Currently in development phase.
+**Phase 1: Infrastructure & Database** 🟡 IN PROGRESS
+
+- ✅ Phase 0: Repository Setup (Complete)
+- 🟡 Phase 1: Infrastructure & Database (In Progress)
+  - Docker Compose infrastructure with PostgreSQL, RabbitMQ, Redis, MinIO
+  - TimescaleDB for time-series optimization
+  - Prometheus + Grafana monitoring stack
+  - [Full Phase 1 Guide →](PHASE1_GUIDE.md)
+
+### Quick Start
+
+```bash
+# Clone repository
+git clone https://github.com/fulgidus/heimdall.git
+cd heimdall
+
+# Setup environment
+copy .env.example .env
+
+# Start infrastructure (requires Docker)
+docker-compose up -d
+
+# Verify services
+make health-check
+```
+
+See [PHASE1_GUIDE.md](PHASE1_GUIDE.md) for detailed setup instructions.
 
 ## License
 

@@ -307,9 +307,14 @@ docker-compose up -d  # Ready for Phase 1
 
 **Duration**: 2 days  
 **Assignee**: Agent-Infrastructure (typically fulgidus)  
-**Status**: 🔴 NOT STARTED  
+**Status**: 🟡 IN PROGRESS  
 **Depends On**: Phase 0 ✅  
 **Critical Path**: YES
+
+**📋 Tracking**:
+- [Phase 1 Guide](PHASE1_GUIDE.md) - Setup instructions
+- [Phase 1 Status Report](PHASE1_STATUS.md) - Detailed status
+- [Phase 1 Checklist](PHASE1_CHECKLIST.md) - Task tracking
 
 ### Objective
 
@@ -317,54 +322,40 @@ Setup all infrastructure components (databases, message queue, caching, object s
 
 ### Tasks
 
-- **T1.1**: Create `docker-compose.yml` with services:
-  - PostgreSQL 15 + TimescaleDB extension
-  - RabbitMQ 3.12 (with management UI)
-  - Redis 7 (caching layer)
-  - MinIO (S3-compatible object storage)
-  - pgAdmin (database UI)
-  - Prometheus + Grafana (monitoring)
-  - Network: `heimdall-network`
+- [x] **T1.1**: Create `docker-compose.yml` with services:
+  - PostgreSQL 15 + TimescaleDB extension ✅
+  - RabbitMQ 3.12 (with management UI) ✅
+  - Redis 7 (caching layer) ✅
+  - MinIO (S3-compatible object storage) ✅
+  - pgAdmin (database UI) ✅
+  - Prometheus + Grafana (monitoring) ✅
+  - Network: `heimdall-network` ✅
 
-- **T1.2**: Create `docker-compose.prod.yml` with persistent volumes, resource limits, health checks and logging configuration.
+- [ ] **T1.2**: Create `docker-compose.prod.yml` with persistent volumes, resource limits, health checks and logging configuration.
 
-- **T1.3**: Setup PostgreSQL
-  - Create `db/init-postgres.sql` (schema initialization)
-  - Configure TimescaleDB extension
-  - Create `heimdall` database and `heimdall_user`
+- [x] **T1.3**: Setup PostgreSQL
+  - Create `db/init-postgres.sql` (schema initialization) ✅
+  - Configure TimescaleDB extension ✅
+  - Create `heimdall` database and `heimdall_user` ✅
 
-- **T1.4**: Create Alembic migration framework
+- [ ] **T1.4**: Create Alembic migration framework
 
-Project structure:
+- [ ] **T1.5**: Design and create database schema (tables: `known_sources`, `measurements`, `training_datasets`, `models`). ✅ (Schema already created in init-postgres.sql)
 
-```
-db/
-├── alembic.ini
-└── migrations/
-    ├── versions/
-    │   ├── 001_init_schema.py
-    │   └── 002_timescaledb_hypertables.py
-    └── env.py
-```
-
-- **T1.5**: Design and create database schema (tables: `known_sources`, `measurements`, `training_datasets`, `models`).
-
-Schema examples (SQL omitted for brevity).
-
-- **T1.6**: Setup MinIO (S3-compatible storage)
-  - Create buckets: `heimdall-raw-iq`, `heimdall-models`, `heimdall-mlflow`
+- [ ] **T1.6**: Setup MinIO (S3-compatible storage)
+  - Create buckets: `heimdall-raw-iq`, `heimdall-models`, `heimdall-mlflow` ✅ (Auto-created via minio-init service)
   - Configure access keys and test upload/download
 
-- **T1.7**: Configure RabbitMQ
-  - Create vhosts: `/`, `/production`
-  - Create users: `guest` (dev), `app-user` (prod)
+- [x] **T1.7**: Configure RabbitMQ
+  - Create `db/rabbitmq.conf` ✅
+  - Create vhosts and users (to be done on first startup)
   - Configure exchanges and queues for acquisition and training
 
-- **T1.8**: Setup Redis for caching and Celery result backend; add Redis Commander for debug
+- [ ] **T1.8**: Setup Redis for caching and Celery result backend; add Redis Commander for debug ✅ (Redis Commander included in docker-compose)
 
-- **T1.9**: Create health check scripts: `scripts/health-check-postgres.py`, `scripts/health-check-rabbitmq.py`, etc.
+- [x] **T1.9**: Create health check scripts: `scripts/health-check.py` ✅
 
-- **T1.10**: Setup Prometheus monitoring with exporters for PostgreSQL, RabbitMQ, Redis
+- [x] **T1.10**: Setup Prometheus monitoring with `db/prometheus.yml` ✅
 
 ### Checkpoints
 
