@@ -61,12 +61,17 @@ const Dashboard: React.FC = () => {
         navigate('/login');
     };
 
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
     const menuItems = [
-        { icon: Home, label: 'Dashboard', active: true },
-        { icon: MapPin, label: 'Localization', active: false },
-        { icon: Radio, label: 'WebSDR', active: false },
-        { icon: ActivitySquare, label: 'Activity', active: false },
-        { icon: BarChart3, label: 'Analytics', active: false },
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: true },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
+        { icon: Radio, label: 'WebSDR', path: '/websdrs', active: false },
+        { icon: ActivitySquare, label: 'Activity', path: '/history', active: false },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
     ];
 
     const stats: StatCard[] = [
@@ -163,12 +168,13 @@ const Dashboard: React.FC = () => {
                     {menuItems.map((item, idx) => (
                         <button
                             key={idx}
+                            onClick={() => handleNavigation(item.path)}
                             className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${item.active
                                 ? 'bg-slate-700 text-white'
                                 : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
                                 }`}
                         >
-                            <item.icon className="w-5 h-5 flex-shrink-0" />
+                            <item.icon className="w-5 h-5 shrink-0" />
                             <span className="whitespace-nowrap">{item.label}</span>
                         </button>
                     ))}

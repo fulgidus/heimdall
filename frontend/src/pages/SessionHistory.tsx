@@ -1,0 +1,460 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    LogOut,
+    Home,
+    MapPin,
+    Radio,
+    BarChart3,
+    Zap,
+    Radar,
+    Menu,
+    X,
+    Eye,
+    Check,
+    Trash2,
+    Download,
+    Filter,
+} from 'lucide-react';
+import { useAuthStore } from '../store';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface RecordingData {
+    id: string;
+    name: string;
+    frequency: string;
+    date: string;
+    duration: string;
+    receivers: number;
+    status: 'completed' | 'failed' | 'pending_approval';
+    accuracy?: string;
+    quality: 'high' | 'medium' | 'low';
+}
+
+export const SessionHistory: React.FC = () => {
+    const navigate = useNavigate();
+    const { logout } = useAuthStore();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sessions] = useState<RecordingData[]>([
+        {
+            id: '1',
+            name: 'Session Alpha - 2m Band',
+            frequency: '145.500 MHz',
+            date: '2025-10-22 14:30',
+            duration: '15 min',
+            receivers: 7,
+            status: 'completed',
+            accuracy: '±28.5m',
+            quality: 'high',
+        },
+        {
+            id: '2',
+            name: 'Session Beta - 70cm Band',
+            frequency: '432.500 MHz',
+            date: '2025-10-21 16:45',
+            duration: '20 min',
+            receivers: 6,
+            status: 'pending_approval',
+            accuracy: '±32.1m',
+            quality: 'medium',
+        },
+        {
+            id: '3',
+            name: 'Session Gamma - 2m Band',
+            frequency: '145.100 MHz',
+            date: '2025-10-20 10:15',
+            duration: '12 min',
+            receivers: 7,
+            status: 'completed',
+            accuracy: '±26.3m',
+            quality: 'high',
+        },
+        {
+            id: '4',
+            name: 'Session Delta - 70cm Band',
+            frequency: '432.100 MHz',
+            date: '2025-10-19 08:30',
+            duration: '18 min',
+            receivers: 5,
+            status: 'failed',
+            quality: 'low',
+        },
+        {
+            id: '5',
+            name: 'Session Epsilon - 2m Band',
+            frequency: '145.750 MHz',
+            date: '2025-10-18 15:00',
+            duration: '25 min',
+            receivers: 7,
+            status: 'completed',
+            accuracy: '±29.8m',
+            quality: 'high',
+        },
+    ]);
+
+    const filteredSessions = sessions.filter((session) => {
+        const matchesStatus = filterStatus === 'all' || session.status === filterStatus;
+        const matchesSearch =
+            searchTerm === '' ||
+            session.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            session.frequency.includes(searchTerm);
+        return matchesStatus && matchesSearch;
+    });
+
+    const stats = {
+        total: sessions.length,
+        completed: sessions.filter((s) => s.status === 'completed').length,
+        pending: sessions.filter((s) => s.status === 'pending_approval').length,
+        failed: sessions.filter((s) => s.status === 'failed').length,
+        avgAccuracy:
+            (
+                sessions
+                    .filter((s) => s.accuracy)
+                    .reduce((sum, s) => sum + parseFloat(s.accuracy || '0'), 0) /
+                sessions.filter((s) => s.accuracy).length
+            ).toFixed(1) + 'm',
+    };
+
+    const menuItems = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
+        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: true },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
+        { icon: Zap, label: 'Settings', path: '/settings', active: false },
+    ];
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
+    const getStatusBadge = (status: RecordingData['status']) => {
+        switch (status) {
+            case 'completed':
+                return 'bg-green-500/20 text-green-400 border-green-500/50';
+            case 'pending_approval':
+                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
+            case 'failed':
+                return 'bg-red-500/20 text-red-400 border-red-500/50';
+        }
+    };
+
+    const getStatusLabel = (status: RecordingData['status']) => {
+        switch (status) {
+            case 'completed':
+                return '✓ Completed';
+            case 'pending_approval':
+                return '⏳ Pending';
+            case 'failed':
+                return '✗ Failed';
+        }
+    };
+
+    const getQualityColor = (quality: RecordingData['quality']) => {
+        switch (quality) {
+            case 'high':
+                return 'text-green-400';
+            case 'medium':
+                return 'text-yellow-400';
+            case 'low':
+                return 'text-red-400';
+        }
+    };
+
+    return (
+        <div className="flex h-screen w-screen bg-slate-950">
+            {/* Sidebar */}
+            <aside
+                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
+                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
+                transition-all duration-300 overflow-hidden flex flex-col`}
+            >
+                {/* Logo Section */}
+                <div className="p-6 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <Radar className="w-8 h-8 text-purple-500" />
+                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
+                    </div>
+                </div>
+
+                {/* Menu Items */}
+                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
+                    {menuItems.map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleNavigation(item.path)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
+                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* User Section */}
+                <div className="p-4 border-t border-slate-800">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
+                                    AD
+                                </div>
+                                <span className="ml-2 text-sm">admin</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
+                                Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
+                                Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto flex flex-col">
+                {/* Header */}
+                <header className="bg-slate-900 border-b border-slate-800 p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
+                            <h1 className="text-3xl font-bold text-white">Session History & Analysis</h1>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="space-y-6 max-w-7xl mx-auto">
+                        {/* Analytics Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-6">
+                                    <p className="text-slate-400 text-sm">Total Sessions</p>
+                                    <p className="text-3xl font-bold text-white mt-2">{stats.total}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-6">
+                                    <p className="text-slate-400 text-sm">Completed</p>
+                                    <p className="text-3xl font-bold text-green-400 mt-2">{stats.completed}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-6">
+                                    <p className="text-slate-400 text-sm">Pending Approval</p>
+                                    <p className="text-3xl font-bold text-yellow-400 mt-2">{stats.pending}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-6">
+                                    <p className="text-slate-400 text-sm">Avg Accuracy</p>
+                                    <p className="text-3xl font-bold text-cyan-400 mt-2">{stats.avgAccuracy}</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Filters */}
+                        <Card className="bg-slate-900 border-slate-800">
+                            <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-end">
+                                <div className="flex-1">
+                                    <label className="text-sm text-slate-400 mb-2 block">Search</label>
+                                    <Input
+                                        placeholder="Search by name or frequency..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="bg-slate-800 border-slate-700"
+                                    />
+                                </div>
+                                <div className="flex gap-2">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className="border-slate-700"
+                                            >
+                                                <Filter className="w-4 h-4 mr-2" />
+                                                Status
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onClick={() => setFilterStatus('all')}>
+                                                All Sessions
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setFilterStatus('completed')}>
+                                                Completed
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setFilterStatus('pending_approval')}>
+                                                Pending Approval
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setFilterStatus('failed')}>
+                                                Failed
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Sessions Table */}
+                        <Card className="bg-slate-900 border-slate-800">
+                            <CardHeader>
+                                <CardTitle className="text-white">Recorded Sessions</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="border-b border-slate-700">
+                                            <tr>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Session Name
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Date/Time
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Duration
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Receivers
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Status
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Quality
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Accuracy
+                                                </th>
+                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                    Actions
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-800">
+                                            {filteredSessions.map((session) => (
+                                                <tr key={session.id} className="hover:bg-slate-800/50 transition">
+                                                    <td className="py-3 px-4">
+                                                        <div>
+                                                            <p className="text-white font-medium">{session.name}</p>
+                                                            <p className="text-slate-400 text-xs">
+                                                                {session.frequency}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-slate-300">{session.date}</td>
+                                                    <td className="py-3 px-4 text-slate-300">{session.duration}</td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="bg-cyan-500/20 text-cyan-400 px-2 py-1 rounded text-xs font-bold">
+                                                            {session.receivers}/7
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span
+                                                            className={`px-2 py-1 rounded text-xs font-bold border ${getStatusBadge(
+                                                                session.status
+                                                            )}`}
+                                                        >
+                                                            {getStatusLabel(session.status)}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`font-bold text-sm ${getQualityColor(session.quality)}`}>
+                                                            {session.quality.toUpperCase()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <span className="text-cyan-400 font-semibold">
+                                                            {session.accuracy || '—'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="border-slate-700"
+                                                            >
+                                                                <Eye className="w-4 h-4" />
+                                                            </Button>
+                                                            {session.status === 'pending_approval' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-green-700 text-green-400"
+                                                                >
+                                                                    <Check className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="border-slate-700"
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="border-red-700 text-red-400"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default SessionHistory;

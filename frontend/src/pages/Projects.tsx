@@ -1,149 +1,336 @@
-import React from 'react';
-import { Card, MainLayout, Button } from '../components';
-import { Plus, Edit2, Trash2, GitBranch, Calendar } from 'lucide-react';
+'use client';
 
-const Projects: React.FC = () => {
-    const projects = [
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    LogOut,
+    Home,
+    MapPin,
+    Radio,
+    BarChart3,
+    Zap,
+    Radar,
+    Menu,
+    X,
+    Plus,
+    Play,
+    Square,
+    Trash2,
+    Clock,
+} from 'lucide-react';
+import { useAuthStore } from '../store';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface RecordingSession {
+    id: string;
+    name: string;
+    frequency: string;
+    status: 'idle' | 'running' | 'completed';
+    startTime: string;
+    duration: string;
+    receivers: number;
+}
+
+export const Projects: React.FC = () => {
+    const navigate = useNavigate();
+    const { logout } = useAuthStore();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sessions] = useState<RecordingSession[]>([
         {
-            id: 1,
-            name: 'Heimdall Core',
-            description: 'Main platform infrastructure and analytics engine',
-            status: 'active',
-            progress: 87,
-            team: 5,
-            updated: '2 days ago',
-        },
-        {
-            id: 2,
-            name: 'Mobile App',
-            description: 'React Native mobile application for iOS and Android',
-            status: 'active',
-            progress: 64,
-            team: 3,
-            updated: '5 days ago',
-        },
-        {
-            id: 3,
-            name: 'Dashboard UI Redesign',
-            description: 'Modern dashboard with improved UX and accessibility',
-            status: 'planning',
-            progress: 32,
-            team: 4,
-            updated: '1 week ago',
-        },
-        {
-            id: 4,
-            name: 'API Documentation',
-            description: 'Comprehensive API documentation and SDKs',
+            id: '1',
+            name: 'Session Alpha - 2m Band',
+            frequency: '145.500 MHz',
             status: 'completed',
-            progress: 100,
-            team: 2,
-            updated: '2 weeks ago',
+            startTime: '2025-10-22 14:30',
+            duration: '15 min',
+            receivers: 7,
         },
+        {
+            id: '2',
+            name: 'Session Beta - 70cm Band',
+            frequency: '432.500 MHz',
+            status: 'running',
+            startTime: '2025-10-22 15:45',
+            duration: 'in progress',
+            receivers: 7,
+        },
+        {
+            id: '3',
+            name: 'Session Gamma - 2m Band',
+            frequency: '145.100 MHz',
+            status: 'idle',
+            startTime: '---',
+            duration: '0 min',
+            receivers: 0,
+        },
+    ]);
+
+    const menuItems = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
+        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: true },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
+        { icon: Zap, label: 'Settings', path: '/settings', active: false },
     ];
 
-    const statusColors: Record<string, string> = {
-        active: 'text-light-green',
-        planning: 'text-neon-blue',
-        completed: 'text-sea-green',
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
     };
 
-    const statusBgs: Record<string, string> = {
-        active: 'bg-light-green',
-        planning: 'bg-neon-blue',
-        completed: 'bg-sea-green',
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
+    const getStatusColor = (status: RecordingSession['status']) => {
+        switch (status) {
+            case 'running':
+                return 'bg-green-500/20 text-green-400 border-green-500/50';
+            case 'completed':
+                return 'bg-blue-500/20 text-blue-400 border-blue-500/50';
+            default:
+                return 'bg-slate-700/20 text-slate-400 border-slate-700/50';
+        }
     };
 
     return (
-        <MainLayout title="Projects">
-            <div className="space-y-8">
-                {/* Header */}
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-right mb-2">
-                            Projects 📁
-                        </h1>
-                        <p className="text-french-gray">Manage and track all your projects</p>
+        <div className="flex h-screen w-screen bg-slate-950">
+            {/* Sidebar */}
+            <aside
+                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
+                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
+                transition-all duration-300 overflow-hidden flex flex-col`}
+            >
+                {/* Logo Section */}
+                <div className="p-6 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <Radar className="w-8 h-8 text-purple-500" />
+                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
                     </div>
-                    <Button variant="accent" className="flex items-center gap-2">
-                        <Plus size={20} />
-                        New Project
-                    </Button>
                 </div>
 
-                {/* Projects Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {projects.map((project) => (
-                        <Card key={project.id} variant="elevated" className="hover:shadow-2xl transition-all duration-200 cursor-pointer">
-                            <div className="mb-4 flex items-start justify-between">
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-white mb-1">{project.name}</h3>
-                                    <p className="text-sm text-french-gray">{project.description}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button className="p-2 hover:bg-sea-green hover:bg-opacity-20 rounded transition-colors">
-                                        <Edit2 size={18} className="text-neon-blue" />
-                                    </button>
-                                    <button className="p-2 hover:bg-red-500 hover:bg-opacity-20 rounded transition-colors">
-                                        <Trash2 size={18} className="text-red-400" />
-                                    </button>
-                                </div>
-                            </div>
+                {/* Menu Items */}
+                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
+                    {menuItems.map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleNavigation(item.path)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
+                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
 
-                            {/* Progress Bar */}
-                            <div className="mb-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-french-gray">Progress</span>
-                                    <span className="text-sm font-semibold text-light-green">{project.progress}%</span>
+                {/* User Section */}
+                <div className="p-4 border-t border-slate-800">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
+                                    AD
                                 </div>
-                                <div className="w-full bg-oxford-blue rounded-full h-2 overflow-hidden border border-neon-blue border-opacity-20">
-                                    <div
-                                        className="bg-gradient-right h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${project.progress}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-
-                            {/* Metadata */}
-                            <div className="pt-4 border-t border-neon-blue border-opacity-20">
-                                <div className="flex items-center justify-between flex-wrap gap-3 text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <span className={`w-2 h-2 rounded-full ${statusBgs[project.status]}`}></span>
-                                        <span className={`capitalize font-semibold ${statusColors[project.status]}`}>
-                                            {project.status}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-french-gray">
-                                        <GitBranch size={16} />
-                                        <span>{project.team} members</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-french-gray">
-                                        <Calendar size={16} />
-                                        <span>{project.updated}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </Card>
-                    ))}
+                                <span className="ml-2 text-sm">admin</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
+                                Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
+                                Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
+            </aside>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <Card variant="elevated" className="text-center">
-                        <p className="text-3xl font-bold text-light-green mb-1">4</p>
-                        <p className="text-french-gray">Total Projects</p>
-                    </Card>
-                    <Card variant="elevated" className="text-center">
-                        <p className="text-3xl font-bold text-neon-blue mb-1">2</p>
-                        <p className="text-french-gray">Active Projects</p>
-                    </Card>
-                    <Card variant="elevated" className="text-center">
-                        <p className="text-3xl font-bold text-sea-green mb-1">1</p>
-                        <p className="text-french-gray">Completed</p>
-                    </Card>
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto flex flex-col">
+                {/* Header */}
+                <header className="bg-slate-900 border-b border-slate-800 p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
+                            <h1 className="text-3xl font-bold text-white">Recording Sessions</h1>
+                        </div>
+                        <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                            <Plus className="w-4 h-4 mr-2" />
+                            New Session
+                        </Button>
+                    </div>
+                </header>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="space-y-6">
+                        {/* Active Sessions */}
+                        <div className="mb-6">
+                            <h2 className="text-xl font-bold text-white mb-4">Active Session</h2>
+                            {sessions
+                                .filter((s) => s.status === 'running')
+                                .map((session) => (
+                                    <Card key={session.id} className="bg-slate-900 border-slate-800">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <h3 className="text-white font-bold text-lg">
+                                                        {session.name}
+                                                    </h3>
+                                                    <p className="text-slate-400 text-sm">
+                                                        {session.frequency} • {session.receivers} receivers
+                                                    </p>
+                                                    <div className="flex items-center gap-4 mt-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="w-4 h-4 text-cyan-500" />
+                                                            <span className="text-slate-300">
+                                                                Started: {session.startTime}
+                                                            </span>
+                                                        </div>
+                                                        <span
+                                                            className={`px-3 py-1 rounded text-sm font-bold border ${getStatusColor(
+                                                                session.status
+                                                            )}`}
+                                                        >
+                                                            {session.status.toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="border-slate-700"
+                                                    >
+                                                        <Square className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            {sessions.filter((s) => s.status === 'running').length === 0 && (
+                                <Card className="bg-slate-900 border-slate-800">
+                                    <CardContent className="p-6 text-center">
+                                        <p className="text-slate-400">No active sessions. Start a new session to begin recording.</p>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+
+                        {/* Completed Sessions */}
+                        <div className="mb-6">
+                            <h2 className="text-xl font-bold text-white mb-4">Recent Sessions</h2>
+                            <div className="space-y-3">
+                                {sessions
+                                    .filter((s) => s.status === 'completed')
+                                    .map((session) => (
+                                        <Card
+                                            key={session.id}
+                                            className="bg-slate-900 border-slate-800 hover:border-slate-700 cursor-pointer transition-colors"
+                                        >
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <h3 className="text-white font-semibold">
+                                                            {session.name}
+                                                        </h3>
+                                                        <div className="flex items-center gap-4 mt-2 text-sm text-slate-400">
+                                                            <span>{session.frequency}</span>
+                                                            <span>{session.receivers} receivers</span>
+                                                            <span>{session.duration}</span>
+                                                            <span>
+                                                                Completed: {session.startTime}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="border-slate-700"
+                                                        >
+                                                            <Play className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="border-slate-700 text-red-400 hover:text-red-300"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                            </div>
+                        </div>
+
+                        {/* Idle Sessions */}
+                        <div>
+                            <h2 className="text-xl font-bold text-white mb-4">Available Configurations</h2>
+                            <div className="space-y-3">
+                                {sessions
+                                    .filter((s) => s.status === 'idle')
+                                    .map((session) => (
+                                        <Card
+                                            key={session.id}
+                                            className="bg-slate-900 border-slate-800 hover:border-slate-700 cursor-pointer transition-colors"
+                                        >
+                                            <CardContent className="p-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h3 className="text-white font-semibold">
+                                                            {session.name}
+                                                        </h3>
+                                                        <p className="text-slate-400 text-sm mt-1">
+                                                            Frequency: {session.frequency}
+                                                        </p>
+                                                    </div>
+                                                    <Button className="bg-purple-600 hover:bg-purple-700">
+                                                        <Play className="w-4 h-4 mr-2" />
+                                                        Start
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </MainLayout>
+            </main>
+        </div>
     );
 };
 

@@ -1,5 +1,17 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Dashboard, Analytics, Settings, Projects, Profile, Login } from './pages';
+import {
+    Dashboard,
+    Analytics,
+    Settings,
+    Projects,
+    Profile,
+    Localization,
+    Login,
+    RecordingSession,
+    SessionHistory,
+    WebSDRManagement,
+    SystemStatus,
+} from './pages';
 import { useAuthStore } from './store';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import './index.css';
@@ -32,6 +44,16 @@ function App() {
                         <SidebarProvider>
                             <ProtectedRoute>
                                 <Dashboard />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/localization"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Localization />
                             </ProtectedRoute>
                         </SidebarProvider>
                     }
@@ -72,6 +94,46 @@ function App() {
                         <SidebarProvider>
                             <ProtectedRoute>
                                 <Profile />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/recording"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <RecordingSession />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/history"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <SessionHistory />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/websdrs"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <WebSDRManagement />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/system-status"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <SystemStatus />
                             </ProtectedRoute>
                         </SidebarProvider>
                     }
