@@ -476,7 +476,13 @@ def main(args):
     return results
 
 
-if __name__ == "__main__":
+def parse_arguments():
+    """
+    Parse command-line arguments for training pipeline.
+    
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
     parser = argparse.ArgumentParser(
         description="Heimdall RF Source Localization Training Pipeline"
     )
@@ -540,6 +546,9 @@ if __name__ == "__main__":
         help="MLflow run name (auto-generated if not provided)",
     )
     
-    args = parser.parse_args()
-    
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
     main(args)
