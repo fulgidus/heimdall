@@ -334,6 +334,16 @@ async def get_session_analytics():
         
         success_rate = (completed / total * 100) if total > 0 else 0.0
         
+        # Calculate average accuracy from inference results if available
+        accuracy_query = """
+            SELECT AVG(uncertainty_meters) as avg_accuracy
+            FROM heimdall.recording_sessions rs
+            WHERE rs.status = 'completed'
+        """
+        
+        accuracy_row = await conn.fetchrow(accuracy_query)
+        average_accuracy = accuracy_row["avg_accuracy"] if accuracy_row else None
+        
         return SessionAnalytics(
             total_sessions=total,
             completed_sessions=completed,
@@ -342,7 +352,7 @@ async def get_session_analytics():
             success_rate=success_rate,
             total_measurements=row["total_measurements"] or 0,
             average_duration_seconds=row["average_duration_seconds"],
-            average_accuracy_meters=None,  # TODO: Calculate from inference results
+            average_accuracy_meters=average_accuracy,
         )
 
 

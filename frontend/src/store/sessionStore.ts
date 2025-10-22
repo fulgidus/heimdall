@@ -9,7 +9,6 @@ import type {
     RecordingSession,
     RecordingSessionWithDetails,
     RecordingSessionCreate,
-    SessionListResponse,
     SessionAnalytics,
     KnownSource,
     KnownSourceCreate,

@@ -12,7 +12,6 @@ import {
     Radar,
     Menu,
     X,
-    Eye,
     Check,
     Trash2,
     X as XIcon,
@@ -45,9 +44,7 @@ export const SessionHistory: React.FC = () => {
         rejectSession,
         deleteSession,
         setStatusFilter,
-        currentPage,
         totalSessions,
-        perPage,
     } = useSessionStore();
     
     const [sidebarOpen, setSidebarOpen] = useState(false);
