@@ -10,6 +10,26 @@
 
 ---
 
+## 📚 Documentation Convention
+
+**All project documentation has been consolidated in the `/docs/` folder.**
+
+🔗 **Main Documentation Portal**: `/docs/index.md`
+
+### Key Documentation Files:
+- **[README](/docs/README.md)** - Project overview and quick start
+- **[Installation Guide](/docs/installation.md)** - Setup instructions
+- **[API Documentation](/docs/api_documentation.md)** - REST API reference
+- **[Architecture](/docs/architecture_diagrams.md)** - System design
+- **[Developer Guide](/docs/developer_guide.md)** - Development workflow
+- **[Deployment Guide](/docs/deployment_instructions.md)** - Production deployment
+- **[Contributing Guidelines](/docs/contributing.md)** - How to contribute
+- **[Troubleshooting](/docs/troubleshooting_guide.md)** - Common issues and solutions
+
+👉 **All agents should reference `/docs/` as the canonical documentation location.**
+
+---
+
 ## 📑 Table of Contents
 
 - [🤖 AGENTS.md - Heimdall SDR Project Phase Management Guide](#-agentsmd---heimdall-sdr-project-phase-management-guide)
