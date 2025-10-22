@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LogOut,
@@ -15,8 +15,11 @@ import {
     Edit2,
     Wifi,
     Zap as Activity,
+    RefreshCw,
+    AlertCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../store';
+import { useWebSDRStore } from '../store/websdrStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -25,15 +28,16 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface WebSDR {
-    id: string;
+interface DisplayWebSDR {
+    id: number;
     name: string;
     url: string;
     location: string;
     latitude: number;
     longitude: number;
-    status: 'online' | 'offline';
+    status: 'online' | 'offline' | 'unknown';
     lastContact: string;
     uptime: number;
     avgSnr: number;
@@ -43,101 +47,65 @@ interface WebSDR {
 export const WebSDRManagement: React.FC = () => {
     const navigate = useNavigate();
     const { logout } = useAuthStore();
+    const { 
+        websdrs, 
+        healthStatus, 
+        isLoading, 
+        error, 
+        fetchWebSDRs, 
+        checkHealth,
+        refreshAll,
+    } = useWebSDRStore();
+    
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [webSdrs] = useState<WebSDR[]>([
-        {
-            id: '1',
-            name: 'Turin (Torino)',
-            url: 'http://websdr.bzdmh.pl:8901/',
-            location: 'Piemonte',
-            latitude: 45.0703,
-            longitude: 7.6869,
-            status: 'online',
-            lastContact: '2025-10-22 16:42:15',
-            uptime: 99.8,
-            avgSnr: 18.5,
-            enabled: true,
-        },
-        {
-            id: '2',
-            name: 'Milan (Milano)',
-            url: 'http://websdr-italy.mynetdomain.it:8902/',
-            location: 'Lombardia',
-            latitude: 45.4642,
-            longitude: 9.1900,
-            status: 'online',
-            lastContact: '2025-10-22 16:41:58',
-            uptime: 99.5,
-            avgSnr: 16.2,
-            enabled: true,
-        },
-        {
-            id: '3',
-            name: 'Genoa (Genova)',
-            url: 'http://websdr-liguria.example.com:8903/',
-            location: 'Liguria',
-            latitude: 44.4056,
-            longitude: 8.9463,
-            status: 'online',
-            lastContact: '2025-10-22 16:42:03',
-            uptime: 98.9,
-            avgSnr: 14.8,
-            enabled: true,
-        },
-        {
-            id: '4',
-            name: 'Alessandria',
-            url: 'http://websdr-alessandria.myhost.it:8904/',
-            location: 'Piemonte',
-            latitude: 44.9129,
-            longitude: 8.6176,
-            status: 'online',
-            lastContact: '2025-10-22 16:42:11',
-            uptime: 99.2,
-            avgSnr: 17.1,
-            enabled: true,
-        },
-        {
-            id: '5',
-            name: 'Piacenza',
-            url: 'http://websdr-piacenza.local:8905/',
-            location: 'Emilia-Romagna',
-            latitude: 45.0549,
-            longitude: 9.7088,
-            status: 'offline',
-            lastContact: '2025-10-22 14:12:30',
-            uptime: 85.3,
-            avgSnr: 0,
-            enabled: false,
-        },
-        {
-            id: '6',
-            name: 'Savona',
-            url: 'http://websdr-savona.radio.it:8906/',
-            location: 'Liguria',
-            latitude: 44.3105,
-            longitude: 8.4817,
-            status: 'online',
-            lastContact: '2025-10-22 16:41:52',
-            uptime: 99.1,
-            avgSnr: 15.3,
-            enabled: true,
-        },
-        {
-            id: '7',
-            name: 'La Spezia',
-            url: 'http://websdr-laspezia.org:8907/',
-            location: 'Liguria',
-            latitude: 43.5436,
-            longitude: 9.8263,
-            status: 'online',
-            lastContact: '2025-10-22 16:42:09',
-            uptime: 97.8,
-            avgSnr: 13.9,
-            enabled: true,
-        },
-    ]);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Load WebSDRs and health status on mount
+    useEffect(() => {
+        const loadData = async () => {
+            await fetchWebSDRs();
+            await checkHealth();
+        };
+        loadData();
+    }, [fetchWebSDRs, checkHealth]);
+
+    // Periodically refresh health status (every 30 seconds)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkHealth();
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(interval);
+    }, [checkHealth]);
+
+    // Handle manual refresh
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await refreshAll();
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
+    // Convert backend data to display format
+    const webSdrs: DisplayWebSDR[] = websdrs.map((ws) => {
+        const health = healthStatus[ws.id];
+        return {
+            id: ws.id,
+            name: ws.name,
+            url: ws.url,
+            location: ws.location_name,
+            latitude: ws.latitude,
+            longitude: ws.longitude,
+            status: health?.status || 'unknown',
+            lastContact: health?.last_check || 'Never',
+            uptime: 0, // TODO: Calculate from historical data
+            avgSnr: 0, // TODO: Calculate from measurements
+            enabled: ws.is_active,
+        };
+    });
 
     const menuItems = [
         { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
@@ -242,53 +210,85 @@ export const WebSDRManagement: React.FC = () => {
                             </Button>
                             <h1 className="text-3xl font-bold text-white">WebSDR Network Management</h1>
                         </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing || isLoading}
+                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
                     </div>
                 </header>
 
                 {/* Content Area */}
                 <div className="flex-1 overflow-auto p-6">
                     <div className="space-y-6 max-w-7xl mx-auto">
-                        {/* Status Summary */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Online Receivers</p>
-                                            <p className="text-3xl font-bold text-green-400 mt-2">
-                                                {onlineCount}/{webSdrs.length}
-                                            </p>
-                                        </div>
-                                        <Wifi className="w-12 h-12 text-green-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Average Uptime</p>
-                                            <p className="text-3xl font-bold text-cyan-400 mt-2">{avgUptime}%</p>
-                                        </div>
-                                        <Activity className="w-12 h-12 text-cyan-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Network Status</p>
-                                            <p className="text-3xl font-bold text-purple-400 mt-2">Healthy</p>
-                                        </div>
-                                        <Radio className="w-12 h-12 text-purple-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        {/* Error Alert */}
+                        {error && (
+                            <Alert className="bg-red-900/20 border-red-800">
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                                <AlertDescription className="text-red-300">
+                                    {error}
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
-                        {/* WebSDR Table */}
-                        <Card className="bg-slate-900 border-slate-800">
+                        {/* Loading State */}
+                        {isLoading && webSdrs.length === 0 && (
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-12 text-center">
+                                    <RefreshCw className="w-12 h-12 mx-auto mb-4 text-purple-500 animate-spin" />
+                                    <p className="text-slate-400 text-lg">Loading WebSDR configuration...</p>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* Status Summary */}
+                        {!isLoading || webSdrs.length > 0 ? (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Card className="bg-slate-900 border-slate-800">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-slate-400 text-sm">Online Receivers</p>
+                                                    <p className="text-3xl font-bold text-green-400 mt-2">
+                                                        {onlineCount}/{webSdrs.length}
+                                                    </p>
+                                                </div>
+                                                <Wifi className="w-12 h-12 text-green-500 opacity-20" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="bg-slate-900 border-slate-800">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-slate-400 text-sm">Average Uptime</p>
+                                                    <p className="text-3xl font-bold text-cyan-400 mt-2">{avgUptime}%</p>
+                                                </div>
+                                                <Activity className="w-12 h-12 text-cyan-500 opacity-20" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="bg-slate-900 border-slate-800">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-slate-400 text-sm">Network Status</p>
+                                                    <p className="text-3xl font-bold text-purple-400 mt-2">Healthy</p>
+                                                </div>
+                                                <Radio className="w-12 h-12 text-purple-500 opacity-20" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+                                {/* WebSDR Table */}
+                                <Card className="bg-slate-900 border-slate-800">
                             <CardHeader>
                                 <CardTitle className="text-white">Receiver Configuration</CardTitle>
                             </CardHeader>
@@ -346,30 +346,40 @@ export const WebSDRManagement: React.FC = () => {
                                                                     Online
                                                                 </span>
                                                             </div>
-                                                        ) : (
+                                                        ) : sdr.status === 'offline' ? (
                                                             <div className="flex items-center gap-2">
                                                                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
                                                                 <span className="text-red-400 font-semibold">
                                                                     Offline
                                                                 </span>
                                                             </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                                                <span className="text-yellow-400 font-semibold">
+                                                                    Unknown
+                                                                </span>
+                                                            </div>
                                                         )}
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <span
-                                                            className={`font-semibold ${sdr.uptime > 99
+                                                            className={`font-semibold ${
+                                                                sdr.uptime === 0
+                                                                    ? 'text-slate-500'
+                                                                    : sdr.uptime > 99
                                                                     ? 'text-green-400'
                                                                     : sdr.uptime > 95
                                                                         ? 'text-yellow-400'
                                                                         : 'text-red-400'
                                                                 }`}
                                                         >
-                                                            {sdr.uptime.toFixed(1)}%
+                                                            {sdr.uptime === 0 ? 'N/A' : `${sdr.uptime.toFixed(1)}%`}
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4">
-                                                        <span className="text-cyan-400 font-semibold">
-                                                            {sdr.avgSnr.toFixed(1)} dB
+                                                        <span className={`font-semibold ${sdr.avgSnr === 0 ? 'text-slate-500' : 'text-cyan-400'}`}>
+                                                            {sdr.avgSnr === 0 ? 'N/A' : `${sdr.avgSnr.toFixed(1)} dB`}
                                                         </span>
                                                     </td>
                                                     <td className="py-3 px-4 text-slate-400 text-xs">
@@ -399,25 +409,31 @@ export const WebSDRManagement: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        {/* Test Panel */}
-                        <Card className="bg-slate-900 border-slate-800">
-                            <CardHeader>
-                                <CardTitle className="text-white">Network Diagnostics</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-                                        Test All Connections
-                                    </Button>
-                                    <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-                                        Verify Frequencies
-                                    </Button>
-                                    <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-                                        Fetch IQ Test Data
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                {/* Test Panel */}
+                                <Card className="bg-slate-900 border-slate-800">
+                                    <CardHeader>
+                                        <CardTitle className="text-white">Network Diagnostics</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <Button 
+                                                className="bg-purple-600 hover:bg-purple-700 w-full"
+                                                onClick={handleRefresh}
+                                                disabled={isRefreshing}
+                                            >
+                                                Test All Connections
+                                            </Button>
+                                            <Button className="bg-purple-600 hover:bg-purple-700 w-full">
+                                                Verify Frequencies
+                                            </Button>
+                                            <Button className="bg-purple-600 hover:bg-purple-700 w-full">
+                                                Fetch IQ Test Data
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </>
+                        ) : null}
                     </div>
                 </div>
             </main>
