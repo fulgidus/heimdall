@@ -1,21 +1,45 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.119.1
+uvicorn[standard]==0.38.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
-structlog==24.1.0
+structlog==25.4.0
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
-redis==5.0.1
+redis==6.4.0
 aiohttp==3.9.1
 celery==5.3.4
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.1
-black==23.12.0
-flake8==6.1.0
+pytest==8.4.2
+pytest-asyncio==1.2.0
+httpx==0.28.1
+black==25.9.0
+flake8==7.3.0
 mypy==1.7.1
-# ML dependencies (lightweight)
-numpy>=1.24.0,<2.0
+# ML dependencies - Core
+numpy>=2.3.4
+scipy>=1.11.0
 scikit-learn>=1.3.0
-# torch and pytorch-lightning will be in separate GPU container later
+
+# PyTorch ecosystem
+torch>=2.0.0
+torchvision>=0.15.0
+pytorch-lightning>=2.0.0
+
+# ML training & tracking
+tensorboard>=2.14.0
+mlflow>=2.8.0
+boto3>=1.28.0
+botocore>=1.31.0
+
+# Feature extraction & signal processing
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# ONNX export
+onnx>=1.14.0
+onnxruntime>=1.16.0
+
+# Development & testing
+pytest>=7.4.3
+pytest-cov>=4.1.0
+tensorboard-plugin-profile>=2.14.0

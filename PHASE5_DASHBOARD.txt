@@ -1,0 +1,207 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                   🧠 PHASE 5: TRAINING PIPELINE - LIVE DASHBOARD              ║
+║                          2025-10-22 • Day 1 • Ready to Start                  ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ PHASE 5 OVERVIEW ────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  📊 Status: 🟢 READY TO START (Infrastructure validated in Phase 4)           │
+│  ⏱️  Duration: 3 giorni (2025-10-22 to 2025-10-25)                            │
+│  👤 Assignee: Agent-ML (fulgidus)                                             │
+│  🔗 Dependencies: Phase 1 ✅, Phase 3 ✅, Phase 4 ✅                          │
+│  ⬇️  Blocca: Phase 6 (Inference Service)                                      │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TASKS BREAKDOWN (10 Tasks = 18.5 Hours) ─────────────────────────────────────┐
+│                                                                                 │
+│  DAY 1: Foundation (Architecture & Features)                                   │
+│  ├─ [ ] T5.1: LocalizationNet (Neural Network)      2h   🔴 NOT STARTED     │
+│  ├─ [ ] T5.2: Feature Extraction (mel-spectrogram)  2h   🔴 NOT STARTED     │
+│  ├─ [ ] T5.3: HeimdallDataset (PyTorch)            2h   🔴 NOT STARTED     │
+│  └─ [ ] T5.4: Gaussian NLL Loss                    1.5h 🔴 NOT STARTED     │
+│                                                                                 │
+│  DAY 2: Integration & MLOps (Training Loop & Tracking)                         │
+│  ├─ [ ] T5.5: PyTorch Lightning Module              2h   🔴 NOT STARTED     │
+│  ├─ [ ] T5.6: MLflow Tracking                      1.5h 🔴 NOT STARTED     │
+│  ├─ [ ] T5.7: ONNX Export & MinIO Upload           1.5h 🔴 NOT STARTED     │
+│  └─ [ ] T5.8: Training Entry Point & Celery Task    2h   🔴 NOT STARTED     │
+│                                                                                 │
+│  DAY 3: Testing & Documentation                                               │
+│  ├─ [ ] T5.9: Comprehensive Test Suite (>85%)       3h   🔴 NOT STARTED     │
+│  └─ [ ] T5.10: Documentation & Architecture Guide   1h   🔴 NOT STARTED     │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHECKPOINTS ─────────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  ✅ CP5.1: Model forward pass works (output shapes verified)                  │
+│     └─ When: After T5.1                                                       │
+│                                                                                 │
+│  ⏳ CP5.2: Dataset loader works (loads features and ground truth)             │
+│     └─ When: After T5.3                                                       │
+│                                                                                 │
+│  ⏳ CP5.3: Training loop runs without errors (small run)                      │
+│     └─ When: After T5.5                                                       │
+│                                                                                 │
+│  ⏳ CP5.4: ONNX export successful and present in MinIO                        │
+│     └─ When: After T5.7                                                       │
+│                                                                                 │
+│  ⏳ CP5.5: Model registered in MLflow                                         │
+│     └─ When: After T5.8                                                       │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ KEY DELIVERABLES ────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  📦 1. LocalizationNet (T5.1)                                                 │
+│      └─ ResNet-18 CNN for radio localization                                  │
+│      └─ Dual output heads: position + uncertainty                             │
+│      └─ Input: mel-spectrogram (128 freq × 32 time)                           │
+│      └─ Output: [latitude, longitude, σ_x, σ_y]                              │
+│                                                                                 │
+│  📦 2. Training Pipeline (T5.5)                                               │
+│      └─ PyTorch Lightning orchestration                                       │
+│      └─ Gaussian NLL loss for uncertainty                                     │
+│      └─ 100 epochs, early stopping at 10 patience                             │
+│      └─ Learning rate: 1e-3, batch size: 32                                   │
+│                                                                                 │
+│  📦 3. MLflow Tracking (T5.6)                                                 │
+│      └─ Log hyperparameters                                                   │
+│      └─ Track validation metrics                                              │
+│      └─ Store model artifacts                                                 │
+│      └─ Model registry for versioning                                         │
+│                                                                                 │
+│  📦 4. ONNX Export (T5.7)                                                     │
+│      └─ Convert PyTorch to ONNX format                                        │
+│      └─ Upload to MinIO s3://heimdall-models/                                 │
+│      └─ Ready for Phase 6 inference (no Python needed)                        │
+│                                                                                 │
+│  📦 5. Complete Test Suite (T5.9)                                             │
+│      └─ Feature extraction tests                                              │
+│      └─ Dataset loading tests                                                 │
+│      └─ Model forward pass tests                                              │
+│      └─ Loss function tests                                                   │
+│      └─ MLflow logging tests                                                  │
+│      └─ ONNX export tests                                                     │
+│      └─ Coverage target: >85%                                                 │
+│                                                                                 │
+│  📦 6. Documentation (T5.10)                                                  │
+│      └─ Architecture overview                                                 │
+│      └─ Hyperparameters justified                                             │
+│      └─ Training procedure documented                                         │
+│      └─ Inference checklist                                                   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DATA FLOW (Phase 5) ──────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  Phase 3 (WebSDR Acquisition)                                                 │
+│         ↓                                                                       │
+│  PostgreSQL + MinIO (Raw IQ Data)                                             │
+│         ↓                                                                       │
+│  HeimdallDataset + Feature Extraction (T5.3 + T5.2)                          │
+│         ↓                                                                       │
+│  PyTorch DataLoader (Batches of 32)                                           │
+│         ↓                                                                       │
+│  LocalizationNet (T5.1) + Gaussian NLL Loss (T5.4)                           │
+│         ↓                                                                       │
+│  PyTorch Lightning Training (T5.5)                                            │
+│         ├─→ MLflow Tracking (T5.6)                                            │
+│         ↓                                                                       │
+│  ONNX Export + MinIO Upload (T5.7)                                            │
+│         ↓                                                                       │
+│  Phase 6: Inference Service Ready                                             │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FILES TO CREATE ─────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  src/                                                                          │
+│  ├── models/                                                                   │
+│  │   ├── localization_net.py      ← T5.1 (Neural Network)                    │
+│  │   └── lightning_module.py      ← T5.5 (Training Module)                   │
+│  ├── data/                                                                     │
+│  │   ├── features.py              ← T5.2 (Feature Extraction)                │
+│  │   └── dataset.py               ← T5.3 (PyTorch Dataset)                   │
+│  ├── utils/                                                                    │
+│  │   ├── losses.py                ← T5.4 (Gaussian NLL Loss)                 │
+│  │   ├── mlflow_logger.py         ← T5.6 (MLflow Integration)                │
+│  │   └── onnx_exporter.py         ← T5.7 (ONNX Export)                       │
+│  ├── tasks/                                                                    │
+│  │   └── training_task.py         ← T5.8 (Celery Task)                       │
+│  ├── main.py                      ← T5.8 (FastAPI Entry)                     │
+│  └── config.py                    ← Configuration                             │
+│                                                                                 │
+│  tests/                                                                        │
+│  ├── test_features.py             ← T5.9 (Feature tests)                     │
+│  ├── test_dataset.py              ← T5.9 (Dataset tests)                     │
+│  ├── test_model.py                ← T5.9 (Model tests)                       │
+│  ├── test_loss.py                 ← T5.9 (Loss tests)                        │
+│  ├── test_mlflow.py               ← T5.9 (MLflow tests)                      │
+│  ├── test_onnx.py                 ← T5.9 (ONNX tests)                        │
+│  └── fixtures.py                  ← Test fixtures                             │
+│                                                                                 │
+│  docs/                                                                         │
+│  └── TRAINING.md                  ← T5.10 (Documentation)                    │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ INFRASTRUCTURE READY ────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  ✅ PostgreSQL + TimescaleDB   → Archivia training data                      │
+│  ✅ MinIO S3-compatible         → Memorizza IQ raw + modelli ONNX            │
+│  ✅ MLflow                      → Tracking training runs                      │
+│  ✅ Redis                       → Celery result backend                       │
+│  ✅ RabbitMQ                    → Task queue orchestration                    │
+│  ✅ Python 3.11 + PyTorch       → Environment configured                      │
+│                                                                                 │
+│  All 13 Docker containers healthy ✓                                           │
+│  Performance baseline established ✓                                           │
+│  E2E tests passing 87.5% ✓                                                    │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ QUICK START (5 MINUTES) ─────────────────────────────────────────────────────┐
+│                                                                                 │
+│  1️⃣  Read PHASE5_START_HERE.md completely                                    │
+│  2️⃣  Verify docker-compose: docker-compose ps                                │
+│  3️⃣  Install dependencies: pip install -r services/training/requirements.txt │
+│  4️⃣  Navigate: cd services/training                                          │
+│  5️⃣  Begin T5.1: Create src/models/localization_net.py                       │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ CRITICAL SUCCESS FACTORS ────────────────────────────────────────────────────┐
+│                                                                                 │
+│  ✨ Model converges to <±50m localization error (from 300m+ baseline)         │
+│  ✨ Uncertainty calibration accurate (Gaussian assumptions hold)              │
+│  ✨ Training time <30 minutes for full pipeline                               │
+│  ✨ ONNX export <50MB (efficient for inference)                               │
+│  ✨ Test coverage >85% across all modules                                     │
+│  ✨ Documentation complete for Phase 6 handoff                                │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ESTIMATED TIMELINE ──────────────────────────────────────────────────────────┐
+│                                                                                 │
+│  📅 2025-10-22 (Today):      T5.1-T5.4 (Foundation)         → CP5.2 ✓        │
+│  📅 2025-10-23 (Tomorrow):   T5.5-T5.8 (Integration)        → CP5.4 ✓        │
+│  📅 2025-10-24 (Day 3):      T5.9-T5.10 (Testing & Docs)    → CP5.5 ✓        │
+│  📅 2025-10-25 (Day 4):      Buffer + Phase 6 Start                          │
+│                                                                                 │
+│  Total Phase Duration: 3-4 giorni (realistic buffer included)                 │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                 ║
+║  🚀 PHASE 5 IS READY TO START!                                                ║
+║                                                                                 ║
+║  Next Step: Read PHASE5_START_HERE.md for detailed guidance                   ║
+║             Then navigate to: cd services/training                             ║
+║             Then begin Task T5.1: src/models/localization_net.py              ║
+║                                                                                 ║
+║  Questions? Check PHASE5_QUICK_START.md or PHASE5_HANDOFF.md                  ║
+║                                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝

@@ -1,0 +1,271 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                  📑 PHASE 5 - COMPLETE DOCUMENTATION INDEX                    ║
+║                        2025-10-22 • Ready to Start                             ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─ DOCUMENTATION FILES (Read in This Order) ───────────────────────────────────┐
+│                                                                                 │
+│ 1️⃣  PHASE5_START_HERE.md (Main Entry Point - 10 min read)
+│     ├─ Welcome message (italiano-friendly)
+│     ├─ Infrastructure ready checklist
+│     ├─ 5-minute quick start
+│     ├─ Key concepts explained
+│     └─ Next actions with timeline
+│     
+│     👉 START HERE FIRST! Open this file immediately.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 2️⃣  PHASE5_QUICK_START.md (Detailed Technical Guide - 20 min read)
+│     ├─ Quick reference table
+│     ├─ Checkpoint system (5 gates)
+│     ├─ 10 Task Breakdown (detailed)
+│     │  ├─ T5.1: LocalizationNet (2h)
+│     │  ├─ T5.2: Feature Extraction (2h)
+│     │  ├─ T5.3: HeimdallDataset (2h)
+│     │  ├─ T5.4: Gaussian NLL Loss (1.5h)
+│     │  ├─ T5.5: PyTorch Lightning (2h)
+│     │  ├─ T5.6: MLflow Tracking (1.5h)
+│     │  ├─ T5.7: ONNX Export (1.5h)
+│     │  ├─ T5.8: Training Entry Point (2h)
+│     │  ├─ T5.9: Test Suite (3h)
+│     │  └─ T5.10: Documentation (1h)
+│     ├─ Project structure
+│     ├─ Code examples for each task
+│     └─ Getting started guide
+│
+│     👉 READ AFTER START_HERE. Contains implementation details.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 3️⃣  PHASE5_PROGRESS.md (Daily Progress Tracker - 5 min update)
+│     ├─ Task-by-task status
+│     ├─ Dependency graph
+│     ├─ Day-by-day timeline
+│     ├─ Session log (update each day)
+│     ├─ Known risks & mitigations
+│     └─ Tips & tricks
+│
+│     👉 UPDATE DAILY. Track your progress.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 4️⃣  PHASE5_HANDOFF.md (Context from Phase 4 - 15 min read)
+│     ├─ Phase 4 completion summary
+│     ├─ Why Phase 5 starts immediately (no blockers)
+│     ├─ Pre-start verification steps
+│     ├─ Infrastructure status (all 13 containers)
+│     ├─ Architecture context
+│     ├─ Data flow diagrams
+│     └─ Integration points
+│
+│     👉 REFERENCE. Check before starting if questions about infrastructure.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 5️⃣  PHASE5_DASHBOARD.txt (Visual Overview - 5 min scan)
+│     ├─ ASCII art dashboard
+│     ├─ All tasks at a glance
+│     ├─ Checkpoints & deliverables
+│     ├─ File list to create
+│     ├─ Infrastructure ready checklist
+│     └─ Timeline at a glance
+│
+│     👉 REFERENCE. Quick visual overview.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 6️⃣  PHASE5_SETUP_COMPLETE.md (Summary & Quick Ref - 5 min read)
+│     ├─ What's been created
+│     ├─ How to start right now
+│     ├─ What Phase 5 delivers
+│     ├─ 18.5 hours breakdown
+│     ├─ Success metrics
+│     └─ Quick reference guide
+│
+│     👉 REFERENCE. Overview & quick lookup.
+│
+│ ────────────────────────────────────────────────────────────────────────────
+│
+│ 7️⃣  PHASE5_INDEX.txt (This File - 2 min scan)
+│     └─ Navigation guide for all documentation
+│
+│     👉 YOU ARE HERE. Use this to navigate.
+│
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ QUICK REFERENCE ─────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│ File Name                  │ Purpose              │ Read Time │ When         │
+│ ───────────────────────────────────────────────────────────────────────────── │
+│ PHASE5_START_HERE          │ Main onboarding      │ 10 min    │ FIRST        │
+│ PHASE5_QUICK_START         │ Technical guide      │ 20 min    │ After #1     │
+│ PHASE5_PROGRESS            │ Daily tracker        │ 5 min     │ Daily        │
+│ PHASE5_HANDOFF             │ Phase 4 context      │ 15 min    │ Reference    │
+│ PHASE5_DASHBOARD           │ Visual overview      │ 5 min     │ Reference    │
+│ PHASE5_SETUP_COMPLETE      │ Summary & quick ref  │ 5 min     │ Reference    │
+│ PHASE5_INDEX               │ This navigation      │ 2 min     │ Lookup       │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ IMPLEMENTATION CHECKLIST ────────────────────────────────────────────────────┐
+│                                                                                 │
+│ PHASE 5 IMPLEMENTATION PLAN:
+│
+│ [ ] Before Starting (30 min prep)
+│     ├─ [ ] Read PHASE5_START_HERE.md
+│     ├─ [ ] Review PHASE5_QUICK_START.md
+│     ├─ [ ] Run: docker-compose ps
+│     └─ [ ] Run: cd services/training
+│
+│ [ ] DAY 1: Foundation (4 hours coding)
+│     ├─ [ ] T5.1: LocalizationNet Architecture (2h)          → CP5.1 ✓
+│     ├─ [ ] T5.2: Feature Extraction Utils (2h)
+│     ├─ [ ] T5.3: HeimdallDataset (2h)                      → CP5.2 ✓
+│     └─ [ ] T5.4: Gaussian NLL Loss (1.5h)
+│
+│ [ ] DAY 2: Integration (3.5 hours coding)
+│     ├─ [ ] T5.5: PyTorch Lightning Module (2h)             → CP5.3 ✓
+│     ├─ [ ] T5.6: MLflow Tracking (1.5h)
+│     ├─ [ ] T5.7: ONNX Export (1.5h)
+│     ├─ [ ] T5.8: Training Entry Point (2h)                 → CP5.4 ✓
+│     └─ [ ] Update PHASE5_PROGRESS.md
+│
+│ [ ] DAY 3: Testing & Documentation (3 hours)
+│     ├─ [ ] T5.9: Comprehensive Test Suite (3h)
+│     ├─ [ ] T5.10: Documentation (1h)                       → CP5.5 ✓
+│     ├─ [ ] All tests passing
+│     ├─ [ ] Coverage >85%
+│     └─ [ ] Update PHASE5_PROGRESS.md
+│
+│ [ ] DAY 4: Review & Handoff (1 hour)
+│     ├─ [ ] Review all code
+│     ├─ [ ] Fix any issues
+│     ├─ [ ] Commit to git
+│     └─ [ ] Start Phase 6
+│
+│ Total Time: ~18.5 hours implementation + 1 hour setup = 19.5 hours
+│ Realistic: 3-4 days with testing & debugging
+│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ CHECKPOINT GATES ────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│ ✅ CP5.1: Model Forward Pass (After T5.1)
+│    └─ Model initializes, forward pass produces correct output shape
+│    └─ Input: (batch, 3, 128, 32) → Output: (batch, 4)
+│
+│ ✅ CP5.2: Dataset Loading (After T5.3)
+│    └─ HeimdallDataset loads from PostgreSQL + MinIO
+│    └─ Features shape verified: (128, 32)
+│
+│ ✅ CP5.3: Training Loop (After T5.5)
+│    └─ Lightning trainer runs without errors
+│    └─ Loss decreases over epochs
+│
+│ ✅ CP5.4: ONNX Export (After T5.7)
+│    └─ File created and uploaded to MinIO
+│    └─ onnx.checker.check_model() passes
+│
+│ ✅ CP5.5: MLflow Registration (After T5.8)
+│    └─ Model registered in MLflow registry
+│    └─ Version tracked and artifact stored
+│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ INFRASTRUCTURE STATUS ───────────────────────────────────────────────────────┐
+│                                                                                 │
+│ All systems operational for Phase 5:
+│
+│ ✅ PostgreSQL + TimescaleDB
+│    └─ Ready for training data storage
+│
+│ ✅ MinIO S3-compatible Storage
+│    └─ Buckets: heimdall-raw-iq, heimdall-models, heimdall-mlflow
+│
+│ ✅ MLflow Tracking Server
+│    └─ UI: http://localhost:5000
+│    └─ Tracking URI configured
+│
+│ ✅ Redis
+│    └─ Celery result backend ready
+│
+│ ✅ RabbitMQ
+│    └─ Task queue routing ready
+│
+│ ✅ Python 3.11 + PyTorch/Lightning
+│    └─ Environment configured
+│
+│ ✅ All 13 Docker Containers Healthy
+│    └─ No errors, uptime >25 minutes
+│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ COMMON QUESTIONS ────────────────────────────────────────────────────────────┐
+│                                                                                 │
+│ Q: Where do I start?
+│ A: Read PHASE5_START_HERE.md first (10 min), then PHASE5_QUICK_START.md
+│
+│ Q: How long will Phase 5 take?
+│ A: 18.5 hours of implementation over 3-4 days (realistic with breaks)
+│
+│ Q: Is infrastructure ready?
+│ A: Yes! All 13 containers healthy, verified in Phase 4
+│
+│ Q: What if something breaks?
+│ A: Check PHASE5_QUICK_START.md "Troubleshooting" section
+│
+│ Q: How do I track progress?
+│ A: Update PHASE5_PROGRESS.md daily
+│
+│ Q: What's next after Phase 5?
+│ A: Phase 6: Inference Service (uses trained model)
+│
+│ Q: Can I run tests as I go?
+│ A: Yes! Run: pytest tests/test_<module>.py -v after each task
+│
+│ Q: Where's the documentation?
+│ A: See this index! Start with PHASE5_START_HERE.md
+│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌─ NEXT IMMEDIATE ACTIONS ──────────────────────────────────────────────────────┐
+│                                                                                 │
+│ 1️⃣  Open Terminal and navigate:
+│     cd c:\Users\aless\Documents\Projects\heimdall
+│
+│ 2️⃣  Read the main onboarding:
+│     cat PHASE5_START_HERE.md
+│
+│ 3️⃣  Verify infrastructure:
+│     docker-compose ps
+│
+│ 4️⃣  Navigate to service:
+│     cd services/training
+│
+│ 5️⃣  Install dependencies:
+│     pip install -r requirements.txt
+│
+│ 6️⃣  Begin T5.1:
+│     Create src/models/localization_net.py
+│     Follow PHASE5_QUICK_START.md, T5.1 section
+│
+│ 7️⃣  After each task, run tests:
+│     pytest tests/ -v
+│
+│ 8️⃣  Update progress:
+│     Edit PHASE5_PROGRESS.md with today's work
+│
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                 ║
+║  🎯 YOU ARE HERE: PHASE 5 Ready to Start                                       ║
+║                                                                                 ║
+║  📝 Next Step: Open PHASE5_START_HERE.md                                       ║
+║                Read it completely (10 minutes)                                 ║
+║                Then begin T5.1 (Neural Network Architecture)                   ║
+║                                                                                 ║
+║  ✨ The training pipeline awaits! Good luck! 🚀                                ║
+║                                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝
