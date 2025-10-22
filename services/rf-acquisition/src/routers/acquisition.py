@@ -246,32 +246,54 @@ async def check_websdrs_health():
     Check health status of all WebSDR receivers.
     
     Returns:
-        Dict mapping WebSDR ID to health status
+        Dict mapping WebSDR ID to health status with detailed information
     """
     try:
+        # Get WebSDR configs
+        websdrs_config = get_websdrs_config()
+        
+        # Run health check task
         task = health_check_websdrs.delay()
         result = task.get(timeout=60)
         
-        # Format response
-        websdrs_config = get_websdrs_config()
+        # Format response with detailed status information
         health_status = {}
+        check_time = datetime.utcnow().isoformat()
         
         for ws_config in websdrs_config:
             ws_id = ws_config['id']
+            is_online = result.get(ws_id, False)
+            
             health_status[ws_id] = {
-                'id': ws_id,
+                'websdr_id': ws_id,
                 'name': ws_config['name'],
-                'status': 'online' if result.get(ws_id, False) else 'offline'
+                'status': 'online' if is_online else 'offline',
+                'last_check': check_time,
             }
+            
+            if not is_online:
+                health_status[ws_id]['error_message'] = 'Health check failed or timed out'
         
         return health_status
     
     except Exception as e:
         logger.exception("Error checking WebSDR health: %s", str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error checking health: {str(e)}"
-        )
+        
+        # Return offline status for all WebSDRs on error
+        websdrs_config = get_websdrs_config()
+        check_time = datetime.utcnow().isoformat()
+        
+        health_status = {}
+        for ws_config in websdrs_config:
+            health_status[ws_config['id']] = {
+                'websdr_id': ws_config['id'],
+                'name': ws_config['name'],
+                'status': 'offline',
+                'last_check': check_time,
+                'error_message': f'Health check error: {str(e)}'
+            }
+        
+        return health_status
 
 
 @router.get("/config")
