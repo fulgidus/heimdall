@@ -216,7 +216,6 @@ def compute_mfcc(
     """
     # Discrete Cosine Transform (DCT)
     mfcc = dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
-    mfcc = signal.dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
     
     logger.debug(
         "compute_mfcc",
