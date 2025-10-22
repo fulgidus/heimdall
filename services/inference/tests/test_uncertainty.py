@@ -23,7 +23,9 @@ class TestComputeUncertaintyEllipse:
         # Should be approximately circular
         assert result["semi_major_axis"] == pytest.approx(50.0, rel=0.01)
         assert result["semi_minor_axis"] == pytest.approx(50.0, rel=0.01)
-        assert result["rotation_angle"] == pytest.approx(0.0, abs=1.0)
+        # For circular uncertainty, rotation angle is ambiguous (could be 0 or 90 degrees)
+        # Accept both values
+        assert result["rotation_angle"] in [pytest.approx(0.0, abs=1.0), pytest.approx(90.0, abs=1.0)]
     
     def test_elliptical_uncertainty(self):
         """Test with different sigma_x and sigma_y."""
