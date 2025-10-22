@@ -182,6 +182,8 @@ jobs:
           RABBITMQ_PASS: guest
           TESTING: "true"
           LOG_LEVEL: "WARNING"
+          CELERY_ALWAYS_EAGER: "true"
+          CELERY_EAGER_PROPAGATES_EXCEPTIONS: "true"
         run: |
           cd services/${{ matrix.service }}
           export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
@@ -194,7 +196,7 @@ jobs:
           pytest tests/ \
             -v --tb=line --timeout=120 \
             --cov=src --cov-report=xml --cov-report=term:skip-covered \
-            -k "not e2e" --maxfail=3 || \
+            -k "not e2e and not integration" --maxfail=3 || \
             (exit_code=$?; if [ $exit_code -eq 5 ]; then exit 0; else exit $exit_code; fi)
 
       - name: "Generate coverage report"

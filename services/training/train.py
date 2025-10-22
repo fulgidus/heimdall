@@ -22,7 +22,11 @@ from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
 )
-from pytorch_lightning.loggers import MLflowLogger
+try:
+    from pytorch_lightning.loggers import MLflowLogger
+except ImportError:
+    # pytorch-lightning >= 2.1.0
+    from pytorch_lightning.loggers.mlflow import MLflowLogger
 import structlog
 
 from src.config import settings
