@@ -21,16 +21,16 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta
 import time
 
-# From our modules
-from services.inference.src.utils.preprocessing import IQPreprocessor, PreprocessingConfig
-from services.inference.src.utils.cache import RedisCache, CacheStatistics
-from services.inference.src.utils.model_versioning import (
+# From our modules - use relative imports
+from src.utils.preprocessing import IQPreprocessor, PreprocessingConfig
+from src.utils.cache import RedisCache, CacheStatistics
+from src.utils.model_versioning import (
     ModelVersionRegistry,
     ModelStage,
     VersionStatus,
     ABTestConfig
 )
-from services.inference.src.utils.batch_predictor import (
+from src.utils.batch_predictor import (
     BatchPredictor,
     BatchPredictionRequest,
     BatchIQDataItem,

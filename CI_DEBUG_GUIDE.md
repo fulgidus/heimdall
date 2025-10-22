@@ -248,8 +248,9 @@ python -c "import sys; print(sys.path)"
 
 ### Check 2: conftest.py exists
 ```bash
-ls -la services/*/tests/conftest.py
-# Should show a file in each service
+ls -la services/inference/tests/conftest.py
+ls -la services/rf-acquisition/tests/conftest.py
+# Both should exist
 ```
 
 ### Check 3: Requirements installed
@@ -258,13 +259,42 @@ pip list | grep -E "pytorch|onnx|numpy"
 # All should be present
 ```
 
-### Check 4: Run single service test
+### Check 4: Run single service test locally
 ```bash
+# Test inference import fix
 cd services/inference
-pytest tests/test_onnx_loader.py -v
+python -m pytest tests/test_comprehensive_integration.py::TestPreprocessingIntegration::test_real_preprocessing -v
+
+# Test rf-acquisition MinIO fix
+cd ../rf-acquisition
+python -m pytest tests/integration/test_minio_storage.py::TestMinIOClient::test_download_iq_data_success -v
+```
+
+### Check 5: Run full test script
+```bash
+# From project root
+bash test_ci_locally.sh
 ```
 
 ---
 
-**Questions?** Check the error message in GitHub Actions → Click the failed step for full logs
+## ✅ WHAT WAS FIXED (Latest)
+
+### Fix #1: Inference Import Path (NEW)
+**Problem**: `from services.inference.src...` failed in CI
+**Solution**: 
+- ✅ Changed to relative import: `from src.utils...`
+- ✅ Created `services/inference/tests/conftest.py`
+- ✅ conftest.py adds `/src` to sys.path
+
+### Fix #2: RF-Acquisition MinIO Mock (NEW)  
+**Problem**: `lambda: buffer.getvalue()` missing `self` parameter
+**Solution**:
+- ✅ Changed to: `lambda self: buffer.getvalue()`
+- ✅ Test now passes correctly
+
+---
+
+**Last Updated**: 2025-10-22  
+**Status**: Ready for next push to develop
 

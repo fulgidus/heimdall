@@ -145,7 +145,7 @@ class TestMinIOClient:
         buffer.seek(0)
         
         mock_s3_client.get_object.return_value = {
-            'Body': type('obj', (object,), {'read': lambda: buffer.getvalue()})()
+            'Body': type('obj', (object,), {'read': lambda self: buffer.getvalue()})()
         }
         
         minio_client.s3_client = mock_s3_client
