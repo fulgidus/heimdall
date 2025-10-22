@@ -24,8 +24,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import RecordingSessionCreator from '../components/RecordingSessionCreator';
-import SessionsList from '../components/SessionsList';
+import { RecordingSessionCreator } from '../components/RecordingSessionCreator';
+import { SessionsList } from '../components/SessionsList';
 
 export const DataIngestion: React.FC = () => {
     const navigate = useNavigate();
@@ -84,8 +84,8 @@ export const DataIngestion: React.FC = () => {
                                 key={idx}
                                 onClick={() => handleNavigation(item.path)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                    : 'text-slate-300 hover:bg-slate-800/50'
                                     }`}
                             >
                                 <Icon className="w-5 h-5" />

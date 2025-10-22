@@ -3,17 +3,17 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from .database import get_db, init_db
-from .models.session import (
+from ..database import get_db, init_db
+from ..models.session import (
     RecordingSessionCreate,
     RecordingSessionResponse,
     RecordingSessionList,
     SessionStatus,
 )
-from .repository import SessionRepository
-from .tasks import trigger_acquisition
+from ..repository import SessionRepository
+from ..tasks import trigger_acquisition
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
 
 
 # Initialize DB on startup

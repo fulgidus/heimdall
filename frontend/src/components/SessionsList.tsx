@@ -11,7 +11,8 @@ import {
     Trash2,
     Zap,
 } from 'lucide-react';
-import { useSessionStore, RecordingSession } from '../store/sessionStore';
+import { useSessionStore } from '../store/sessionStore';
+import type { RecordingSession } from '../types/session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 

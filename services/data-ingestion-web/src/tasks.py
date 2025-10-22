@@ -6,8 +6,9 @@ from celery import Celery
 from kombu import Exchange, Queue
 
 # Celery configuration
+redis_password = os.getenv("REDIS_PASSWORD", "changeme")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", f"redis://:{redis_password}@redis:6379/1")
 
 celery_app = Celery(
     "data_ingestion",
