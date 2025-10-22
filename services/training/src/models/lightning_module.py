@@ -20,8 +20,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
-import pytorch_lightning as pl
-from pytorch_lightning.loggers import MLflowLogger
+import lightning.pytorch as pl
+from lightning.pytorch.loggers import MLFlowLogger
 import structlog
 from typing import Dict, Tuple, Optional
 import numpy as np

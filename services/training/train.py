@@ -16,17 +16,13 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 from datetime import datetime
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import (
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
 )
-try:
-    from pytorch_lightning.loggers import MLflowLogger
-except ImportError:
-    # pytorch-lightning >= 2.1.0
-    from pytorch_lightning.loggers.mlflow import MLflowLogger
+from lightning.pytorch.loggers import MLFlowLogger
 import structlog
 
 from src.config import settings
@@ -262,7 +258,7 @@ class TrainingPipeline:
             )
             
             # Setup MLflow logger
-            mlflow_logger = MLflowLogger(
+            mlflow_logger = MLFlowLogger(
                 experiment_name=settings.mlflow_experiment_name,
                 run_name=run_name,
                 tracking_uri=settings.mlflow_tracking_uri,

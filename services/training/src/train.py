@@ -46,8 +46,8 @@ import logging
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import (
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
