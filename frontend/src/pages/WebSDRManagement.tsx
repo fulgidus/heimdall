@@ -42,30 +42,21 @@ interface DisplayWebSDR {
     uptime: number;
     avgSnr: number;
     enabled: boolean;
-
-import { webSDRService, type WebSDRConfig } from '@/services/api';
-
-interface ExtendedWebSDR extends WebSDRConfig {
-    status: 'online' | 'offline' | 'unknown';
-    lastContact?: string;
-    uptime?: number;
-    avgSnr?: number;
-    location?: string;
 }
 
 export const WebSDRManagement: React.FC = () => {
     const navigate = useNavigate();
     const { logout } = useAuthStore();
-    const { 
-        websdrs, 
-        healthStatus, 
-        isLoading, 
-        error, 
-        fetchWebSDRs, 
+    const {
+        websdrs,
+        healthStatus,
+        isLoading,
+        error,
+        fetchWebSDRs,
         checkHealth,
         refreshAll,
     } = useWebSDRStore();
-    
+
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -301,125 +292,124 @@ export const WebSDRManagement: React.FC = () => {
 
                                 {/* WebSDR Table */}
                                 <Card className="bg-slate-900 border-slate-800">
-                            <CardHeader>
-                                <CardTitle className="text-white">Receiver Configuration</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead className="border-b border-slate-700">
-                                            <tr>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Receiver Name
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Location
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    GPS Coordinates
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Status
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Uptime
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Avg SNR
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Last Contact
-                                                </th>
-                                                <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                    Actions
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-800">
-                                            {webSdrs.map((sdr) => (
-                                                <tr key={sdr.id} className="hover:bg-slate-800/50 transition">
-                                                    <td className="py-3 px-4">
-                                                        <div>
-                                                            <p className="text-white font-medium">{sdr.name}</p>
-                                                            <p className="text-slate-500 text-xs break-all">
-                                                                {sdr.url}
-                                                            </p>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-slate-300">{sdr.location}</td>
-                                                    <td className="py-3 px-4 text-slate-400 text-xs">
-                                                        {sdr.latitude.toFixed(4)}, {sdr.longitude.toFixed(4)}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        {sdr.status === 'online' ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                                <span className="text-green-400 font-semibold">
-                                                                    Online
+                                    <CardHeader>
+                                        <CardTitle className="text-white">Receiver Configuration</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead className="border-b border-slate-700">
+                                                    <tr>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Receiver Name
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Location
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            GPS Coordinates
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Status
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Uptime
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Avg SNR
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Last Contact
+                                                        </th>
+                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
+                                                            Actions
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-800">
+                                                    {webSdrs.map((sdr) => (
+                                                        <tr key={sdr.id} className="hover:bg-slate-800/50 transition">
+                                                            <td className="py-3 px-4">
+                                                                <div>
+                                                                    <p className="text-white font-medium">{sdr.name}</p>
+                                                                    <p className="text-slate-500 text-xs break-all">
+                                                                        {sdr.url}
+                                                                    </p>
+                                                                </div>
+                                                            </td>
+                                                            <td className="py-3 px-4 text-slate-300">{sdr.location}</td>
+                                                            <td className="py-3 px-4 text-slate-400 text-xs">
+                                                                {sdr.latitude.toFixed(4)}, {sdr.longitude.toFixed(4)}
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                {sdr.status === 'online' ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                                                        <span className="text-green-400 font-semibold">
+                                                                            Online
+                                                                        </span>
+                                                                    </div>
+                                                                ) : sdr.status === 'offline' ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                                                        <span className="text-red-400 font-semibold">
+                                                                            Offline
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                                                        <span className="text-yellow-400 font-semibold">
+                                                                            Unknown
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                <span
+                                                                    className={`font-semibold ${sdr.uptime === 0
+                                                                            ? 'text-slate-500'
+                                                                            : sdr.uptime > 99
+                                                                                ? 'text-green-400'
+                                                                                : sdr.uptime > 95
+                                                                                    ? 'text-yellow-400'
+                                                                                    : 'text-red-400'
+                                                                        }`}
+                                                                >
+                                                                    {sdr.uptime === 0 ? 'N/A' : `${sdr.uptime.toFixed(1)}%`}
                                                                 </span>
-                                                            </div>
-                                                        ) : sdr.status === 'offline' ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                                                <span className="text-red-400 font-semibold">
-                                                                    Offline
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                <span className={`font-semibold ${sdr.avgSnr === 0 ? 'text-slate-500' : 'text-cyan-400'}`}>
+                                                                    {sdr.avgSnr === 0 ? 'N/A' : `${sdr.avgSnr.toFixed(1)} dB`}
                                                                 </span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                                                <span className="text-yellow-400 font-semibold">
-                                                                    Unknown
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span
-                                                            className={`font-semibold ${
-                                                                sdr.uptime === 0
-                                                                    ? 'text-slate-500'
-                                                                    : sdr.uptime > 99
-                                                                    ? 'text-green-400'
-                                                                    : sdr.uptime > 95
-                                                                        ? 'text-yellow-400'
-                                                                        : 'text-red-400'
-                                                                }`}
-                                                        >
-                                                            {sdr.uptime === 0 ? 'N/A' : `${sdr.uptime.toFixed(1)}%`}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <span className={`font-semibold ${sdr.avgSnr === 0 ? 'text-slate-500' : 'text-cyan-400'}`}>
-                                                            {sdr.avgSnr === 0 ? 'N/A' : `${sdr.avgSnr.toFixed(1)} dB`}
-                                                        </span>
-                                                    </td>
-                                                    <td className="py-3 px-4 text-slate-400 text-xs">
-                                                        {sdr.lastContact}
-                                                    </td>
-                                                    <td className="py-3 px-4">
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-slate-700"
-                                                                onClick={() =>
-                                                                    setEditingId(
-                                                                        editingId === sdr.id ? null : sdr.id
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Edit2 className="w-4 h-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                                            </td>
+                                                            <td className="py-3 px-4 text-slate-400 text-xs">
+                                                                {sdr.lastContact}
+                                                            </td>
+                                                            <td className="py-3 px-4">
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        className="border-slate-700"
+                                                                        onClick={() =>
+                                                                            setEditingId(
+                                                                                editingId === sdr.id ? null : sdr.id
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <Edit2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
                                 {/* Test Panel */}
                                 <Card className="bg-slate-900 border-slate-800">
@@ -428,7 +418,7 @@ export const WebSDRManagement: React.FC = () => {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <Button 
+                                            <Button
                                                 className="bg-purple-600 hover:bg-purple-700 w-full"
                                                 onClick={handleRefresh}
                                                 disabled={isRefreshing}

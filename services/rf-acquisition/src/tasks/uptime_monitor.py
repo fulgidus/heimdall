@@ -136,15 +136,45 @@ def monitor_websdrs_uptime(self):
     try:
         logger.info("Starting WebSDR uptime monitoring task")
         
-        # Get WebSDR configs
+        # Get WebSDR configs as dict
         websdrs = get_default_websdrs()
         
-        # Initialize fetcher for health checks
-        fetcher = WebSDRFetcher(websdrs)
+        # Direct health check without WebSDRFetcher (to avoid object attribute issues)
+        logger.info(f"Checking health of {len(websdrs)} WebSDRs")
+        import aiohttp
+        
+        async def direct_health_check():
+            """Direct health check without using WebSDRFetcher."""
+            results = {}
+            timeout = aiohttp.ClientTimeout(total=3)
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                for ws in websdrs:
+                    ws_id = ws['id']
+                    ws_url = ws['url']
+                    ws_name = ws['name']
+                    
+                    try:
+                        async with session.head(ws_url, timeout=timeout, allow_redirects=False) as resp:
+                            # 501 means HEAD not supported, try GET
+                            if resp.status == 501:
+                                async with session.get(ws_url, timeout=timeout, allow_redirects=False) as resp2:
+                                    is_online = 200 <= resp2.status < 400
+                                    logger.debug(f"  {ws_name} ({ws_id}): GET {resp2.status} → {'online' if is_online else 'offline'}")
+                                    results[ws_id] = is_online
+                            else:
+                                is_online = 200 <= resp.status < 400
+                                logger.debug(f"  {ws_name} ({ws_id}): HEAD {resp.status} → {'online' if is_online else 'offline'}")
+                                results[ws_id] = is_online
+                    except Exception as e:
+                        logger.warning(f"  {ws_name} ({ws_id}): Exception {type(e).__name__} → offline")
+                        results[ws_id] = False
+            
+            return results
         
         # Run async health check
         loop = asyncio.get_event_loop()
-        health_results = loop.run_until_complete(fetcher.health_check())
+        health_results = loop.run_until_complete(direct_health_check())
         
         logger.info(f"Health check results: {health_results}")
         
@@ -158,8 +188,8 @@ def monitor_websdrs_uptime(self):
                 ws_id = ws_config['id']
                 ws_name = ws_config['name']
                 
-                # Celery serializes dict keys as strings!
-                is_online = health_results.get(str(ws_id), False)
+                # Get online/offline status
+                is_online = health_results.get(ws_id, False)
                 status = 'online' if is_online else 'offline'
                 timestamp = datetime.utcnow()
                 
