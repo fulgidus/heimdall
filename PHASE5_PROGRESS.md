@@ -1,0 +1,182 @@
+# 📊 PHASE 5: Training Pipeline - Progress Tracker
+
+**Started**: 2025-10-22  
+**Target Completion**: 2025-10-25  
+**Overall Progress**: 0% (0/10 tasks)  
+
+---
+
+## 📈 Task Progress
+
+### Day 1: Foundation (Architecture & Features)
+
+- [ ] **T5.1**: Neural Network Architecture (LocalizationNet)
+  - Status: 🔴 NOT STARTED
+  - Effort: 2h
+  - Files: `src/models/localization_net.py`
+  - Blockers: None
+  - Estimated: 2025-10-22 morning
+
+- [ ] **T5.2**: Feature Extraction (iq_to_mel_spectrogram, compute_mfcc)
+  - Status: 🔴 NOT STARTED
+  - Effort: 2h
+  - Files: `src/data/features.py`
+  - Blockers: None
+  - Estimated: 2025-10-22 morning
+
+- [ ] **T5.3**: HeimdallDataset PyTorch Dataset
+  - Status: 🔴 NOT STARTED
+  - Effort: 2h
+  - Files: `src/data/dataset.py`
+  - Blockers: T5.1 (model defined), T5.2 (features ready)
+  - Estimated: 2025-10-22 afternoon
+
+- [ ] **T5.4**: Gaussian NLL Loss Function
+  - Status: 🔴 NOT STARTED
+  - Effort: 1.5h
+  - Files: `src/utils/losses.py`
+  - Blockers: None
+  - Estimated: 2025-10-22 afternoon
+
+### Day 2: Integration & MLOps (Training Loop & Tracking)
+
+- [ ] **T5.5**: PyTorch Lightning Module
+  - Status: 🔴 NOT STARTED
+  - Effort: 2h
+  - Files: `src/models/lightning_module.py`
+  - Blockers: T5.1 (model), T5.4 (loss)
+  - Estimated: 2025-10-22 evening
+
+- [ ] **T5.6**: MLflow Tracking Integration
+  - Status: 🔴 NOT STARTED
+  - Effort: 1.5h
+  - Files: `src/utils/mlflow_logger.py`
+  - Blockers: None
+  - Estimated: 2025-10-23 morning
+
+- [ ] **T5.7**: ONNX Export & MinIO Upload
+  - Status: 🔴 NOT STARTED
+  - Effort: 1.5h
+  - Files: `src/utils/onnx_exporter.py`
+  - Blockers: T5.5 (trained model)
+  - Estimated: 2025-10-23 afternoon
+
+- [ ] **T5.8**: Training Entry Point & Celery Task
+  - Status: 🔴 NOT STARTED
+  - Effort: 2h
+  - Files: `src/tasks/training_task.py`, `src/main.py`
+  - Blockers: T5.3, T5.5, T5.6, T5.7
+  - Estimated: 2025-10-23 evening
+
+### Day 3: Testing & Documentation
+
+- [ ] **T5.9**: Comprehensive Test Suite
+  - Status: 🔴 NOT STARTED
+  - Effort: 3h
+  - Files: `tests/test_*.py`
+  - Coverage Target: >85%
+  - Blockers: T5.1-T5.8 (all implementations)
+  - Estimated: 2025-10-24 all day
+
+- [ ] **T5.10**: Documentation & Architecture Guide
+  - Status: 🔴 NOT STARTED
+  - Effort: 1h
+  - Files: `docs/TRAINING.md`
+  - Blockers: T5.1-T5.9 (all components)
+  - Estimated: 2025-10-25 morning
+
+---
+
+## ✅ Checkpoint Progress
+
+| Checkpoint | Target                   | Status | Est. Date  |
+| ---------- | ------------------------ | ------ | ---------- |
+| **CP5.1**  | Model forward pass works | 🔴      | 2025-10-22 |
+| **CP5.2**  | Dataset loader works     | 🔴      | 2025-10-22 |
+| **CP5.3**  | Training loop works      | 🔴      | 2025-10-23 |
+| **CP5.4**  | ONNX export successful   | 🔴      | 2025-10-23 |
+| **CP5.5**  | MLflow model registered  | 🔴      | 2025-10-24 |
+
+---
+
+## 📝 Session Log
+
+### Session 1: 2025-10-22 (Start)
+- Status: Phase 5 Quick Start created
+- Next: Begin T5.1
+
+### Session 2: [TBD]
+
+### Session 3: [TBD]
+
+---
+
+## 🔄 Dependency Graph
+
+```
+T5.1 (LocalizationNet)
+  ├─→ T5.5 (Lightning module)
+  │     ├─→ T5.8 (Training task)
+  │     └─→ T5.9 (Tests)
+  │
+  └─→ T5.9 (Model tests)
+
+T5.2 (Features)
+  ├─→ T5.3 (Dataset)
+  │     └─→ T5.8 (Training task)
+  │
+  └─→ T5.9 (Feature tests)
+
+T5.3 (Dataset)
+  ├─→ T5.8 (Training task)
+  └─→ T5.9 (Dataset tests)
+
+T5.4 (Loss)
+  ├─→ T5.5 (Lightning)
+  └─→ T5.9 (Loss tests)
+
+T5.6 (MLflow)
+  ├─→ T5.8 (Training task)
+  └─→ T5.9 (MLflow tests)
+
+T5.7 (ONNX)
+  ├─→ T5.8 (Training task)
+  └─→ T5.9 (ONNX tests)
+
+T5.8 (Training task)
+  └─→ T5.10 (Documentation)
+
+T5.9 (Tests)
+  └─→ PHASE 5 COMPLETE
+```
+
+---
+
+## 🎯 Known Risks
+
+1. **Data availability**: Need approved sessions in PostgreSQL
+   - Mitigation: Create synthetic training data if needed
+
+2. **Model convergence**: Training may need hyperparameter tuning
+   - Mitigation: Start with simple config, tune after baseline
+
+3. **ONNX compatibility**: Some PyTorch operations not supported
+   - Mitigation: Use common layers, test export early
+
+4. **Memory constraints**: Large models may not fit in available RAM
+   - Mitigation: Use smaller batch size, gradient checkpointing
+
+---
+
+## 💡 Tips & Tricks
+
+- **Fast iteration**: Use small dataset subset for quick test runs
+- **Debugging**: Add `breakpoint()` in training loop for inspection
+- **MLflow UI**: Check http://localhost:5000 to visualize training
+- **ONNX validation**: Use `onnx.checker.check_model()` after export
+- **Feature engineering**: Experiment with mel-spectrogram parameters
+
+---
+
+**Status**: 🟢 READY TO START  
+**Last Updated**: 2025-10-22 08:30:00 UTC
