@@ -55,7 +55,7 @@ from pytorch_lightning.callbacks import (
 
 # Project imports
 import structlog
-from config import settings
+from config import settings  # Now imports from config/ package
 from mlflow_setup import MLflowTracker
 from onnx_export import export_and_register_model, ONNXExporter
 from models.localization_net import LocalizationNet, LocalizationLightningModule
