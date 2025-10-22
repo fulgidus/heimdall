@@ -36,7 +36,7 @@ jobs:
             services_json="[$(IFS=,; echo "${services[*]}")]"
             echo "services=$services_json" >> $GITHUB_OUTPUT
             echo "count=${#services[@]}" >> $GITHUB_OUTPUT
-            echo "✅ Servizi trovati: $services_json"
+            echo "[OK] Servizi trovati: $services_json"
           fi
 
   # Main test job
@@ -102,8 +102,8 @@ jobs:
 
       - name: Display service info
         run: |
-          echo "🔧 Testing service: ${{ matrix.service }}"
-          echo "📁 Python version: ${{ matrix.python-version }}"
+          echo "[SETUP] Testing service: ${{ matrix.service }}"
+          echo "[FILES] Python version: ${{ matrix.python-version }}"
           ls -la services/${{ matrix.service }}/
 
       - name: Cache pip dependencies
@@ -123,16 +123,16 @@ jobs:
       - name: Install service dependencies
         run: |
           cd services/${{ matrix.service }}
-          echo "📦 Installing requirements from $(pwd)/requirements.txt"
+          echo "[PKG] Installing requirements from $(pwd)/requirements.txt"
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt --timeout=120
           else
-            echo "⚠️ No requirements.txt found"
+            echo "[WARN] No requirements.txt found"
           fi
 
           # Installa anche requirements-test.txt se esiste
           if [ -f requirements-test.txt ]; then
-            echo "📦 Installing test requirements"
+            echo "[PKG] Installing test requirements"
             pip install -r requirements-test.txt --timeout=120
           fi
 
@@ -141,11 +141,11 @@ jobs:
         run: |
           cd services/${{ matrix.service }}
           if [ -d src ]; then
-            echo "🎨 Checking code formatting with black..."
+            echo "[FORMAT] Checking code formatting with black..."
             black --check src/ 2>&1 || true
-            echo "⚠️ Format issues found (not blocking)"
+            echo "[WARN] Format issues found (not blocking)"
           else
-            echo "⏭️ No src/ directory to format check"
+            echo "[SKIP] No src/ directory to format check"
           fi
 
       - name: Lint with ruff
@@ -153,10 +153,10 @@ jobs:
         run: |
           cd services/${{ matrix.service }}
           if [ -d src ]; then
-            echo "🔍 Linting with ruff..."
-            ruff check src/ 2>&1 || echo "⚠️ Lint issues (not blocking)"
+            echo "[LINT] Linting with ruff..."
+            ruff check src/ 2>&1 || echo "[WARN] Lint issues (not blocking)"
           else
-            echo "⏭️ No src/ directory to lint"
+            echo "[SKIP] No src/ directory to lint"
           fi
 
       - name: Verify Python imports path configuration
@@ -203,7 +203,7 @@ jobs:
         run: |
           cd services/${{ matrix.service }}
           if [ -f coverage.xml ]; then
-            echo "📊 Coverage report generated"
+            echo "[REPORT] Coverage report generated"
             cat coverage.xml | head -20
           fi
 
@@ -232,11 +232,11 @@ jobs:
           # Se test è fallito, fallisci anche il summary
           if [ "${{ needs.test.result }}" != "success" ] && [ "${{ needs.discover.outputs.services_count }}" != "0" ]; then
             echo "status=FAILED" >> $GITHUB_OUTPUT
-            echo "❌ TESTS FAILED - CI workflow will fail"
+            echo "[FAIL] TESTS FAILED - CI workflow will fail"
             exit 1
           else
             echo "status=PASSED" >> $GITHUB_OUTPUT
-            echo "✅ ALL TESTS PASSED"
+            echo "[OK] ALL TESTS PASSED"
             exit 0
           fi
 
@@ -244,9 +244,9 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.results.outputs.status }}" == "FAILED" ]; then
-            echo "🔴 CI FAILED - Please fix test failures above"
+            echo "[RED] CI FAILED - Please fix test failures above"
             exit 1
           else
-            echo "🟢 CI PASSED - All tests successful"
+            echo "[GREEN] CI PASSED - All tests successful"
             exit 0
           fi
