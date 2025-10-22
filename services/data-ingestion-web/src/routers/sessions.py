@@ -117,3 +117,32 @@ async def get_session_status(
         "completed_at": session.completed_at,
         "error_message": session.error_message,
     }
+
+
+@router.delete("/{session_id}", status_code=204)
+async def delete_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    """
+    Delete a recording session.
+    
+    Can only delete sessions in PENDING status (not yet started).
+    Returns 204 No Content on success.
+    """
+    repo = SessionRepository()
+    session = repo.get_by_id(db, session_id)
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Only allow deletion of pending sessions
+    pending_status = SessionStatus.PENDING.value
+    if str(session.status) != pending_status:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete session with status '{session.status}'. Only PENDING sessions can be deleted."
+        )
+    
+    # Delete the session
+    repo.delete(db, session_id)

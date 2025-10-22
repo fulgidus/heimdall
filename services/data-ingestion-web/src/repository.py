@@ -97,3 +97,13 @@ class SessionRepository:
             db.commit()
             db.refresh(session)
         return session
+
+    @staticmethod
+    def delete(db: Session, session_id: int) -> bool:
+        """Delete a session by ID. Returns True if deleted, False if not found"""
+        session = db.query(RecordingSessionORM).filter(RecordingSessionORM.id == session_id).first()
+        if session:
+            db.delete(session)
+            db.commit()
+            return True
+        return False

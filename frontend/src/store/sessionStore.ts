@@ -17,11 +17,13 @@ interface SessionStore {
     getSession: (sessionId: number) => Promise<RecordingSession>;
     getSessionStatus: (sessionId: number) => Promise<SessionStatus>;
     pollSessionStatus: (sessionId: number, intervalMs?: number) => Promise<void>;
+    deleteSession: (sessionId: number) => Promise<void>;
     clearError: () => void;
     reset: () => void;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_V1_PREFIX = '/api/v1';
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
     // Initial state
@@ -35,7 +37,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const response = await axios.post(
-                `${API_BASE_URL}/api/sessions/create`,
+                `${API_BASE_URL}${API_V1_PREFIX}/sessions/create`,
                 {
                     session_name: name,
                     frequency_mhz: frequency,
@@ -59,7 +61,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     fetchSessions: async (offset = 0, limit = 20) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/sessions`, {
+            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions`, {
                 params: { offset, limit },
             });
             set({ sessions: response.data.sessions, isLoading: false });
@@ -72,7 +74,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     getSession: async (sessionId: number) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/sessions/${sessionId}`);
+            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}`);
             const session = response.data;
             set({ currentSession: session, isLoading: false });
             return session;
@@ -85,7 +87,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
     getSessionStatus: async (sessionId: number) => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/sessions/${sessionId}/status`);
+            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}/status`);
             return response.data;
         } catch (err: any) {
             const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch session status';
@@ -131,6 +133,24 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                 }
             }, intervalMs);
         });
+    },
+
+    deleteSession: async (sessionId: number) => {
+        set({ isLoading: true, error: null });
+        try {
+            await axios.delete(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}`);
+
+            // Remove from sessions list
+            set((state) => ({
+                sessions: state.sessions.filter((s) => s.id !== sessionId),
+                currentSession: state.currentSession?.id === sessionId ? null : state.currentSession,
+                isLoading: false,
+            }));
+        } catch (err: any) {
+            const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete session';
+            set({ error: errorMsg, isLoading: false });
+            throw new Error(errorMsg);
+        }
     },
 
     clearError: () => set({ error: null }),
