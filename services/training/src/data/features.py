@@ -11,7 +11,7 @@ Key functions:
 
 import numpy as np
 from scipy import signal
-from scipy.fft import fft
+from scipy.fftpack import dct
 import structlog
 from typing import Tuple, Optional
 
@@ -214,8 +214,8 @@ def compute_mfcc(
         >>> mfcc = compute_mfcc(mel_spec, n_mfcc=13)
         >>> print(mfcc.shape)  # (13, ~375)
     """
-    
     # Discrete Cosine Transform (DCT)
+    mfcc = dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
     mfcc = signal.dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
     
     logger.debug(
