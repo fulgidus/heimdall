@@ -71,7 +71,28 @@ def sync_http_client(api_base_url):
 @pytest.fixture
 def db_clean(db_connection):
     """Clean up database after test."""
+    # Create measurements table if it doesn't exist
+    try:
+        db_connection.execute(text("""
+            CREATE TABLE IF NOT EXISTS measurements (
+                id SERIAL PRIMARY KEY,
+                task_id VARCHAR(36),
+                websdr_id INT,
+                frequency_mhz FLOAT,
+                snr FLOAT,
+                frequency_offset FLOAT,
+                timestamp TIMESTAMP,
+                data_url VARCHAR(255),
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """))
+        db_connection.commit()
+        print("✓ Measurements table ready")
+    except Exception as e:
+        print(f"Table creation warning: {e}")
+    
     yield
+    
     # Delete test data
     try:
         db_connection.execute(

@@ -190,10 +190,10 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
       retries: 3
     networks:
       - heimdall-network
@@ -227,10 +227,10 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
       retries: 3
     networks:
       - heimdall-network
@@ -269,10 +269,10 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
       retries: 3
     networks:
       - heimdall-network
@@ -308,10 +308,10 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
       retries: 3
     networks:
       - heimdall-network
@@ -350,10 +350,10 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 40s
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
       retries: 3
     networks:
       - heimdall-network
