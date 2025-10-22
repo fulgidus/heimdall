@@ -10,8 +10,8 @@ from pathlib import Path
 def pytest_configure(config):
     """Pytest hook to configure paths before tests run"""
     
-    # Aggiungi le root path comuni
-    project_root = Path(__file__).parent.parent
+    # Get project root (where this conftest.py is located)
+    project_root = Path(__file__).parent
     
     # Per ogni servizio, aggiungi src/ al path
     service_dirs = list(project_root.glob("services/*/"))

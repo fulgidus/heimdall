@@ -159,23 +159,31 @@ jobs:
             echo "⏭️ No src/ directory to lint"
           fi
 
-      - name: Fix Python imports path
+      - name: Verify Python imports path configuration
         run: |
           cd services/${{ matrix.service }}
 
-          # Crea conftest.py per risolvere i problemi di import
-          mkdir -p tests
-          cat > tests/conftest.py << 'EOF'
-          import sys
-          from pathlib import Path
+          # Verify conftest.py exists (should be committed in repo)
+          if [ -f tests/conftest.py ]; then
+            echo "✅ conftest.py found for ${{ matrix.service }}"
+          else
+            echo "⚠️ WARNING: conftest.py not found for ${{ matrix.service }}"
+            echo "This may cause import errors. Creating fallback conftest.py..."
+            mkdir -p tests
+            cat > tests/conftest.py << 'EOF'
+import sys
+from pathlib import Path
 
-          # Aggiungi il root del servizio e src/ al path
-          service_root = Path(__file__).parent.parent
-          sys.path.insert(0, str(service_root))
-          sys.path.insert(0, str(service_root / "src"))
-          EOF
-
-          echo "✅ Created conftest.py for proper Python path resolution"
+def pytest_configure(config):
+    """Add src/ to Python path before tests run"""
+    service_root = Path(__file__).parent.parent
+    src_path = service_root / "src"
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+    if str(service_root) not in sys.path:
+        sys.path.insert(0, str(service_root))
+EOF
+          fi
 
       - name: Test with pytest (unit tests only)
         timeout-minutes: 30
