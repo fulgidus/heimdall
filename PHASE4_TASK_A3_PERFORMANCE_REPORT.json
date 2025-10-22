@@ -1,0 +1,72 @@
+{
+  "timestamp": "2025-10-22T07:56:05.842063",
+  "api_endpoints": {
+    "Health Check": {
+      "endpoint": "/health",
+      "method": "GET",
+      "latencies_ms": [
+        1.6642999999021413,
+        1.34040000011737,
+        1.4585999997507315,
+        1.3290000006236369,
+        1.2864000000263331
+      ],
+      "mean_ms": 1.4157400000840425,
+      "median_ms": 1.34040000011737,
+      "stdev_ms": 0.15292795019003189,
+      "min_ms": 1.2864000000263331,
+      "max_ms": 1.6642999999021413
+    },
+    "Get WebSDR Config": {
+      "endpoint": "/api/v1/acquisition/config",
+      "method": "GET",
+      "latencies_ms": [
+        1.2557999998534797,
+        1.1044999992009252,
+        1.159600000391947,
+        1.0521000003791414,
+        1.0610999997879844
+      ],
+      "mean_ms": 1.1266199999226956,
+      "median_ms": 1.1044999992009252,
+      "stdev_ms": 0.08383100261034726,
+      "min_ms": 1.0521000003791414,
+      "max_ms": 1.2557999998534797
+    },
+    "Get Task Status": {
+      "endpoint": "/api/v1/acquisition/status/test-task-id",
+      "method": "GET",
+      "latencies_ms": [
+        1.1015000000043074,
+        1.1353999998391373,
+        1.092300000891555,
+        1.1159999994561076,
+        1.0770000008051284
+      ],
+      "mean_ms": 1.1044400001992472,
+      "median_ms": 1.1015000000043074,
+      "stdev_ms": 0.022367006458212407,
+      "min_ms": 1.0770000008051284,
+      "max_ms": 1.1353999998391373
+    }
+  },
+  "celery_tasks": {},
+  "concurrent_capacity": {
+    "concurrent_requests": 10,
+    "successful_submissions": 10,
+    "successful_completions": 0,
+    "submission_time_s": 0.525933027267456,
+    "completion_times_s": [],
+    "mean_completion_s": 0,
+    "max_completion_s": 0,
+    "total_time_s": 121.22076272964478,
+    "completion_rate": 0.0
+  },
+  "inference_latency": {},
+  "summary": {
+    "api_avg_latency_ms": 1.2156000000686618,
+    "api_max_latency_ms": 1.6642999999021413,
+    "concurrent_completion_rate": 0.0,
+    "concurrent_avg_time_s": 0
+  }
+}

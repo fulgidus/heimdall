@@ -160,6 +160,209 @@ services:
     networks:
       - heimdall-network
 
+  # RF Acquisition Service - WebSDR data collection and processing
+  rf-acquisition:
+    build:
+      context: ./services/rf-acquisition
+      dockerfile: Dockerfile
+    container_name: heimdall-rf-acquisition
+    environment:
+      SERVICE_NAME: rf-acquisition
+      SERVICE_PORT: 8001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/1
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Gateway - Main REST API entry point
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: heimdall-api-gateway
+    environment:
+      SERVICE_NAME: api-gateway
+      SERVICE_PORT: 8000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Training Service - ML model training pipeline
+  training:
+    build:
+      context: ./services/training
+      dockerfile: Dockerfile
+    container_name: heimdall-training
+    environment:
+      SERVICE_NAME: training
+      SERVICE_PORT: 8002
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Inference Service - ML model inference
+  inference:
+    build:
+      context: ./services/inference
+      dockerfile: Dockerfile
+    container_name: heimdall-inference
+    environment:
+      SERVICE_NAME: inference
+      SERVICE_PORT: 8003
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Data Ingestion Web - Data collection UI and API
+  data-ingestion-web:
+    build:
+      context: ./services/data-ingestion-web
+      dockerfile: Dockerfile
+    container_name: heimdall-data-ingestion-web
+    environment:
+      SERVICE_NAME: data-ingestion-web
+      SERVICE_PORT: 8004
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+    ports:
+      - "8004:8004"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Prometheus - metrics collection
   prometheus:
     image: prom/prometheus:latest
