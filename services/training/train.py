@@ -16,17 +16,17 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 from datetime import datetime
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import (
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
 )
 try:
-    from pytorch_lightning.loggers import MLflowLogger
+    from lightning.pytorch.loggers import MLflowLogger
 except ImportError:
     # pytorch-lightning >= 2.1.0
-    from pytorch_lightning.loggers.mlflow import MLflowLogger
+    from lightning.pytorch.loggers.mlflow import MLflowLogger
 import structlog
 
 from src.config import settings

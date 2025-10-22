@@ -17,6 +17,9 @@ from typing import Tuple, Optional
 
 logger = structlog.get_logger(__name__)
 
+def MEL_SPECTROGRAM_SHAPE(n_mels: int = 128, n_frames: int = 2048) -> Tuple[int, int]:
+    """Return the shape of the mel-spectrogram feature."""
+    return (n_mels, n_frames)
 
 def iq_to_mel_spectrogram(
     iq_data: np.ndarray,
