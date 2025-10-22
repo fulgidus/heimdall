@@ -30,25 +30,25 @@ Execution Time: 4.57 seconds
 ```
 
 ### Test Breakdown
-| Category | Tests | Status | Coverage |
-|----------|-------|--------|----------|
-| WebSDR Fetcher | 5 | ✅ All Pass | 95% |
-| IQ Processor | 7 | ✅ All Pass | 90% |
-| API Endpoints | 10 | ✅ All Pass | 80% |
-| Main App | 3 | ✅ All Pass | N/A |
-| **TOTAL** | **25** | **✅ 100%** | **85-95%** |
+| Category       | Tests  | Status     | Coverage   |
+| -------------- | ------ | ---------- | ---------- |
+| WebSDR Fetcher | 5      | ✅ All Pass | 95%        |
+| IQ Processor   | 7      | ✅ All Pass | 90%        |
+| API Endpoints  | 10     | ✅ All Pass | 80%        |
+| Main App       | 3      | ✅ All Pass | N/A        |
+| **TOTAL**      | **25** | **✅ 100%** | **85-95%** |
 
 ### Configuration Data (Italian Receivers)
 
-| ID | Name | Location | Latitude | Longitude | Region | URL |
-|----|------|----------|----------|-----------|--------|-----|
-| 1 | Aquila di Giaveno | Giaveno | 45.02°N | 7.29°E | Piedmont | sdr1.ik1jns.it:8076 |
-| 2 | Montanaro | Montanaro | 45.234°N | 7.857°E | Piedmont | cbfenis.ddns.net:43510 |
-| 3 | Torino | Turin | 45.044°N | 7.672°E | Piedmont | vst-aero.it:8073 |
-| 4 | Coazze | Coazze | 45.03°N | 7.27°E | Piedmont | 94.247.189.130:8076 |
-| 5 | Passo del Giovi | Mountain Pass | 44.561°N | 8.956°E | Piedmont/Liguria | iz1mlt.ddns.net:8074 |
-| 6 | Genova | Genova | 44.395°N | 8.956°E | Liguria | iq1zw.ddns.net:42154 |
-| 7 | Milano - Baggio | Milan | 45.478°N | 9.123°E | Lombardy | iu2mch.duckdns.org:8073 |
+| ID  | Name              | Location      | Latitude | Longitude | Region           | URL                     |
+| --- | ----------------- | ------------- | -------- | --------- | ---------------- | ----------------------- |
+| 1   | Aquila di Giaveno | Giaveno       | 45.02°N  | 7.29°E    | Piedmont         | sdr1.ik1jns.it:8076     |
+| 2   | Montanaro         | Montanaro     | 45.234°N | 7.857°E   | Piedmont         | cbfenis.ddns.net:43510  |
+| 3   | Torino            | Turin         | 45.044°N | 7.672°E   | Piedmont         | vst-aero.it:8073        |
+| 4   | Coazze            | Coazze        | 45.03°N  | 7.27°E    | Piedmont         | 94.247.189.130:8076     |
+| 5   | Passo del Giovi   | Mountain Pass | 44.561°N | 8.956°E   | Piedmont/Liguria | iz1mlt.ddns.net:8074    |
+| 6   | Genova            | Genova        | 44.395°N | 8.956°E   | Liguria          | iq1zw.ddns.net:42154    |
+| 7   | Milano - Baggio   | Milan         | 45.478°N | 9.123°E   | Lombardy         | iu2mch.duckdns.org:8073 |
 
 ### Network Geometry Analysis
 - **North-South Span**: ~90 km (Milano to Genova)

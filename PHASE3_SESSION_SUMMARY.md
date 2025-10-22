@@ -120,17 +120,17 @@ MinIO S3 Storage Integration
 
 ## Phase 3 Progress
 
-| Component | Status | Duration |
-|-----------|--------|----------|
-| WebSDR Fetching | ✅ DONE | 2h |
-| Signal Processing | ✅ DONE | 1h |
-| FastAPI + Celery | ✅ DONE | 1.5h |
-| MinIO Storage | ✅ NEW | 2.5h |
-| **Subtotal** | **✅ 65%** | **7.5h** |
-| TimescaleDB | ⏳ NEXT | 4-6h |
-| Config Database | ⏳ | 2-3h |
-| End-to-End Tests | ⏳ | 4-5h |
-| **Total Estimate** | **65%** | **20-25h** |
+| Component          | Status    | Duration   |
+| ------------------ | --------- | ---------- |
+| WebSDR Fetching    | ✅ DONE    | 2h         |
+| Signal Processing  | ✅ DONE    | 1h         |
+| FastAPI + Celery   | ✅ DONE    | 1.5h       |
+| MinIO Storage      | ✅ NEW     | 2.5h       |
+| **Subtotal**       | **✅ 65%** | **7.5h**   |
+| TimescaleDB        | ⏳ NEXT    | 4-6h       |
+| Config Database    | ⏳         | 2-3h       |
+| End-to-End Tests   | ⏳         | 4-5h       |
+| **Total Estimate** | **65%**   | **20-25h** |
 
 ---
 

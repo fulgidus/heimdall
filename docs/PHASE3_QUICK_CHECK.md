@@ -158,15 +158,15 @@ Updated:
 
 ## Quick Reference
 
-| Metric | Value |
-|--------|-------|
-| Receivers Updated | 7/7 |
-| Tests Passing | 25/25 ✅ |
-| Regressions | 0 |
-| Breaking Changes | 0 |
-| Execution Time | 4.57s |
-| Code Coverage | 85-95% |
-| Time to Verify | <5 min |
+| Metric            | Value   |
+| ----------------- | ------- |
+| Receivers Updated | 7/7     |
+| Tests Passing     | 25/25 ✅ |
+| Regressions       | 0       |
+| Breaking Changes  | 0       |
+| Execution Time    | 4.57s   |
+| Code Coverage     | 85-95%  |
+| Time to Verify    | <5 min  |
 
 ---
 

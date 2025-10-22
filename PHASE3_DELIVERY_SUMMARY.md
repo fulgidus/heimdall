@@ -149,14 +149,14 @@ s3://heimdall-raw-iq/
 
 ## Quality Metrics
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| Type Hints | 100% | 100% | ✅ |
-| Docstrings | 100% | 100% | ✅ |
-| Test Coverage | >80% | 90%+ | ✅ |
-| Test Pass Rate | 100% | 100% | ✅ |
-| Error Handling | Comprehensive | Complete | ✅ |
-| Logging | All Levels | Implemented | ✅ |
+| Metric         | Target        | Achieved    | Status |
+| -------------- | ------------- | ----------- | ------ |
+| Type Hints     | 100%          | 100%        | ✅      |
+| Docstrings     | 100%          | 100%        | ✅      |
+| Test Coverage  | >80%          | 90%+        | ✅      |
+| Test Pass Rate | 100%          | 100%        | ✅      |
+| Error Handling | Comprehensive | Complete    | ✅      |
+| Logging        | All Levels    | Implemented | ✅      |
 
 ---
 

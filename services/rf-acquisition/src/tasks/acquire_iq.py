@@ -367,26 +367,98 @@ def save_measurements_to_timescaledb(
     self,
     task_id: str,
     measurements: List[Dict],
+    s3_paths: Optional[Dict[int, str]] = None,
 ):
     """
     Save measurement metadata to TimescaleDB.
     
+    This task:
+    1. Initializes database manager
+    2. Bulk inserts measurements into measurements hypertable
+    3. Handles partial failures gracefully
+    4. Returns detailed result with counts
+    
     Args:
-        task_id: Parent task ID
-        measurements: List of measurement records
+        task_id: Parent task ID (session ID)
+        measurements: List of measurement dictionaries
+        s3_paths: Optional dict mapping websdr_id to S3 paths
+    
+    Returns:
+        Dict with insertion results
+    
+    Raises:
+        Will retry on database errors (max 3 times)
     """
-    logger.info("Saving %d measurements to TimescaleDB...", len(measurements))
+    try:
+        logger.info(
+            "Saving %d measurements to TimescaleDB for task %s",
+            len(measurements),
+            task_id
+        )
+        
+        # Initialize database manager
+        from ..storage.db_manager import get_db_manager
+        db_manager = get_db_manager()
+        
+        # Verify database connection
+        if not db_manager.check_connection():
+            logger.error("Failed to connect to TimescaleDB")
+            # Retry task - will trigger autoretry
+            raise Exception("Database connection failed")
+        
+        # Update progress: starting
+        self.update_state(
+            state='PROGRESS',
+            meta={
+                'current': 0,
+                'total': len(measurements),
+                'status': f'Inserting {len(measurements)} measurements into TimescaleDB...',
+                'progress': 0
+            }
+        )
+        
+        # Bulk insert measurements
+        successful, failed = db_manager.insert_measurements_bulk(
+            task_id=task_id,
+            measurements_list=measurements,
+            s3_paths=s3_paths
+        )
+        
+        # Update final progress
+        progress = 100 if successful > 0 else 0
+        self.update_state(
+            state='PROGRESS',
+            meta={
+                'current': successful,
+                'total': len(measurements),
+                'successful': successful,
+                'failed': failed,
+                'status': f'Completed: {successful} inserted, {failed} failed',
+                'progress': progress
+            }
+        )
+        
+        result = {
+            'status': 'SUCCESS' if failed == 0 else 'PARTIAL_FAILURE',
+            'message': f'Inserted {successful}/{len(measurements)} measurements',
+            'measurements_count': len(measurements),
+            'successful': successful,
+            'failed': failed,
+            'task_id': task_id,
+        }
+        
+        logger.info(
+            "TimescaleDB storage complete: %d successful, %d failed",
+            successful,
+            failed
+        )
+        
+        return result
     
-    # TODO: Implement TimescaleDB storage
-    # - Use SQLAlchemy
-    # - Store to measurements table
-    # - Bulk insert for performance
-    
-    return {
-        'status': 'PENDING_IMPLEMENTATION',
-        'message': 'TimescaleDB storage to be implemented',
-        'measurements_count': len(measurements)
-    }
+    except Exception as e:
+        logger.exception("TimescaleDB storage task failed: %s", str(e))
+        # Task will automatically retry due to base=AcquisitionTask
+        raise
 
 
 @shared_task(bind=True)

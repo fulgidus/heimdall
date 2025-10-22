@@ -106,12 +106,12 @@ requirements.txt                      # ✓ boto3 already installed
 
 ## Performance
 
-| Metric | Value |
-|--------|-------|
-| Upload Speed | ~100 MB/s |
-| Per-Measurement | 5-10 ms |
-| 7 Concurrent | ~300 ms |
-| Storage per Acquisition | ~3.5 MB |
+| Metric                  | Value     |
+| ----------------------- | --------- |
+| Upload Speed            | ~100 MB/s |
+| Per-Measurement         | 5-10 ms   |
+| 7 Concurrent            | ~300 ms   |
+| Storage per Acquisition | ~3.5 MB   |
 
 ---
 

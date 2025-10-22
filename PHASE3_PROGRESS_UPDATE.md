@@ -61,15 +61,15 @@ RF Acquisition Service (Phase 3)
 
 ## Progress Timeline
 
-| Phase | Component | Status | Completion |
-|-------|-----------|--------|------------|
-| **3.1** | WebSDR Network | ✅ | 40% |
-| **3.1** | IQ Processor | ✅ | 40% |
-| **3.2** | FastAPI + Celery | ✅ | 40% |
-| **3.3** | MinIO Storage | ✅ NEW | 15% |
-| **3.4** | TimescaleDB | ⏳ | 10% |
-| **3.5** | Config Database | ⏳ | 5% |
-| **3.6** | E2E Testing | ⏳ | 5% |
+| Phase   | Component        | Status | Completion |
+| ------- | ---------------- | ------ | ---------- |
+| **3.1** | WebSDR Network   | ✅      | 40%        |
+| **3.1** | IQ Processor     | ✅      | 40%        |
+| **3.2** | FastAPI + Celery | ✅      | 40%        |
+| **3.3** | MinIO Storage    | ✅ NEW  | 15%        |
+| **3.4** | TimescaleDB      | ⏳      | 10%        |
+| **3.5** | Config Database  | ⏳      | 5%         |
+| **3.6** | E2E Testing      | ⏳      | 5%         |
 
 **Overall**: 65% Complete (was 60%)
 
@@ -142,13 +142,13 @@ Coverage:
 
 ## Code Quality Metrics
 
-| Metric | Value | Status |
-|--------|-------|--------|
-| Type Hints | 100% | ✅ |
-| Docstrings | 100% | ✅ |
-| Error Handling | ~100% | ✅ |
-| Test Pass Rate | 100% | ✅ |
-| Code Coverage | 90%+ | ✅ |
+| Metric         | Value | Status |
+| -------------- | ----- | ------ |
+| Type Hints     | 100%  | ✅      |
+| Docstrings     | 100%  | ✅      |
+| Error Handling | ~100% | ✅      |
+| Test Pass Rate | 100%  | ✅      |
+| Code Coverage  | 90%+  | ✅      |
 
 ---
 

@@ -84,13 +84,13 @@ Implement complete WebSDR data fetching service with IQ signal processing, Celer
 ## 📊 Key Metrics
 
 ### Test Coverage
-| Module | Tests | Pass Rate | Coverage |
-|--------|-------|-----------|----------|
-| WebSDR Fetcher | 5 | 100% | 95% |
-| IQ Processor | 7 | 100% | 90% |
-| API Endpoints | 10 | 100% | 80% |
-| Main App | 3 | 100% | 100% |
-| **Total** | **25** | **100%** | **85-95%** |
+| Module         | Tests  | Pass Rate | Coverage   |
+| -------------- | ------ | --------- | ---------- |
+| WebSDR Fetcher | 5      | 100%      | 95%        |
+| IQ Processor   | 7      | 100%      | 90%        |
+| API Endpoints  | 10     | 100%      | 80%        |
+| Main App       | 3      | 100%      | 100%       |
+| **Total**      | **25** | **100%**  | **85-95%** |
 
 ### Code Quality
 - Lines of Code: 1,550+ (core implementation)
@@ -260,15 +260,15 @@ Total: 8 endpoints (7 acquisition + 1 meta)
 
 ## 📝 Recent Changes
 
-| Date | Change | Status |
-|------|--------|--------|
+| Date   | Change                                     | Status     |
+| ------ | ------------------------------------------ | ---------- |
 | Oct 22 | Updated WebSDR config to Italian receivers | ✅ Complete |
-| Oct 22 | Verified all 25 tests with new config | ✅ Complete |
-| Oct 22 | Created status documentation | ✅ Complete |
-| Oct 22 | Updated AGENTS.md Phase 3 section | ✅ Complete |
-| TBD | MinIO storage implementation | ⏳ Pending |
-| TBD | TimescaleDB storage implementation | ⏳ Pending |
-| TBD | End-to-end integration testing | ⏳ Pending |
+| Oct 22 | Verified all 25 tests with new config      | ✅ Complete |
+| Oct 22 | Created status documentation               | ✅ Complete |
+| Oct 22 | Updated AGENTS.md Phase 3 section          | ✅ Complete |
+| TBD    | MinIO storage implementation               | ⏳ Pending  |
+| TBD    | TimescaleDB storage implementation         | ⏳ Pending  |
+| TBD    | End-to-end integration testing             | ⏳ Pending  |
 
 ---
 

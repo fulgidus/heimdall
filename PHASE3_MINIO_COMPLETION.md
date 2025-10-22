@@ -170,14 +170,14 @@ logger.exception("Unexpected error uploading IQ data")
 
 ## Performance Characteristics
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| Upload Speed | ~100 MB/s | SSD backend |
-| Per-Measurement | 5-10 ms | Sequential |
-| 7 Concurrent | ~300 ms | Async parallel |
-| Metadata JSON | <2 KB | Per measurement |
-| Total per Acquisition | ~3.5 MB | 7 measurements |
-| Bucket Creation | <100 ms | One-time |
+| Metric                | Value     | Notes           |
+| --------------------- | --------- | --------------- |
+| Upload Speed          | ~100 MB/s | SSD backend     |
+| Per-Measurement       | 5-10 ms   | Sequential      |
+| 7 Concurrent          | ~300 ms   | Async parallel  |
+| Metadata JSON         | <2 KB     | Per measurement |
+| Total per Acquisition | ~3.5 MB   | 7 measurements  |
+| Bucket Creation       | <100 ms   | One-time        |
 
 ---
 

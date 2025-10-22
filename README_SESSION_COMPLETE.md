@@ -113,13 +113,13 @@ Format:
 
 ## Performance Characteristics
 
-| Metric | Value |
-|--------|-------|
-| Single Upload | 5-10 ms |
-| 7 Concurrent | ~300 ms |
-| Throughput | ~100 MB/s |
-| Metadata | <2 KB |
-| Total Storage | ~3.5 MB |
+| Metric        | Value     |
+| ------------- | --------- |
+| Single Upload | 5-10 ms   |
+| 7 Concurrent  | ~300 ms   |
+| Throughput    | ~100 MB/s |
+| Metadata      | <2 KB     |
+| Total Storage | ~3.5 MB   |
 
 ---
 
