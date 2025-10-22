@@ -3,6 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .models.health import HealthResponse
+from .database import init_db
+from .routers import sessions
 
 SERVICE_NAME = "data-ingestion-web"
 SERVICE_VERSION = "0.1.0"
@@ -11,6 +13,15 @@ SERVICE_PORT = 8004
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Register routers
+app.include_router(sessions.router)
+
+
+@app.on_event("startup")
+async def startup():
+    """Initialize database on startup"""
+    init_db()
 
 
 @app.get("/")

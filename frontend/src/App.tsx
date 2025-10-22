@@ -11,6 +11,7 @@ import {
     SessionHistory,
     WebSDRManagement,
     SystemStatus,
+    DataIngestion,
 } from './pages';
 import { useAuthStore } from './store';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -64,6 +65,16 @@ function App() {
                         <SidebarProvider>
                             <ProtectedRoute>
                                 <Analytics />
+                            </ProtectedRoute>
+                        </SidebarProvider>
+                    }
+                />
+                <Route
+                    path="/data-ingestion"
+                    element={
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <DataIngestion />
                             </ProtectedRoute>
                         </SidebarProvider>
                     }
