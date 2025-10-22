@@ -1,0 +1,16 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+structlog==24.1.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+redis==5.0.1
+aiohttp==3.9.1
+celery==5.3.4
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.1
+alembic==1.13.0
+fastapi-sqlalchemy==0.4.0

@@ -1,0 +1,9 @@
+"""
+Shared base requirements for all Heimdall SDR services.
+
+This module provides common configurations, utilities, and models
+that are shared across all microservices in the platform.
+"""
+
+# (Base dependencies are in services/*/requirements.txt)
+# This file serves as documentation for shared patterns

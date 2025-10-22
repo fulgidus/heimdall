@@ -138,7 +138,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
   # MinIO Client Setup - creates buckets and access keys
   minio-init:
     image: minio/mc:latest
@@ -151,7 +150,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host add heimdall http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc alias set heimdall http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
       /usr/bin/mc mb heimdall/heimdall-raw-iq || true;
       /usr/bin/mc mb heimdall/heimdall-models || true;
       /usr/bin/mc mb heimdall/heimdall-mlflow || true;
