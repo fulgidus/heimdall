@@ -41,13 +41,13 @@
 
 ### 📊 Metrics
 
-| Metric | Value |
-|--------|-------|
-| Lines of Code | ~690 (new) |
-| Test Cases | 7 (5 passing) |
-| Database Support | PostgreSQL + SQLite |
-| Bulk Insert Speed | ~10-100ms for 7 measurements |
-| Query Response Time | 5-20ms typical |
+| Metric              | Value                        |
+| ------------------- | ---------------------------- |
+| Lines of Code       | ~690 (new)                   |
+| Test Cases          | 7 (5 passing)                |
+| Database Support    | PostgreSQL + SQLite          |
+| Bulk Insert Speed   | ~10-100ms for 7 measurements |
+| Query Response Time | 5-20ms typical               |
 
 ### 📁 Files Created/Modified
 
@@ -142,17 +142,17 @@ Remaining work:       25% (Config DB + E2E)
 
 ### Breakdown by Component
 
-| Component | Status | Tests | Estimate |
-|-----------|--------|-------|----------|
-| **Storage** | | | |
-| MinIO S3 | ✅ 100% | 25/25 | 2.5 hrs |
-| TimescaleDB | ✅ 100% | 5/7 | 3.5 hrs |
-| **Configuration** | | | |
-| WebSDR DB | ⏳ 0% | - | 2-3 hrs |
-| **Testing** | | | |
-| End-to-End | ⏳ 0% | - | 4-5 hrs |
-| **Deployment** | ⏳ 0% | - | 2 hrs |
-| **Total** | **75%** | **30/32** | **20-25 hrs** |
+| Component         | Status  | Tests     | Estimate      |
+| ----------------- | ------- | --------- | ------------- |
+| **Storage**       |         |           |               |
+| MinIO S3          | ✅ 100%  | 25/25     | 2.5 hrs       |
+| TimescaleDB       | ✅ 100%  | 5/7       | 3.5 hrs       |
+| **Configuration** |         |           |               |
+| WebSDR DB         | ⏳ 0%    | -         | 2-3 hrs       |
+| **Testing**       |         |           |               |
+| End-to-End        | ⏳ 0%    | -         | 4-5 hrs       |
+| **Deployment**    | ⏳ 0%    | -         | 2 hrs         |
+| **Total**         | **75%** | **30/32** | **20-25 hrs** |
 
 ## Known Limitations & Notes
 

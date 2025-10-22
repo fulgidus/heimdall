@@ -40,15 +40,21 @@ class DatabaseManager:
         try:
             # Build connect_args based on database URL
             connect_args = {}
+            poolclass = NullPool  # Default: no connection pooling
+            
             if "postgresql" in self.database_url or "postgres" in self.database_url:
                 connect_args = {"options": "-c timezone=utc"}
             elif "sqlite" in self.database_url:
                 connect_args = {"check_same_thread": False}
+                # SQLite in-memory needs StaticPool to maintain the connection
+                if ":memory:" in self.database_url:
+                    from sqlalchemy.pool import StaticPool
+                    poolclass = StaticPool
             
             self.engine = create_engine(
                 self.database_url,
                 echo=False,
-                poolclass=NullPool,
+                poolclass=poolclass,
                 connect_args=connect_args if connect_args else {}
             )
             self.SessionLocal = sessionmaker(

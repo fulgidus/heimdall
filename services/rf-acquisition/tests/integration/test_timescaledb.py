@@ -3,6 +3,7 @@
 import pytest
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
+from sqlalchemy.orm import sessionmaker
 
 
 def test_measurement_creation_from_dict():
@@ -90,10 +91,10 @@ def test_insert_single_measurement():
     """Test inserting a single measurement"""
     from src.storage.db_manager import DatabaseManager
     from src.models.db import Base
-    from sqlalchemy.orm import sessionmaker
     
     manager = DatabaseManager(database_url="sqlite:///:memory:")
-    Base.metadata.create_all(manager.engine)
+    manager.create_tables()
+    # Reinitialize session factory with the engine
     manager.SessionLocal = sessionmaker(bind=manager.engine, expire_on_commit=False)
     
     sample_dict = {
@@ -120,10 +121,10 @@ def test_bulk_insert_measurements():
     """Test bulk inserting multiple measurements"""
     from src.storage.db_manager import DatabaseManager
     from src.models.db import Base
-    from sqlalchemy.orm import sessionmaker
     
     manager = DatabaseManager(database_url="sqlite:///:memory:")
-    Base.metadata.create_all(manager.engine)
+    manager.create_tables()
+    # Reinitialize session factory with the engine
     manager.SessionLocal = sessionmaker(bind=manager.engine, expire_on_commit=False)
     
     measurements_list = []
@@ -156,10 +157,10 @@ def test_get_snr_statistics():
     """Test retrieving SNR statistics"""
     from src.storage.db_manager import DatabaseManager
     from src.models.db import Base
-    from sqlalchemy.orm import sessionmaker
     
     manager = DatabaseManager(database_url="sqlite:///:memory:")
-    Base.metadata.create_all(manager.engine)
+    manager.create_tables()
+    # Reinitialize session factory with the engine
     manager.SessionLocal = sessionmaker(bind=manager.engine, expire_on_commit=False)
     
     measurements_list = []
