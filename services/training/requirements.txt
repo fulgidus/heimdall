@@ -28,6 +28,8 @@ pytorch-lightning>=2.0.0
 # ML training & tracking
 tensorboard>=2.14.0
 mlflow>=2.8.0
+boto3>=1.28.0
+botocore>=1.31.0
 
 # Feature extraction & signal processing
 librosa>=0.10.0
