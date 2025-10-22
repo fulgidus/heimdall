@@ -138,7 +138,7 @@ CREATE INDEX idx_training_datasets_active ON training_datasets(is_active);
 CREATE TABLE IF NOT EXISTS dataset_measurements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dataset_id UUID NOT NULL REFERENCES training_datasets(id) ON DELETE CASCADE,
-    measurement_id UUID NOT NULL,
+    measurement_id UUID NOT NULL REFERENCES measurements(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(dataset_id, measurement_id)
 );
@@ -203,6 +203,9 @@ SELECT
 CREATE INDEX idx_inference_requests_model ON inference_requests(model_id, timestamp DESC);
 
 CREATE INDEX idx_inference_requests_time ON inference_requests(timestamp DESC);
+
+SET
+    chunk_time_interval_for_hypertable = INTERVAL '1 day';
 
 -- Grants
 GRANT CONNECT ON DATABASE heimdall TO heimdall_user;
