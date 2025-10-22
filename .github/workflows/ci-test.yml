@@ -171,19 +171,19 @@ jobs:
             echo "This may cause import errors. Creating fallback conftest.py..."
             mkdir -p tests
             cat > tests/conftest.py << 'EOF'
-import sys
-from pathlib import Path
+          import sys
+          from pathlib import Path
 
-def pytest_configure(config):
-    """Add src/ to Python path before tests run"""
-    service_root = Path(__file__).parent.parent
-    src_path = service_root / "src"
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-    if str(service_root) not in sys.path:
-        sys.path.insert(0, str(service_root))
-EOF
-          fi
+          def pytest_configure(config):
+            """Add src/ to Python path before tests run"""
+            service_root = Path(__file__).parent.parent
+            src_path = service_root / "src"
+            if str(src_path) not in sys.path:
+                sys.path.insert(0, str(src_path))
+            if str(service_root) not in sys.path:
+                sys.path.insert(0, str(service_root))
+          EOF
+            fi
 
       - name: Test with pytest (unit tests only)
         timeout-minutes: 30
@@ -237,7 +237,7 @@ EOF
             exit $exit_code
           fi
 
-      - name: Generate coverage report
+      - name: "Generate coverage report"
         if: always()
         continue-on-error: true
         run: |
