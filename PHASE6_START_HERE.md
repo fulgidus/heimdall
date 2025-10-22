@@ -1,0 +1,397 @@
+# 🚀 PHASE 6: Inference Service - START HERE
+
+**Status**: 🔴 READY TO START  
+**Duration**: 2 giorni  
+**Dipende da**: Phase 5 ✅ (completo), Phase 2 ✅ (completo)  
+**Blocca**: Phase 7 (Frontend)  
+**Assegnato a**: Agent-Backend (fulgidus)
+
+---
+
+## 📊 Quick Status
+
+| Item                    | Status | Note                                             |
+| ----------------------- | ------ | ------------------------------------------------ |
+| Phase 5 (Training)      | ✅      | COMPLETE - MLflow registry ready                 |
+| Phase 2 (Scaffolding)   | ✅      | COMPLETE - FastAPI template ready                |
+| ONNX Model Export       | ✅      | Available in MinIO `heimdall-models` bucket      |
+| Model Registry (MLflow) | ✅      | Available with metadata                          |
+| Redis Cache Layer       | ✅      | Running on port 6379                             |
+| Infrastructure          | ✅      | All 13 containers healthy (from Phase 4 testing) |
+
+---
+
+## 🎯 Obiettivo Phase 6
+
+Implementare **inference service in tempo reale** con:
+- ✅ Caricamento modello ONNX da MLflow registry
+- ✅ Endpoint `/predict` con preprocessing + cache Redis + ONNX inference
+- ✅ Calcolo ellisse di incertezza per visualizzazione
+- ✅ Support batch predictions
+- ✅ Model versioning e A/B testing
+- ✅ Performance monitoring (latency <500ms)
+- ✅ Graceful model reloading
+- ✅ Tests comprehensivi
+
+**SLA Principale**: Latenza <500ms (95° percentile) ✓
+
+---
+
+## 📋 Task Breakdown
+
+### T6.1: ONNX Model Loader ⭐ START HERE
+
+**File**: `services/inference/src/models/onnx_loader.py`
+
+```python
+# Pseudocode - Real implementation below
+class ONNXModelLoader:
+    def __init__(self, mlflow_uri: str, model_name: str, stage: str = "Production"):
+        # 1. Connect to MLflow registry
+        # 2. Load model metadata
+        # 3. Download ONNX artifact
+        # 4. Initialize ONNXRuntime session with optimizations
+        
+    def predict(self, features: np.ndarray) -> Dict:
+        # 1. Validate input shape
+        # 2. Run ONNX inference
+        # 3. Parse outputs
+        # 4. Return {position: (lat, lon), uncertainty: (sigma_x, sigma_y, theta)}
+
+    def get_metadata(self) -> Dict:
+        # Return model info from MLflow
+```
+
+**Checklist**:
+- [ ] Create file and ONNXModelLoader class
+- [ ] Implement MLflow client initialization
+- [ ] Implement ONNX session creation with optimizations
+- [ ] Add error handling and logging
+- [ ] Create unit tests
+
+---
+
+### T6.2: Single Prediction Endpoint
+
+**File**: `services/inference/src/routers/predict.py`
+
+```python
+# Example API contract
+@app.post("/predict")
+async def predict(request: PredictionRequest) -> PredictionResponse:
+    """
+    Input: IQ data (complex128 array or similar)
+    Output: {
+        position: {lat: float, lon: float},
+        uncertainty: {sigma_x: float, sigma_y: float, theta: float},
+        confidence: float,
+        model_version: str,
+        inference_time_ms: float
+    }
+    """
+    # 1. Preprocess IQ data
+    # 2. Check Redis cache (if enabled)
+    # 3. If cache hit -> return cached result
+    # 4. Run ONNX inference
+    # 5. Format result + cache
+    # 6. Return with metadata
+```
+
+**SLA**: <500ms end-to-end
+
+---
+
+### T6.3: Uncertainty Ellipse Calculation
+
+**File**: `services/inference/src/utils/uncertainty.py`
+
+```python
+def compute_uncertainty_ellipse(
+    sigma_x: float,      # Output from neural network
+    sigma_y: float,      # Output from neural network
+    covariance_xy: float = 0.0  # Optional covariance
+) -> Dict:
+    """
+    Convert (sigma_x, sigma_y) to visualization ellipse parameters.
+    
+    Returns: {
+        center: (lat, lon),
+        semi_major_axis: float,    # In meters
+        semi_minor_axis: float,    # In meters
+        rotation_angle: float,     # In degrees
+        confidence_interval: 0.68  # 1-sigma = 68%
+    }
+    """
+    # 1. Calculate eigenvalues/eigenvectors of covariance matrix
+    # 2. Compute major/minor axes
+    # 3. Compute rotation angle
+    # 4. Return ellipse parameters (GeoJSON format for Mapbox)
+```
+
+---
+
+### T6.4: Batch Prediction Endpoint
+
+```python
+@app.post("/predict/batch")
+async def predict_batch(request: BatchPredictionRequest) -> List[PredictionResponse]:
+    """
+    Input: List of IQ data samples
+    Output: List of predictions (faster due to batching)
+    """
+```
+
+---
+
+### T6.5: Model Versioning & A/B Testing
+
+```python
+# services/inference/src/utils/model_versioning.py
+
+class ModelVersionManager:
+    """
+    Support multiple model versions with traffic split.
+    Example: 90% requests to v1.2.0, 10% to v2.0.0-alpha
+    """
+    def __init__(self):
+        self.models = {}  # {version: ONNXModelLoader}
+        self.weights = {}  # {version: traffic_percentage}
+        
+    def select_model(self) -> ONNXModelLoader:
+        # Weighted random selection based on traffic split
+```
+
+---
+
+### T6.6: Performance Monitoring
+
+```python
+# services/inference/src/utils/metrics.py
+
+class InferenceMetrics:
+    """Track performance metrics"""
+    - inference_latency_ms (histogram)
+    - cache_hit_rate (gauge)
+    - cache_miss_rate (gauge)
+    - requests_total (counter)
+    - errors_total (counter)
+    - model_reload_count (counter)
+```
+
+Expose via `/metrics` endpoint (Prometheus format)
+
+---
+
+### T6.7: Load Testing
+
+**File**: `tests/load_test_inference.py`
+
+```bash
+# Run: 100 concurrent requests, measure latency distribution
+pytest tests/load_test_inference.py::test_100_concurrent_predictions
+
+# Expected results:
+# - Mean latency: <300ms
+# - P95 latency: <500ms ✅ (SLA)
+# - P99 latency: <700ms
+# - Success rate: 100%
+```
+
+---
+
+### T6.8: Model Info Endpoint
+
+```python
+@app.get("/model/info")
+async def get_model_info() -> ModelInfo:
+    """
+    Return: {
+        name: "LocalizationNet",
+        version: "1.2.0",
+        stage: "Production",
+        created_at: "2025-10-22T12:00:00Z",
+        mlflow_run_id: "abc123...",
+        accuracy_meters: 28.5,
+        training_samples: 10000,
+        last_reloaded: "2025-10-22T10:30:00Z",
+        inference_count: 5432,
+        avg_latency_ms: 245.3,
+        cache_hit_rate: 0.82
+    }
+    """
+```
+
+---
+
+### T6.9: Graceful Model Reloading
+
+```python
+# services/inference/src/main.py
+
+# Signal handlers for SIGHUP (reload) + SIGTERM (shutdown)
+async def handle_model_reload():
+    """Reload model from MLflow without dropping connections"""
+    # 1. Load new model into separate instance
+    # 2. Wait for in-flight requests to complete
+    # 3. Atomic swap old -> new
+    # 4. Drain old instance
+
+async def handle_shutdown():
+    """Graceful shutdown"""
+    # 1. Stop accepting new requests
+    # 2. Wait for in-flight requests (timeout 30s)
+    # 3. Close resources
+    # 4. Exit
+```
+
+---
+
+### T6.10: Comprehensive Tests
+
+**File**: `tests/test_inference_*.py`
+
+```bash
+# Unit tests
+pytest tests/test_inference_models.py              # ONNX loader
+pytest tests/test_inference_uncertainty.py        # Ellipse calculations
+pytest tests/test_inference_versioning.py         # Model versioning
+
+# Integration tests
+pytest tests/test_inference_endpoints.py          # API endpoints
+pytest tests/integration/test_mlflow_inference.py # MLflow integration
+
+# Performance tests
+pytest tests/load_test_inference.py               # <500ms latency
+pytest tests/stress_test_inference.py             # 1000+ concurrent
+```
+
+---
+
+## 🚀 Getting Started
+
+### Step 1: Verify Phase 5 Completion ✅
+```bash
+# Check MLflow registry
+mlflow models list
+# Expected output: model "localization_model" in "Production" stage
+```
+
+### Step 2: Verify Infrastructure Ready ✅
+```bash
+docker-compose ps
+# Expected: All 13 containers HEALTHY
+
+redis-cli PING
+# Expected: PONG
+```
+
+### Step 3: Create Inference Service Structure
+
+```bash
+# If not already scaffolded from Phase 2:
+python scripts/create_service.py inference
+
+# Result:
+# services/inference/
+#   ├── Dockerfile
+#   ├── requirements.txt
+#   ├── src/
+#   │   ├── main.py
+#   │   ├── config.py
+#   │   ├── models/
+#   │   │   └── onnx_loader.py          # T6.1
+#   │   ├── routers/
+#   │   │   ├── predict.py              # T6.2, T6.4
+#   │   │   └── model.py                # T6.8
+#   │   └── utils/
+#   │       ├── uncertainty.py          # T6.3
+#   │       ├── model_versioning.py     # T6.5
+#   │       └── metrics.py              # T6.6
+#   └── tests/
+#       ├── test_onnx_loader.py
+#       ├── test_predict_endpoints.py
+#       └── load_test_inference.py
+```
+
+### Step 4: Create requirements.txt
+
+```bash
+# services/inference/requirements.txt
+onnxruntime>=1.14.1
+redis>=5.0.0
+numpy>=1.24.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+structlog>=24.1.0
+# + shared: pydantic, fastapi, sqlalchemy, etc.
+```
+
+### Step 5: Begin Implementation
+
+Follow tasks in order:
+1. **T6.1** (ONNX Loader) - Core dependency
+2. **T6.2** (Single Prediction) - Main endpoint
+3. **T6.3** (Uncertainty) - Visualization support
+4. **T6.4** (Batch) - Performance optimization
+5. **T6.5** (Versioning) - Production feature
+6. **T6.6** (Monitoring) - Observability
+7. **T6.7** (Load Test) - Validate SLA
+8. **T6.8** (Model Info) - Debugging/monitoring
+9. **T6.9** (Graceful Reload) - Zero-downtime deploys
+10. **T6.10** (Tests) - Comprehensive coverage
+
+---
+
+## 📊 Success Criteria (Checkpoints)
+
+✅ **CP6.1**: ONNX model caricato da MLflow con successo  
+✅ **CP6.2**: Endpoint `/predict` funziona (<500ms latency)  
+✅ **CP6.3**: Redis caching operativo (cache hit >80%)  
+✅ **CP6.4**: Ellisse di incertezza calcolata correttamente  
+✅ **CP6.5**: Load test: 100 concurrent requests, tutti con successo  
+
+---
+
+## 🧪 Testing Strategy
+
+```bash
+# Run all inference tests
+make test-inference  # Custom Makefile target to create
+
+# Expected results:
+# - Unit tests: 100% pass
+# - Integration tests: 100% pass
+# - Load test: P95 <500ms
+# - Coverage: >80%
+```
+
+---
+
+## 📚 References
+
+- **Phase 5 Output**: MLflow registry, ONNX model in `heimdall-models` bucket
+- **Architecture**: `/docs/architecture_diagrams.md`
+- **ONNX Runtime Docs**: https://onnxruntime.ai/docs/
+- **MLflow Model Registry**: https://mlflow.org/docs/latest/model-registry.html
+- **Redis Caching**: https://redis.io/docs/
+
+---
+
+## 🔄 Next Phase After This
+
+Once all CP6.* pass → **Phase 7: Frontend** (React + Mapbox visualization)
+
+---
+
+## 💡 Key Reminders
+
+- **Cache Key Strategy**: Hash preprocessed features (not raw IQ) to avoid collisions
+- **ONNX Optimizations**: Enable graph optimizations in session for 10-20% speedup
+- **Model Registry**: Use "Production" stage for stable model, "Staging" for testing
+- **Error Handling**: Graceful fallback if model unavailable or inference fails
+- **Monitoring**: Track cache hit rate - if <60%, investigate preprocessing consistency
+
+---
+
+**Ready to start? Begin with T6.1: ONNX Model Loader** 🚀
+

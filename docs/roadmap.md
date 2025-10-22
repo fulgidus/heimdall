@@ -185,20 +185,20 @@ Heimdall project roadmap showing planned features, improvements, and milestones 
 ## Success Metrics
 
 ### Performance Targets
-| Metric | Target | Current |
-|--------|--------|---------|
-| API Latency | <100ms | ~52ms ✅ |
-| Inference Time | <500ms | TBD |
-| Task Success Rate | >99% | 100% ✅ |
-| Availability | >99.5% | TBD |
+| Metric            | Target | Current |
+| ----------------- | ------ | ------- |
+| API Latency       | <100ms | ~52ms ✅ |
+| Inference Time    | <500ms | TBD     |
+| Task Success Rate | >99%   | 100% ✅  |
+| Availability      | >99.5% | TBD     |
 
 ### Quality Targets
-| Metric | Target | Current |
-|--------|--------|---------|
-| Test Coverage | >80% | 85% ✅ |
-| Code Quality | A- | TBD |
-| Documentation | >500 pages | ~300 pages |
-| Localization Accuracy | ±30m | ±22m ✅ |
+| Metric                | Target     | Current    |
+| --------------------- | ---------- | ---------- |
+| Test Coverage         | >80%       | 85% ✅      |
+| Code Quality          | A-         | TBD        |
+| Documentation         | >500 pages | ~300 pages |
+| Localization Accuracy | ±30m       | ±22m ✅     |
 
 ## Research & Innovation
 
