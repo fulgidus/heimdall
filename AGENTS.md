@@ -745,7 +745,7 @@ After CP3.* pass, merge feature branch into `develop` and proceed to Phase 4.
 
 **Duration**: 2 days (✅ COMPLETE)  
 **Assignee**: Agent-Backend (fulgidus) + Agent-Frontend (contributor)  
-**Status**: � COMPLETE - Infrastructure Validation & Load Testing  
+**Status**: 🟢 COMPLETE - Infrastructure Validation & Load Testing  
 **Completed**: 2025-10-22  
 **Depends On**: Phase 3 ✅  
 **Critical Path**: NO (completed, Phase 5 can start immediately)
@@ -983,7 +983,7 @@ git pull origin develop
 
 **Duration**: 3 days  
 **Assignee**: Agent-ML (fulgidus)  
-**Status**: COMPLETE - 10/10 TASKS (100%)
+**Status**: 🟢 COMPLETE - 10/10 TASKS (100%)
 **Depends On**: Phase 1 ✅, Phase 3 ✅  
 **Critical Path**: YES (blocks Phase 6)
 
@@ -1044,7 +1044,7 @@ mlflow.delete_run(run_id)
 
 **Duration**: 2 days  
 **Assignee**: Agent-Backend (fulgidus)  
-**Status**: � READY TO START (0/10 tasks)  
+**Status**: 🟢 COMPLETE (10/10 tasks)  
 **Depends On**: Phase 5 ✅, Phase 2 ✅  
 **Critical Path**: YES  
 **Documentation**: `PHASE6_START_HERE.md`, `PHASE6_PREREQUISITES_CHECK.md`
@@ -1140,7 +1140,7 @@ When inference service is validated, proceed to Phase 7: Frontend
 
 **Duration**: 3 days  
 **Assignee**: Agent-Frontend (contributor) + Agent-Backend (fulgidus)  
-**Status**: 🔴 NOT STARTED  
+**Status**: 🟢 STARTED  
 **Depends On**: Phase 6 ✅, Phase 4 ✅  
 **Critical Path**: YES
 
@@ -1162,7 +1162,7 @@ Create React + Mapbox frontend for real-time RF source localization with uncerta
 - **T7.3**: Create WebSDR status dashboard (online/offline indicators)
 - **T7.4**: Implement real-time localization display with uncertainty ellipses
 - **T7.5**: Create recording session management interface
-- **T7.6**: Add spectrogram visualization for signal validation
+- **T7.6**: Add spectrogram visualization for signal validation (one for each WebSDR)
 - **T7.7**: Implement user authentication and role management
 - **T7.8**: Create responsive design for mobile/tablet operators
 - **T7.9**: Add WebSocket integration for real-time updates
