@@ -1,0 +1,243 @@
+# ✅ Frontend → Backend Fix COMPLETO
+
+**Status**: 🟢 READY FOR TESTING
+
+Ho aggiunto **debug logging completo** a 3 layer della stack. Ora puoi vedere esattamente cosa fa il frontend quando accede a `/websdrs`.
+
+---
+
+## 📋 Cosa Ho Fatto
+
+### 1. Fixed Base URL Configuration ✅
+
+**File**: `frontend/.env`
+```bash
+VITE_API_URL=http://localhost:8000  # ✅ Corretto (no /api suffix)
+```
+
+### 2. Added Request/Response Logging ✅
+
+**File**: `frontend/src/lib/api.ts`
+- Logs API base URL e environment
+- Logs ogni richiesta HTTP (method, URL, full URL)
+- Logs ogni risposta (status, URL, data size)
+- Logs errori di connessione (CORS, timeout, ECONNREFUSED)
+
+### 3. Component-Level Logging ✅
+
+**File**: `frontend/src/pages/WebSDRManagement.tsx`
+- Logs quando useEffect si avvia
+- Logs quali servizi chiama
+- Logs dati ricevuti dal backend
+- Logs auto-refresh ogni 30s
+
+### 4. Service-Level Logging ✅
+
+**File**: `frontend/src/services/api/websdr.ts`
+- Logs quale endpoint chiama
+- Logs quanti WebSDRs riceve
+- Logs health status ricevuto
+
+---
+
+## 🚀 Come Testare (5 minuti)
+
+### Opzione A: Script Automatico (Consigliato)
+
+```powershell
+cd c:\Users\aless\Documents\Projects\heimdall
+.\start_and_test.bat
+```
+
+Questo fa tutto:
+1. Testa il backend
+2. Se fallisce, avvia il backend
+3. Avvia il frontend dev server
+4. Ti mostra quali log guardare
+
+### Opzione B: Manuale
+
+```powershell
+# Terminal 1: Test backend
+cd c:\Users\aless\Documents\Projects\heimdall
+python test_backend_connectivity.py
+
+# Se fallisce, Terminal 2: Avvia backend
+cd services\rf-acquisition
+python src\main.py
+
+# Terminal 3: Avvia frontend
+cd frontend
+npm run dev
+
+# Browser: Apri http://localhost:3001/websdrs
+# DevTools: F12 → Console
+```
+
+---
+
+## 👀 Cosa Guardare nella Console
+
+### ✅ Scenario: Funziona
+
+Quando apri http://localhost:3001/websdrs e vedi in F12 Console:
+
+```
+🔧 API Configuration: {VITE_API_URL: 'http://localhost:8000', ...}
+
+🚀 WebSDRManagement: setuping useEffect - caricamento iniziale
+
+📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+📤 API Request: {
+  method: 'GET',
+  url: '/api/v1/acquisition/websdrs',
+  fullURL: 'http://localhost:8000/api/v1/acquisition/websdrs'
+}
+
+📥 API Response: {status: 200, url: '/api/v1/acquisition/websdrs', dataSize: 2847}
+
+✅ WebSDRService.getWebSDRs(): ricevuti 7 WebSDRs
+```
+
+**Se vedi questo** → **✅ Il frontend chiama davvero il backend!**
+
+---
+
+### ❌ Scenario: Errore Connection Refused
+
+```
+❌ API Error: {
+  status: undefined,
+  message: 'connect ECONNREFUSED 127.0.0.1:8000',
+  data: undefined
+}
+```
+
+**Azione**: Avvia il backend
+```powershell
+cd services\rf-acquisition
+python src\main.py
+```
+
+---
+
+### ❌ Scenario: CORS Error
+
+```
+❌ API Error: {
+  message: 'Access to XMLHttpRequest from origin http://localhost:3001
+   has been blocked by CORS policy'
+}
+```
+
+**Azione**: Verifica che backend abbia CORS abilitato per localhost:3001
+
+---
+
+## 📊 Network Tab: Cosa Guardare
+
+Apri **DevTools F12 → Network tab → Ricarica F5**
+
+**Atteso**:
+```
+GET /api/v1/acquisition/websdrs    → 200 OK
+GET /api/v1/acquisition/websdrs/health → 200 OK
+```
+
+**Non atteso**:
+```
+❌ (pending)  - Non completa
+❌ 404 - Endpoint non trovato
+❌ CORS error
+```
+
+---
+
+## 📁 Files Modificati
+
+```
+frontend/
+├── .env                           # ✅ VITE_API_URL=http://localhost:8000
+├── src/
+│   ├── lib/api.ts                 # ✅ +15 linee di request/response logging
+│   ├── pages/WebSDRManagement.tsx # ✅ +20 linee di console.log
+│   └── services/api/websdr.ts     # ✅ +8 linee di console.log
+```
+
+---
+
+## 🔧 New Scripts Created
+
+```
+test_backend_connectivity.py   # Testa che backend gira
+start_and_test.bat            # Avvia tutto automaticamente
+DEBUG_FRONTEND_BACKEND.md     # Guida completa debug
+VERIFICA_FRONTEND_BACKEND_IT.md # Checklist in italiano
+```
+
+---
+
+## ⏭️ Prossimi Passi
+
+1. **Esegui il test**
+   ```powershell
+   python test_backend_connectivity.py
+   ```
+
+2. **Se fallisce**: Avvia il backend
+   ```powershell
+   cd services\rf-acquisition
+   python src\main.py
+   ```
+
+3. **Apri Browser**: http://localhost:3001/websdrs
+
+4. **F12 Console**: Guarda i log
+
+5. **Condividi i log** se c'è ancora un problema
+
+---
+
+## 🎯 Success Criteria
+
+Frontend chiama davvero il backend quando:
+
+- [ ] Console mostra "📤 API Request: GET /api/v1/acquisition/websdrs"
+- [ ] Console mostra "📥 API Response: {status: 200, ...}"
+- [ ] Network tab mostra GET requests con 200 OK
+- [ ] Pagina mostra 7 WebSDRs reali (non mock)
+- [ ] Ogni 30s vedi "🔄 WebSDRManagement: auto-refresh"
+
+Se tutti questi checkmark sono verdi → **✅ Missione compiuta!**
+
+---
+
+## 📞 Debug Tips
+
+Se vedi errore che non capisco:
+1. Copia tutto il testo dalla Console (F12)
+2. Copia screenshot di Network tab
+3. Condividi l'output di `test_backend_connectivity.py`
+4. Condividi il terminal output del backend
+
+Con questi dati posso diagnosticare il problema esatto.
+
+---
+
+**Status**: ✅ Ready for runtime verification
+
+**Last Updated**: 2025-10-23
+**Author**: GitHub Copilot
+**Language**: Italian + English
+
+---
+
+## 🚀 QUICK START COMMAND
+
+```powershell
+cd c:\Users\aless\Documents\Projects\heimdall
+python test_backend_connectivity.py; npm run --prefix frontend dev
+```
+
+Questo testa il backend e avvia il frontend in uno. Apri http://localhost:3001/websdrs e guarda la Console F12!

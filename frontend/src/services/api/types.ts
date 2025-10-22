@@ -27,6 +27,8 @@ export interface WebSDRHealthStatus {
     response_time_ms?: number;
     last_check: string;
     error_message?: string;
+    uptime?: number;
+    avg_snr?: number | null;
 }
 
 // ============================================================================

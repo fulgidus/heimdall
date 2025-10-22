@@ -21,7 +21,7 @@ export async function triggerAcquisition(
     request: AcquisitionRequest
 ): Promise<AcquisitionTaskResponse> {
     const response = await api.post<AcquisitionTaskResponse>(
-        '/v1/acquisition/acquire',
+        '/api/v1/acquisition/acquire',
         request
     );
     return response.data;
@@ -34,7 +34,7 @@ export async function getAcquisitionStatus(
     taskId: string
 ): Promise<AcquisitionStatusResponse> {
     const response = await api.get<AcquisitionStatusResponse>(
-        `/v1/acquisition/status/${taskId}`
+        `/api/v1/acquisition/status/${taskId}`
     );
     return response.data;
 }
@@ -56,11 +56,11 @@ export async function pollAcquisitionStatus(
         const poll = async () => {
             try {
                 const status = await getAcquisitionStatus(taskId);
-                
+
                 if (onProgress) {
                     onProgress(status);
                 }
-                
+
                 if (status.status === 'SUCCESS' || status.status === 'FAILURE' || status.status === 'REVOKED') {
                     resolve(status);
                 } else {
@@ -70,7 +70,7 @@ export async function pollAcquisitionStatus(
                 reject(error);
             }
         };
-        
+
         poll();
     });
 }

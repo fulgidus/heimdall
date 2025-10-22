@@ -14,7 +14,9 @@ import type { WebSDRConfig, WebSDRHealthStatus } from './types';
  * Get list of all configured WebSDR receivers
  */
 export async function getWebSDRs(): Promise<WebSDRConfig[]> {
-    const response = await api.get<WebSDRConfig[]>('/v1/acquisition/websdrs');
+    console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs');
+    const response = await api.get<WebSDRConfig[]>('/api/v1/acquisition/websdrs');
+    console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');
     return response.data;
 }
 
@@ -22,7 +24,9 @@ export async function getWebSDRs(): Promise<WebSDRConfig[]> {
  * Check health status of all WebSDR receivers
  */
 export async function checkWebSDRHealth(): Promise<Record<number, WebSDRHealthStatus>> {
-    const response = await api.get<Record<number, WebSDRHealthStatus>>('/v1/acquisition/websdrs/health');
+    console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');
+    const response = await api.get<Record<number, WebSDRHealthStatus>>('/api/v1/acquisition/websdrs/health');
+    console.log('✅ WebSDRService.checkWebSDRHealth(): ricevuto health status');
     return response.data;
 }
 
@@ -32,11 +36,11 @@ export async function checkWebSDRHealth(): Promise<Record<number, WebSDRHealthSt
 export async function getWebSDRConfig(id: number): Promise<WebSDRConfig> {
     const websdrs = await getWebSDRs();
     const websdr = websdrs.find(w => w.id === id);
-    
+
     if (!websdr) {
         throw new Error(`WebSDR with id ${id} not found`);
     }
-    
+
     return websdr;
 }
 
