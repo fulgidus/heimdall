@@ -64,13 +64,13 @@ Heimdall is an AI-powered platform that locates radio transmissions in real-time
   - FAQs and troubleshooting guides
 
 ## Installation
-To install Heimdall, follow the instructions in the [Installation Guide](docs/installation.md).
+To install Heimdall, follow the instructions in the [Installation Guide](installation).
 
 ## Usage
-For usage instructions, refer to the [User Guide](docs/usage.md).
+For usage instructions, refer to the [User Guide](usage).
 
 ## Contributing
-We welcome contributions! Please see our [Contributing Guidelines](docs/contributing.md) for more information.
+We welcome contributions! Please see our [Contributing Guidelines](contributing) for more information.
 
 ## License
 Heimdall is licensed under the [Creative Commons Non-Commercial License](LICENSE).
@@ -79,27 +79,27 @@ Heimdall is licensed under the [Creative Commons Non-Commercial License](LICENSE
 For questions or support, please contact the project maintainers at [alessio.corsi[AT]gmail.com](mailto:alessio.corsi@gmail.com).
 
 ## Changelog
-See the [Changelog](docs/changelog.md) for a detailed history of changes.
+See the [Changelog](changelog) for a detailed history of changes.
 
 ## FAQs
-Find answers to common questions in our [FAQ section](docs/faqs.md).
+Find answers to common questions in our [FAQ section](faqs).
 
 ## Additional Resources
-- [Architecture Diagrams](docs/architecture_diagrams.md)
-- [API Documentation](docs/api_documentation.md)
-- [Performance Benchmarks](docs/performance_benchmarks.md)
-- [Testing Strategies](docs/testing_strategies.md)
-- [Deployment Instructions](docs/deployment_instructions.md)
-- [Troubleshooting Guide](docs/troubleshooting_guide.md)
-- [Glossary of Terms](docs/glossary.md)
-- [Acknowledgements](docs/acknowledgements.md)
-- [Related Projects](docs/related_projects.md)
-- [Community Resources](docs/community_resources.md)
-- [Roadmap](docs/roadmap.md)
-- [Security Considerations](docs/security_considerations.md)
-- [Performance Optimization Tips](docs/performance_optimization.md)
-- [Data Schema Documentation](docs/data_schema.md)
-- [API Reference](docs/api_reference.md)
-- [Developer Guide](docs/developer_guide.md)
-- [Heimdall Wiki](docs/wiki.md)
+- [Architecture Diagrams](architecture_diagrams)
+- [API Documentation](api_documentation)
+- [Performance Benchmarks](performance_benchmarks)
+- [Testing Strategies](testing_strategies)
+- [Deployment Instructions](deployment_instructions)
+- [Troubleshooting Guide](troubleshooting_guide)
+- [Glossary of Terms](glossary)
+- [Acknowledgements](acknowledgements)
+- [Related Projects](related_projects)
+- [Community Resources](community_resources)
+- [Roadmap](roadmap)
+- [Security Considerations](security_considerations)
+- [Performance Optimization Tips](performance_optimization)
+- [Data Schema Documentation](data_schema)
+- [API Reference](api_reference)
+- [Developer Guide](developer_guide)
+- [Heimdall Wiki](wiki)
 
