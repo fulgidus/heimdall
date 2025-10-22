@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuthStore } from '../store';
 
 const Login: React.FC = () => {
@@ -32,29 +32,43 @@ const Login: React.FC = () => {
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin123!@#';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-oxford-blue via-sea-green to-oxford-blue flex items-center justify-center p-4">
-            {/* Animated Background Gradient */}
-            <div className="fixed inset-0 bg-gradient-radial-neon opacity-5 -z-10"></div>
+        <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-600 flex flex-col items-center justify-center p-4 overflow-hidden">
+            {/* Animated Background Elements */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
+                <div className="absolute bottom-20 right-10 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+            </div>
 
-            <div className="max-w-md">
-                {/* Logo */}
-                <div className="text-center mb-12">
-                    <h1 className="text-5xl font-bold text-light-green mb-2">
-                        🚀 Heimdall
+            {/* Main Container */}
+            <div className="w-full max-w-md relative z-10">
+                {/* Header - Logo & Branding */}
+                <div className="text-center mb-12 animate-fade-in">
+                    <div className="inline-block mb-4">
+                        <div className="text-6xl font-black text-white drop-shadow-lg">🚀</div>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                        Heimdall
                     </h1>
-                    <p className="text-sea-green font-semibold text-lg">RF Localization Platform</p>
+                    <p className="text-purple-200 font-medium text-sm md:text-base">RF Source Localization Platform</p>
                 </div>
 
-                {/* Login Card - Solid Colors with AA Contrast */}
-                <div className="bg-oxford-blue rounded-xl shadow-2xl p-8 border-2 border-sea-green">
-                    <h2 className="text-2xl font-bold text-light-green mb-2">Welcome Back</h2>
-                    <p className="text-sea-green mb-8 font-medium">Sign in to your account</p>
+                {/* Login Card */}
+                <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 backdrop-blur-xl animate-slide-up">
+                    {/* Card Title */}
+                    <div className="mb-8">
+                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
+                        <p className="text-gray-600 text-sm md:text-base">Access your RF localization dashboard</p>
+                    </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        {/* Email */}
-                        <div>
-                            <label htmlFor="email" className="block text-light-green font-semibold mb-2 text-sm">
-                                Email Address
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Email Input */}
+                        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                            <label htmlFor="email" className="block text-sm font-semibold text-gray-900">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="text-purple-600 font-bold">@</span>
+                                    Email Address
+                                </span>
                             </label>
                             <input
                                 id="email"
@@ -63,14 +77,17 @@ const Login: React.FC = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                className="w-full px-4 py-3 bg-french-gray bg-opacity-20 border-2 border-sea-green text-white placeholder-sea-green placeholder-opacity-60 rounded-lg focus:outline-none focus:border-light-green focus:bg-opacity-30 transition-all"
+                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-600 focus:bg-purple-50 transition-all duration-200"
                             />
                         </div>
 
-                        {/* Password */}
-                        <div>
-                            <label htmlFor="password" className="block text-light-green font-semibold mb-2 text-sm">
-                                Password
+                        {/* Password Input */}
+                        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                            <label htmlFor="password" className="block text-sm font-semibold text-gray-900">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="text-purple-600 font-bold">🔐</span>
+                                    Password
+                                </span>
                             </label>
                             <div className="relative">
                                 <input
@@ -80,12 +97,12 @@ const Login: React.FC = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-french-gray bg-opacity-20 border-2 border-sea-green text-white placeholder-sea-green placeholder-opacity-60 rounded-lg focus:outline-none focus:border-light-green focus:bg-opacity-30 transition-all"
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-600 focus:bg-purple-50 transition-all duration-200 pr-12"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-3 text-sea-green hover:text-light-green transition-colors font-semibold"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-purple-600 transition-colors"
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -93,78 +110,103 @@ const Login: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Error Message - High Contrast */}
+                        {/* Error Message */}
                         {error && (
-                            <div className="p-4 bg-red-600 border-2 border-red-400 rounded-lg text-white font-semibold text-sm" role="alert">
-                                ⚠️ {error}
+                            <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl text-red-700 text-sm font-medium animate-shake" role="alert">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="text-lg">⚠️</span>
+                                    {error}
+                                </span>
                             </div>
                         )}
-
-                        {/* Remember Me & Forgot Password */}
-                        <div className="flex items-center justify-between text-sm">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="w-5 h-5 rounded border-2 border-sea-green accent-light-green cursor-pointer bg-french-gray bg-opacity-20"
-                                    defaultChecked
-                                />
-                                <span className="text-sea-green font-medium hover:text-light-green">Remember me</span>
-                            </label>
-                            <a href="#" className="text-light-green hover:text-neon-blue font-semibold transition-colors">
-                                Forgot password?
-                            </a>
-                        </div>
 
                         {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-3 mt-8 bg-light-green hover:bg-neon-blue disabled:opacity-50 text-oxford-blue font-bold rounded-lg transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+                            className="w-full py-3 mt-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 animate-fade-in"
+                            style={{ animationDelay: '0.3s' }}
                         >
-                            {isLoading ? '⏳ Signing In...' : 'Sign In'}
+                            {isLoading ? (
+                                <>
+                                    <Loader size={20} className="animate-spin" />
+                                    <span>Signing In...</span>
+                                </>
+                            ) : (
+                                <span>Sign In</span>
+                            )}
                         </button>
                     </form>
 
-                    {/* Divider */}
-                    <div className="my-8 flex items-center gap-3">
-                        <div className="flex-1 h-px bg-sea-green"></div>
-                        <span className="text-sea-green font-semibold text-sm">OR</span>
-                        <div className="flex-1 h-px bg-sea-green"></div>
+                    {/* Demo Credentials Info */}
+                    <div className="mt-8 pt-8 border-t-2 border-gray-200 space-y-3 animate-fade-in" style={{ animationDelay: '0.35s' }}>
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">📋 Demo Credentials</p>
+                        <div className="space-y-2 text-sm font-mono bg-gray-50 p-3 rounded-lg">
+                            <div>
+                                <span className="text-gray-600">Email:</span>{' '}
+                                <span className="text-gray-900 font-bold">{adminEmail}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-600">Password:</span>{' '}
+                                <span className="text-gray-900 font-bold">{adminPassword}</span>
+                            </div>
+                        </div>
                     </div>
-
-                    {/* Social Login */}
-                    <div className="grid grid-cols-3 gap-3">
-                        {['Google', 'GitHub', 'Microsoft'].map((provider) => (
-                            <button
-                                key={provider}
-                                type="button"
-                                className="py-2 px-3 bg-sea-green hover:bg-light-green text-oxford-blue font-bold rounded-lg transition-all text-lg"
-                            >
-                                {provider === 'Google' ? '🔍' : provider === 'GitHub' ? '🐙' : '⊞'}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Sign Up Link */}
-                    <p className="text-center text-sea-green text-sm mt-8">
-                        Don't have an account?{' '}
-                        <a href="#" className="text-light-green hover:text-neon-blue font-bold transition-colors">
-                            Sign up
-                        </a>
-                    </p>
                 </div>
 
-                {/* Credentials Info - High Contrast */}
-                <div className="mt-6 bg-sea-green bg-opacity-20 border-2 border-sea-green rounded-lg p-4">
-                    <p className="text-sm text-light-green text-center font-semibold mb-2">
-                        📋 Demo Credentials
-                    </p>
-                    <p className="text-xs text-sea-green text-center font-mono">
-                        Email: <span className="text-white font-bold">{adminEmail}</span><br />
-                        Password: <span className="text-white font-bold">{adminPassword}</span>
-                    </p>
+                {/* Footer Info */}
+                <div className="text-center mt-8 text-purple-200 text-xs animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                    <p>🛡️ Secure RF Localization System • Phase 7 Alpha</p>
                 </div>
             </div>
+
+            {/* Tailwind Animations */}
+            <style>{`
+                @keyframes fade-in {
+                    from {
+                        opacity: 0;
+                    }
+                    to {
+                        opacity: 1;
+                    }
+                }
+                
+                @keyframes slide-up {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                @keyframes shake {
+                    0%, 100% {
+                        transform: translateX(0);
+                    }
+                    10%, 30%, 50%, 70%, 90% {
+                        transform: translateX(-5px);
+                    }
+                    20%, 40%, 60%, 80% {
+                        transform: translateX(5px);
+                    }
+                }
+                
+                .animate-fade-in {
+                    animation: fade-in 0.6s ease-out forwards;
+                    opacity: 0;
+                }
+                
+                .animate-slide-up {
+                    animation: slide-up 0.6s ease-out forwards;
+                }
+                
+                .animate-shake {
+                    animation: shake 0.5s ease-in-out;
+                }
+            `}</style>
         </div>
     );
 };

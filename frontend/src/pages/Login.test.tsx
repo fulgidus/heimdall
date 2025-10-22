@@ -41,7 +41,10 @@ describe('Login Component', () => {
             // Find by role since getByText finds multiple matches
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toHaveTextContent('Heimdall');
-            expect(screen.getByText('RF Localization Platform')).toBeInTheDocument();
+            
+            // Check for platform name in subtitle
+            const subtitle = screen.getByText(/RF Source Localization Platform/i);
+            expect(subtitle).toBeInTheDocument();
         });
 
         it('should display demo credentials info', () => {
@@ -49,13 +52,6 @@ describe('Login Component', () => {
 
             expect(screen.getByText(/Demo Credentials/i)).toBeInTheDocument();
             expect(screen.getByText(/admin@heimdall.local/)).toBeInTheDocument();
-        });
-
-        it('should have remember me checkbox', () => {
-            renderLogin();
-
-            expect(screen.getByRole('checkbox')).toBeInTheDocument();
-            expect(screen.getByLabelText(/Remember me/i)).toBeInTheDocument();
         });
     });
 
@@ -149,23 +145,27 @@ describe('Login Component', () => {
             renderLogin();
 
             const emailInput = screen.getByPlaceholderText('admin@heimdall.local');
-            expect(emailInput).toHaveClass('border-sea-green');
-            expect(emailInput).toHaveClass('bg-opacity-20');
+            expect(emailInput).toHaveClass('border-2');
+            expect(emailInput).toHaveClass('border-gray-200');
+            expect(emailInput).toHaveClass('rounded-xl');
         });
 
         it('should have correct CSS classes for password input', () => {
             renderLogin();
 
             const passwordInput = screen.getByPlaceholderText(/••••/);
-            expect(passwordInput).toHaveClass('border-sea-green');
-            expect(passwordInput).toHaveClass('bg-opacity-20');
+            expect(passwordInput).toHaveClass('border-2');
+            expect(passwordInput).toHaveClass('border-gray-200');
+            expect(passwordInput).toHaveClass('rounded-xl');
         });
 
         it('should have correct styling for submit button', () => {
             renderLogin();
 
             const submitButton = screen.getByRole('button', { name: /Sign In/i });
-            expect(submitButton).toHaveClass('bg-light-green');
+            expect(submitButton).toHaveClass('bg-gradient-to-r');
+            expect(submitButton).toHaveClass('from-purple-600');
+            expect(submitButton).toHaveClass('to-indigo-600');
         });
     });
 });

@@ -1139,7 +1139,7 @@ When inference service is validated, proceed to Phase 7: Frontend
 ## 🎨 PHASE 7: Frontend
 
 **Duration**: 3 days  
-**Assignee**: Agent-Frontend (contributor) + Agent-Backend (fulgidus)  
+**Assignee**: Agent-Frontend (fulgidus) + Agent-Backend (fulgidus)  
 **Status**: 🟢 STARTED  
 **Depends On**: Phase 6 ✅, Phase 4 ✅  
 **Critical Path**: YES
