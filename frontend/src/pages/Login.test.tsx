@@ -41,7 +41,7 @@ describe('Login Component', () => {
             // Find by role since getByText finds multiple matches
             const heading = screen.getByRole('heading', { level: 1 });
             expect(heading).toHaveTextContent('Heimdall');
-            
+
             // Check for platform name in subtitle
             const subtitle = screen.getByText(/RF Source Localization Platform/i);
             expect(subtitle).toBeInTheDocument();

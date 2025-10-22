@@ -32,7 +32,7 @@ const Login: React.FC = () => {
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin123!@#';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-600 flex flex-col items-center justify-center p-4 overflow-hidden">
+        <div className="min-h-screen bg-linear-to-br from-purple-600 via-purple-500 to-indigo-600 flex flex-col items-center justify-center p-4 overflow-hidden">
             {/* Animated Background Elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
@@ -53,7 +53,7 @@ const Login: React.FC = () => {
                 </div>
 
                 {/* Login Card */}
-                <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10 backdrop-blur-xl animate-slide-up">
+                <div className="bg-white rounded-3xl shadow-2xl p-8! md:p-10! backdrop-blur-xl animate-slide-up">
                     {/* Card Title */}
                     <div className="mb-8">
                         <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
