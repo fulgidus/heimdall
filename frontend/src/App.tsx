@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard, Analytics, Settings, Projects, Profile, Login } from './pages';
 import { useAuthStore } from './store';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import './index.css';
 
 interface ProtectedRouteProps {
@@ -28,41 +29,51 @@ function App() {
                 <Route
                     path="/dashboard"
                     element={
-                        <ProtectedRoute>
-                            <Dashboard />
-                        </ProtectedRoute>
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        </SidebarProvider>
                     }
                 />
                 <Route
                     path="/analytics"
                     element={
-                        <ProtectedRoute>
-                            <Analytics />
-                        </ProtectedRoute>
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Analytics />
+                            </ProtectedRoute>
+                        </SidebarProvider>
                     }
                 />
                 <Route
                     path="/projects"
                     element={
-                        <ProtectedRoute>
-                            <Projects />
-                        </ProtectedRoute>
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Projects />
+                            </ProtectedRoute>
+                        </SidebarProvider>
                     }
                 />
                 <Route
                     path="/settings"
                     element={
-                        <ProtectedRoute>
-                            <Settings />
-                        </ProtectedRoute>
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Settings />
+                            </ProtectedRoute>
+                        </SidebarProvider>
                     }
                 />
                 <Route
                     path="/profile"
                     element={
-                        <ProtectedRoute>
-                            <Profile />
-                        </ProtectedRoute>
+                        <SidebarProvider>
+                            <ProtectedRoute>
+                                <Profile />
+                            </ProtectedRoute>
+                        </SidebarProvider>
                     }
                 />
 

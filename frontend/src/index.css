@@ -3,88 +3,35 @@
 @import "tailwindcss/utilities";
 
 :root {
-  /* HEX Colors */
-  --oxford-blue: #0b132bff;
-  --sea-green: #09814aff;
-  --french-gray: #c7cedbff;
-  --light-green: #70ee9cff;
-  --neon-blue: #446df6ff;
-
-  /* HSL Colors */
-  --oxford-blue-hsl: hsla(225, 59%, 11%, 1);
-  --sea-green-hsl: hsla(153, 87%, 27%, 1);
-  --french-gray-hsl: hsla(219, 22%, 82%, 1);
-  --light-green-hsl: hsla(141, 79%, 69%, 1);
-  --neon-blue-hsl: hsla(226, 91%, 62%, 1);
-
-  /* Semantic */
-  --primary: var(--oxford-blue);
-  --secondary: var(--sea-green);
-  --accent: var(--neon-blue);
-  --success: var(--light-green);
-  --neutral: var(--french-gray);
-
   font-family: "Inter", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.95);
-  background-color: var(--oxford-blue);
+  background-color: #0b132b;
+}
 
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0b132b;
+  color: rgba(255, 255, 255, 0.95);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  transition: colors 0.2s ease;
-}
-
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: var(--oxford-blue);
-  color: rgba(255, 255, 255, 0.95);
-}
-
 a {
-  font-weight: 500;
-  color: var(--neon-blue);
+  color: inherit;
   text-decoration: none;
-  transition: color 0.2s ease;
 }
 
-a:hover {
-  color: var(--light-green);
+button {
+  cursor: pointer;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(11, 19, 43, 0.3);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--neon-blue);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--sea-green);
-}
-
-::selection {
-  background-color: var(--neon-blue);
-  color: white;
-}
-
-:focus-visible {
-  outline: 2px solid var(--neon-blue);
-  outline-offset: 2px;
-}
