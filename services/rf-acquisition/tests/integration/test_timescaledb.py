@@ -29,11 +29,13 @@ def test_measurement_creation_from_dict():
         s3_path="s3://bucket/test.npy"
     )
     
-    assert measurement.task_id == "test-session-001"
-    assert measurement.websdr_id == 1
-    assert measurement.frequency_mhz == 144.5
-    assert measurement.snr_db == 15.5
-    assert measurement.s3_path == "s3://bucket/test.npy"
+    # Convert measurement to dict to access actual values (not SQLAlchemy ColumnElements)
+    result = measurement.to_dict()
+    assert result["task_id"] == "test-session-001"
+    assert result["websdr_id"] == 1
+    assert result["frequency_mhz"] == 144.5
+    assert result["snr_db"] == 15.5
+    assert result["s3_path"] == "s3://bucket/test.npy"
 
 
 def test_measurement_to_dict():
