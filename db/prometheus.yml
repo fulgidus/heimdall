@@ -1,0 +1,52 @@
+# Prometheus configuration for Heimdall SDR monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'heimdall-sdr'
+
+# Alertmanager configuration (optional for dev)
+alerting:
+  alertmanagers: []
+
+# Load rules once and periodically evaluate them
+rule_files: []
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # PostgreSQL monitoring (via postgres_exporter - optional)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['localhost:9187']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # RabbitMQ monitoring
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15672']
+    metrics_path: '/api/metrics'
+    basic_auth:
+      username: 'guest'
+      password: 'guest'
+    scrape_interval: 30s
+
+  # Redis monitoring (via redis_exporter - optional)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['localhost:9121']
+    scrape_interval: 30s
+
+  # MinIO monitoring (via MinIO metrics endpoint)
+  - job_name: 'minio'
+    bearer_token: 'YOUR_MINIO_TOKEN'
+    metrics_path: '/minio/v2/metrics/cluster'
+    static_configs:
+      - targets: ['minio:9000']
+    scrape_interval: 30s

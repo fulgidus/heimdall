@@ -1,0 +1,164 @@
+# 🚀 PHASE 3: RF Acquisition Service - START
+
+**Date**: October 22, 2025  
+**Status**: 🟡 IN PROGRESS  
+**Assignee**: Agent-Backend (fulgidus)  
+**Duration**: 3 days  
+**Depends On**: Phase 2 ✅  
+**Critical Path**: YES (blocks Phase 4 and 5)
+
+---
+
+## Quick Start Checklist
+
+- [ ] T3.1: Implement `websdr_fetcher.py`
+- [ ] T3.2: Implement `iq_processor.py`
+- [ ] T3.3: Create WebSDR configuration model
+- [ ] T3.4: Create Celery task `acquire_iq`
+- [ ] T3.5: Create FastAPI endpoints (`/acquire`, `/status/{task_id}`)
+- [ ] T3.6: Error handling and retry logic
+- [ ] T3.7: DB migration for `measurements` hypertable
+- [ ] T3.8: Create test fixtures
+- [ ] T3.9: Integration tests
+- [ ] T3.10: Performance tests
+
+---
+
+## Objective
+
+Implement simultaneous WebSDR data fetching, signal processing, and Celery task integration for human-assisted recording sessions.
+
+### Key Deliverables
+
+- ✅ Simultaneous fetch from 7 WebSDR URLs
+- ✅ IQ data recording to MinIO
+- ✅ Metadata (SNR, frequency offset) to PostgreSQL/TimescaleDB
+- ✅ Celery task coordination
+- ✅ REST API for triggering acquisitions
+
+---
+
+## Implementation Priority
+
+1. **T3.1** - `websdr_fetcher.py`: Core fetching logic for 7 receivers
+2. **T3.2** - `iq_processor.py`: Signal processing utilities
+3. **T3.3** - WebSDR configuration model in database
+4. **T3.4** - Celery task for orchestration
+5. **T3.5** - FastAPI endpoints for user interaction
+
+---
+
+## Reference: WebSDR Receivers (from WEBSDRS.md)
+
+| Index | Name                   | Location       | URL                             |
+| ----- | ---------------------- | -------------- | ------------------------------- |
+| 1     | F5LEN (Toulouse)       | 43.5°N, 1.4°E  | http://websdr.f5len.net:8901    |
+| 2     | PH0M (Pachmarke, NL)   | 52.5°N, 4.8°E  | http://websdr.pa3weg.nl:8901    |
+| 3     | G0MJW (Bridgnorth, UK) | 52.5°N, -2.4°E | http://websdr.g0mjw.org.uk:8901 |
+| 4     | HB9Q (Zurich)          | 47.3°N, 8.5°E  | http://websdr.hb9q.ch:8901      |
+| 5     | DK0GHZ (Black Forest)  | 48.8°N, 8.2°E  | http://websdr.dk0ghz.de:8901    |
+| 6     | OE3XEC (Vienna)        | 48.2°N, 16.3°E | http://websdr.oe3xec.at:8901    |
+| 7     | HB9SL (St. Gallen)     | 47.4°N, 9.1°E  | http://websdr.hb9sl.ch:8901     |
+
+---
+
+## Architecture Overview
+
+```
+User Request (/acquire)
+    ↓
+FastAPI Endpoint → Celery Task (acquire_iq)
+    ↓
+WebSDRFetcher (7x simultaneous fetches via aiohttp)
+    ↓
+IQProcessor (compute SNR, PSD, frequency offset)
+    ↓
+MinIO (store raw IQ as HDF5)
+    ↓
+TimescaleDB (store metadata)
+    ↓
+FastAPI (/status/{task_id}) → User feedback
+```
+
+---
+
+## Service Location
+
+Main service: `services/rf-acquisition/`
+
+Key files to implement:
+```
+services/rf-acquisition/src/
+├── main.py (FastAPI + Celery setup - existing)
+├── config.py (existing)
+├── models/
+│   ├── websdrs.py (NEW - WebSDR config model)
+│   └── measurements.py (NEW - Measurement model)
+├── fetchers/
+│   └── websdr_fetcher.py (NEW - Main fetcher)
+├── processors/
+│   └── iq_processor.py (NEW - Signal processing)
+├── tasks/
+│   └── acquire_iq.py (NEW - Celery task)
+└── routers/
+    └── acquisition.py (NEW - FastAPI endpoints)
+```
+
+---
+
+## Entry Point
+
+When all Phase 3 checkpoints pass:
+
+```bash
+# Verify all services running
+docker-compose up -d
+
+# Run Phase 3 tests
+pytest services/rf-acquisition/tests/ -v
+
+# Check RF Acquisition service health
+curl http://localhost:8001/health
+
+# Trigger a test acquisition (mocked)
+curl -X POST http://localhost:8001/acquire \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency_mhz": 145.5,
+    "duration_seconds": 10,
+    "start_time": "2025-10-22T10:00:00Z"
+  }'
+```
+
+---
+
+## Next Steps
+
+1. ✅ Review WEBSDRS.md for receiver details
+2. ✅ Review existing rf-acquisition scaffold
+3. 🔄 Begin T3.1: Implement websdr_fetcher.py
+4. 🔄 Create test fixtures for mocking WebSDR
+5. 🔄 Implement integration tests
+
+---
+
+## Continuation Point
+
+If interrupted, resume from:
+- **Current Phase**: 3 (RF Acquisition Service)
+- **Last Completed**: Phase 2 (Services Scaffolding)
+- **Current Focus**: Implement WebSDR fetcher and Celery integration
+
+Update `.copilot-instructions` with any new learnings about WebSDR APIs or aiohttp concurrency patterns.
+
+---
+
+## Success Criteria
+
+All Phase 3 checkpoints must pass before proceeding to Phase 4:
+
+✅ CP3.1: WebSDR fetcher works with all 7 receivers  
+✅ CP3.2: IQ data saved to MinIO successfully  
+✅ CP3.3: Measurements stored in TimescaleDB  
+✅ CP3.4: Celery task runs end-to-end  
+✅ CP3.5: All tests pass (coverage >80%)
