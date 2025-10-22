@@ -240,13 +240,67 @@ class WebSDRFetcher:
             raise RuntimeError("Fetcher not in context manager")
         
         async def check_single(websdr_id: int, websdr_cfg: WebSDRConfig) -> Tuple[int, bool]:
+            """
+            Check if a single WebSDR is online.
+            
+            Try HEAD first (fast), fall back to GET if HEAD fails with 501.
+            A WebSDR is considered ONLINE if:
+            - HEAD request returns 200-299 (success)
+            - GET request returns 200-299 (success) 
+            - GET request returns 301-399 (redirect - still responding)
+            - HEAD returns 501 (method not supported - server is responding!)
+            
+            A WebSDR is OFFLINE if:
+            - Connection timeout
+            - DNS resolution fails
+            - Server returns 4xx/5xx (not 501)
+            """
             try:
+                # Use SHORT timeout for health checks - 3 seconds max per receiver
+                timeout = aiohttp.ClientTimeout(total=3)
+                
+                # First try HEAD (faster)
+                logger.debug(f"Health check: HEAD {websdr_cfg.url} (SDR #{websdr_id}, timeout=3s)")
                 async with self.session.head(
                     str(websdr_cfg.url),
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=timeout,
+                    allow_redirects=False
                 ) as response:
-                    return websdr_id, response.status < 500
-            except Exception:
+                    # 501 = "Method Not Supported" - server is alive but doesn't support HEAD
+                    if response.status == 501:
+                        logger.debug(f"  → 501 (HEAD not supported), trying GET... (SDR #{websdr_id})")
+                        # Fall through to try GET
+                    # 200-299 = Success
+                    elif 200 <= response.status < 300:
+                        logger.info(f"  → {response.status} OK (SDR #{websdr_id} ONLINE)")
+                        return websdr_id, True
+                    # 300-399 = Redirect (server is responding)
+                    elif 300 <= response.status < 400:
+                        logger.info(f"  → {response.status} Redirect (SDR #{websdr_id} ONLINE)")
+                        return websdr_id, True
+                    # 4xx/5xx (except 501) = Error
+                    else:
+                        logger.warning(f"  → {response.status} Error (SDR #{websdr_id} appears OFFLINE)")
+                        return websdr_id, False
+                
+                # If we got here, we got 501, try GET
+                logger.debug(f"Health check: GET {websdr_cfg.url} (SDR #{websdr_id}, timeout=3s)")
+                async with self.session.get(
+                    str(websdr_cfg.url),
+                    timeout=timeout,
+                    allow_redirects=False
+                ) as response:
+                    # Accept 200-399 range as "online"
+                    is_online = 200 <= response.status < 400
+                    status_msg = "ONLINE" if is_online else "OFFLINE"
+                    logger.info(f"  → GET {response.status} (SDR #{websdr_id} {status_msg})")
+                    return websdr_id, is_online
+                    
+            except asyncio.TimeoutError:
+                logger.warning(f"Health check timeout for {websdr_cfg.url} (SDR #{websdr_id}) - marking OFFLINE")
+                return websdr_id, False
+            except Exception as e:
+                logger.warning(f"Health check error for {websdr_cfg.url} (SDR #{websdr_id}): {type(e).__name__}: {e} - marking OFFLINE")
                 return websdr_id, False
         
         tasks = [

@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import type { 
-    WebSDRConfig, 
-    WebSDRHealthStatus, 
+import type {
+    WebSDRConfig,
+    WebSDRHealthStatus,
     ModelInfo,
-    ServiceHealth 
+    ServiceHealth
 } from '@/services/api/types';
-import { 
-    webSDRService, 
-    inferenceService, 
-    systemService 
+import {
+    webSDRService,
+    inferenceService,
+    systemService
 } from '@/services/api';
 
 interface DashboardMetrics {
@@ -32,16 +32,16 @@ interface DashboardStore {
     isLoading: boolean;
     error: string | null;
     lastUpdate: Date | null;
-    
+
     setMetrics: (metrics: DashboardMetrics) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
-    
+
     fetchDashboardData: () => Promise<void>;
     fetchWebSDRs: () => Promise<void>;
     fetchModelInfo: () => Promise<void>;
     fetchServicesHealth: () => Promise<void>;
-    
+
     refreshAll: () => Promise<void>;
 }
 
@@ -69,16 +69,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
     fetchWebSDRs: async () => {
         try {
-            const [websdrs, health] = await Promise.all([
-                webSDRService.getWebSDRs(),
-                webSDRService.checkWebSDRHealth().catch(() => ({})),
-            ]);
-            
+            // Load WebSDRs FAST - don't wait for health check
+            const websdrs = await webSDRService.getWebSDRs();
+
             set((state) => ({
                 data: {
                     ...state.data,
                     websdrs,
-                    websdrsHealth: health,
                 },
                 metrics: {
                     ...state.metrics,
@@ -86,6 +83,20 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
                     activeWebSDRs: websdrs.filter(w => w.is_active).length,
                 },
             }));
+
+            // Load health check in background (doesn't block UI)
+            webSDRService.checkWebSDRHealth()
+                .then(health => {
+                    set((state) => ({
+                        data: {
+                            ...state.data,
+                            websdrsHealth: health,
+                        },
+                    }));
+                })
+                .catch(error => {
+                    console.warn('Health check failed (non-critical):', error);
+                });
         } catch (error) {
             console.error('Failed to fetch WebSDRs:', error);
             throw error;
@@ -95,7 +106,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     fetchModelInfo: async () => {
         try {
             const modelInfo = await inferenceService.getModelInfo();
-            
+
             set((state) => ({
                 data: {
                     ...state.data,
@@ -116,7 +127,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     fetchServicesHealth: async () => {
         try {
             const servicesHealth = await systemService.checkAllServicesHealth();
-            
+
             set((state) => ({
                 data: {
                     ...state.data,
@@ -131,15 +142,15 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
     fetchDashboardData: async () => {
         set({ isLoading: true, error: null });
-        
+
         try {
             await Promise.allSettled([
                 get().fetchWebSDRs(),
                 get().fetchModelInfo(),
                 get().fetchServicesHealth(),
             ]);
-            
-            set({ 
+
+            set({
                 lastUpdate: new Date(),
                 error: null,
             });

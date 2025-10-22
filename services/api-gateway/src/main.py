@@ -42,6 +42,8 @@ async def proxy_request(request: Request, target_url: str):
     if query:
         full_url = f"{full_url}?{query}"
     
+    logger.info(f"🔄 Proxy: {request.method} {full_url}")
+    
     # Get request body if present
     body = None
     if request.method in ["POST", "PUT", "PATCH"]:
@@ -60,43 +62,56 @@ async def proxy_request(request: Request, target_url: str):
                 content=body,
             )
             
+            logger.info(f"✅ Proxy response: {response.status_code} from {full_url}")
+            
+            # Parse response content safely
+            try:
+                content = response.json() if response.text else {}
+            except Exception as json_err:
+                logger.warning(f"⚠️ Response is not JSON: {str(json_err)}")
+                content = {"raw": response.text[:500]}
+            
             return JSONResponse(
-                content=response.json() if response.text else {},
+                content=content,
                 status_code=response.status_code,
                 headers=dict(response.headers)
             )
         except httpx.TimeoutException:
-            logger.error(f"Timeout proxying request to {full_url}")
+            logger.error(f"❌ Timeout proxying request to {full_url}")
             raise HTTPException(status_code=504, detail="Backend service timeout")
-        except httpx.ConnectError:
-            logger.error(f"Connection error proxying request to {full_url}")
+        except httpx.ConnectError as e:
+            logger.error(f"❌ Connection error proxying request to {full_url}: {str(e)}")
             raise HTTPException(status_code=503, detail="Backend service unavailable")
         except Exception as e:
-            logger.exception(f"Error proxying request to {full_url}: {str(e)}")
+            logger.exception(f"❌ Error proxying request to {full_url}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
 
 
 @app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_to_rf_acquisition(request: Request, path: str):
     """Proxy requests to RF Acquisition service."""
+    logger.debug(f"📡 Acquisition route matched: path={path}")
     return await proxy_request(request, RF_ACQUISITION_URL)
 
 
 @app.api_route("/api/v1/inference/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_to_inference(request: Request, path: str):
     """Proxy requests to Inference service."""
+    logger.debug(f"🧠 Inference route matched: path={path}")
     return await proxy_request(request, INFERENCE_URL)
 
 
 @app.api_route("/api/v1/training/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_to_training(request: Request, path: str):
     """Proxy requests to Training service."""
+    logger.debug(f"📚 Training route matched: path={path}")
     return await proxy_request(request, TRAINING_URL)
 
 
 @app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
 async def proxy_to_data_ingestion(request: Request, path: str):
     """Proxy requests to Data Ingestion service."""
+    logger.debug(f"💾 Data Ingestion route matched: path={path}")
     return await proxy_request(request, DATA_INGESTION_URL)
 
 

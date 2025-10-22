@@ -42,6 +42,15 @@ interface DisplayWebSDR {
     uptime: number;
     avgSnr: number;
     enabled: boolean;
+
+import { webSDRService, type WebSDRConfig } from '@/services/api';
+
+interface ExtendedWebSDR extends WebSDRConfig {
+    status: 'online' | 'offline' | 'unknown';
+    lastContact?: string;
+    uptime?: number;
+    avgSnr?: number;
+    location?: string;
 }
 
 export const WebSDRManagement: React.FC = () => {
@@ -107,6 +116,7 @@ export const WebSDRManagement: React.FC = () => {
         };
     });
 
+
     const menuItems = [
         { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
         { icon: MapPin, label: 'Localization', path: '/localization', active: false },
@@ -126,7 +136,9 @@ export const WebSDRManagement: React.FC = () => {
     };
 
     const onlineCount = webSdrs.filter((w) => w.status === 'online').length;
-    const avgUptime = (webSdrs.reduce((sum, w) => sum + w.uptime, 0) / webSdrs.length).toFixed(1);
+    const avgUptime = webSdrs.length > 0
+        ? (webSdrs.reduce((sum, w) => sum + (w.uptime || 0), 0) / webSdrs.length).toFixed(1)
+        : '0.0';
 
     return (
         <div className="flex h-screen w-screen bg-slate-950">
@@ -153,8 +165,8 @@ export const WebSDRManagement: React.FC = () => {
                                 key={idx}
                                 onClick={() => handleNavigation(item.path)}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                    : 'text-slate-300 hover:bg-slate-800/50'
                                     }`}
                             >
                                 <Icon className="w-5 h-5" />

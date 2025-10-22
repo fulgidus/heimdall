@@ -13,7 +13,7 @@ import type { ServiceHealth } from './types';
  * Check health of a specific service
  */
 export async function checkServiceHealth(serviceName: string): Promise<ServiceHealth> {
-    const response = await api.get<ServiceHealth>(`/${serviceName}/health`);
+    const response = await api.get<ServiceHealth>(`/api/v1/${serviceName}/health`);
     return response.data;
 }
 
