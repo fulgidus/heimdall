@@ -162,28 +162,9 @@ jobs:
       - name: Verify Python imports path configuration
         run: |
           cd services/${{ matrix.service }}
-
-          # Verify conftest.py exists (should be committed in repo)
-          if [ -f tests/conftest.py ]; then
-            echo "✅ conftest.py found for ${{ matrix.service }}"
-          else
-            echo "⚠️ WARNING: conftest.py not found for ${{ matrix.service }}"
-            echo "This may cause import errors. Creating fallback conftest.py..."
-            mkdir -p tests
-            cat > tests/conftest.py << 'EOF'
-          import sys
-          from pathlib import Path
-
-          def pytest_configure(config):
-            """Add src/ to Python path before tests run"""
-            service_root = Path(__file__).parent.parent
-            src_path = service_root / "src"
-            if str(src_path) not in sys.path:
-                sys.path.insert(0, str(src_path))
-            if str(service_root) not in sys.path:
-                sys.path.insert(0, str(service_root))
-          EOF
-            fi
+          echo "Configuring Python path..."
+          export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
+          echo "PYTHONPATH=${PYTHONPATH}"
 
       - name: Test with pytest (unit tests only)
         timeout-minutes: 30
@@ -200,42 +181,21 @@ jobs:
           RABBITMQ_USER: guest
           RABBITMQ_PASS: guest
           TESTING: "true"
-          LOG_LEVEL: "INFO"
+          LOG_LEVEL: "WARNING"
         run: |
           cd services/${{ matrix.service }}
-          echo "🧪 Running tests for ${{ matrix.service }}..."
+          export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
 
           if [ ! -d tests ]; then
-            echo "⏭️ No tests/ directory found"
+            echo "No tests directory"
             exit 0
           fi
 
-          # Esegui unit tests, skippando E2E e test di connessione
-          echo "📋 Running unit and integration tests..."
           pytest tests/ \
-            -v \
-            --tb=short \
-            --timeout=300 \
-            --cov=src/ \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            --cov-report=html \
-            --ignore=tests/e2e \
-            --deselect=tests/test_api_contracts.py::test_01_health_endpoint \
-            -k "not e2e and not health_endpoint and not test_api_contracts" \
-            -x 2>&1 | tee test_output.log
-
-          exit_code=${PIPESTATUS[0]}
-
-          if [ $exit_code -eq 0 ]; then
-            echo "✅ Tests passed for ${{ matrix.service }}"
-          elif [ $exit_code -eq 5 ]; then
-            echo "⚠️ No tests found for ${{ matrix.service }} (exit 5 = no tests)"
-            exit 0  # Non è un errore se non ci sono test
-          else
-            echo "❌ Tests FAILED for ${{ matrix.service }} (exit code: $exit_code)"
-            exit $exit_code
-          fi
+            -v --tb=line --timeout=120 \
+            --cov=src --cov-report=xml --cov-report=term:skip-covered \
+            -k "not e2e" --maxfail=3 || \
+            (exit_code=$?; if [ $exit_code -eq 5 ]; then exit 0; else exit $exit_code; fi)
 
       - name: "Generate coverage report"
         if: always()
