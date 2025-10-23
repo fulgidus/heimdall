@@ -15,7 +15,7 @@ SERVICE_PORT = 8000
 
 # Backend service URLs
 RF_ACQUISITION_URL = "http://rf-acquisition:8001"
-INFERENCE_URL = "http://inference:8002"
+INFERENCE_URL = "http://inference:8003"
 TRAINING_URL = "http://training:8003"
 DATA_INGESTION_URL = "http://data-ingestion-web:8004"
 

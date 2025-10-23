@@ -14,8 +14,13 @@ app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 # Include routers
-app.include_router(predict.router)
+# app.include_router(predict.router)  # Temporarily disabled
 app.include_router(analytics.router)
+
+
+@app.get("/api/v1/analytics/test")
+async def test_analytics():
+    return {"message": "Analytics router is working"}
 
 
 @app.get("/")
