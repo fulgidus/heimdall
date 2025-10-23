@@ -450,27 +450,28 @@ class TestGaussianNLLLoss:
             assert loss > 0, "Loss should be positive"
     
     def test_gaussian_nll_loss_overconfidence_penalty(self):
-        """Verify loss penalizes overconfidence."""
+        """Verify loss penalizes overconfidence when prediction is wrong."""
         loss_fn = self._create_mock_loss()
         
         # Create prediction with small uncertainty (overconfident)
         pred_confident = torch.cat([
             torch.zeros(8, 2),  # position at origin
-            torch.ones(8, 2) * 0.01  # very small sigma
+            torch.ones(8, 2) * 0.01  # very small sigma (confident)
         ], dim=1)
         
         # Create prediction with large uncertainty (underconfident)
         pred_uncertain = torch.cat([
             torch.zeros(8, 2),  # position at origin
-            torch.ones(8, 2) * 10.0  # very large sigma
+            torch.ones(8, 2) * 10.0  # very large sigma (uncertain)
         ], dim=1)
         
-        target = torch.zeros(8, 2)  # true target at origin
+        # True target is FAR from prediction (at origin) - prediction is wrong
+        target = torch.ones(8, 2) * 5.0  # far from origin
         
         loss_confident = loss_fn(pred_confident, target)
         loss_uncertain = loss_fn(pred_uncertain, target)
         
-        # Overconfident prediction should have higher loss when wrong
+        # When prediction is wrong, overconfident (small sigma) should have HIGHER loss
         assert loss_confident > loss_uncertain
     
     def test_gaussian_nll_loss_gradients(self):
@@ -510,6 +511,9 @@ class TestGaussianNLLLoss:
                 
                 pos = pred[:, :2]
                 sigma = pred[:, 2:4]
+                
+                # Ensure sigma is positive using softplus
+                sigma = torch.nn.functional.softplus(sigma) + 1e-6
                 
                 # Gaussian NLL: -log(p(y|x)) = log(sigma) + ||y - mu||^2 / (2*sigma^2)
                 nll = torch.log(sigma) + (target - pos) ** 2 / (2 * sigma ** 2)
@@ -563,20 +567,21 @@ class TestLightningModule:
         class MockLightningModule(nn.Module):
             def __init__(self):
                 super().__init__()
-                self.model = nn.Linear(10, 4)
+                # Input: (3, 128, 32) = 12288 features after flattening
+                self.model = nn.Linear(3 * 128 * 32, 4)
                 self.loss_fn = nn.MSELoss()
                 self.optimizer = torch.optim.Adam(self.model.parameters())
             
             def training_step(self, batch, batch_idx):
                 x, y = batch
-                logits = self.model(x.reshape(x.shape[0], -1) if x.dim() > 2 else x)
-                loss = self.loss_fn(logits, y)
+                logits = self.model(x.reshape(x.shape[0], -1))
+                loss = self.loss_fn(logits[:, :2], y)  # Only compare first 2 outputs to targets
                 return loss
             
             def validation_step(self, batch, batch_idx):
                 x, y = batch
-                logits = self.model(x.reshape(x.shape[0], -1) if x.dim() > 2 else x)
-                loss = self.loss_fn(logits, y)
+                logits = self.model(x.reshape(x.shape[0], -1))
+                loss = self.loss_fn(logits[:, :2], y)  # Only compare first 2 outputs to targets
                 return loss
             
             def configure_optimizers(self):
