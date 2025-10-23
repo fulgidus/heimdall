@@ -234,47 +234,92 @@ locust -f tests/load/locustfile.py -u 100 -r 10
 
 ### GitHub Actions Workflow
 
+The CI pipeline runs both **backend** and **frontend** tests in parallel for maximum efficiency.
+
+#### Backend Testing
+
 ```yaml
-name: Tests
-
-on: [push, pull_request]
-
 jobs:
   test:
     runs-on: ubuntu-latest
     
     services:
       postgres:
-        image: postgres:14
+        image: timescale/timescaledb:latest-pg15
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: test_password
       
       redis:
-        image: redis:latest
+        image: redis:7-alpine
+      
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
     
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt
       
       - name: Run linting
-        run: make lint
+        run: |
+          black --check src/
+          ruff check src/
       
       - name: Run unit tests
-        run: pytest tests/unit/ --cov --cov-report=xml
-      
-      - name: Run integration tests
-        run: pytest tests/integration/
+        run: pytest tests/ --cov --cov-report=xml
       
       - name: Upload coverage
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
 ```
+
+#### Frontend Testing
+
+```yaml
+jobs:
+  frontend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Lint frontend
+        continue-on-error: true
+        run: |
+          cd frontend
+          npm run lint
+      
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+      
+      - name: Test frontend
+        run: |
+          cd frontend
+          npm run test:run
+```
+
+#### Parallel Execution
+
+Both backend and frontend tests run in parallel to reduce total CI time. The final summary job waits for both to complete and reports the combined status.
 
 ## Test Data & Fixtures
 
