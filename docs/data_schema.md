@@ -232,17 +232,17 @@ ml_models (referenced by) tasks (via algorithm_version in results)
 
 ## Data Types
 
-| Type | Usage | Example |
-|------|-------|---------|
-| UUID | Unique IDs | `550e8400-e29b-41d4-a716-446655440000` |
-| BIGSERIAL | Auto-increment IDs | Time-series indexes |
-| FLOAT8 | High-precision decimals | Coordinates, signal strength |
-| INTEGER | Whole numbers | Duration, counts |
-| VARCHAR | Text | Names, URLs, status |
-| TIMESTAMP WITH TIME ZONE | Events | Task creation, completion |
-| BOOLEAN | Flags | Active status, trusted |
-| ARRAY | Multiple values | Frequencies array |
-| TEXT | Large text | Algorithm details, notes |
+| Type                     | Usage                   | Example                                |
+| ------------------------ | ----------------------- | -------------------------------------- |
+| UUID                     | Unique IDs              | `550e8400-e29b-41d4-a716-446655440000` |
+| BIGSERIAL                | Auto-increment IDs      | Time-series indexes                    |
+| FLOAT8                   | High-precision decimals | Coordinates, signal strength           |
+| INTEGER                  | Whole numbers           | Duration, counts                       |
+| VARCHAR                  | Text                    | Names, URLs, status                    |
+| TIMESTAMP WITH TIME ZONE | Events                  | Task creation, completion              |
+| BOOLEAN                  | Flags                   | Active status, trusted                 |
+| ARRAY                    | Multiple values         | Frequencies array                      |
+| TEXT                     | Large text              | Algorithm details, notes               |
 
 ## Queries
 

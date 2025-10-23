@@ -21,7 +21,17 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import MLflowLogger
+
+# MLflowLogger location changed in pytorch-lightning 2.0+
+try:
+    from pytorch_lightning.loggers import MLflowLogger
+except ImportError:
+    try:
+        from pytorch_lightning.loggers.mlflow import MLflowLogger
+    except ImportError:
+        # Fallback: MLflowLogger not available, use None
+        MLflowLogger = None
+
 import structlog
 from typing import Dict, Tuple, Optional
 import numpy as np

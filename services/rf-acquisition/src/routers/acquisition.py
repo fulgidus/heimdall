@@ -243,35 +243,80 @@ async def list_websdrs():
 @router.get("/websdrs/health")
 async def check_websdrs_health():
     """
-    Check health status of all WebSDR receivers.
+    Check health status of all WebSDR receivers with metrics.
     
     Returns:
-        Dict mapping WebSDR ID to health status
+        Dict mapping WebSDR ID to health status with SNR, uptime, last contact
     """
     try:
-        task = health_check_websdrs.delay()
-        result = task.get(timeout=60)
+        from ..storage.db_manager import DatabaseManager
+        from ..tasks.uptime_monitor import calculate_uptime_percentage
         
-        # Format response
+        # Get WebSDR configs
         websdrs_config = get_websdrs_config()
+        logger.debug(f"WebSDR configs loaded: {len(websdrs_config)} SDRs")
+        
+        # Run health check task
+        task = health_check_websdrs.delay()
+        logger.debug(f"Health check task submitted: {task.id}")
+        
+        result = task.get(timeout=60)
+        logger.info(f"Health check task result: {result}")
+        
+        # Get SNR statistics from database
+        db_manager = DatabaseManager()
+        snr_stats = db_manager.get_snr_statistics() if db_manager else {}
+        logger.debug(f"SNR statistics retrieved: {len(snr_stats) if snr_stats else 0} entries")
+        
+        # Format response with detailed status information
         health_status = {}
+        check_time = datetime.utcnow().isoformat()
         
         for ws_config in websdrs_config:
             ws_id = ws_config['id']
+            # IMPORTANT: Celery serializes dict keys as strings!
+            is_online = result.get(str(ws_id), False)
+            
+            # Get SNR and uptime from stats
+            sdr_stats = snr_stats.get(ws_id, {}) if snr_stats else {}
+            avg_snr = sdr_stats.get('avg_snr_db', None)
+            
+            # Calculate uptime from database history (last 24 hours)
+            uptime = calculate_uptime_percentage(ws_id, hours=24)
+            
             health_status[ws_id] = {
-                'id': ws_id,
+                'websdr_id': ws_id,
                 'name': ws_config['name'],
-                'status': 'online' if result.get(ws_id, False) else 'offline'
+                'status': 'online' if is_online else 'offline',
+                'last_check': check_time,
+                'uptime': round(uptime, 1),
+                'avg_snr': round(avg_snr, 2) if avg_snr is not None else None,
             }
+            
+            if not is_online:
+                health_status[ws_id]['error_message'] = 'Health check failed or timed out'
         
+        logger.info(f"Health check response ready with metrics")
         return health_status
     
     except Exception as e:
         logger.exception("Error checking WebSDR health: %s", str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error checking health: {str(e)}"
-        )
+        
+        # Return offline status for all WebSDRs on error
+        websdrs_config = get_websdrs_config()
+        check_time = datetime.utcnow().isoformat()
+        
+        health_status = {}
+        for ws_config in websdrs_config:
+            health_status[ws_config['id']] = {
+                'websdr_id': ws_config['id'],
+                'name': ws_config['name'],
+                'status': 'offline',
+                'last_check': check_time,
+                'error_message': f'Health check error: {str(e)}'
+            }
+        
+        return health_status
 
 
 @router.get("/config")

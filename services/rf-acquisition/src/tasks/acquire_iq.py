@@ -470,9 +470,15 @@ def health_check_websdrs(self):
         Dict mapping WebSDR ID to health status
     """
     import asyncio
+    from ..routers.acquisition import get_websdrs_config
     
-    # TODO: Load WebSDR configs from database
-    websdrs = []
+    # Load WebSDR configs from the configuration
+    websdrs_config_list = get_websdrs_config()
+    websdrs = [WebSDRConfig(**cfg) for cfg in websdrs_config_list]
+    
+    if not websdrs:
+        logger.warning("No WebSDRs configured for health check")
+        return {}
     
     async def check():
         async with WebSDRFetcher(websdrs=websdrs) as fetcher:

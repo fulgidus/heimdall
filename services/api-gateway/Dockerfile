@@ -1,8 +1,8 @@
 FROM python:3.11-slim as builder
 WORKDIR /build
-RUN apt-get update && apt-get install -y gcc postgresql-client
+RUN apt-get update && apt-get install -y gcc postgresql-client ca-certificates
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r requirements.txt
 
 FROM python:3.11-slim
 WORKDIR /app

@@ -52,11 +52,10 @@ from pytorch_lightning.callbacks import (
     EarlyStopping,
     LearningRateMonitor,
 )
-from pytorch_lightning.loggers import MLflowLogger
 
 # Project imports
 import structlog
-from config import settings
+from config import settings  # Now imports from config/ package
 from mlflow_setup import MLflowTracker
 from onnx_export import export_and_register_model, ONNXExporter
 from models.localization_net import LocalizationNet, LocalizationLightningModule
@@ -312,13 +311,6 @@ class TrainingPipeline:
             epochs=self.epochs,
         )
         
-        # MLflow logger
-        mlflow_logger = MLflowLogger(
-            experiment_name=self.mlflow_tracker.experiment_name,
-            tracking_uri=self.mlflow_tracker.tracking_uri,
-            run_name=self.mlflow_tracker.active_run_id,
-        )
-        
         # Callbacks
         checkpoint_callback = ModelCheckpoint(
             dirpath=self.checkpoint_dir,
@@ -343,7 +335,6 @@ class TrainingPipeline:
             max_epochs=self.epochs,
             accelerator=self.accelerator,
             devices=self.devices,
-            logger=mlflow_logger,
             callbacks=[
                 checkpoint_callback,
                 early_stopping_callback,

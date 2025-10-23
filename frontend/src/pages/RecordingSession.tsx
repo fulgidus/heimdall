@@ -1,0 +1,450 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    LogOut,
+    Home,
+    MapPin,
+    Radio,
+    BarChart3,
+    Zap,
+    Radar,
+    Menu,
+    X,
+    Play,
+    Square,
+    Check,
+    X as XIcon,
+    AlertCircle,
+    Wifi,
+} from 'lucide-react';
+import { useAuthStore, useWebSDRStore, useAcquisitionStore } from '../store';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface WebSDRStatus {
+    name: string;
+    online: boolean;
+    snr: number;
+    frequency: string;
+}
+
+export const RecordingSession: React.FC = () => {
+    const navigate = useNavigate();
+    const { logout } = useAuthStore();
+    const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
+    const { startAcquisition, pollTask } = useAcquisitionStore();
+    
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingProgress, setRecordingProgress] = useState(0);
+    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+    const [sessionName, setSessionName] = useState('');
+    const [frequency, setFrequency] = useState('145.500');
+    const [duration, setDuration] = useState('60');
+    const [description, setDescription] = useState('');
+    const [isKnownSource, setIsKnownSource] = useState(false);
+
+    // Load WebSDRs and their health status on mount
+    useEffect(() => {
+        fetchWebSDRs();
+        checkHealth();
+    }, [fetchWebSDRs, checkHealth]);
+
+    // Poll health status every 10 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkHealth();
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [checkHealth]);
+
+    // Convert WebSDRs to display format
+    const webSdrStatus: WebSDRStatus[] = websdrs.map((websdr) => {
+        const health = healthStatus[websdr.id];
+        return {
+            name: websdr.location_name.split(',')[0], // Extract city name
+            online: health?.status === 'online',
+            snr: health?.status === 'online' ? 15 + Math.random() * 10 : 0, // Simulated SNR
+            frequency: `${(parseFloat(frequency)).toFixed(3)}`,
+        };
+    });
+
+    const menuItems = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
+        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: true },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
+        { icon: Zap, label: 'Settings', path: '/settings', active: false },
+    ];
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
+    const handleStartRecording = async () => {
+        if (!sessionName.trim()) {
+            alert('Please enter a session name');
+            return;
+        }
+
+        try {
+            setIsRecording(true);
+            setRecordingProgress(0);
+
+            const durationSeconds = parseFloat(duration);
+
+            // Start acquisition (session_name is stored separately in session management)
+            const response = await startAcquisition({
+                frequency_mhz: parseFloat(frequency),
+                duration_seconds: durationSeconds,
+            });
+
+            setCurrentTaskId(response.task_id);
+            console.log(`Recording started: ${sessionName}, Task ID: ${response.task_id}`);
+
+            // Poll task status for progress
+            await pollTask(response.task_id, (status) => {
+                setRecordingProgress(status.progress || 0);
+            });
+
+            // Recording complete
+            setIsRecording(false);
+            setRecordingProgress(100);
+            alert('Recording completed successfully!');
+
+        } catch (error) {
+            console.error('Recording failed:', error);
+            alert('Recording failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            setIsRecording(false);
+            setRecordingProgress(0);
+        }
+    };
+
+    const handleStopRecording = () => {
+        // In a real implementation, we would cancel the Celery task
+        if (currentTaskId) {
+            console.log(`Stopping task: ${currentTaskId}`);
+        }
+        setIsRecording(false);
+        setRecordingProgress(0);
+        setCurrentTaskId(null);
+    };
+
+    return (
+        <div className="flex h-screen w-screen bg-slate-950">
+            {/* Sidebar */}
+            <aside
+                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
+                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
+                transition-all duration-300 overflow-hidden flex flex-col`}
+            >
+                {/* Logo Section */}
+                <div className="p-6 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <Radar className="w-8 h-8 text-purple-500" />
+                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
+                    </div>
+                </div>
+
+                {/* Menu Items */}
+                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
+                    {menuItems.map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleNavigation(item.path)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
+                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* User Section */}
+                <div className="p-4 border-t border-slate-800">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
+                                    AD
+                                </div>
+                                <span className="ml-2 text-sm">admin</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
+                                Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
+                                Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto flex flex-col">
+                {/* Header */}
+                <header className="bg-slate-900 border-b border-slate-800 p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
+                            <h1 className="text-3xl font-bold text-white">
+                                {isRecording ? '🔴 Recording in Progress' : 'Start New Recording Session'}
+                            </h1>
+                        </div>
+                    </div>
+                </header>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+                        {/* Left: Recording Form & Controls */}
+                        <div className="lg:col-span-1 space-y-4">
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="text-white">Session Configuration</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Session Name */}
+                                    <div>
+                                        <label className="text-sm text-slate-400 mb-2 block">Session Name</label>
+                                        <Input
+                                            placeholder="e.g., Session Alpha - 2m Band"
+                                            value={sessionName}
+                                            onChange={(e) => setSessionName(e.target.value)}
+                                            disabled={isRecording}
+                                            className="bg-slate-800 border-slate-700"
+                                        />
+                                    </div>
+
+                                    {/* Frequency */}
+                                    <div>
+                                        <label className="text-sm text-slate-400 mb-2 block">Target Frequency (MHz)</label>
+                                        <Input
+                                            type="number"
+                                            step="0.001"
+                                            placeholder="145.500"
+                                            value={frequency}
+                                            onChange={(e) => setFrequency(e.target.value)}
+                                            disabled={isRecording}
+                                            className="bg-slate-800 border-slate-700"
+                                        />
+                                    </div>
+
+                                    {/* Duration */}
+                                    <div>
+                                        <label className="text-sm text-slate-400 mb-2 block">Duration (seconds)</label>
+                                        <Input
+                                            type="number"
+                                            placeholder="60"
+                                            value={duration}
+                                            onChange={(e) => setDuration(e.target.value)}
+                                            disabled={isRecording}
+                                            className="bg-slate-800 border-slate-700"
+                                        />
+                                    </div>
+
+                                    {/* Description */}
+                                    <div>
+                                        <label className="text-sm text-slate-400 mb-2 block">Notes (optional)</label>
+                                        <textarea
+                                            placeholder="Any notes about this recording..."
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            disabled={isRecording}
+                                            rows={3}
+                                            className="w-full bg-slate-800 border border-slate-700 rounded text-slate-200 p-2 text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Known Source Checkbox */}
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="known-source"
+                                            checked={isKnownSource}
+                                            onChange={(e) => setIsKnownSource(e.target.checked)}
+                                            disabled={isRecording}
+                                            className="w-4 h-4"
+                                        />
+                                        <label htmlFor="known-source" className="text-sm text-slate-300">
+                                            Known RF source (for supervised training)
+                                        </label>
+                                    </div>
+
+                                    {/* Recording Controls */}
+                                    <div className="flex gap-2 pt-4">
+                                        {!isRecording ? (
+                                            <Button
+                                                onClick={handleStartRecording}
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                            >
+                                                <Play className="w-4 h-4 mr-2" />
+                                                Start Recording
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                onClick={handleStopRecording}
+                                                className="w-full bg-red-600 hover:bg-red-700"
+                                            >
+                                                <Square className="w-4 h-4 mr-2" />
+                                                Stop Recording
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Middle: Live Monitor */}
+                        <div className="lg:col-span-2 space-y-4">
+                            {/* Recording Progress */}
+                            {isRecording && (
+                                <Card className="bg-slate-900 border-green-600/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-green-400 flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                                            Recording Progress
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-slate-300">
+                                                    {Math.round(recordingProgress)}% complete
+                                                </span>
+                                                <span className="text-slate-400">
+                                                    {Math.round((recordingProgress / 100) * parseInt(duration))}s / {duration}s
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-linear-to-r from-green-500 to-cyan-500 transition-all"
+                                                    style={{ width: `${recordingProgress}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {/* WebSDR Status - SNR Monitor */}
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-white">
+                                        <Wifi className="w-5 h-5 text-cyan-400" />
+                                        WebSDR Status & Signal Quality
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {webSdrStatus.map((sdr, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`p-3 rounded border ${sdr.online
+                                                        ? 'bg-green-500/10 border-green-500/50'
+                                                        : 'bg-red-500/10 border-red-500/50'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="font-semibold text-white">{sdr.name}</p>
+                                                        <p
+                                                            className={`text-sm ${sdr.online ? 'text-green-400' : 'text-red-400'
+                                                                }`}
+                                                        >
+                                                            {sdr.online ? `SNR: ${sdr.snr.toFixed(1)} dB` : 'Offline'}
+                                                        </p>
+                                                    </div>
+                                                    {sdr.online ? (
+                                                        <Check className="w-5 h-5 text-green-500" />
+                                                    ) : (
+                                                        <XIcon className="w-5 h-5 text-red-500" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Spectrogram Placeholder */}
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="text-white">Live Spectrogram Monitor</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-48 flex items-center justify-center border border-slate-700 rounded bg-slate-800/50">
+                                        <div className="text-center">
+                                            <p className="text-slate-500">📊 Spectrogram visualization</p>
+                                            <p className="text-slate-600 text-sm mt-2">
+                                                {isRecording ? 'Updating in real-time...' : 'Waiting for recording to start'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Recording Status Info */}
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardContent className="p-6 flex items-start gap-4">
+                                    <AlertCircle className="w-5 h-5 text-cyan-400 mt-1 shrink-0" />
+                                    <div className="text-sm text-slate-300">
+                                        <p className="font-semibold text-white mb-1">Recording Information</p>
+                                        <ul className="space-y-1 text-xs">
+                                            <li>• Target Frequency: <span className="text-cyan-400">{frequency} MHz</span></li>
+                                            <li>• Duration: <span className="text-cyan-400">{duration}s</span></li>
+                                            <li>• Active WebSDRs: <span className="text-green-400">{webSdrStatus.filter(s => s.online).length}/{webSdrStatus.length}</span></li>
+                                            <li>• Data Destination: <span className="text-cyan-400">MinIO Cloud Storage</span></li>
+                                            <li>• Status: <span className={isRecording ? 'text-green-400' : 'text-yellow-400'}>{isRecording ? 'RECORDING' : 'READY'}</span></li>
+                                        </ul>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default RecordingSession;

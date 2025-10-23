@@ -333,13 +333,13 @@ groups:
 
 ## Common Bottlenecks & Solutions
 
-| Bottleneck | Symptom | Solution |
-|-----------|---------|----------|
-| Database | Slow queries | Add indexes, optimize queries |
-| GPU | Low utilization | Batch processing, check CUDA |
-| Memory | OOM errors | Reduce batch size, clear cache |
-| Network | Timeouts | Increase timeout, reduce payload |
-| CPU | High usage | Parallelize, use compiled extensions |
+| Bottleneck | Symptom         | Solution                             |
+| ---------- | --------------- | ------------------------------------ |
+| Database   | Slow queries    | Add indexes, optimize queries        |
+| GPU        | Low utilization | Batch processing, check CUDA         |
+| Memory     | OOM errors      | Reduce batch size, clear cache       |
+| Network    | Timeouts        | Increase timeout, reduce payload     |
+| CPU        | High usage      | Parallelize, use compiled extensions |
 
 ## Best Practices
 

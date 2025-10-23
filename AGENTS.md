@@ -4,8 +4,8 @@
 **Owner**: fulgidus  
 **Contributors**: fulgidus + 1  
 **Last Updated**: 2025-10-22 08:30:00 UTC (Session 3 - Phase 4 Complete)  
-**Current Status**: Phase 5 - COMPLETE (10/10 tasks) | Phase 6 Ready  
-**Overall Progress**: 50% complete (Phases 0-5 done, 6-10 pending)  
+**Current Status**: Phase 5 - COMPLETE (10/10 tasks) | Phase 6 - READY TO START  
+**Overall Progress**: 55% complete (Phases 0-5 done, Phase 6 starting, 7-10 pending)  
 **License**: CC Non-Commercial
 
 ---
@@ -21,6 +21,178 @@
 - When modifying configuration or setup files, ensure that the instructions in the `README.md` file reflect these changes.
 - When adding new dependencies or tools, update the "Technology Stack" section in the `README.md` file to include these new technologies.
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
+
+
+## 📋 Project Organization Standards
+
+### Documentation Standards
+
+All documentation files must follow these strict standards:
+
+**Language Requirements:**
+- All documentation MUST be in English (exception: Italian section in bilingual `README.md`)
+- The main `README.md` is bilingual: English section first, followed by Italian translation
+- All technical documentation, guides, and API references must be in English only
+
+**File Location and Naming:**
+- **Root directory** - Only these 4 essential files:
+  - `README.md` - Main project README (bilingual)
+  - `AGENTS.md` - Project phase management guide
+  - `CHANGELOG.md` - Version history following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+  - `WEBSDRS.md` - WebSDR receiver configuration
+
+- **`/docs/` directory** - All public-facing documentation:
+  - `index.md` - Main documentation portal (must be in English)
+  - API references, architecture guides, tutorials, etc.
+  - All files in English only
+
+- **`/docs/agents/` directory** - Internal tracking and progress documents:
+  - Format: `YYYYMMDD_HHmmss_description.md`
+  - Example: `20251023_153000_phase6_completion_summary.md`
+  - Use lowercase with underscores for description
+  - All timestamps use 24-hour format
+  - When creating new tracking documents, always use this format
+
+**Markdown File Standards:**
+- Use proper markdown formatting (headers, lists, code blocks)
+- Include table of contents for documents >500 lines
+- Link to related documents using relative paths
+- Preserve code blocks and technical terms during any translations
+- Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format for CHANGELOG.md
+- Use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for version numbers
+
+**README.md Maintenance Guidelines:**
+
+The main `README.md` file requires regular verification to ensure accuracy with the current project state.
+
+**Setup Instructions Verification:**
+1. **Cross-platform compatibility**: Always use cross-platform commands
+   - Use `cp` instead of Windows-specific `copy`
+   - Verify commands work on Linux, macOS, and Windows (Git Bash)
+   - Add clarifying comments for each setup step
+
+2. **Command accuracy**: Verify all commands are correct and functional
+   - Test `cp .env.example .env` (creates configuration file)
+   - Test `docker-compose up -d` (starts all infrastructure)
+   - Test `make health-check` (verifies services are running)
+   - Ensure script paths are correct (e.g., `scripts/health-check.py`)
+
+3. **Documentation links**: Keep all links current and accurate
+   - Use correct paths: `docs/agents/YYYYMMDD_HHmmss_filename.md`
+   - Update links when files are renamed or moved
+   - Verify links point to existing files, not orphaned references
+   - Examples: `phase1_guide.md`, `phase4_completion_final.md`, `phase5_handoff.md`
+
+4. **Project status updates**: Reflect actual development progress
+   - Update phase status headers to show current phase
+   - Mark completed phases with ✅ COMPLETE
+   - Add new phases as they are completed
+   - Keep phase descriptions accurate (not outdated "READY TO START" when already done)
+   - Update both English and Italian sections consistently
+
+5. **Architecture accuracy**: Ensure technical details match current implementation
+   - Verify service names and descriptions
+   - Check technology stack is current
+   - Validate performance metrics reflect latest benchmarks
+   - Confirm deployment instructions match actual setup
+
+**Bilingual Consistency:**
+- English section comes first, Italian section follows
+- Both sections must have identical content (just translated)
+- Both sections must have same structure and links
+- Update both when making changes to either
+
+**When to Update README.md:**
+- After completing a new phase
+- When commands or setup procedures change
+- When documentation is reorganized or files moved
+- When performance benchmarks are updated
+- During major architecture changes
+
+**Preventing Orphaned Files:**
+
+All documentation files MUST be discoverable and contextual. Orphaned files (not linked from anywhere) are NOT allowed.
+
+**When creating tracking documents in `/docs/agents/`:**
+1. **Always add context**: Every new tracking document must include:
+   - Clear title indicating the phase/task it relates to
+   - Date and session information
+   - Links to related documents (previous session, related phases)
+   - Summary of what the document contains
+
+2. **Link from appropriate locations**:
+   - Add link in phase-specific index files (e.g., `PHASE6_INDEX.md`)
+   - Reference from `AGENTS.md` in the relevant phase section
+   - Link from related tracking documents
+   - Update progress dashboards or status files
+
+3. **Provide navigation aids**:
+   - Include "Related Documents" section at end of file
+   - Add "Previous Session" / "Next Session" links when applicable
+   - Reference from completion summaries and handoff documents
+
+4. **Integration requirements**:
+   - New phase documents must be linked from phase descriptions in `AGENTS.md`
+   - Session summaries must be linked from phase tracking documents
+   - Completion reports must be referenced in phase status updates
+   - All significant tracking files should appear in navigation chains
+
+**Example of proper context and linking:**
+```markdown
+# Phase 6 Session 2 Progress Report
+
+**Related Documents:**
+- [Phase 6 Start Guide](./PHASE6_START_HERE.md)
+- [Phase 6 Session 1 Report](./PHASE6_SESSION1_FINAL_REPORT.md)
+- [Phase 6 Index](./PHASE6_INDEX.md)
+- [Previous: Phase 5 Completion](./PHASE5_COMPLETE_SESSION_REPORT.md)
+
+**Session Info:** 2025-10-23 | Agent: copilot | Status: In Progress
+```
+
+**Orphan Prevention Tools:**
+- Use `scripts/reorganize_docs.py --find-orphans` to identify unreachable files
+- Review orphan reports regularly
+- Before PR merge, ensure all new files are properly linked
+- Update documentation index when adding significant new files
+
+### Script Organization Standards
+
+All utility scripts must be organized in the `/scripts/` directory:
+
+**Script Location:**
+- **`/scripts/` directory** - All utility, test, and automation scripts:
+  - Python scripts (`.py`)
+  - Shell scripts (`.sh`)
+  - PowerShell scripts (`.ps1`)
+  - Batch scripts (`.bat`)
+
+**Root Directory Exceptions:**
+- `conftest.py` - Pytest configuration (must remain in root)
+- Any scripts required by CI/CD that must be in root
+
+**Script Naming Conventions:**
+- Use descriptive names: `test_health_endpoint.py`, `load_test.py`
+- Use underscores for Python scripts: `health_check.py`
+- Use hyphens for shell scripts: `health-check.sh`
+- Include action in name: `generate_`, `test_`, `check_`, `monitor_`
+
+**Script Categories in `/scripts/`:**
+- **Testing scripts**: `test_*.py`, `test_*.sh`
+- **Health checks**: `health-check.*`, `*_health_*.py`
+- **Load testing**: `load_test*.py`, `performance_benchmark.py`
+- **Setup/deployment**: `dev-setup.ps1`, `start-*.ps1`
+- **Utilities**: `check_*.py`, `inspect_*.py`, `monitor_*.py`
+- **Generation**: `generate_*.py`, `create_*.py`
+- **Documentation**: `reorganize_docs.py`
+
+### Enforcement
+
+These standards are mandatory for all contributions:
+- Automated scripts enforce file naming conventions
+- CI/CD checks verify documentation is in English
+- Pull requests must follow these standards
+- Use `scripts/reorganize_docs.py` to maintain compliance
 
 
 ## 📚 Documentation Convention
@@ -759,7 +931,7 @@ After CP3.* pass, merge feature branch into `develop` and proceed to Phase 4.
 
 **Duration**: 2 days (✅ COMPLETE)  
 **Assignee**: Agent-Backend (fulgidus) + Agent-Frontend (contributor)  
-**Status**: � COMPLETE - Infrastructure Validation & Load Testing  
+**Status**: 🟢 COMPLETE - Infrastructure Validation & Load Testing  
 **Completed**: 2025-10-22  
 **Depends On**: Phase 3 ✅  
 **Critical Path**: NO (completed, Phase 5 can start immediately)
@@ -997,7 +1169,7 @@ git pull origin develop
 
 **Duration**: 3 days  
 **Assignee**: Agent-ML (fulgidus)  
-**Status**: COMPLETE - 10/10 TASKS (100%)
+**Status**: 🟢 COMPLETE - 10/10 TASKS (100%)
 **Depends On**: Phase 1 ✅, Phase 3 ✅  
 **Critical Path**: YES (blocks Phase 6)
 
@@ -1058,9 +1230,10 @@ mlflow.delete_run(run_id)
 
 **Duration**: 2 days  
 **Assignee**: Agent-Backend (fulgidus)  
-**Status**: 🔴 NOT STARTED  
+**Status**: 🟢 COMPLETE (10/10 tasks)  
 **Depends On**: Phase 5 ✅, Phase 2 ✅  
-**Critical Path**: YES
+**Critical Path**: YES  
+**Documentation**: `PHASE6_START_HERE.md`, `PHASE6_PREREQUISITES_CHECK.md`
 
 ### Objective
 
@@ -1152,8 +1325,8 @@ When inference service is validated, proceed to Phase 7: Frontend
 ## 🎨 PHASE 7: Frontend
 
 **Duration**: 3 days  
-**Assignee**: Agent-Frontend (contributor) + Agent-Backend (fulgidus)  
-**Status**: 🔴 NOT STARTED  
+**Assignee**: Agent-Frontend (fulgidus) + Agent-Backend (fulgidus)  
+**Status**: 🟢 STARTED  
 **Depends On**: Phase 6 ✅, Phase 4 ✅  
 **Critical Path**: YES
 
@@ -1175,7 +1348,7 @@ Create React + Mapbox frontend for real-time RF source localization with uncerta
 - **T7.3**: Create WebSDR status dashboard (online/offline indicators)
 - **T7.4**: Implement real-time localization display with uncertainty ellipses
 - **T7.5**: Create recording session management interface
-- **T7.6**: Add spectrogram visualization for signal validation
+- **T7.6**: Add spectrogram visualization for signal validation (one for each WebSDR)
 - **T7.7**: Implement user authentication and role management
 - **T7.8**: Create responsive design for mobile/tablet operators
 - **T7.9**: Add WebSocket integration for real-time updates

@@ -1,0 +1,25 @@
+/* Card Component Styles */
+.card {
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+
+.card-default {
+    background: linear-gradient(135deg, var(--oxford-blue) 0%, var(--sea-green) 100%);
+    border: 1px solid var(--neon-blue);
+    border-opacity: 0.2;
+}
+
+.card-bordered {
+    background-color: var(--oxford-blue);
+    border: 2px solid var(--neon-blue);
+}
+
+.card-elevated {
+    background-color: var(--oxford-blue);
+    border: 1px solid var(--french-gray);
+    border-opacity: 0.3;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}

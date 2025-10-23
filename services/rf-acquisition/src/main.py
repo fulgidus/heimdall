@@ -53,6 +53,14 @@ celery_app.conf.update(
     task_soft_time_limit=25 * 60,  # 25 minutes
 )
 
+# Configure Celery Beat schedule for monitoring
+celery_app.conf.beat_schedule = {
+    'monitor-websdrs-uptime': {
+        'task': 'monitor_websdrs_uptime',
+        'schedule': 60.0,  # Every 60 seconds
+    },
+}
+
 # Include routers
 app.include_router(acquisition_router)
 

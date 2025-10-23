@@ -11,12 +11,15 @@ Key functions:
 
 import numpy as np
 from scipy import signal
-from scipy.fft import fft
+from scipy.fftpack import dct
 import structlog
 from typing import Tuple, Optional
 
 logger = structlog.get_logger(__name__)
 
+def MEL_SPECTROGRAM_SHAPE(n_mels: int = 128, n_frames: int = 2048) -> Tuple[int, int]:
+    """Return the shape of the mel-spectrogram feature."""
+    return (n_mels, n_frames)
 
 def iq_to_mel_spectrogram(
     iq_data: np.ndarray,
@@ -211,9 +214,8 @@ def compute_mfcc(
         >>> mfcc = compute_mfcc(mel_spec, n_mfcc=13)
         >>> print(mfcc.shape)  # (13, ~375)
     """
-    
     # Discrete Cosine Transform (DCT)
-    mfcc = signal.dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
+    mfcc = dct(mel_spec_db, axis=0, type=2, norm='ortho')[:n_mfcc]
     
     logger.debug(
         "compute_mfcc",
