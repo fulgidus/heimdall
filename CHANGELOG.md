@@ -24,12 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Frontend UI rebuild (Phase 4 in progress)**
   - Analytics page: Complete rebuild using Datta Able Bootstrap components
+  - WebSDR Management page: Complete rebuild with real-time health monitoring
   - Integrated real-time data from backend API via Zustand stores
   - Replaced Lucide icons with Phosphor icons (Datta Able standard)
   - Implemented proper Bootstrap 5 grid system and card components
   - Added time range selector (24h, 7d, 30d) for analytics
   - WebSDR performance table with real health status data
   - Key metrics cards showing: Total Predictions, Model Accuracy, Active Receivers, System Uptime
+  - WebSDR Management: Online status, response times, coordinates, active status from real API
+  - Auto-refresh every 30 seconds for health monitoring
+  - Detailed WebSDR view modal with complete configuration and health data
 - **Documentation reorganization and standardization (100% complete)**
   - All 199 markdown files in docs/ now properly linked and discoverable (100% coverage)
   - Semantic organization with contextual introductions for each document

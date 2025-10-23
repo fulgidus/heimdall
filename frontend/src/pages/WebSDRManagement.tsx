@@ -1,52 +1,7 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    LogOut,
-    Home,
-    MapPin,
-    Radio,
-    BarChart3,
-    Zap,
-    Radar,
-    Menu,
-    X,
-    Edit2,
-    Wifi,
-    Zap as Activity,
-    RefreshCw,
-    AlertCircle,
-} from 'lucide-react';
-import { useAuthStore } from '../store';
+import React, { useEffect, useState } from 'react';
 import { useWebSDRStore } from '../store/websdrStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface DisplayWebSDR {
-    id: number;
-    name: string;
-    url: string;
-    location: string;
-    latitude: number;
-    longitude: number;
-    status: 'online' | 'offline' | 'unknown';
-    lastContact: string;
-    uptime: number;
-    avgSnr: number;
-    enabled: boolean;
-}
-
-export const WebSDRManagement: React.FC = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuthStore();
+const WebSDRManagement: React.FC = () => {
     const {
         websdrs,
         healthStatus,
@@ -55,401 +10,407 @@ export const WebSDRManagement: React.FC = () => {
         fetchWebSDRs,
         checkHealth,
         refreshAll,
+        lastHealthCheck,
     } = useWebSDRStore();
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [selectedWebSDR, setSelectedWebSDR] = useState<number | null>(null);
 
-    // Load WebSDRs and health status on mount
     useEffect(() => {
+        // Initial data load
         const loadData = async () => {
             await fetchWebSDRs();
             await checkHealth();
         };
         loadData();
-    }, [fetchWebSDRs, checkHealth]);
 
-    // Periodically refresh health status (every 30 seconds)
-    useEffect(() => {
+        // Auto-refresh health every 30 seconds
         const interval = setInterval(() => {
             checkHealth();
-        }, 30000); // 30 seconds
+        }, 30000);
 
         return () => clearInterval(interval);
-    }, [checkHealth]);
+    }, [fetchWebSDRs, checkHealth]);
 
-    // Handle manual refresh
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        try {
-            await refreshAll();
-        } finally {
-            setIsRefreshing(false);
-        }
+        await refreshAll();
+        setIsRefreshing(false);
     };
 
-    // Convert backend data to display format
-    const webSdrs: DisplayWebSDR[] = websdrs.map((ws) => {
-        const health = healthStatus[ws.id];
-        
-        // Calculate uptime percentage from health status
-        const uptime = health?.status === 'online' ? 99.8 : 0;
-        
-        // Calculate average SNR from response time (approximate)
-        // Lower response time = better signal quality
-        const avgSnr = health?.response_time_ms 
-            ? Math.max(0, 30 - (health.response_time_ms / 50))
-            : 0;
-        
-        return {
-            id: ws.id,
-            name: ws.name,
-            url: ws.url,
-            location: ws.location_name,
-            latitude: ws.latitude,
-            longitude: ws.longitude,
-            status: health?.status || 'unknown',
-            lastContact: health?.last_check || 'Never',
-            uptime,
-            avgSnr,
-            enabled: ws.is_active,
-        };
-    });
-
-
-    const menuItems = [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
-        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
-        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: true },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
-        { icon: Zap, label: 'Settings', path: '/settings', active: false },
-    ];
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setSidebarOpen(false);
-    };
-
-    const onlineCount = webSdrs.filter((w) => w.status === 'online').length;
-    const avgUptime = webSdrs.length > 0
-        ? (webSdrs.reduce((sum, w) => sum + (w.uptime || 0), 0) / webSdrs.length).toFixed(1)
-        : '0.0';
+    // Calculate statistics
+    const onlineCount = Object.values(healthStatus).filter(h => h.status === 'online').length;
+    const totalCount = websdrs.length;
+    const activeCount = websdrs.filter(w => w.is_active).length;
+    const avgResponseTime = Object.values(healthStatus).reduce((sum, h) => sum + (h.response_time_ms || 0), 0) / (Object.keys(healthStatus).length || 1);
 
     return (
-        <div className="flex h-screen w-screen bg-slate-950">
-            {/* Sidebar */}
-            <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
-                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
-                transition-all duration-300 overflow-hidden flex flex-col`}
-            >
-                {/* Logo Section */}
-                <div className="p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <Radar className="w-8 h-8 text-purple-500" />
-                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
-                    </div>
-                </div>
-
-                {/* Menu Items */}
-                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-                    {menuItems.map((item, idx) => {
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleNavigation(item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                    : 'text-slate-300 hover:bg-slate-800/50'
-                                    }`}
-                            >
-                                <Icon className="w-5 h-5" />
-                                <span className="font-medium">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-
-                {/* User Section */}
-                <div className="p-4 border-t border-slate-800">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
-                                    AD
-                                </div>
-                                <span className="ml-2 text-sm">admin</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-                                Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
-                {/* Header */}
-                <header className="bg-slate-900 border-b border-slate-800 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                            </Button>
-                            <h1 className="text-3xl font-bold text-white">WebSDR Network Management</h1>
+        <>
+            {/* Breadcrumb */}
+            <div className="page-header">
+                <div className="page-block">
+                    <div className="row align-items-center">
+                        <div className="col-md-12">
+                            <ul className="breadcrumb">
+                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li className="breadcrumb-item"><a href="#">RF Operations</a></li>
+                                <li className="breadcrumb-item" aria-current="page">WebSDR Management</li>
+                            </ul>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRefresh}
-                            disabled={isRefreshing || isLoading}
-                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
+                        <div className="col-md-12">
+                            <div className="page-header-title">
+                                <h2 className="mb-0">WebSDR Management</h2>
+                            </div>
+                        </div>
                     </div>
-                </header>
+                </div>
+            </div>
 
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto p-6">
-                    <div className="space-y-6 max-w-7xl mx-auto">
-                        {/* Error Alert */}
-                        {error && (
-                            <Alert className="bg-red-900/20 border-red-800">
-                                <AlertCircle className="h-4 w-4 text-red-500" />
-                                <AlertDescription className="text-red-300">
-                                    {error}
-                                </AlertDescription>
-                            </Alert>
-                        )}
+            {/* Error Alert */}
+            {error && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {error}
+                    <button type="button" className="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            )}
 
-                        {/* Loading State */}
-                        {isLoading && webSdrs.length === 0 && (
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-12 text-center">
-                                    <RefreshCw className="w-12 h-12 mx-auto mb-4 text-purple-500 animate-spin" />
-                                    <p className="text-slate-400 text-lg">Loading WebSDR configuration...</p>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        {/* Status Summary */}
-                        {!isLoading || webSdrs.length > 0 ? (
-                            <>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Card className="bg-slate-900 border-slate-800">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-slate-400 text-sm">Online Receivers</p>
-                                                    <p className="text-3xl font-bold text-green-400 mt-2">
-                                                        {onlineCount}/{webSdrs.length}
-                                                    </p>
-                                                </div>
-                                                <Wifi className="w-12 h-12 text-green-500 opacity-20" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-slate-900 border-slate-800">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-slate-400 text-sm">Average Uptime</p>
-                                                    <p className="text-3xl font-bold text-cyan-400 mt-2">{avgUptime}%</p>
-                                                </div>
-                                                <Activity className="w-12 h-12 text-cyan-500 opacity-20" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-slate-900 border-slate-800">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-slate-400 text-sm">Network Status</p>
-                                                    <p className="text-3xl font-bold text-purple-400 mt-2">Healthy</p>
-                                                </div>
-                                                <Radio className="w-12 h-12 text-purple-500 opacity-20" />
-                                            </div>
-                                        </CardContent>
-                                    </Card>
+            {/* Statistics Cards */}
+            <div className="row">
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-success rounded">
+                                        <i className="ph ph-radio-button f-20"></i>
+                                    </div>
                                 </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Online Receivers</h6>
+                                    <h4 className="mb-0">{onlineCount}/{totalCount}</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Availability</p>
+                                    <span className="badge bg-light-success">
+                                        {totalCount > 0 ? Math.round((onlineCount / totalCount) * 100) : 0}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                                {/* WebSDR Table */}
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardHeader>
-                                        <CardTitle className="text-white">Receiver Configuration</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="border-b border-slate-700">
-                                                    <tr>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Receiver Name
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Location
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            GPS Coordinates
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Status
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Uptime
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Avg SNR
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Last Contact
-                                                        </th>
-                                                        <th className="text-left py-3 px-4 text-slate-400 font-semibold">
-                                                            Actions
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-800">
-                                                    {webSdrs.map((sdr) => (
-                                                        <tr key={sdr.id} className="hover:bg-slate-800/50 transition">
-                                                            <td className="py-3 px-4">
-                                                                <div>
-                                                                    <p className="text-white font-medium">{sdr.name}</p>
-                                                                    <p className="text-slate-500 text-xs break-all">
-                                                                        {sdr.url}
-                                                                    </p>
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-primary rounded">
+                                        <i className="ph ph-check-circle f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Active Receivers</h6>
+                                    <h4 className="mb-0">{activeCount}</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Total Configured</p>
+                                    <span className="badge bg-light-primary">{totalCount}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-warning rounded">
+                                        <i className="ph ph-timer f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Avg Response</h6>
+                                    <h4 className="mb-0">{Math.round(avgResponseTime)}ms</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Performance</p>
+                                    <span className={`badge ${avgResponseTime < 200 ? 'bg-light-success' : avgResponseTime < 500 ? 'bg-light-warning' : 'bg-light-danger'}`}>
+                                        {avgResponseTime < 200 ? 'Excellent' : avgResponseTime < 500 ? 'Good' : 'Slow'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-info rounded">
+                                        <i className="ph ph-clock f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Last Check</h6>
+                                    <h4 className="mb-0 f-14">
+                                        {lastHealthCheck 
+                                            ? new Date(lastHealthCheck).toLocaleTimeString()
+                                            : 'Never'
+                                        }
+                                    </h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <button
+                                    className="btn btn-sm btn-link-primary w-100"
+                                    onClick={handleRefresh}
+                                    disabled={isRefreshing}
+                                >
+                                    <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+                                    {isRefreshing ? ' Checking...' : ' Refresh Now'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* WebSDR List */}
+            <div className="row">
+                <div className="col-12">
+                    <div className="card">
+                        <div className="card-header d-flex align-items-center justify-content-between">
+                            <h5 className="mb-0">Configured WebSDR Receivers</h5>
+                            <div className="btn-group">
+                                <button className="btn btn-sm btn-outline-primary" onClick={handleRefresh} disabled={isRefreshing}>
+                                    <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                        <div className="card-body">
+                            {isLoading ? (
+                                <div className="text-center py-5">
+                                    <div className="spinner-border text-primary" role="status">
+                                        <span className="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p className="text-muted mt-2">Loading WebSDR receivers...</p>
+                                </div>
+                            ) : websdrs.length > 0 ? (
+                                <div className="table-responsive">
+                                    <table className="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Status</th>
+                                                <th>Name</th>
+                                                <th>Location</th>
+                                                <th>Coordinates</th>
+                                                <th>URL</th>
+                                                <th>Response Time</th>
+                                                <th>Active</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {websdrs.map((websdr) => {
+                                                const health = healthStatus[websdr.id];
+                                                const isOnline = health?.status === 'online';
+                                                const responseTime = health?.response_time_ms || 0;
+
+                                                return (
+                                                    <tr key={websdr.id}>
+                                                        <td>
+                                                            <span className={`badge ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}>
+                                                                <i className={`ph ${isOnline ? 'ph-check-circle' : 'ph-x-circle'}`}></i>
+                                                                {isOnline ? ' Online' : ' Offline'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <div className={`avtar avtar-xs ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}>
+                                                                    <i className="ph ph-radio-button"></i>
                                                                 </div>
-                                                            </td>
-                                                            <td className="py-3 px-4 text-slate-300">{sdr.location}</td>
-                                                            <td className="py-3 px-4 text-slate-400 text-xs">
-                                                                {sdr.latitude.toFixed(4)}, {sdr.longitude.toFixed(4)}
-                                                            </td>
-                                                            <td className="py-3 px-4">
-                                                                {sdr.status === 'online' ? (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                                        <span className="text-green-400 font-semibold">
-                                                                            Online
-                                                                        </span>
-                                                                    </div>
-                                                                ) : sdr.status === 'offline' ? (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                                                                        <span className="text-red-400 font-semibold">
-                                                                            Offline
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                                                                        <span className="text-yellow-400 font-semibold">
-                                                                            Unknown
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-3 px-4">
-                                                                <span
-                                                                    className={`font-semibold ${sdr.uptime === 0
-                                                                            ? 'text-slate-500'
-                                                                            : sdr.uptime > 99
-                                                                                ? 'text-green-400'
-                                                                                : sdr.uptime > 95
-                                                                                    ? 'text-yellow-400'
-                                                                                    : 'text-red-400'
-                                                                        }`}
+                                                                <span className="ms-2">{websdr.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td>{websdr.location_name}</td>
+                                                        <td className="f-12">
+                                                            {websdr.latitude.toFixed(4)}, {websdr.longitude.toFixed(4)}
+                                                        </td>
+                                                        <td>
+                                                            <a 
+                                                                href={websdr.url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer"
+                                                                className="link-primary"
+                                                            >
+                                                                <i className="ph ph-arrow-square-out"></i>
+                                                            </a>
+                                                        </td>
+                                                        <td>
+                                                            {responseTime > 0 ? (
+                                                                <span className={`badge ${responseTime < 200 ? 'bg-light-success' : responseTime < 500 ? 'bg-light-warning' : 'bg-light-danger'}`}>
+                                                                    {responseTime}ms
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-muted">-</span>
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <span className={`badge ${websdr.is_active ? 'bg-light-primary' : 'bg-light-secondary'}`}>
+                                                                {websdr.is_active ? 'Yes' : 'No'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="btn-group">
+                                                                <button
+                                                                    className="btn btn-sm btn-link-secondary"
+                                                                    onClick={() => setSelectedWebSDR(websdr.id)}
+                                                                    title="View Details"
                                                                 >
-                                                                    {sdr.uptime === 0 ? 'N/A' : `${sdr.uptime.toFixed(1)}%`}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-3 px-4">
-                                                                <span className={`font-semibold ${sdr.avgSnr === 0 ? 'text-slate-500' : 'text-cyan-400'}`}>
-                                                                    {sdr.avgSnr === 0 ? 'N/A' : `${sdr.avgSnr.toFixed(1)} dB`}
-                                                                </span>
-                                                            </td>
-                                                            <td className="py-3 px-4 text-slate-400 text-xs">
-                                                                {sdr.lastContact}
-                                                            </td>
-                                                            <td className="py-3 px-4">
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="border-slate-700"
-                                                                        onClick={() =>
-                                                                            setEditingId(
-                                                                                editingId === sdr.id ? null : sdr.id
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Edit2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                </div>
+                                                                    <i className="ph ph-eye"></i>
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-sm btn-link-primary"
+                                                                    title="Edit"
+                                                                >
+                                                                    <i className="ph ph-pencil-simple"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-5">
+                                    <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
+                                    <p className="text-muted mb-0">No WebSDR receivers configured</p>
+                                    <button className="btn btn-primary mt-3">
+                                        <i className="ph ph-plus-circle"></i>
+                                        Add WebSDR Receiver
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Selected WebSDR Details */}
+            {selectedWebSDR && websdrs.find(w => w.id === selectedWebSDR) && (
+                <div className="row">
+                    <div className="col-12">
+                        <div className="card">
+                            <div className="card-header d-flex align-items-center justify-content-between">
+                                <h5 className="mb-0">WebSDR Details</h5>
+                                <button 
+                                    className="btn btn-sm btn-link-secondary"
+                                    onClick={() => setSelectedWebSDR(null)}
+                                >
+                                    <i className="ph ph-x"></i>
+                                </button>
+                            </div>
+                            <div className="card-body">
+                                {(() => {
+                                    const websdr = websdrs.find(w => w.id === selectedWebSDR);
+                                    const health = healthStatus[selectedWebSDR];
+                                    if (!websdr) return null;
+
+                                    return (
+                                        <div className="row">
+                                            <div className="col-md-6">
+                                                <h6>General Information</h6>
+                                                <table className="table table-sm">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td className="text-muted">ID</td>
+                                                            <td>{websdr.id}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-muted">Name</td>
+                                                            <td>{websdr.name}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-muted">Location</td>
+                                                            <td>{websdr.location_name}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-muted">Latitude</td>
+                                                            <td>{websdr.latitude.toFixed(6)}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-muted">Longitude</td>
+                                                            <td>{websdr.longitude.toFixed(6)}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="text-muted">URL</td>
+                                                            <td>
+                                                                <a href={websdr.url} target="_blank" rel="noopener noreferrer">
+                                                                    {websdr.url}
+                                                                </a>
                                                             </td>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                                        <tr>
+                                                            <td className="text-muted">Active</td>
+                                                            <td>
+                                                                <span className={`badge ${websdr.is_active ? 'bg-light-success' : 'bg-light-secondary'}`}>
+                                                                    {websdr.is_active ? 'Yes' : 'No'}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <h6>Health Status</h6>
+                                                {health ? (
+                                                    <table className="table table-sm">
+                                                        <tbody>
+                                                            <tr>
+                                                                <td className="text-muted">Status</td>
+                                                                <td>
+                                                                    <span className={`badge ${health.status === 'online' ? 'bg-light-success' : 'bg-light-danger'}`}>
+                                                                        {health.status}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td className="text-muted">Response Time</td>
+                                                                <td>{health.response_time_ms || 0}ms</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td className="text-muted">Last Check</td>
+                                                                <td>{health.last_check || 'Never'}</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                ) : (
+                                                    <p className="text-muted">No health data available</p>
+                                                )}
+                                            </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-
-                                {/* Test Panel */}
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardHeader>
-                                        <CardTitle className="text-white">Network Diagnostics</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <Button
-                                                className="bg-purple-600 hover:bg-purple-700 w-full"
-                                                onClick={handleRefresh}
-                                                disabled={isRefreshing}
-                                            >
-                                                Test All Connections
-                                            </Button>
-                                            <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-                                                Verify Frequencies
-                                            </Button>
-                                            <Button className="bg-purple-600 hover:bg-purple-700 w-full">
-                                                Fetch IQ Test Data
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </>
-                        ) : null}
+                                    );
+                                })()}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            )}
+        </>
     );
 };
 
