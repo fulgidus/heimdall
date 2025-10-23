@@ -9,6 +9,17 @@
 **License**: CC Non-Commercial
 
 ---
+## General Instructions
+
+- Use a professional and concise tone.
+- Provide detailed explanations when requested.
+- Whenever you want to generate markdown files to track your progress or communicate important information, create the files inside the `docs/agents/` folder following the format `YYYYMMDD_HHMMSS_description.md`.
+- Always keep the technical documentation in the `docs/index.md` file updated. Never ask for confirmation, just update it.
+- Keep the `AGENTS.md` file updated with relevant changes made by agents.
+- When modifying configuration or setup files, ensure that the instructions in the `README.md` file reflect these changes.
+- When adding new dependencies or tools, update the "Technology Stack" section in the `README.md` file to include these new technologies.
+- Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
+
 
 ## 📚 Documentation Convention
 
@@ -33,6 +44,9 @@
 ## 📑 Table of Contents
 
 - [🤖 AGENTS.md - Heimdall SDR Project Phase Management Guide](#-agentsmd---heimdall-sdr-project-phase-management-guide)
+    - [General Instructions](#general-instructions)
+    - [📚 Documentation Convention](#-documentation-convention)
+        - [Key Documentation Files:](#key-documentation-files)
     - [📑 Table of Contents](#-table-of-contents)
     - [🎯 Project Overview](#-project-overview)
         - [Mission](#mission)
