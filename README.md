@@ -72,7 +72,7 @@ The system processes IQ data from WebSDR receivers, extracts mel-spectrograms fo
 
 ## Development Status
 
-**Phase 4: Data Ingestion Validation** ✅ COMPLETE
+**Phase 6: Inference Service** ✅ COMPLETE
 
 - ✅ Phase 0: Repository Setup (Complete)
 - ✅ Phase 1: Infrastructure & Database (Complete)
@@ -83,12 +83,17 @@ The system processes IQ data from WebSDR receivers, extracts mel-spectrograms fo
   - Docker infrastructure: 13/13 containers healthy
   - Performance benchmarking: All SLAs met
   - Load testing: 50 concurrent tasks, 100% success rate
-  - [Full Phase 4 Report →](PHASE4_COMPLETION_FINAL.md)
+  - [Full Phase 4 Report →](docs/agents/20251022_080000_phase4_completion_final.md)
 
-**Phase 5: Training Pipeline** 🟡 READY TO START (All dependencies met)
+**Phase 5: Training Pipeline** ✅ COMPLETE
 - ML pipeline development with PyTorch Lightning
 - Model training with MLflow tracking
-- [Phase 5 Handoff →](PHASE5_HANDOFF.md)
+- [Phase 5 Handoff →](docs/agents/20251022_080000_phase5_handoff.md)
+
+**Phase 6: Inference Service** ✅ COMPLETE
+- Real-time inference with ONNX runtime
+- Redis caching for optimized performance
+- [Phase 6 Start Guide →](docs/agents/20251023_153000_phase6_start_here.md)
 
 ### Quick Start
 
@@ -97,17 +102,18 @@ The system processes IQ data from WebSDR receivers, extracts mel-spectrograms fo
 git clone https://github.com/fulgidus/heimdall.git
 cd heimdall
 
-# Setup environment
-copy .env.example .env
+# Setup environment (copy .env template)
+cp .env.example .env
+# Edit .env with your configuration
 
 # Start infrastructure (requires Docker)
 docker-compose up -d
 
-# Verify services
+# Verify services are healthy
 make health-check
 ```
 
-See [PHASE1_GUIDE.md](PHASE1_GUIDE.md) for detailed setup instructions.
+See [Phase 1 Guide](docs/agents/20251022_080000_phase1_guide.md) for detailed setup instructions.
 
 ## License
 
@@ -216,7 +222,7 @@ Il sistema elabora dati IQ dai ricevitori WebSDR, estrae mel-spettrogrammi per l
 
 ## Stato di Sviluppo
 
-**Fase 4: Validazione Data Ingestion** ✅ COMPLETA
+**Fase 6: Servizio Inferenza** ✅ COMPLETA
 
 - ✅ Fase 0: Setup Repository (Completa)
 - ✅ Fase 1: Infrastruttura & Database (Completa)
@@ -227,12 +233,17 @@ Il sistema elabora dati IQ dai ricevitori WebSDR, estrae mel-spettrogrammi per l
   - Infrastruttura Docker: 13/13 container sani
   - Benchmarking performance: Tutti gli SLA rispettati
   - Load testing: 50 task concorrenti, 100% tasso di successo
-  - [Report completo Fase 4 →](PHASE4_COMPLETION_FINAL.md)
+  - [Report completo Fase 4 →](docs/agents/20251022_080000_phase4_completion_final.md)
 
-**Fase 5: Training Pipeline** 🟡 PRONTA PER INIZIARE (Tutte le dipendenze soddisfatte)
+**Fase 5: Training Pipeline** ✅ COMPLETA
 - Sviluppo pipeline ML con PyTorch Lightning
 - Training modello con tracking MLflow
-- [Handoff Fase 5 →](PHASE5_HANDOFF.md)
+- [Handoff Fase 5 →](docs/agents/20251022_080000_phase5_handoff.md)
+
+**Fase 6: Servizio Inferenza** ✅ COMPLETA
+- Inferenza in tempo reale con ONNX runtime
+- Caching Redis per performance ottimizzate
+- [Guida Avvio Fase 6 →](docs/agents/20251023_153000_phase6_start_here.md)
 
 ### Avvio Rapido
 
@@ -241,17 +252,18 @@ Il sistema elabora dati IQ dai ricevitori WebSDR, estrae mel-spettrogrammi per l
 git clone https://github.com/fulgidus/heimdall.git
 cd heimdall
 
-# Setup environment
-copy .env.example .env
+# Setup environment (copia template .env)
+cp .env.example .env
+# Modifica .env con la tua configurazione
 
 # Avvia infrastruttura (richiede Docker)
 docker-compose up -d
 
-# Verifica servizi
+# Verifica che i servizi siano attivi
 make health-check
 ```
 
-Vedi [PHASE1_GUIDE.md](PHASE1_GUIDE.md) per istruzioni di setup dettagliate.
+Vedi [Guida Fase 1](docs/agents/20251022_080000_phase1_guide.md) per istruzioni di setup dettagliate.
 
 ## Licenza
 
