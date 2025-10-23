@@ -27,18 +27,26 @@ class TestMLflowTracker:
     def mlflow_tracker(self):
         """Create MLflowTracker instance for testing."""
         
-        tracker = MLflowTracker(
-            tracking_uri="postgresql://test:test@localhost:5432/mlflow",
-            artifact_uri="s3://test-mlflow",
-            backend_store_uri="postgresql://test:test@localhost:5432/mlflow",
-            registry_uri="postgresql://test:test@localhost:5432/mlflow",
-            s3_endpoint_url="http://minio:9000",
-            s3_access_key_id="testkey",
-            s3_secret_access_key="testsecret",
-            experiment_name="test-experiment",
-        )
-        
-        return tracker
+        # Mock the MLflow client and experiment creation to avoid database connection
+        with patch('src.mlflow_setup.mlflow.set_tracking_uri'), \
+             patch('src.mlflow_setup.mlflow.set_experiment') as mock_set_exp, \
+             patch('src.mlflow_setup.MlflowClient'):
+            
+            # Mock experiment ID
+            mock_set_exp.return_value = "test-experiment-id"
+            
+            tracker = MLflowTracker(
+                tracking_uri="postgresql://test:test@localhost:5432/mlflow",
+                artifact_uri="s3://test-mlflow",
+                backend_store_uri="postgresql://test:test@localhost:5432/mlflow",
+                registry_uri="postgresql://test:test@localhost:5432/mlflow",
+                s3_endpoint_url="http://minio:9000",
+                s3_access_key_id="testkey",
+                s3_secret_access_key="testsecret",
+                experiment_name="test-experiment",
+            )
+            
+            return tracker
     
     def test_initialization(self, mlflow_tracker):
         """Test MLflowTracker initialization."""
