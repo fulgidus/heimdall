@@ -299,16 +299,16 @@ const RecordingSession: React.FC = () => {
                             <div className="card-body">
                                 <div className="d-flex align-items-center mb-3">
                                     <div className={`avtar avtar-s ${acquisitionStatus.status === 'SUCCESS'
-                                            ? 'bg-light-success'
-                                            : acquisitionStatus.status === 'FAILURE'
-                                                ? 'bg-light-danger'
-                                                : 'bg-light-primary'
+                                        ? 'bg-light-success'
+                                        : acquisitionStatus.status === 'FAILURE'
+                                            ? 'bg-light-danger'
+                                            : 'bg-light-primary'
                                         }`}>
                                         <i className={`ph ${acquisitionStatus.status === 'SUCCESS'
-                                                ? 'ph-check-circle'
-                                                : acquisitionStatus.status === 'FAILURE'
-                                                    ? 'ph-x-circle'
-                                                    : 'ph-hourglass'
+                                            ? 'ph-check-circle'
+                                            : acquisitionStatus.status === 'FAILURE'
+                                                ? 'ph-x-circle'
+                                                : 'ph-hourglass'
                                             }`}></i>
                                     </div>
                                     <div className="ms-3 flex-grow-1">

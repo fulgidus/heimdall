@@ -145,27 +145,22 @@ describe('Login Component', () => {
             renderLogin();
 
             const emailInput = screen.getByPlaceholderText('admin@heimdall.local');
-            expect(emailInput).toHaveClass('border-2');
-            expect(emailInput).toHaveClass('border-gray-200');
-            expect(emailInput).toHaveClass('rounded-xl');
+            expect(emailInput).toHaveClass('login-form-input');
         });
 
         it('should have correct CSS classes for password input', () => {
             renderLogin();
 
             const passwordInput = screen.getByPlaceholderText(/••••/);
-            expect(passwordInput).toHaveClass('border-2');
-            expect(passwordInput).toHaveClass('border-gray-200');
-            expect(passwordInput).toHaveClass('rounded-xl');
+            expect(passwordInput).toHaveClass('login-form-input');
+            expect(passwordInput).toHaveClass('login-password-input');
         });
 
         it('should have correct styling for submit button', () => {
             renderLogin();
 
             const submitButton = screen.getByRole('button', { name: /Sign In/i });
-            expect(submitButton).toHaveClass('bg-gradient-to-r');
-            expect(submitButton).toHaveClass('from-purple-600');
-            expect(submitButton).toHaveClass('to-indigo-600');
+            expect(submitButton).toHaveClass('login-submit-button');
         });
     });
 });

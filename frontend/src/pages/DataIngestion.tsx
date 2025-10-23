@@ -363,12 +363,12 @@ const DataIngestion: React.FC = () => {
                                                             <td>
                                                                 <span
                                                                     className={`badge ${session.status === 'completed'
-                                                                            ? 'bg-light-success'
-                                                                            : session.status === 'in_progress'
-                                                                                ? 'bg-light-primary'
-                                                                                : session.status === 'failed'
-                                                                                    ? 'bg-light-danger'
-                                                                                    : 'bg-light-warning'
+                                                                        ? 'bg-light-success'
+                                                                        : session.status === 'in_progress'
+                                                                            ? 'bg-light-primary'
+                                                                            : session.status === 'failed'
+                                                                                ? 'bg-light-danger'
+                                                                                : 'bg-light-warning'
                                                                         }`}
                                                                 >
                                                                     {session.status}
@@ -377,10 +377,10 @@ const DataIngestion: React.FC = () => {
                                                             <td>
                                                                 <span
                                                                     className={`badge ${session.approval_status === 'approved'
-                                                                            ? 'bg-light-success'
-                                                                            : session.approval_status === 'rejected'
-                                                                                ? 'bg-light-danger'
-                                                                                : 'bg-light-warning'
+                                                                        ? 'bg-light-success'
+                                                                        : session.approval_status === 'rejected'
+                                                                            ? 'bg-light-danger'
+                                                                            : 'bg-light-warning'
                                                                         }`}
                                                                 >
                                                                     {session.approval_status}

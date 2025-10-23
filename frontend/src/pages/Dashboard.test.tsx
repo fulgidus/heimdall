@@ -5,10 +5,16 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import Dashboard from './Dashboard';
 import { useAuthStore } from '../store';
 
-// Mock the auth store
-vi.mock('../store', () => ({
-    useAuthStore: vi.fn(),
-}));
+// Mock the auth store and dashboard stores
+vi.mock('../store', async () => {
+    const actual = await vi.importActual('../store');
+    return {
+        ...actual,
+        useAuthStore: vi.fn(),
+        useDashboardStore: vi.fn(),
+        useWebSDRStore: vi.fn(),
+    };
+});
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -23,10 +29,36 @@ vi.mock('react-router-dom', async () => {
 describe('Dashboard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        const mockUseAuthStore = useAuthStore as unknown as { mockReturnValue: (value: unknown) => void };
-        mockUseAuthStore.mockReturnValue({
+        
+        // Import the mocked stores
+        const { useAuthStore, useDashboardStore, useWebSDRStore } = require('../store');
+        
+        (useAuthStore as any).mockReturnValue({
             user: { email: 'admin@heimdall.local' },
             logout: vi.fn(),
+        });
+
+        (useDashboardStore as any).mockReturnValue({
+            stats: {
+                total_sessions: 42,
+                completed_sessions: 38,
+                total_measurements: 1024,
+                success_rate: 90.5,
+            },
+            recentActivity: [
+                { type: 'session_created', timestamp: new Date().toISOString() },
+            ],
+            systemHealth: { status: 'healthy', uptime_hours: 168 },
+            fetchDashboardData: vi.fn(),
+            lastUpdate: new Date().toISOString(),
+        });
+
+        (useWebSDRStore as any).mockReturnValue({
+            websdrs: [
+                { id: 'websdr1', name: 'WebSDR 1', frequency: 145.5, status: 'online' },
+                { id: 'websdr2', name: 'WebSDR 2', frequency: 433.0, status: 'online' },
+            ],
+            healthStatus: { online_count: 2, total_count: 2 },
         });
     });
 
