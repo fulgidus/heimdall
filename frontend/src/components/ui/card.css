@@ -1,0 +1,38 @@
+/* UI Card Component Styles */
+.ui-card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background-color: var(--card);
+    color: var(--card-foreground);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ui-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 1.5rem;
+}
+
+.ui-card-title {
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.025em;
+}
+
+.ui-card-description {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+.ui-card-content {
+    padding: 1.5rem;
+    padding-top: 0;
+}
+
+.ui-card-footer {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+    padding-top: 0;
+}
