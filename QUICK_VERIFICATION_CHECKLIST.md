@@ -1,12 +1,12 @@
 # ✅ QUICK VERIFICATION CHECKLIST
 
-**Data**: 22 Ottobre 2025  
-**Implementazione**: WebSDR Management API Integration  
+**Date**: 22 Ottobre 2025  
+**Implementation**: WebSDR Management API Integration  
 **Status**: READY FOR TESTING
 
 ---
 
-## 📋 File Modificati - Verifica Rapida
+## 📋 Files Modified - Verification Rapida
 
 ### Backend ✅
 ```
@@ -154,17 +154,17 @@ Pattern corretto:
 | Problema             | Causa                     | Soluzione                                                    |
 | -------------------- | ------------------------- | ------------------------------------------------------------ |
 | 404 Not Found        | Doppio `/api` in URL      | Verifica `VITE_API_URL=http://localhost:8000` (senza `/api`) |
-| CORS Error           | Backend non ha CORS       | Verifica `CORSMiddleware` in api-gateway/main.py             |
-| "OK" response        | Path API errato           | Verifica path `/api/v1/...` nei servizi                      |
-| No data in table     | Componente non renderizza | Verifica useEffect hook                                      |
-| Spinner infinito     | API timeout               | Verifica che backend sia UP                                  |
-| Network shows 2 reqs | Corretto!                 | ✅ Questo è atteso (getWebSDRs + checkHealth)                 |
+| CORS Error           | Backend non ha CORS       | Verification `CORSMiddleware` in api-gateway/main.py             |
+| "OK" response        | Path API errato           | Verification path `/api/v1/...` nei services                      |
+| No data in table     | Componente non renderizza | Verification useEffect hook                                      |
+| Spinner infinito     | API timeout               | Verification che backend sia UP                                  |
+| Network shows 2 reqs | Corretto!                 | ✅ This è atteso (getWebSDRs + checkHealth)                 |
 
 ---
 
 ## 📝 Comandi Rapidi
 
-### Verifica Backend
+### Verification Backend
 ```bash
 # Controlla che i servizi siano UP
 docker-compose ps
@@ -176,7 +176,7 @@ curl http://localhost:8000/api/v1/acquisition/websdrs | jq
 curl http://localhost:8000/api/v1/acquisition/websdrs/health | jq '.["1"]'
 ```
 
-### Verifica Frontend
+### Verification Frontend
 ```bash
 # Controlla compilazione TypeScript
 cd frontend
@@ -255,6 +255,6 @@ Prima di dire "DONE":
 ---
 
 *Vedi file complementari:*
-- `IMPLEMENTAZIONE_WEBSDR_REALE_SUMMARY.md` - Riepilogo dettagliato
-- `WEBSDR_API_INTEGRATION_COMPLETE.md` - Documentazione tecnica
+- `IMPLEMENTAZIONE_WEBSDR_REALE_SUMMARY.md` - Summary dettagliato
+- `WEBSDR_API_INTEGRATION_COMPLETE.md` - Documentation tecnica
 - `WEBSDR_TEST_INSTRUCTIONS.md` - Istruzioni di test passo-passo

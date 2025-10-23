@@ -23,7 +23,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 ### 1️⃣ **PAGINA: Login & Autenticazione**
 
-**Scopo**: Accesso sicuro al sistema
+**Scopo**: Accesso sicuro al system
 
 **Contenuti**:
 - ✅ Form login con email e password
@@ -36,49 +36,49 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 - `Login.tsx` ← Esiste
 - Autenticazione via Zustand store
 
-**Status**: ✅ **COMPLETATO + TESTED (21/21 PASSING)**
+**Status**: ✅ **COMPLETED + TESTED (21/21 PASSING)**
 
 ---
 
 ### 3️⃣ **PAGINA: Mappa Dettagliata (Localization)**
 
-**Status**: ✅ **COMPLETATO** (296 linee)
+**Status**: ✅ **COMPLETED** (296 linee)
 
 ---
 
 ### 4️⃣ **PAGINA: Recording Session Management**
 
-**Status**: ✅ **COMPLETATO** (389 linee)
+**Status**: ✅ **COMPLETED** (389 linee)
 
 ---
 
 ### 5️⃣ **PAGINA: Session History & Analysis**
 
-**Status**: ✅ **COMPLETATO** (311 linee)
+**Status**: ✅ **COMPLETED** (311 linee)
 
 ---
 
 ### 6️⃣ **PAGINA: WebSDR Management**
 
-**Status**: ✅ **COMPLETATO** (326 linee)
+**Status**: ✅ **COMPLETED** (326 linee)
 
 ---
 
 ### 7️⃣ **PAGINA: System Status & Monitoring**
 
-**Status**: ✅ **COMPLETATO** (391 linee)
+**Status**: ✅ **COMPLETED** (391 linee)
 
 ---
 
 ### 8️⃣ **PAGINA: Settings & Preferences**
 
-**Status**: ✅ **COMPLETATO** (138 linee)
+**Status**: ✅ **COMPLETED** (138 linee)
 
 ---
 
 ### 9️⃣ **PAGINA: Profile Management**
 
-**Status**: ✅ **COMPLETATO** (169 linee)
+**Status**: ✅ **COMPLETED** (169 linee)
 
 ---
 
@@ -153,7 +153,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 - 📋 **Form per Nuova Sessione**:
   - Nome sessione
   - Frequenza target (MHz)
-  - Durata acquisizione (secondi)
+  - Duration acquisizione (secondi)
   - Descrizione note di testo
   - Checkbox per "Known Source" (se è una sorgente nota)
   
@@ -166,7 +166,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 - 📊 **Live Monitoring During Recording**:
   - Real-time SNR per ogni WebSDR
-  - Spectrogram live (aggiornato ogni 500ms)
+  - Spectrogram live (updated ogni 500ms)
   - Queue status (quanti task in coda)
   - WebSDR health indicator (connection status)
 
@@ -187,12 +187,12 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 ### 5️⃣ **PAGINA: Session History & Analysis**
 
-**Scopo**: Storico di tutte le sessioni acquisite
+**Scopo**: Storico di all le sessioni acquisite
 
 **Contenuti**:
 - 📅 **Tabella Sessioni** mostrando:
-  - Data/ora inizio
-  - Durata
+  - Date/ora inizio
+  - Duration
   - Frequenza target
   - Status (completed, failed, pending_approval)
   - Num WebSDR attivi
@@ -255,7 +255,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 ### 7️⃣ **PAGINA: System Status & Monitoring**
 
-**Scopo**: Salute del sistema backend e infrastruttura
+**Scopo**: Salute del system backend e infrastruttura
 
 **Contenuti**:
 - 🟢 **Services Status**:
@@ -291,7 +291,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 ### 8️⃣ **PAGINA: Settings & Preferences**
 
-**Scopo**: Configurazioni utente e sistema
+**Scopo**: Configurazioni utente e system
 
 **Contenuti**:
 - 👤 **Profilo Utente**:
@@ -349,7 +349,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 **Componenti React**:
 - `Documentation.tsx` (Main container)
-- `GuidePanel.tsx` (Testi guida)
+- `GuidePanel.tsx` (Testi guide)
 - `FAQAccordion.tsx` (FAQ items)
 - `SupportForm.tsx` (Forms)
 
@@ -357,7 +357,7 @@ Il frontend di Heimdall è un'**applicazione web real-time per la localizzazione
 
 ## 🏗️ Layout Architecture
 
-### **Topbar/Header** (su tutte le pagine)
+### **Topbar/Header** (su all le pagine)
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ [🚀 Heimdall] │ [Dashboard] [Sessions] [Map] [WebSDR]   │ [👤 User] [Settings] [Logout]
@@ -483,10 +483,10 @@ Tutte le pagine del MVP sono state completate e testate:
 - ✅ Build time: 582ms
 
 **Navigazione**:
-- ✅ Sidebar collapsible su tutte le pagine
+- ✅ Sidebar collapsible su all le pagine
 - ✅ Menu items con highlighting della pagina attiva
 - ✅ User dropdown (Profile, Settings, Logout)
-- ✅ Routing protetto su tutte le route private
+- ✅ Routing protetto su all le route private
 
 ---
 
@@ -505,7 +505,7 @@ Focus: **Integrazioni Backend, Mapbox, WebSocket, Charts**
 
 ---
 
-## 📋 File Structure
+## 📋 Files Structure
 
 ```
 frontend/
@@ -601,11 +601,11 @@ frontend/
 - Visualization in tempo reale
 - Workflow controllato da umani
 
-Ogni pagina, ogni componente, ogni feature deve servire **uno scopo specifico nel progetto Heimdall**.
+Ogni pagina, ogni componente, ogni feature deve servire **uno scopo specifico nel project Heimdall**.
 
 ---
 
 **Documento: FRONTEND_SPECIFICATION.md**  
 **Versione**: 1.0  
-**Data**: 2025-10-22  
+**Date**: 2025-10-22  
 **Status**: 🟡 IN PROGRESS

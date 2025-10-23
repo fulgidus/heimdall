@@ -38,7 +38,7 @@ python src/entrypoint.py
 curl http://localhost:8000/api/v1/acquisition/websdrs
 ```
 
-### 2️⃣ **Verifica Frontend Sia Running su Port 3001**
+### 2️⃣ **Verification Frontend Sia Running su Port 3001**
 
 ```powershell
 # Nel terminal, vai alla cartella frontend
@@ -143,7 +143,7 @@ npm run dev
 }
 ```
 
-**Azione**: Verifica CORS nel backend:
+**Azione**: Verification CORS nel backend:
 
 ```bash
 # File: services/rf-acquisition/src/main.py
@@ -162,7 +162,7 @@ app.add_middleware(
 
 #### ❌ **Scenario: Wrong Base URL**
 
-Se vedi log come questo:
+Se vedi log come this:
 ```
 📤 API Request: {
   url: '/api/v1/acquisition/websdrs',
@@ -170,7 +170,7 @@ Se vedi log come questo:
 }
 ```
 
-**Azione**: Verifica `.env`:
+**Azione**: Verification `.env`:
 
 ```bash
 # frontend/.env deve avere:
@@ -182,7 +182,7 @@ npm run dev  # Restart Vite dev server!
 
 ---
 
-### 5️⃣ **Verifica da Terminal (Curl)**
+### 5️⃣ **Verification da Terminal (Curl)**
 
 ```powershell
 # Testa gli stessi endpoint che il frontend chiama
@@ -233,7 +233,7 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 
 ## 🐛 Se Qualcosa Non Funziona
 
-**Fornisci i log da Console** (copia-incolla tutto il testo dalla Console F12) in modo che posso diagnosticare il problema specifico.
+**Fornisci i log da Console** (copia-incolla all il testo dalla Console F12) in modo che posso diagnosticare il problema specifico.
 
 ### Debug Checklist
 
@@ -248,8 +248,8 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 
 ## 📝 Files Modified for Debug
 
-1. ✅ `frontend/src/lib/api.ts` - Aggiunto request/response interceptor logging
-2. ✅ `frontend/src/pages/WebSDRManagement.tsx` - Aggiunto console.log in useEffect
-3. ✅ `frontend/src/services/api/websdr.ts` - Aggiunto console.log nei metodi API
+1. ✅ `frontend/src/lib/api.ts` - Added request/response interceptor logging
+2. ✅ `frontend/src/pages/WebSDRManagement.tsx` - Added console.log in useEffect
+3. ✅ `frontend/src/services/api/websdr.ts` - Added console.log nei metodi API
 
 All files are in the repo. Just restart frontend dev server.

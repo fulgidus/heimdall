@@ -105,7 +105,7 @@ useEffect(() => {
 
 **Note**: 
 - "N/A" per Uptime e Avg SNR perché questi dati richiedono misurazioni storiche dal database
-- Questi valori saranno popolati automaticamente quando il sistema inizierà a raccogliere dati
+- Questi valori saranno popolati automaticamente quando il system inizierà a raccogliere dati
 
 ## 🔌 Integrazione Backend
 
@@ -132,7 +132,7 @@ useEffect(() => {
 ```
 
 #### 2. GET /api/v1/acquisition/websdrs/health
-**Scopo**: Controllare stato di salute di tutti i WebSDR
+**Scopo**: Controllare stato di salute di all i WebSDR
 
 **Risposta**:
 ```json
@@ -146,7 +146,7 @@ useEffect(() => {
 }
 ```
 
-**Nota**: Questo endpoint può richiedere 30-60 secondi perché esegue un ping reale a ciascun WebSDR.
+**Nota**: This endpoint può richiedere 30-60 secondi perché esegue un ping reale a ciascun WebSDR.
 
 ## 🧪 Come Testare
 
@@ -179,25 +179,25 @@ npm run dev
 1. Apri browser: `http://localhost:3001`
 2. Login con: `admin` / `admin`
 3. Naviga a: `http://localhost:3001/websdrs`
-4. Verifica:
+4. Verification:
    - ✅ I dati vengono caricati dal backend
    - ✅ Gli indicatori di stato (online/offline) sono corretti
    - ✅ Il pulsante Refresh funziona
    - ✅ L'aggiornamento automatico funziona (attendi 30s)
    - ✅ La gestione errori funziona (ferma rf-acquisition e refresh)
 
-## 📝 File Modificati
+## 📝 Files Modified
 
 ### Frontend
 - ✅ `frontend/src/pages/WebSDRManagement.tsx` - Componente principale
 - ✅ `frontend/src/components/ui/alert.tsx` - Nuovo componente Alert
 - ✅ `frontend/package.json` - Aggiunta dipendenza @types/node
 
-### Documentazione
-- ✅ `TESTING_WEBSDRS_PAGE.md` - Guida test completa
-- ✅ `IMPLEMENTATION_SUMMARY.md` - Documentazione tecnica
+### Documentation
+- ✅ `TESTING_WEBSDRS_PAGE.md` - Guide test completa
+- ✅ `IMPLEMENTATION_SUMMARY.md` - Documentation tecnica
 - ✅ `test_websdrs_api.sh` - Script test API
-- ✅ `WEBSDRS_PAGE_CHANGES.md` - Questo file
+- ✅ `WEBSDRS_PAGE_CHANGES.md` - This file
 
 ## ⚙️ Configurazione
 
@@ -231,14 +231,14 @@ Il file `frontend/src/services/api/websdr.ts` fornisce:
 ### Long Term
 - [ ] Dashboard mobile
 - [ ] Alerting automatico
-- [ ] Machine Learning per predire problemi
+- [ ] Machine Learning per predire issues
 - [ ] Visualizzazione copertura segnale
 
-## 🐛 Problemi Noti
+## 🐛 Issues Noti
 
 ### 1. Uptime e Avg SNR mostrano "N/A"
 **Motivo**: Non ci sono ancora dati storici nel database  
-**Soluzione**: Iniziare a raccogliere misurazioni con il sistema  
+**Soluzione**: Iniziare a raccogliere misurazioni con il system  
 **Timeline**: Si popolerà automaticamente dopo le prime acquisizioni
 
 ### 2. Health Check lento
@@ -253,7 +253,7 @@ Il file `frontend/src/services/api/websdr.ts` fornisce:
 
 ## 📞 Supporto
 
-### In caso di problemi:
+### In caso di issues:
 
 **Errore**: "Cannot fetch WebSDRs"
 ```bash
@@ -280,8 +280,8 @@ curl http://localhost:8000/health
 ```
 
 Per ulteriori dettagli, consulta:
-- `TESTING_WEBSDRS_PAGE.md` - Guida test completa
-- `IMPLEMENTATION_SUMMARY.md` - Documentazione tecnica
+- `TESTING_WEBSDRS_PAGE.md` - Guide test completa
+- `IMPLEMENTATION_SUMMARY.md` - Documentation tecnica
 
 ## ✅ Checklist Completamento
 
@@ -291,7 +291,7 @@ Per ulteriori dettagli, consulta:
 - [x] Pulsante refresh manuale
 - [x] Gestione loading states
 - [x] Gestione errori
-- [x] Documentazione completa
+- [x] Documentation completa
 - [x] Script di test
 - [x] Build frontend senza errori
 - [ ] Test con backend in esecuzione (richiede Docker)
@@ -299,7 +299,7 @@ Per ulteriori dettagli, consulta:
 
 ## 🎉 Conclusione
 
-L'implementazione è **completa e pronta per il testing**. Tutti i file sono stati modificati correttamente, la build funziona, e la documentazione è completa. 
+L'implementation è **completa e ready per il testing**. Tutti i file have been modified correttamente, la build funziona, e la documentation è completa. 
 
 La pagina ora mostra dati reali dal backend con:
 - ✅ Caricamento automatico
@@ -307,4 +307,4 @@ La pagina ora mostra dati reali dal backend con:
 - ✅ Gestione errori
 - ✅ UI professionale
 
-Per testare, avvia i servizi backend con `make dev-up` e il frontend con `npm run dev` nella cartella `frontend/`.
+Per testare, avvia i services backend con `make dev-up` e il frontend con `npm run dev` nella cartella `frontend/`.

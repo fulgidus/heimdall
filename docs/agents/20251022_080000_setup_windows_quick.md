@@ -1,6 +1,6 @@
 # Heimdall SDR - Quick Setup Guide (Windows PowerShell)
 
-Questa guida ti aiuta a mettere in piedi l'ambiente di sviluppo Heimdall su Windows con PowerShell.
+This guide ti aiuta a mettere in piedi l'ambiente di sviluppo Heimdall su Windows con PowerShell.
 
 ## Prerequisiti
 
@@ -31,7 +31,7 @@ python -m venv .venv
 # Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-**Verifica:** dovresti vedere `(.venv)` all'inizio della riga di prompt PowerShell.
+**Verification:** dovresti vedere `(.venv)` all'inizio della riga di prompt PowerShell.
 
 ### 3. Esegui lo script di setup automatico
 
@@ -39,16 +39,16 @@ python -m venv .venv
 .\dev-setup.ps1
 ```
 
-Questo script farà:
-- ✅ Verifica Python, pip e virtualenv
+This script farà:
+- ✅ Verification Python, pip e virtualenv
 - ✅ Crea/copia il file `.env` (variabili d'ambiente)
-- ✅ Verifica Docker Desktop
-- ✅ Installa dipendenze Python di tutti i microservizi
+- ✅ Verification Docker Desktop
+- ✅ Installa dipendenze Python di all i microservizi
 - ✅ Ti mostra i prossimi passi
 
 ### 4. Avvia Docker Desktop
 
-Apri il menu Start di Windows e cerca **"Docker Desktop"**. Clicca per avviarlo. Aspetta che appaia l'icona di Docker nella barra di sistema (in basso a destra).
+Apri il menu Start di Windows e cerca **"Docker Desktop"**. Clicca per avviarlo. Aspetta che appaia l'icona di Docker nella barra di system (in basso a destra).
 
 ### 5. Avvia l'infrastruttura Docker (nel terminale PowerShell)
 
@@ -68,16 +68,16 @@ Dovresti vedere container di PostgreSQL, Redis, RabbitMQ, MinIO, ecc. in stato "
 .\scripts\start-microservices.ps1
 ```
 
-Questo apre 5 nuove finestre PowerShell, una per servizio:
+This apre 5 nuove finestre PowerShell, una per service:
 - API Gateway (port 8000)
 - RF Acquisition (port 8001)
 - Training (port 8002)
 - Inference (port 8003)
-- Data Ingestion Web (port 8004)
+- Date Ingestion Web (port 8004)
 
 Aspetta ~10 secondi che si avviino. Dovresti vedere messaggi di Uvicorn in ciascuna finestra.
 
-### 7. Accedi ai servizi
+### 7. Accedi ai services
 
 Apri il browser e visita:
 
@@ -211,16 +211,16 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 - Leggi [SETUP.md](SETUP.md) per dettagli avanzati
 - Guarda [AGENTS.md](AGENTS.md) per la roadmap di sviluppo
-- Vedi [PHASE3_TO_PHASE4_HANDOFF.md](PHASE3_TO_PHASE4_HANDOFF.md) per lo stato attuale del progetto
+- Vedi [PHASE3_TO_PHASE4_HANDOFF.md](PHASE3_TO_PHASE4_HANDOFF.md) per lo stato attuale del project
 
 ## Supporto
 
-Se hai domande o problemi:
-1. Controlla i log: `docker compose logs -f` o apri le finestre PowerShell dei servizi
-2. Verifica che virtualenv sia attivo
+Se hai domande o issues:
+1. Controlla i log: `docker compose logs -f` o apri le finestre PowerShell dei services
+2. Verification che virtualenv sia attivo
 3. Assicurati che Docker Desktop sia in esecuzione
 4. Leggi [SETUP.md](SETUP.md) per guide dettagliate
 
 ---
 
-**Sei pronto? Inizia con il Passo 1 sopra! 🚀**
+**Sei ready? Inizia con il Passo 1 sopra! 🚀**

@@ -2,7 +2,7 @@
 
 **Status**: 🟢 READY FOR TESTING
 
-Ho aggiunto **debug logging completo** a 3 layer della stack. Ora puoi vedere esattamente cosa fa il frontend quando accede a `/websdrs`.
+Ho added **debug logging completo** a 3 layer della stack. Ora puoi vedere esattamente cosa fa il frontend quando accede a `/websdrs`.
 
 ---
 
@@ -10,14 +10,14 @@ Ho aggiunto **debug logging completo** a 3 layer della stack. Ora puoi vedere es
 
 ### 1. Fixed Base URL Configuration ✅
 
-**File**: `frontend/.env`
+**Files**: `frontend/.env`
 ```bash
 VITE_API_URL=http://localhost:8000  # ✅ Corretto (no /api suffix)
 ```
 
 ### 2. Added Request/Response Logging ✅
 
-**File**: `frontend/src/lib/api.ts`
+**Files**: `frontend/src/lib/api.ts`
 - Logs API base URL e environment
 - Logs ogni richiesta HTTP (method, URL, full URL)
 - Logs ogni risposta (status, URL, data size)
@@ -25,15 +25,15 @@ VITE_API_URL=http://localhost:8000  # ✅ Corretto (no /api suffix)
 
 ### 3. Component-Level Logging ✅
 
-**File**: `frontend/src/pages/WebSDRManagement.tsx`
+**Files**: `frontend/src/pages/WebSDRManagement.tsx`
 - Logs quando useEffect si avvia
-- Logs quali servizi chiama
+- Logs quali services chiama
 - Logs dati ricevuti dal backend
 - Logs auto-refresh ogni 30s
 
 ### 4. Service-Level Logging ✅
 
-**File**: `frontend/src/services/api/websdr.ts`
+**Files**: `frontend/src/services/api/websdr.ts`
 - Logs quale endpoint chiama
 - Logs quanti WebSDRs riceve
 - Logs health status ricevuto
@@ -49,7 +49,7 @@ cd c:\Users\aless\Documents\Projects\heimdall
 .\start_and_test.bat
 ```
 
-Questo fa tutto:
+This fa all:
 1. Testa il backend
 2. Se fallisce, avvia il backend
 3. Avvia il frontend dev server
@@ -100,7 +100,7 @@ Quando apri http://localhost:3001/websdrs e vedi in F12 Console:
 ✅ WebSDRService.getWebSDRs(): ricevuti 7 WebSDRs
 ```
 
-**Se vedi questo** → **✅ Il frontend chiama davvero il backend!**
+**Se vedi this** → **✅ Il frontend chiama davvero il backend!**
 
 ---
 
@@ -131,7 +131,7 @@ python src\main.py
 }
 ```
 
-**Azione**: Verifica che backend abbia CORS abilitato per localhost:3001
+**Azione**: Verification che backend abbia CORS abilitato per localhost:3001
 
 ---
 
@@ -154,7 +154,7 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 
 ---
 
-## 📁 Files Modificati
+## 📁 Files Modified
 
 ```
 frontend/
@@ -209,14 +209,14 @@ Frontend chiama davvero il backend quando:
 - [ ] Pagina mostra 7 WebSDRs reali (non mock)
 - [ ] Ogni 30s vedi "🔄 WebSDRManagement: auto-refresh"
 
-Se tutti questi checkmark sono verdi → **✅ Missione compiuta!**
+Se all questi checkmark sono verdi → **✅ Missione compiuta!**
 
 ---
 
 ## 📞 Debug Tips
 
 Se vedi errore che non capisco:
-1. Copia tutto il testo dalla Console (F12)
+1. Copia all il testo dalla Console (F12)
 2. Copia screenshot di Network tab
 3. Condividi l'output di `test_backend_connectivity.py`
 4. Condividi il terminal output del backend

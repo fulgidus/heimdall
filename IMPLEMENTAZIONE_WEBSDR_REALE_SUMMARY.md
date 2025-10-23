@@ -4,7 +4,7 @@
 > "Desidero che la schermata del frontend che si visualizza alla pagina `http://localhost:3001/websdrs` sia reale. Implementa sia le chiamate FE che BE dove appropriato nel progetto"
 
 **Motivo per cui le API rispondevano con valori mockati**: 
-> Le API del FE quando apro la tab Network rispondono tutte con valori mockati o finti di altro tipo (esempio: `OK`)
+> Le API del FE quando apro la tab Network rispondono all con valori mockati o finti di altro tipo (esempio: `OK`)
 
 ---
 
@@ -46,7 +46,7 @@ useEffect(() => {
 
 ---
 
-## 📝 File Modificati
+## 📝 Files Modified
 
 ### Backend ✅ (Già completo - niente da modificare)
 ```
@@ -214,7 +214,7 @@ Gestione errori se backend cade ✅
 
 ---
 
-## 🧪 Verifica Veloce
+## 🧪 Verification Veloce
 
 ### Comando 1: Test API diretto
 ```bash
@@ -259,10 +259,10 @@ Output dovrebbe mostrare:
 
 ---
 
-## 📚 Documentazione Creata
+## 📚 Documentation Creata
 
-1. **WEBSDR_API_INTEGRATION_COMPLETE.md** - Riepilogo tecnico completo
-2. **WEBSDR_TEST_INSTRUCTIONS.md** - Guida di test dettagliata per verificare tutto
+1. **WEBSDR_API_INTEGRATION_COMPLETE.md** - Summary tecnico completo
+2. **WEBSDR_TEST_INSTRUCTIONS.md** - Guide di test dettagliata per verificare all
 
 ---
 
@@ -298,7 +298,7 @@ Output dovrebbe mostrare:
    http://localhost:3001/websdrs
    ```
 
-4. **Verifica nel Network tab** (F12):
+4. **Verification nel Network tab** (F12):
    - Due richieste GET a `/api/v1/acquisition/websdrs*`
    - Status: 200 OK
    - Risposte: JSON reali
@@ -307,14 +307,14 @@ Output dovrebbe mostrare:
 
 ## 📌 Note Importanti
 
-- ✅ **VITE_API_URL non deve avere `/api`** al termine (viene aggiunto dalle rotte)
-- ✅ **Tutti i servizi API** usano ora il pattern `/api/v1/{service}/*`
+- ✅ **VITE_API_URL non deve avere `/api`** al termine (viene added dalle rotte)
+- ✅ **Tutti i services API** usano ora il pattern `/api/v1/{service}/*`
 - ✅ **Auto-refresh** è configurato a 30 secondi (modificabile se necessario)
 - ✅ **Errori API** sono gestiti e mostrati all'utente
-- ✅ **Backend endpoints** erano già pronti (non modificati)
+- ✅ **Backend endpoints** erano già pronti (non modified)
 
 ---
 
-**Status**: ✅ **COMPLETATO E TESTATO**  
-**Data**: 22 Ottobre 2025  
+**Status**: ✅ **COMPLETED E TESTATO**  
+**Date**: 22 Ottobre 2025  
 **Ultima modifica**: 2025-10-22 18:35:00 UTC
