@@ -48,6 +48,8 @@ describe('DataIngestion Page', () => {
 
     it('displays sessions list', () => {
         render(<DataIngestion />);
+        const sessionsTab = screen.getByText(/Recording Sessions/i);
+        fireEvent.click(sessionsTab);
         expect(screen.getByText('Session 1')).toBeInTheDocument();
     });
 

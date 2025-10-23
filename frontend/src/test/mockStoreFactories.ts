@@ -60,51 +60,61 @@ export const createMockWebSDRStore = () => create(() => ({
     lastHealthCheck: new Date().toISOString(),
 }));
 
-export const createMockSessionStore = () => create(() => ({
-    knownSources: [
-        { 
-            id: 1, 
-            name: 'Source 1', 
-            frequency_mhz: 145.5,
-            frequency_hz: 145500000,
-            is_validated: true,
-            latitude: 45.1234,
-            longitude: 7.5678,
+export const createMockSessionStore = () => {
+    const store = create(() => ({
+        knownSources: [
+            {
+                id: 1,
+                name: 'Source 1',
+                frequency_mhz: 145.5,
+                frequency_hz: 145500000,
+                is_validated: true,
+                latitude: 45.1234,
+                longitude: 7.5678,
+            },
+            {
+                id: 2,
+                name: 'Source 2',
+                frequency_mhz: 430.5,
+                frequency_hz: 430500000,
+                is_validated: false,
+                latitude: 45.5678,
+                longitude: 7.1234,
+            },
+        ],
+        sessions: [
+            { id: 1, session_name: 'Session 1', status: 'completed', created_at: new Date().toISOString(), frequency_mhz: 145.5, duration_seconds: 60 },
+            { id: 2, session_name: 'Session 2', status: 'pending', created_at: new Date().toISOString(), frequency_mhz: 430.5, duration_seconds: 120 },
+        ],
+        analytics: {
+            total_sessions: 10,
+            completed_sessions: 8,
+            pending_sessions: 2,
+            failed_sessions: 0,
+            success_rate: 80,
+            total_measurements: 100,
         },
-        { 
-            id: 2, 
-            name: 'Source 2', 
-            frequency_mhz: 430.5,
-            frequency_hz: 430500000,
-            is_validated: false,
-            latitude: 45.5678,
-            longitude: 7.1234,
+        pagination: {
+            page: 1,
+            pageSize: 10,
+            total: 2,
         },
-    ],
-    sessions: [
-        { id: 1, session_name: 'Session 1', status: 'completed', created_at: new Date().toISOString() },
-        { id: 2, session_name: 'Session 2', status: 'pending', created_at: new Date().toISOString() },
-    ],
-    analytics: {
-        total_sessions: 10,
-        completed_sessions: 8,
-        pending_sessions: 2,
-        failed_sessions: 0,
-        success_rate: 80,
-        total_measurements: 100,
-    },
-    pagination: {
-        page: 1,
-        pageSize: 10,
-        total: 2,
-    },
-    isLoading: false,
-    error: null,
-    fetchKnownSources: () => { },
-    fetchSessions: () => { },
-    fetchAnalytics: () => { },
-    clearError: () => { },
-}));
+        currentPage: 1,
+        totalSessions: 2,
+        perPage: 10,
+        statusFilter: 'all',
+        isLoading: false,
+        error: null,
+        fetchKnownSources: () => { },
+        fetchSessions: () => { },
+        fetchAnalytics: () => { },
+        setStatusFilter: (filter: string) => {
+            store.setState({ statusFilter: filter });
+        },
+        clearError: () => { },
+    }));
+    return store;
+};
 
 export const createMockAuthStore = () => create(() => ({
     user: {

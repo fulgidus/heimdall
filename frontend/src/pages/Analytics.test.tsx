@@ -9,18 +9,18 @@ describe('Analytics Page', () => {
 
     it('renders Analytics page with title', () => {
         render(<Analytics />);
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('displays breadcrumb navigation', () => {
         render(<Analytics />);
         expect(screen.getByText('Home')).toBeInTheDocument();
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('fetches dashboard data on mount', () => {
         render(<Analytics />);
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('renders without crashing', () => {
@@ -30,14 +30,12 @@ describe('Analytics Page', () => {
 
     it('displays page header', () => {
         render(<Analytics />);
-        const header = screen.getByText('Analytics');
-        expect(header).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('renders dashboard data section', () => {
         render(<Analytics />);
-        const analyticsText = screen.queryByText('Analytics');
-        expect(analyticsText).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('handles refresh button interaction', async () => {
@@ -53,7 +51,7 @@ describe('Analytics Page', () => {
 
     it('displays metrics section', () => {
         render(<Analytics />);
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('calculates success rate correctly', () => {
@@ -82,24 +80,22 @@ describe('Analytics Page', () => {
 
     it('displays WebSDR online count', () => {
         render(<Analytics />);
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('renders main content area', () => {
         render(<Analytics />);
-        const mainContent = screen.getByText('Analytics');
-        expect(mainContent).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('displays accuracy metric if available', () => {
         render(<Analytics />);
-        const analyticsPage = screen.getByText('Analytics');
-        expect(analyticsPage).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('renders without errors when data is loading', () => {
         render(<Analytics />);
-        expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.queryAllByText('Analytics').length).toBeGreaterThan(0);
     });
 
     it('shows proper page structure', () => {

@@ -19,12 +19,12 @@ describe('RecordingSession Page', () => {
 
     it('renders RecordingSession page with title', () => {
         render(<RecordingSession />);
-        expect(screen.queryByText(/RF Source/i) || screen.queryByText(/Recording|Acquisition/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/RF Source/i).length > 0 || screen.queryAllByText(/Recording|Acquisition/i).length > 0).toBe(true);
     });
 
     it('displays breadcrumb navigation', () => {
         render(<RecordingSession />);
-        expect(screen.getByText('Home')).toBeInTheDocument();
+        expect(screen.queryAllByText('Home').length).toBeGreaterThan(0);
     });
 
     it('displays known sources dropdown', () => {
@@ -76,12 +76,12 @@ describe('RecordingSession Page', () => {
 
     it('displays WebSDR status', () => {
         render(<RecordingSession />);
-        expect(screen.queryByText(/online|websdr/i) || screen.queryByText(/recording|session/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/online|websdr/i).length > 0 || screen.queryAllByText(/recording|session/i).length > 0).toBe(true);
     });
 
     it('shows acquisition progress when acquiring', async () => {
         render(<RecordingSession />);
-        expect(screen.queryByText(/recording|session|acquisition/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/recording|session|acquisition/i).length).toBeGreaterThan(0);
     });
 
     it('displays selected source details', () => {
@@ -101,7 +101,7 @@ describe('RecordingSession Page', () => {
 
     it('displays frequency from selected source', () => {
         render(<RecordingSession />);
-        expect(screen.queryByText(/recording|session|acquisition/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/recording|session|acquisition/i).length).toBeGreaterThan(0);
     });
 
     it('handles form value changes', () => {
@@ -115,7 +115,7 @@ describe('RecordingSession Page', () => {
 
     it('displays online WebSDR count', () => {
         render(<RecordingSession />);
-        expect(screen.queryByText(/online|websdr|7/i) || screen.queryByText(/recording/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/online|websdr|7/i).length > 0 || screen.queryAllByText(/recording/i).length > 0).toBe(true);
     });
 
     it('renders without crashing', () => {

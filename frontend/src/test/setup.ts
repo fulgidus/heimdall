@@ -18,18 +18,36 @@ const mockAuthStore = createMockAuthStore();
 
 // Mock all stores GLOBALLY
 vi.mock('../store', () => ({
-    useDashboardStore: () => mockDashboardStore.getState(),
-    useWebSDRStore: () => mockWebSDRStore.getState(),
-    useSessionStore: () => mockSessionStore.getState(),
-    useAuthStore: () => mockAuthStore.getState(),
+    useDashboardStore: () => ({
+        ...mockDashboardStore.getState(),
+        ...mockDashboardStore,
+    }),
+    useWebSDRStore: () => ({
+        ...mockWebSDRStore.getState(),
+        ...mockWebSDRStore,
+    }),
+    useSessionStore: () => ({
+        ...mockSessionStore.getState(),
+        ...mockSessionStore,
+    }),
+    useAuthStore: () => ({
+        ...mockAuthStore.getState(),
+        ...mockAuthStore,
+    }),
 }));
 
 vi.mock('../store/sessionStore', () => ({
-    useSessionStore: () => mockSessionStore.getState(),
+    useSessionStore: () => ({
+        ...mockSessionStore.getState(),
+        ...mockSessionStore,
+    }),
 }));
 
 vi.mock('../store/websdrStore', () => ({
-    useWebSDRStore: () => mockWebSDRStore.getState(),
+    useWebSDRStore: () => ({
+        ...mockWebSDRStore.getState(),
+        ...mockWebSDRStore,
+    }),
 }));
 
 // ============================================

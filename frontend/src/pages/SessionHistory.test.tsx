@@ -9,7 +9,7 @@ describe('SessionHistory Page', () => {
 
     it('renders SessionHistory page with title', () => {
         render(<SessionHistory />);
-        expect(screen.queryByText(/history|session/i)).toBeInTheDocument();
+        expect(screen.queryAllByText(/history|session/i).length).toBeGreaterThan(0);
     });
 
     it('displays breadcrumb navigation', () => {
@@ -81,27 +81,27 @@ describe('SessionHistory Page', () => {
 
     it('displays session analytics summary', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
-    it('shows total sessions count', () => {
+    it('displays total sessions count', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
     it('displays completed sessions count', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
     it('displays pending sessions count', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
     it('displays failed sessions count', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
     it('displays export button', () => {
@@ -117,11 +117,11 @@ describe('SessionHistory Page', () => {
 
     it('displays loading state', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 
     it('handles error display', () => {
         render(<SessionHistory />);
-        expect(screen.getByText('Session History')).toBeInTheDocument();
+        expect(screen.queryAllByText('Session History').length).toBeGreaterThan(0);
     });
 });

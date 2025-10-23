@@ -109,7 +109,7 @@ describe('Profile Page', () => {
 
     it('displays user role information', () => {
         render(<Profile />);
-        expect(screen.queryByText(/administrator|role/i) || screen.getByText('User Profile')).toBeInTheDocument();
+        expect(screen.queryAllByText(/administrator|role/i).length > 0 || screen.getAllByText('User Profile').length > 0).toBeTruthy();
     });
 
     it('shows organization field', () => {
