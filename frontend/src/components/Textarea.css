@@ -1,0 +1,64 @@
+.textarea-group {
+    margin-bottom: 1rem;
+}
+
+.textarea-group .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.textarea-group .form-control {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(26, 26, 46, 0.8);
+    border: 1px solid rgba(70, 110, 246, 0.3);
+    border-radius: 0.375rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    resize: vertical;
+}
+
+.textarea-group .form-control:focus {
+    border-color: rgba(70, 110, 246, 0.8);
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(70, 110, 246, 0.25);
+    background-color: rgba(26, 26, 46, 0.9);
+}
+
+.textarea-group .form-control:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: rgba(26, 26, 46, 0.5);
+}
+
+.textarea-group .form-control.is-invalid {
+    border-color: var(--bs-danger, #dc3545);
+}
+
+.textarea-group .form-control.is-invalid:focus {
+    border-color: var(--bs-danger, #dc3545);
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+.textarea-group .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.textarea-group .invalid-feedback {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--bs-danger, #dc3545);
+}
+
+.textarea-group .form-text {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.6);
+}
