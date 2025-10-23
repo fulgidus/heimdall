@@ -22,9 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend development documentation with bilingual support
 
 ### Changed
-- **Frontend UI rebuild (Phase 4 in progress)**
+- **Frontend UI rebuild (Phase 4 in progress - 3/8 pages complete)**
   - Analytics page: Complete rebuild using Datta Able Bootstrap components
   - WebSDR Management page: Complete rebuild with real-time health monitoring
+  - Data Ingestion page: Complete rebuild with Known Sources and Recording Sessions management
   - Integrated real-time data from backend API via Zustand stores
   - Replaced Lucide icons with Phosphor icons (Datta Able standard)
   - Implemented proper Bootstrap 5 grid system and card components
@@ -32,8 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - WebSDR performance table with real health status data
   - Key metrics cards showing: Total Predictions, Model Accuracy, Active Receivers, System Uptime
   - WebSDR Management: Online status, response times, coordinates, active status from real API
-  - Auto-refresh every 30 seconds for health monitoring
-  - Detailed WebSDR view modal with complete configuration and health data
+  - Data Ingestion: Known Sources management, Recording Sessions with status/approval tracking
+  - Auto-refresh mechanisms for live data updates
+  - Detailed views with complete configuration and health data
+  - Tabbed navigation for organized data presentation
 - **Documentation reorganization and standardization (100% complete)**
   - All 199 markdown files in docs/ now properly linked and discoverable (100% coverage)
   - Semantic organization with contextual introductions for each document
