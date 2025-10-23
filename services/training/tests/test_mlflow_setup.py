@@ -27,33 +27,43 @@ class TestMLflowTracker:
     def mlflow_tracker(self):
         """Create MLflowTracker instance for testing."""
         
-        # Mock the MLflow client and experiment creation to avoid database connection
-        with patch('src.mlflow_setup.mlflow.set_tracking_uri'), \
-             patch('src.mlflow_setup.mlflow.set_experiment') as mock_set_exp, \
-             patch('src.mlflow_setup.MlflowClient') as MockClient:
-            
-            # Mock experiment ID
-            mock_set_exp.return_value = "test-experiment-id"
-            
-            # Create a mock client instance that will persist
-            mock_client_instance = Mock()
-            MockClient.return_value = mock_client_instance
-            
-            tracker = MLflowTracker(
-                tracking_uri="postgresql://test:test@localhost:5432/mlflow",
-                artifact_uri="s3://test-mlflow",
-                backend_store_uri="postgresql://test:test@localhost:5432/mlflow",
-                registry_uri="postgresql://test:test@localhost:5432/mlflow",
-                s3_endpoint_url="http://minio:9000",
-                s3_access_key_id="testkey",
-                s3_secret_access_key="testsecret",
-                experiment_name="test-experiment",
-            )
-            
-            # Ensure the client attribute is set and persists
-            tracker.client = mock_client_instance
-            
-            return tracker
+        # Use patch as decorators/context managers, but keep patches active
+        # by storing them and only stopping them after test completion
+        patcher1 = patch('src.mlflow_setup.mlflow.set_tracking_uri')
+        patcher2 = patch('src.mlflow_setup.mlflow.set_experiment')
+        patcher3 = patch('src.mlflow_setup.MlflowClient')
+        
+        mock_set_uri = patcher1.start()
+        mock_set_exp = patcher2.start()
+        MockClient = patcher3.start()
+        
+        # Mock experiment ID
+        mock_set_exp.return_value = "test-experiment-id"
+        
+        # Create a mock client instance that will persist
+        mock_client_instance = Mock()
+        MockClient.return_value = mock_client_instance
+        
+        tracker = MLflowTracker(
+            tracking_uri="postgresql://test:test@localhost:5432/mlflow",
+            artifact_uri="s3://test-mlflow",
+            backend_store_uri="postgresql://test:test@localhost:5432/mlflow",
+            registry_uri="postgresql://test:test@localhost:5432/mlflow",
+            s3_endpoint_url="http://minio:9000",
+            s3_access_key_id="testkey",
+            s3_secret_access_key="testsecret",
+            experiment_name="test-experiment",
+        )
+        
+        # Ensure the client attribute is set and persists
+        tracker.client = mock_client_instance
+        
+        yield tracker
+        
+        # Cleanup patches after test
+        patcher1.stop()
+        patcher2.stop()
+        patcher3.stop()
     
     def test_initialization(self, mlflow_tracker):
         """Test MLflowTracker initialization."""
