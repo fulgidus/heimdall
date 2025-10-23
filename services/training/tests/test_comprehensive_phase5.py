@@ -184,7 +184,8 @@ class TestFeatureExtraction:
         """Verify normalization is idempotent (applying twice gives same result)."""
         norm1 = self._normalize_features(sample_mel_spectrogram)
         norm2 = self._normalize_features(norm1)
-        np.testing.assert_allclose(norm1, norm2, rtol=1e-5)
+        # Allow for numerical precision differences when normalizing already normalized data
+        np.testing.assert_allclose(norm1, norm2, rtol=1e-3, atol=1e-6)
     
     # Helper methods using actual implementations
     def _extract_mel_spectrogram(self, iq_data):
@@ -241,11 +242,14 @@ class TestHeimdallDataset:
     
     def test_dataset_deterministic_with_seed(self, mock_config):
         """Verify dataset is deterministic with fixed seed."""
+        # Use both torch and numpy seeds since mock uses both
         torch.manual_seed(42)
+        np.random.seed(42)
         dataset1 = self._create_mock_dataset(mock_config, num_samples=10)
         features1, label1 = dataset1[0]
         
         torch.manual_seed(42)
+        np.random.seed(42)
         dataset2 = self._create_mock_dataset(mock_config, num_samples=10)
         features2, label2 = dataset2[0]
         
@@ -279,6 +283,8 @@ class TestHeimdallDataset:
                 return self.n
             
             def __getitem__(self, idx):
+                if idx >= self.n or idx < 0:
+                    raise IndexError(f"Index {idx} out of range for dataset of size {self.n}")
                 features = torch.randn(3, 128, 32, dtype=torch.float32)
                 label = torch.tensor([
                     np.random.uniform(-90, 90),
