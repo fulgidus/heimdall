@@ -1,40 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useDashboardStore, useWebSDRStore } from '../store';
-
-interface LocalizationResult {
-    id: string;
-    timestamp: string;
-    latitude: number;
-    longitude: number;
-    uncertainty: number;
-    confidence: number;
-    signalQuality: string;
-    activeReceivers: number;
-}
+import { useDashboardStore, useWebSDRStore, useLocalizationStore } from '../store';
 
 const Localization: React.FC = () => {
     const { data, fetchDashboardData } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
-    const [selectedResult, setSelectedResult] = useState<string | null>(null);
+    const {
+        recentLocalizations,
+        fetchRecentLocalizations
+    } = useLocalizationStore();
+    const [selectedResult, setSelectedResultState] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
-
-    // Mock localization results (TODO: Connect to real inference API)
-    const [localizationResults] = useState<LocalizationResult[]>([
-        {
-            id: '1',
-            timestamp: new Date().toISOString(),
-            latitude: 45.1892,
-            longitude: 7.5598,
-            uncertainty: 28.5,
-            confidence: 94,
-            signalQuality: 'Excellent',
-            activeReceivers: 7,
-        },
-    ]);
 
     useEffect(() => {
         fetchDashboardData();
-    }, [fetchDashboardData]);
+        fetchRecentLocalizations();
+    }, [fetchDashboardData, fetchRecentLocalizations]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -73,12 +53,12 @@ const Localization: React.FC = () => {
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="avtar avtar-s bg-light-success rounded">
                                         <i className="ph ph-crosshair f-20"></i>
                                     </div>
                                 </div>
-                                <div className="flex-grow-1 ms-3">
+                                <div className="grow ms-3">
                                     <h6 className="mb-0">Active Receivers</h6>
                                     <h4 className="mb-0">{onlineWebSDRs}/7</h4>
                                 </div>
@@ -91,12 +71,12 @@ const Localization: React.FC = () => {
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="avtar avtar-s bg-light-primary rounded">
                                         <i className="ph ph-target f-20"></i>
                                     </div>
                                 </div>
-                                <div className="flex-grow-1 ms-3">
+                                <div className="grow ms-3">
                                     <h6 className="mb-0">Avg Accuracy</h6>
                                     <h4 className="mb-0">±{avgAccuracy}m</h4>
                                 </div>
@@ -109,12 +89,12 @@ const Localization: React.FC = () => {
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="avtar avtar-s bg-light-warning rounded">
                                         <i className="ph ph-chart-line f-20"></i>
                                     </div>
                                 </div>
-                                <div className="flex-grow-1 ms-3">
+                                <div className="grow ms-3">
                                     <h6 className="mb-0">Confidence</h6>
                                     <h4 className="mb-0">94%</h4>
                                 </div>
@@ -127,12 +107,12 @@ const Localization: React.FC = () => {
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
+                                <div className="shrink-0">
                                     <div className="avtar avtar-s bg-light-info rounded">
                                         <i className="ph ph-activity f-20"></i>
                                     </div>
                                 </div>
-                                <div className="flex-grow-1 ms-3">
+                                <div className="grow ms-3">
                                     <h6 className="mb-0">Signal Quality</h6>
                                     <h4 className="mb-0 f-14">Excellent</h4>
                                 </div>
@@ -192,7 +172,7 @@ const Localization: React.FC = () => {
                                 ))}
 
                                 {/* Localization Result Marker */}
-                                {localizationResults.length > 0 && (
+                                {recentLocalizations.length > 0 && (
                                     <div
                                         className="position-absolute"
                                         style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
@@ -234,18 +214,18 @@ const Localization: React.FC = () => {
                             <h5 className="mb-0">Recent Localizations</h5>
                         </div>
                         <div className="card-body">
-                            {localizationResults.length > 0 ? (
+                            {recentLocalizations.length > 0 ? (
                                 <div className="d-flex flex-column gap-3">
-                                    {localizationResults.map((result) => (
+                                    {recentLocalizations.map((result) => (
                                         <div
                                             key={result.id}
                                             className={`card cursor-pointer ${selectedResult === result.id ? 'border-primary' : ''}`}
-                                            onClick={() => setSelectedResult(result.id)}
+                                            onClick={() => setSelectedResultState(result.id)}
                                         >
                                             <div className="card-body p-3">
                                                 <div className="d-flex justify-content-between align-items-start mb-2">
                                                     <span className="badge bg-light-success">
-                                                        {result.signalQuality}
+                                                        {(result.confidence * 100).toFixed(0)}% Confidence
                                                     </span>
                                                     <small className="text-muted">
                                                         {new Date(result.timestamp).toLocaleTimeString()}
@@ -257,17 +237,17 @@ const Localization: React.FC = () => {
                                                         {result.latitude.toFixed(4)}, {result.longitude.toFixed(4)}
                                                     </h6>
                                                     <p className="f-12 text-muted mb-0">
-                                                        Uncertainty: ±{result.uncertainty}m
+                                                        Uncertainty: ±{result.uncertainty_m.toFixed(1)}m
                                                     </p>
                                                 </div>
                                                 <div className="row">
                                                     <div className="col-6">
                                                         <p className="f-12 text-muted mb-0">Confidence</p>
-                                                        <h6 className="mb-0">{result.confidence}%</h6>
+                                                        <h6 className="mb-0">{(result.confidence * 100).toFixed(0)}%</h6>
                                                     </div>
                                                     <div className="col-6">
                                                         <p className="f-12 text-muted mb-0">Receivers</p>
-                                                        <h6 className="mb-0">{result.activeReceivers}/7</h6>
+                                                        <h6 className="mb-0">{result.websdr_count}/7</h6>
                                                     </div>
                                                 </div>
                                             </div>
@@ -295,7 +275,7 @@ const Localization: React.FC = () => {
                             </div>
                             <div className="card-body">
                                 {(() => {
-                                    const result = localizationResults.find(r => r.id === selectedResult);
+                                    const result = recentLocalizations.find(r => r.id === selectedResult);
                                     if (!result) return null;
 
                                     return (
@@ -316,19 +296,19 @@ const Localization: React.FC = () => {
                                                     </tr>
                                                     <tr>
                                                         <td className="text-muted">Uncertainty</td>
-                                                        <td>±{result.uncertainty}m</td>
+                                                        <td>±{result.uncertainty_m.toFixed(1)}m</td>
                                                     </tr>
                                                     <tr>
                                                         <td className="text-muted">Confidence</td>
                                                         <td>
                                                             <div className="d-flex align-items-center">
-                                                                <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                                                                <div className="progress grow me-2" style={{ height: '6px' }}>
                                                                     <div
                                                                         className="progress-bar bg-success"
-                                                                        style={{ width: `${result.confidence}%` }}
+                                                                        style={{ width: `${result.confidence * 100}%` }}
                                                                     ></div>
                                                                 </div>
-                                                                <span>{result.confidence}%</span>
+                                                                <span>{(result.confidence * 100).toFixed(1)}%</span>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -336,13 +316,13 @@ const Localization: React.FC = () => {
                                                         <td className="text-muted">Signal Quality</td>
                                                         <td>
                                                             <span className="badge bg-light-success">
-                                                                {result.signalQuality}
+                                                                {result.snr_avg_db > 20 ? 'Excellent' : result.snr_avg_db > 10 ? 'Good' : 'Poor'}
                                                             </span>
                                                         </td>
                                                     </tr>
                                                     <tr>
                                                         <td className="text-muted">Active Receivers</td>
-                                                        <td>{result.activeReceivers}/7</td>
+                                                        <td>{result.websdr_count}/7</td>
                                                     </tr>
                                                 </tbody>
                                             </table>
