@@ -1,30 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { useDashboardStore, useWebSDRStore } from '../store';
+import { Line, Pie } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+} from 'chart.js';
+import { useDashboardStore, useWebSDRStore, useAnalyticsStore } from '../store';
+
+// Register Chart.js components
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+);
 
 const Analytics: React.FC = () => {
-    const { data, metrics, fetchDashboardData } = useDashboardStore();
+    const { fetchDashboardData } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
+    const {
+        predictionMetrics,
+        websdrPerformance,
+        systemPerformance,
+        accuracyDistribution,
+        isLoading: analyticsLoading,
+        error: analyticsError,
+        timeRange,
+        setTimeRange,
+        fetchAllAnalytics,
+        refreshData
+    } = useAnalyticsStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [timeRange, setTimeRange] = useState('7d');
 
     useEffect(() => {
         fetchDashboardData();
-        const interval = setInterval(fetchDashboardData, 30000);
+        fetchAllAnalytics();
+        const interval = setInterval(() => {
+            fetchDashboardData();
+            fetchAllAnalytics();
+        }, 30000);
         return () => clearInterval(interval);
-    }, [fetchDashboardData]);
+    }, [fetchDashboardData, fetchAllAnalytics]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchDashboardData();
+        await Promise.all([fetchDashboardData(), refreshData()]);
         setIsRefreshing(false);
     };
 
-    // Calculate metrics from real data
+    // Calculate metrics from real analytics data
     const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
     const totalWebSDRs = websdrs.length || 7;
-    const avgAccuracy = data.modelInfo?.accuracy ? `±${(data.modelInfo.accuracy * 100).toFixed(1)}m` : 'N/A';
-    const totalPredictions = data.modelInfo?.predictions_total || 0;
-    const successfulPredictions = data.modelInfo?.predictions_successful || 0;
+
+    // Calculate totals from time series data
+    const totalPredictions = predictionMetrics?.total_predictions?.slice(-1)[0]?.value || 0;
+    const successfulPredictions = predictionMetrics?.successful_predictions?.slice(-1)[0]?.value || 0;
+    const avgUncertainty = predictionMetrics?.average_uncertainty?.slice(-1)[0]?.value || 0;
+
+    const avgAccuracy = avgUncertainty > 0 ? `±${avgUncertainty.toFixed(1)}m` : 'N/A';
     const successRate = totalPredictions > 0 ? ((successfulPredictions / totalPredictions) * 100).toFixed(1) : '0';
 
     return (
@@ -48,6 +91,29 @@ const Analytics: React.FC = () => {
                 </div>
             </div>
 
+            {/* Loading/Error States */}
+            {analyticsLoading && (
+                <div className="row mb-3">
+                    <div className="col-12">
+                        <div className="alert alert-info">
+                            <i className="ph ph-spinner ph-spin me-2"></i>
+                            Loading analytics data...
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {analyticsError && (
+                <div className="row mb-3">
+                    <div className="col-12">
+                        <div className="alert alert-danger">
+                            <i className="ph ph-warning-circle me-2"></i>
+                            Failed to load analytics data: {analyticsError}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Time Range Selector */}
             <div className="row mb-3">
                 <div className="col-12">
@@ -55,21 +121,30 @@ const Analytics: React.FC = () => {
                         <button
                             type="button"
                             className={`btn ${timeRange === '24h' ? 'btn-primary' : 'btn-outline-primary'}`}
-                            onClick={() => setTimeRange('24h')}
+                            onClick={() => {
+                                setTimeRange('24h');
+                                fetchAllAnalytics('24h');
+                            }}
                         >
                             24 Hours
                         </button>
                         <button
                             type="button"
                             className={`btn ${timeRange === '7d' ? 'btn-primary' : 'btn-outline-primary'}`}
-                            onClick={() => setTimeRange('7d')}
+                            onClick={() => {
+                                setTimeRange('7d');
+                                fetchAllAnalytics('7d');
+                            }}
                         >
                             7 Days
                         </button>
                         <button
                             type="button"
                             className={`btn ${timeRange === '30d' ? 'btn-primary' : 'btn-outline-primary'}`}
-                            onClick={() => setTimeRange('30d')}
+                            onClick={() => {
+                                setTimeRange('30d');
+                                fetchAllAnalytics('30d');
+                            }}
                         >
                             30 Days
                         </button>
@@ -178,9 +253,9 @@ const Analytics: React.FC = () => {
                                 <div className="flex-grow-1 ms-3">
                                     <h6 className="mb-0">System Uptime</h6>
                                     <h4 className="mb-0">
-                                        {metrics.systemUptime > 0
-                                            ? `${(metrics.systemUptime / 3600).toFixed(1)}h`
-                                            : '0h'}
+                                        {systemPerformance?.cpu_usage?.slice(-1)[0]?.value ?
+                                            `${systemPerformance.cpu_usage.slice(-1)[0].value.toFixed(1)}%` :
+                                            '0%'}
                                     </h4>
                                 </div>
                             </div>
@@ -204,14 +279,62 @@ const Analytics: React.FC = () => {
                             <h5 className="mb-0">Prediction Trends</h5>
                         </div>
                         <div className="card-body">
-                            <div className="text-center py-5">
-                                <i className="ph ph-chart-line-up f-40 text-primary mb-3"></i>
-                                <p className="text-muted">
-                                    Prediction trends chart will be displayed here.
-                                    <br />
-                                    Chart data: {totalPredictions} total predictions | {successfulPredictions} successful
-                                </p>
-                            </div>
+                            {predictionMetrics ? (
+                                <Line
+                                    data={{
+                                        labels: predictionMetrics.total_predictions.map(p =>
+                                            new Date(p.timestamp).toLocaleDateString()
+                                        ),
+                                        datasets: [
+                                            {
+                                                label: 'Total Predictions',
+                                                data: predictionMetrics.total_predictions.map(p => p.value),
+                                                borderColor: 'rgb(75, 192, 192)',
+                                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                                tension: 0.1,
+                                            },
+                                            {
+                                                label: 'Successful Predictions',
+                                                data: predictionMetrics.successful_predictions.map(p => p.value),
+                                                borderColor: 'rgb(54, 162, 235)',
+                                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                                tension: 0.1,
+                                            },
+                                            {
+                                                label: 'Failed Predictions',
+                                                data: predictionMetrics.failed_predictions.map(p => p.value),
+                                                borderColor: 'rgb(255, 99, 132)',
+                                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                                tension: 0.1,
+                                            },
+                                        ],
+                                    }}
+                                    options={{
+                                        responsive: true,
+                                        plugins: {
+                                            legend: {
+                                                position: 'top' as const,
+                                            },
+                                            title: {
+                                                display: true,
+                                                text: 'Prediction Trends Over Time',
+                                            },
+                                        },
+                                        scales: {
+                                            y: {
+                                                beginAtZero: true,
+                                            },
+                                        },
+                                    }}
+                                />
+                            ) : (
+                                <div className="text-center py-5">
+                                    <i className="ph ph-chart-line-up f-40 text-primary mb-3"></i>
+                                    <p className="text-muted">
+                                        Loading prediction trends data...
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -223,24 +346,56 @@ const Analytics: React.FC = () => {
                             <h5 className="mb-0">Accuracy Distribution</h5>
                         </div>
                         <div className="card-body">
-                            <div className="text-center py-4">
-                                <div className="mb-3">
-                                    <i className="ph ph-chart-pie-slice f-40 text-success"></i>
+                            {accuracyDistribution ? (
+                                <div>
+                                    <Pie
+                                        data={{
+                                            labels: accuracyDistribution.accuracy_ranges,
+                                            datasets: [
+                                                {
+                                                    data: accuracyDistribution.counts,
+                                                    backgroundColor: [
+                                                        'rgba(75, 192, 192, 0.8)',
+                                                        'rgba(54, 162, 235, 0.8)',
+                                                        'rgba(255, 206, 86, 0.8)',
+                                                        'rgba(255, 99, 132, 0.8)',
+                                                        'rgba(153, 102, 255, 0.8)',
+                                                    ],
+                                                    borderColor: [
+                                                        'rgba(75, 192, 192, 1)',
+                                                        'rgba(54, 162, 235, 1)',
+                                                        'rgba(255, 206, 86, 1)',
+                                                        'rgba(255, 99, 132, 1)',
+                                                        'rgba(153, 102, 255, 1)',
+                                                    ],
+                                                    borderWidth: 1,
+                                                },
+                                            ],
+                                        }}
+                                        options={{
+                                            responsive: true,
+                                            plugins: {
+                                                legend: {
+                                                    position: 'bottom' as const,
+                                                },
+                                            },
+                                        }}
+                                    />
+                                    <div className="mt-3 text-center">
+                                        <h6 className="mb-0">{avgAccuracy}</h6>
+                                        <p className="text-muted f-12 mb-0 mt-2">Average Accuracy</p>
+                                    </div>
                                 </div>
-                                <h3 className="mb-0">{avgAccuracy}</h3>
-                                <p className="text-muted f-12 mb-0 mt-2">Average Accuracy</p>
-                            </div>
-                            <hr />
-                            <div className="row text-center">
-                                <div className="col-6">
-                                    <h6 className="mb-0">{successfulPredictions}</h6>
-                                    <p className="text-success f-12 mb-0">Successful</p>
+                            ) : (
+                                <div className="text-center py-4">
+                                    <div className="mb-3">
+                                        <i className="ph ph-chart-pie-slice f-40 text-success"></i>
+                                    </div>
+                                    <h3 className="mb-0">{avgAccuracy}</h3>
+                                    <p className="text-muted f-12 mb-0 mt-2">Average Accuracy</p>
+                                    <p className="text-muted mt-2">Loading distribution data...</p>
                                 </div>
-                                <div className="col-6">
-                                    <h6 className="mb-0">{totalPredictions - successfulPredictions}</h6>
-                                    <p className="text-danger f-12 mb-0">Failed</p>
-                                </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -259,52 +414,77 @@ const Analytics: React.FC = () => {
                                     <thead>
                                         <tr>
                                             <th>Receiver</th>
-                                            <th>Location</th>
-                                            <th>Status</th>
-                                            <th>Response Time</th>
-                                            <th>Reliability</th>
+                                            <th>Uptime</th>
+                                            <th>Avg SNR</th>
+                                            <th>Total Acquisitions</th>
+                                            <th>Success Rate</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {websdrs.map((sdr) => {
-                                            const health = healthStatus[sdr.id];
-                                            const isOnline = health?.status === 'online';
-                                            const responseTime = health?.response_time_ms || 0;
-                                            const reliability = isOnline ? Math.max(80, 100 - responseTime / 10) : 0;
+                                        {websdrPerformance && websdrPerformance.length > 0 ? (
+                                            websdrPerformance.map((sdr) => {
+                                                const successRate = sdr.total_acquisitions > 0
+                                                    ? ((sdr.successful_acquisitions / sdr.total_acquisitions) * 100).toFixed(1)
+                                                    : '0';
 
-                                            return (
-                                                <tr key={sdr.id}>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <div className={`avtar avtar-xs ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}>
-                                                                <i className="ph ph-radio-button"></i>
+                                                return (
+                                                    <tr key={sdr.websdr_id}>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <div className={`avtar avtar-xs ${sdr.uptime_percentage > 80 ? 'bg-light-success' : 'bg-light-warning'}`}>
+                                                                    <i className="ph ph-radio-button"></i>
+                                                                </div>
+                                                                <span className="ms-2">{sdr.name}</span>
                                                             </div>
-                                                            <span className="ms-2">{sdr.name}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td>{sdr.location_name}</td>
-                                                    <td>
-                                                        <span className={`badge ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}>
-                                                            {isOnline ? 'Online' : 'Offline'}
-                                                        </span>
-                                                    </td>
-                                                    <td>{responseTime > 0 ? `${responseTime}ms` : '-'}</td>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
-                                                                <div
-                                                                    className={`progress-bar ${isOnline ? 'bg-success' : 'bg-danger'}`}
-                                                                    role="progressbar"
-                                                                    style={{ width: `${reliability}%` }}
-                                                                ></div>
+                                                        </td>
+                                                        <td>{sdr.uptime_percentage.toFixed(1)}%</td>
+                                                        <td>{sdr.average_snr.toFixed(1)} dB</td>
+                                                        <td>{sdr.total_acquisitions}</td>
+                                                        <td>
+                                                            <span className={`badge ${parseFloat(successRate) > 80 ? 'bg-light-success' : 'bg-light-warning'}`}>
+                                                                {successRate}%
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (
+                                            websdrs.map((sdr) => {
+                                                const health = healthStatus[sdr.id];
+                                                const isOnline = health?.status === 'online';
+                                                const responseTime = health?.response_time_ms || 0;
+                                                const reliability = isOnline ? Math.max(80, 100 - responseTime / 10) : 0;
+
+                                                return (
+                                                    <tr key={sdr.id}>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <div className={`avtar avtar-xs ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}>
+                                                                    <i className="ph ph-radio-button"></i>
+                                                                </div>
+                                                                <span className="ms-2">{sdr.name}</span>
                                                             </div>
-                                                            <span className="f-12">{Math.round(reliability)}%</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                        {websdrs.length === 0 && (
+                                                        </td>
+                                                        <td>{isOnline ? 'Online' : 'Offline'}</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                                                                    <div
+                                                                        className={`progress-bar ${isOnline ? 'bg-success' : 'bg-danger'}`}
+                                                                        role="progressbar"
+                                                                        style={{ width: `${reliability}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                                <span className="f-12">{Math.round(reliability)}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                        {(!websdrPerformance || websdrPerformance.length === 0) && websdrs.length === 0 && (
                                             <tr>
                                                 <td colSpan={5} className="text-center py-4">
                                                     <i className="ph ph-warning-circle f-40 text-muted mb-2"></i>
