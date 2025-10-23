@@ -1,49 +1,28 @@
-'use client';
+import React, { useEffect, useState } from 'react';
+import { useDashboardStore, useWebSDRStore } from '../store';
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    LogOut,
-    Home,
-    MapPin,
-    Radio,
-    BarChart3,
-    Zap,
-    Radar,
-    Menu,
-    X,
-    Maximize2,
-    AlertCircle,
-    TrendingUp,
-} from 'lucide-react';
-import { useAuthStore } from '../store';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+interface LocalizationResult {
+    id: string;
+    timestamp: string;
+    latitude: number;
+    longitude: number;
+    uncertainty: number;
+    confidence: number;
+    signalQuality: string;
+    activeReceivers: number;
+}
 
-export const Localization: React.FC = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuthStore();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
+const Localization: React.FC = () => {
+    const { data, fetchDashboardData } = useDashboardStore();
+    const { websdrs, healthStatus } = useWebSDRStore();
     const [selectedResult, setSelectedResult] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const menuItems = [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
-        { icon: MapPin, label: 'Localization', path: '/localization', active: true },
-        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: false },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
-        { icon: Zap, label: 'Settings', path: '/settings', active: false },
-    ];
-
-    const localizationResults = [
+    // Mock localization results (TODO: Connect to real inference API)
+    const [localizationResults] = useState<LocalizationResult[]>([
         {
             id: '1',
-            timestamp: '2025-10-22 14:32:15',
+            timestamp: new Date().toISOString(),
             latitude: 45.1892,
             longitude: 7.5598,
             uncertainty: 28.5,
@@ -51,241 +30,335 @@ export const Localization: React.FC = () => {
             signalQuality: 'Excellent',
             activeReceivers: 7,
         },
-        {
-            id: '2',
-            timestamp: '2025-10-22 13:45:22',
-            latitude: 45.1901,
-            longitude: 7.5612,
-            uncertainty: 35.2,
-            confidence: 89,
-            signalQuality: 'Good',
-            activeReceivers: 6,
-        },
-        {
-            id: '3',
-            timestamp: '2025-10-22 12:30:11',
-            latitude: 45.1875,
-            longitude: 7.5580,
-            uncertainty: 31.8,
-            confidence: 91,
-            signalQuality: 'Good',
-            activeReceivers: 7,
-        },
-    ];
+    ]);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchDashboardData();
+        setIsRefreshing(false);
     };
 
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setSidebarOpen(false);
-    };
+    const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
+    const avgAccuracy = data.modelInfo?.accuracy ? (data.modelInfo.accuracy * 100).toFixed(1) : 'N/A';
 
     return (
-        <div className="flex h-screen w-screen bg-slate-950">
-            {/* Sidebar */}
-            <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
-                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
-                transition-all duration-300 overflow-hidden flex flex-col`}
-            >
-                {/* Logo Section */}
-                <div className="p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <Radar className="w-8 h-8 text-purple-500" />
-                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
+        <>
+            {/* Breadcrumb */}
+            <div className="page-header">
+                <div className="page-block">
+                    <div className="row align-items-center">
+                        <div className="col-md-12">
+                            <ul className="breadcrumb">
+                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li className="breadcrumb-item"><a href="#">RF Operations</a></li>
+                                <li className="breadcrumb-item" aria-current="page">Localization</li>
+                            </ul>
+                        </div>
+                        <div className="col-md-12">
+                            <div className="page-header-title">
+                                <h2 className="mb-0">RF Source Localization</h2>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Menu Items */}
-                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-                    {menuItems.map((item, idx) => {
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleNavigation(item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                        : 'text-slate-300 hover:bg-slate-800/50'
-                                    }`}
-                            >
-                                <Icon className="w-5 h-5" />
-                                <span className="font-medium">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-
-                {/* User Section */}
-                <div className="p-4 border-t border-slate-800">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
-                                    AD
+            {/* Statistics Row */}
+            <div className="row">
+                <div className="col-md-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-success rounded">
+                                        <i className="ph ph-crosshair f-20"></i>
+                                    </div>
                                 </div>
-                                <span className="ml-2 text-sm">admin</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-                                Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Active Receivers</h6>
+                                    <h4 className="mb-0">{onlineWebSDRs}/7</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
-                {/* Header */}
-                <header className="bg-slate-900 border-b border-slate-800 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="text-slate-400 hover:text-white"
+                <div className="col-md-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-primary rounded">
+                                        <i className="ph ph-target f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Avg Accuracy</h6>
+                                    <h4 className="mb-0">±{avgAccuracy}m</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-warning rounded">
+                                        <i className="ph ph-chart-line f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Confidence</h6>
+                                    <h4 className="mb-0">94%</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-info rounded">
+                                        <i className="ph ph-activity f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Signal Quality</h6>
+                                    <h4 className="mb-0 f-14">Excellent</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Map and Results */}
+            <div className="row">
+                {/* Map Area */}
+                <div className="col-lg-8">
+                    <div className="card">
+                        <div className="card-header d-flex align-items-center justify-content-between">
+                            <h5 className="mb-0">Localization Map</h5>
+                            <div className="btn-group">
+                                <button className="btn btn-sm btn-outline-primary" onClick={handleRefresh} disabled={isRefreshing}>
+                                    <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+                                </button>
+                                <button className="btn btn-sm btn-outline-secondary">
+                                    <i className="ph ph-arrows-out-simple"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="card-body p-0">
+                            {/* Map Placeholder - TODO: Integrate Mapbox */}
+                            <div
+                                className="bg-body-secondary d-flex align-items-center justify-content-center position-relative"
+                                style={{ height: '500px' }}
                             >
-                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                            </Button>
-                            <h1 className="text-3xl font-bold text-white">RF Source Localization</h1>
-                        </div>
-                        <div className="text-slate-400 text-sm">
-                            {new Date().toLocaleString()}
-                        </div>
-                    </div>
-                </header>
+                                {/* Grid background */}
+                                <div
+                                    className="position-absolute w-100 h-100"
+                                    style={{
+                                        backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+                                        backgroundSize: '50px 50px'
+                                    }}
+                                ></div>
 
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Map Section - Main */}
-                        <div className="lg:col-span-2">
-                            <Card className="bg-slate-900 border-slate-800 h-full">
-                                <CardHeader>
-                                    <CardTitle className="text-white flex items-center gap-2">
-                                        <MapPin className="w-5 h-5 text-purple-500" />
-                                        Interactive Localization Map
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="relative w-full h-96 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center">
-                                        <div className="text-center">
-                                            <MapPin className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                                            <p className="text-slate-400">
-                                                Mapbox integration placeholder
-                                            </p>
-                                            <p className="text-slate-500 text-sm mt-2">
-                                                Shows 7 WebSDR locations + uncertainty ellipses
-                                            </p>
+                                {/* WebSDR Markers */}
+                                {websdrs.slice(0, 7).map((sdr, index) => (
+                                    <div
+                                        key={sdr.id}
+                                        className="position-absolute"
+                                        style={{
+                                            left: `${20 + index * 10}%`,
+                                            top: `${30 + (index % 3) * 20}%`,
+                                        }}
+                                        title={sdr.name}
+                                    >
+                                        <div className="avtar avtar-s bg-primary">
+                                            <i className="ph ph-radio-button"></i>
                                         </div>
+                                        <span className="badge bg-primary f-10 mt-1">{sdr.location_name.split(',')[0]}</span>
                                     </div>
+                                ))}
 
-                                    {/* Map Controls */}
-                                    <div className="mt-6 grid grid-cols-2 gap-4">
-                                        <Button
-                                            variant="outline"
-                                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
-                                        >
-                                            <Maximize2 className="w-4 h-4 mr-2" />
-                                            Expand Map
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
-                                        >
-                                            <TrendingUp className="w-4 h-4 mr-2" />
-                                            Export Results
-                                        </Button>
+                                {/* Localization Result Marker */}
+                                {localizationResults.length > 0 && (
+                                    <div
+                                        className="position-absolute"
+                                        style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    >
+                                        <div className="avtar avtar-m bg-success pulse">
+                                            <i className="ph ph-crosshair-simple f-24"></i>
+                                        </div>
+                                        <div className="position-absolute rounded-circle bg-success"
+                                            style={{
+                                                width: '120px',
+                                                height: '120px',
+                                                opacity: 0.2,
+                                                left: '50%',
+                                                top: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                zIndex: -1
+                                            }}
+                                        ></div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                                )}
 
-                        {/* Localization Results - Sidebar */}
-                        <div className="flex flex-col gap-6">
-                            {/* Latest Results */}
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardHeader>
-                                    <CardTitle className="text-white text-lg">Latest Results</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {localizationResults.map((result) => (
-                                        <button
-                                            key={result.id}
-                                            onClick={() => setSelectedResult(result.id)}
-                                            className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${selectedResult === result.id
-                                                    ? 'border-purple-500 bg-purple-500/10'
-                                                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
-                                                }`}
-                                        >
-                                            <p className="text-sm text-slate-300">{result.timestamp}</p>
-                                            <p className="text-white font-bold">
-                                                {result.latitude.toFixed(4)}, {result.longitude.toFixed(4)}
-                                            </p>
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <span
-                                                    className={`px-2 py-1 rounded text-xs font-bold ${result.confidence > 90
-                                                            ? 'bg-green-500/20 text-green-400'
-                                                            : 'bg-yellow-500/20 text-yellow-400'
-                                                        }`}
-                                                >
-                                                    {result.confidence}% Confidence
-                                                </span>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </CardContent>
-                            </Card>
-
-                            {/* Uncertainty Analysis */}
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardHeader>
-                                    <CardTitle className="text-white text-lg flex items-center gap-2">
-                                        <AlertCircle className="w-4 h-4 text-purple-500" />
-                                        Uncertainty Analysis
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div>
-                                        <p className="text-slate-400 text-sm">Horizontal Uncertainty</p>
-                                        <p className="text-white text-xl font-bold">±28.5 meters</p>
-                                        <p className="text-slate-500 text-xs mt-1">
-                                            68% confidence interval (1σ)
-                                        </p>
+                                {/* Placeholder Text */}
+                                <div className="position-absolute bottom-0 start-0 p-3">
+                                    <div className="alert alert-info mb-0">
+                                        <i className="ph ph-info me-2"></i>
+                                        <strong>Map Integration:</strong> Mapbox/Leaflet integration pending.
+                                        Displaying WebSDR positions and localization results.
                                     </div>
-                                    <div>
-                                        <p className="text-slate-400 text-sm">Active Receivers</p>
-                                        <p className="text-white text-xl font-bold">7 / 7</p>
-                                        <p className="text-slate-500 text-xs mt-1">All WebSDR online</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-400 text-sm">Signal Quality</p>
-                                        <p className="text-white text-xl font-bold">Excellent</p>
-                                        <p className="text-slate-500 text-xs mt-1">SNR {'>'} 20 dB</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+
+                {/* Results Panel */}
+                <div className="col-lg-4">
+                    <div className="card">
+                        <div className="card-header">
+                            <h5 className="mb-0">Recent Localizations</h5>
+                        </div>
+                        <div className="card-body">
+                            {localizationResults.length > 0 ? (
+                                <div className="d-flex flex-column gap-3">
+                                    {localizationResults.map((result) => (
+                                        <div
+                                            key={result.id}
+                                            className={`card cursor-pointer ${selectedResult === result.id ? 'border-primary' : ''}`}
+                                            onClick={() => setSelectedResult(result.id)}
+                                        >
+                                            <div className="card-body p-3">
+                                                <div className="d-flex justify-content-between align-items-start mb-2">
+                                                    <span className="badge bg-light-success">
+                                                        {result.signalQuality}
+                                                    </span>
+                                                    <small className="text-muted">
+                                                        {new Date(result.timestamp).toLocaleTimeString()}
+                                                    </small>
+                                                </div>
+                                                <div className="mb-2">
+                                                    <h6 className="mb-1">
+                                                        <i className="ph ph-map-pin text-primary me-1"></i>
+                                                        {result.latitude.toFixed(4)}, {result.longitude.toFixed(4)}
+                                                    </h6>
+                                                    <p className="f-12 text-muted mb-0">
+                                                        Uncertainty: ±{result.uncertainty}m
+                                                    </p>
+                                                </div>
+                                                <div className="row">
+                                                    <div className="col-6">
+                                                        <p className="f-12 text-muted mb-0">Confidence</p>
+                                                        <h6 className="mb-0">{result.confidence}%</h6>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <p className="f-12 text-muted mb-0">Receivers</p>
+                                                        <h6 className="mb-0">{result.activeReceivers}/7</h6>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-5">
+                                    <i className="ph ph-crosshair-simple f-40 text-muted mb-3"></i>
+                                    <p className="text-muted mb-0">No localization results yet</p>
+                                    <button className="btn btn-primary btn-sm mt-3">
+                                        <i className="ph ph-play-circle me-1"></i>
+                                        Start Localization
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Selected Result Details */}
+                    {selectedResult && (
+                        <div className="card mt-3">
+                            <div className="card-header">
+                                <h5 className="mb-0">Result Details</h5>
+                            </div>
+                            <div className="card-body">
+                                {(() => {
+                                    const result = localizationResults.find(r => r.id === selectedResult);
+                                    if (!result) return null;
+
+                                    return (
+                                        <div>
+                                            <table className="table table-sm">
+                                                <tbody>
+                                                    <tr>
+                                                        <td className="text-muted">Timestamp</td>
+                                                        <td>{new Date(result.timestamp).toLocaleString()}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Latitude</td>
+                                                        <td>{result.latitude.toFixed(6)}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Longitude</td>
+                                                        <td>{result.longitude.toFixed(6)}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Uncertainty</td>
+                                                        <td>±{result.uncertainty}m</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Confidence</td>
+                                                        <td>
+                                                            <div className="d-flex align-items-center">
+                                                                <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                                                                    <div
+                                                                        className="progress-bar bg-success"
+                                                                        style={{ width: `${result.confidence}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                                <span>{result.confidence}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Signal Quality</td>
+                                                        <td>
+                                                            <span className="badge bg-light-success">
+                                                                {result.signalQuality}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Active Receivers</td>
+                                                        <td>{result.activeReceivers}/7</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <button className="btn btn-primary btn-sm w-100 mt-2">
+                                                <i className="ph ph-download-simple me-1"></i>
+                                                Export Results
+                                            </button>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
     );
 };
 

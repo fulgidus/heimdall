@@ -1,0 +1,292 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    LogOut,
+    Home,
+    MapPin,
+    Radio,
+    BarChart3,
+    Zap,
+    Radar,
+    Menu,
+    X,
+    Maximize2,
+    AlertCircle,
+    TrendingUp,
+} from 'lucide-react';
+import { useAuthStore } from '../store';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+export const Localization: React.FC = () => {
+    const navigate = useNavigate();
+    const { logout } = useAuthStore();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [selectedResult, setSelectedResult] = useState<string | null>(null);
+
+    const menuItems = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: true },
+        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: false },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
+        { icon: Zap, label: 'Settings', path: '/settings', active: false },
+    ];
+
+    const localizationResults = [
+        {
+            id: '1',
+            timestamp: '2025-10-22 14:32:15',
+            latitude: 45.1892,
+            longitude: 7.5598,
+            uncertainty: 28.5,
+            confidence: 94,
+            signalQuality: 'Excellent',
+            activeReceivers: 7,
+        },
+        {
+            id: '2',
+            timestamp: '2025-10-22 13:45:22',
+            latitude: 45.1901,
+            longitude: 7.5612,
+            uncertainty: 35.2,
+            confidence: 89,
+            signalQuality: 'Good',
+            activeReceivers: 6,
+        },
+        {
+            id: '3',
+            timestamp: '2025-10-22 12:30:11',
+            latitude: 45.1875,
+            longitude: 7.5580,
+            uncertainty: 31.8,
+            confidence: 91,
+            signalQuality: 'Good',
+            activeReceivers: 7,
+        },
+    ];
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
+    return (
+        <div className="flex h-screen w-screen bg-slate-950">
+            {/* Sidebar */}
+            <aside
+                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
+                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
+                transition-all duration-300 overflow-hidden flex flex-col`}
+            >
+                {/* Logo Section */}
+                <div className="p-6 border-b border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <Radar className="w-8 h-8 text-purple-500" />
+                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
+                    </div>
+                </div>
+
+                {/* Menu Items */}
+                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
+                    {menuItems.map((item, idx) => {
+                        const Icon = item.icon;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => handleNavigation(item.path)}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
+                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                                        : 'text-slate-300 hover:bg-slate-800/50'
+                                    }`}
+                            >
+                                <Icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+
+                {/* User Section */}
+                <div className="p-4 border-t border-slate-800">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
+                                    AD
+                                </div>
+                                <span className="ml-2 text-sm">admin</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
+                                Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
+                                Settings
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
+                                <LogOut className="w-4 h-4 mr-2" />
+                                Logout
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto flex flex-col">
+                {/* Header */}
+                <header className="bg-slate-900 border-b border-slate-800 p-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="text-slate-400 hover:text-white"
+                            >
+                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
+                            <h1 className="text-3xl font-bold text-white">RF Source Localization</h1>
+                        </div>
+                        <div className="text-slate-400 text-sm">
+                            {new Date().toLocaleString()}
+                        </div>
+                    </div>
+                </header>
+
+                {/* Content Area */}
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Map Section - Main */}
+                        <div className="lg:col-span-2">
+                            <Card className="bg-slate-900 border-slate-800 h-full">
+                                <CardHeader>
+                                    <CardTitle className="text-white flex items-center gap-2">
+                                        <MapPin className="w-5 h-5 text-purple-500" />
+                                        Interactive Localization Map
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="relative w-full h-96 bg-slate-800 rounded-lg border border-slate-700 flex items-center justify-center">
+                                        <div className="text-center">
+                                            <MapPin className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                                            <p className="text-slate-400">
+                                                Mapbox integration placeholder
+                                            </p>
+                                            <p className="text-slate-500 text-sm mt-2">
+                                                Shows 7 WebSDR locations + uncertainty ellipses
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Map Controls */}
+                                    <div className="mt-6 grid grid-cols-2 gap-4">
+                                        <Button
+                                            variant="outline"
+                                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                                        >
+                                            <Maximize2 className="w-4 h-4 mr-2" />
+                                            Expand Map
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                                        >
+                                            <TrendingUp className="w-4 h-4 mr-2" />
+                                            Export Results
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Localization Results - Sidebar */}
+                        <div className="flex flex-col gap-6">
+                            {/* Latest Results */}
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="text-white text-lg">Latest Results</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {localizationResults.map((result) => (
+                                        <button
+                                            key={result.id}
+                                            onClick={() => setSelectedResult(result.id)}
+                                            className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${selectedResult === result.id
+                                                    ? 'border-purple-500 bg-purple-500/10'
+                                                    : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                                                }`}
+                                        >
+                                            <p className="text-sm text-slate-300">{result.timestamp}</p>
+                                            <p className="text-white font-bold">
+                                                {result.latitude.toFixed(4)}, {result.longitude.toFixed(4)}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <span
+                                                    className={`px-2 py-1 rounded text-xs font-bold ${result.confidence > 90
+                                                            ? 'bg-green-500/20 text-green-400'
+                                                            : 'bg-yellow-500/20 text-yellow-400'
+                                                        }`}
+                                                >
+                                                    {result.confidence}% Confidence
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </CardContent>
+                            </Card>
+
+                            {/* Uncertainty Analysis */}
+                            <Card className="bg-slate-900 border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="text-white text-lg flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 text-purple-500" />
+                                        Uncertainty Analysis
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div>
+                                        <p className="text-slate-400 text-sm">Horizontal Uncertainty</p>
+                                        <p className="text-white text-xl font-bold">±28.5 meters</p>
+                                        <p className="text-slate-500 text-xs mt-1">
+                                            68% confidence interval (1σ)
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-400 text-sm">Active Receivers</p>
+                                        <p className="text-white text-xl font-bold">7 / 7</p>
+                                        <p className="text-slate-500 text-xs mt-1">All WebSDR online</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-400 text-sm">Signal Quality</p>
+                                        <p className="text-white text-xl font-bold">Excellent</p>
+                                        <p className="text-slate-500 text-xs mt-1">SNR {'>'} 20 dB</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default Localization;
