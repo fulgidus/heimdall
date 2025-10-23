@@ -1,6 +1,7 @@
 import React from 'react';
 import classNames from 'classnames';
 import { AlertCircle, CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
+import './Alert.css';
 
 interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
     variant?: 'info' | 'success' | 'warning' | 'error';
@@ -16,27 +17,15 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
 
         const variantConfig = {
             info: {
-                bg: 'bg-neon-blue bg-opacity-10',
-                border: 'border-neon-blue',
-                text: 'text-neon-blue',
                 icon: Info,
             },
             success: {
-                bg: 'bg-light-green bg-opacity-10',
-                border: 'border-light-green',
-                text: 'text-light-green',
                 icon: CheckCircle,
             },
             warning: {
-                bg: 'bg-yellow-500 bg-opacity-10',
-                border: 'border-yellow-500',
-                text: 'text-yellow-400',
                 icon: AlertTriangle,
             },
             error: {
-                bg: 'bg-red-500 bg-opacity-10',
-                border: 'border-red-500',
-                text: 'text-red-400',
                 icon: AlertCircle,
             },
         };
@@ -55,25 +44,21 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
             <div
                 ref={ref}
                 className={classNames(
-                    'p-4 rounded-lg border flex items-start gap-4',
-                    config.bg,
-                    config.border,
+                    'alert',
+                    `alert-${variant}`,
                     className
                 )}
                 {...props}
             >
-                <Icon className={classNames(config.text, 'flex-shrink-0 mt-0.5')} size={20} />
-                <div className="flex-1 min-w-0">
-                    {title && <h3 className={classNames('font-semibold mb-1', config.text)}>{title}</h3>}
-                    <p className="text-french-gray text-sm">{message}</p>
+                <Icon className="alert-icon" size={20} />
+                <div className="alert-content">
+                    {title && <h3 className="alert-title">{title}</h3>}
+                    <p className="alert-message">{message}</p>
                 </div>
                 {closeable && (
                     <button
                         onClick={handleClose}
-                        className={classNames(
-                            'flex-shrink-0 p-1 hover:bg-opacity-20 rounded transition-colors',
-                            config.text
-                        )}
+                        className="alert-close-button"
                     >
                         <X size={18} />
                     </button>

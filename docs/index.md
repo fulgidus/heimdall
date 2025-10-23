@@ -79,7 +79,10 @@ Heimdall is licensed under the [Creative Commons Non-Commercial License](LICENSE
 For questions or support, please contact the project maintainers at [alessio.corsi[AT]gmail.com](mailto:alessio.corsi@gmail.com).
 
 ## Changelog
-See the [Changelog](changelog) for a detailed history of changes.
+
+See the [Changelog](../CHANGELOG.md) for a complete list of all changes, updates, and released versions of the project.
+The changelog follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
+The changelog is maintained according to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) guidelines.
 
 ## FAQs
 Find answers to common questions in our [FAQ section](faqs).

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LogOut,
@@ -19,7 +19,7 @@ import {
     AlertCircle,
     Wifi,
 } from 'lucide-react';
-import { useAuthStore } from '../store';
+import { useAuthStore, useWebSDRStore, useAcquisitionStore } from '../store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,24 +40,44 @@ interface WebSDRStatus {
 export const RecordingSession: React.FC = () => {
     const navigate = useNavigate();
     const { logout } = useAuthStore();
+    const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
+    const { startAcquisition, pollTask } = useAcquisitionStore();
+    
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingProgress, setRecordingProgress] = useState(0);
+    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
     const [sessionName, setSessionName] = useState('');
     const [frequency, setFrequency] = useState('145.500');
     const [duration, setDuration] = useState('60');
     const [description, setDescription] = useState('');
     const [isKnownSource, setIsKnownSource] = useState(false);
 
-    const [webSdrStatus] = useState<WebSDRStatus[]>([
-        { name: 'Turin', online: true, snr: 18.5, frequency: '145.500' },
-        { name: 'Milan', online: true, snr: 16.2, frequency: '145.500' },
-        { name: 'Genoa', online: true, snr: 14.8, frequency: '145.500' },
-        { name: 'Alessandria', online: true, snr: 17.1, frequency: '145.500' },
-        { name: 'Piacenza', online: false, snr: 0, frequency: '145.500' },
-        { name: 'Savona', online: true, snr: 15.3, frequency: '145.500' },
-        { name: 'La Spezia', online: true, snr: 13.9, frequency: '145.500' },
-    ]);
+    // Load WebSDRs and their health status on mount
+    useEffect(() => {
+        fetchWebSDRs();
+        checkHealth();
+    }, [fetchWebSDRs, checkHealth]);
+
+    // Poll health status every 10 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkHealth();
+        }, 10000);
+
+        return () => clearInterval(interval);
+    }, [checkHealth]);
+
+    // Convert WebSDRs to display format
+    const webSdrStatus: WebSDRStatus[] = websdrs.map((websdr) => {
+        const health = healthStatus[websdr.id];
+        return {
+            name: websdr.location_name.split(',')[0], // Extract city name
+            online: health?.status === 'online',
+            snr: health?.status === 'online' ? 15 + Math.random() * 10 : 0, // Simulated SNR
+            frequency: `${(parseFloat(frequency)).toFixed(3)}`,
+        };
+    });
 
     const menuItems = [
         { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
@@ -77,30 +97,53 @@ export const RecordingSession: React.FC = () => {
         setSidebarOpen(false);
     };
 
-    const handleStartRecording = () => {
+    const handleStartRecording = async () => {
         if (!sessionName.trim()) {
-            alert('Inserisci un nome per la sessione');
+            alert('Please enter a session name');
             return;
         }
-        setIsRecording(true);
-        setRecordingProgress(0);
 
-        // Simula progresso recording
-        const interval = setInterval(() => {
-            setRecordingProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    setIsRecording(false);
-                    return 100;
-                }
-                return prev + Math.random() * 15;
+        try {
+            setIsRecording(true);
+            setRecordingProgress(0);
+
+            const durationSeconds = parseFloat(duration);
+
+            // Start acquisition (session_name is stored separately in session management)
+            const response = await startAcquisition({
+                frequency_mhz: parseFloat(frequency),
+                duration_seconds: durationSeconds,
             });
-        }, 2000);
+
+            setCurrentTaskId(response.task_id);
+            console.log(`Recording started: ${sessionName}, Task ID: ${response.task_id}`);
+
+            // Poll task status for progress
+            await pollTask(response.task_id, (status) => {
+                setRecordingProgress(status.progress || 0);
+            });
+
+            // Recording complete
+            setIsRecording(false);
+            setRecordingProgress(100);
+            alert('Recording completed successfully!');
+
+        } catch (error) {
+            console.error('Recording failed:', error);
+            alert('Recording failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            setIsRecording(false);
+            setRecordingProgress(0);
+        }
     };
 
     const handleStopRecording = () => {
+        // In a real implementation, we would cancel the Celery task
+        if (currentTaskId) {
+            console.log(`Stopping task: ${currentTaskId}`);
+        }
         setIsRecording(false);
         setRecordingProgress(0);
+        setCurrentTaskId(null);
     };
 
     return (

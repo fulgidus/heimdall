@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader } from 'lucide-react';
 import { useAuthStore } from '../store';
+import './Login.css';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
@@ -32,41 +33,41 @@ const Login: React.FC = () => {
     const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin123!@#';
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-purple-600 via-purple-500 to-indigo-600 flex flex-col items-center justify-center p-4 overflow-hidden">
+        <div className="login-container">
             {/* Animated Background Elements */}
-            <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-                <div className="absolute bottom-20 right-10 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+            <div className="login-background">
+                <div className="login-background-orb-1"></div>
+                <div className="login-background-orb-2"></div>
             </div>
 
             {/* Main Container */}
-            <div className="w-full max-w-md relative z-10">
+            <div className="login-main-container">
                 {/* Header - Logo & Branding */}
-                <div className="text-center mb-12 animate-fade-in">
-                    <div className="inline-block mb-4">
-                        <div className="text-6xl font-black text-white drop-shadow-lg">🚀</div>
+                <div className="login-header">
+                    <div className="login-logo-container">
+                        <div className="login-logo">🚀</div>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
+                    <h1 className="login-title">
                         Heimdall
                     </h1>
-                    <p className="text-purple-200 font-medium text-sm md:text-base">RF Source Localization Platform</p>
+                    <p className="login-subtitle">RF Source Localization Platform</p>
                 </div>
 
                 {/* Login Card */}
-                <div className="bg-white rounded-3xl shadow-2xl p-8! md:p-10! backdrop-blur-xl animate-slide-up">
+                <div className="login-card">
                     {/* Card Title */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
-                        <p className="text-gray-600 text-sm md:text-base">Access your RF localization dashboard</p>
+                    <div className="login-card-header">
+                        <h2 className="login-card-title">Sign In</h2>
+                        <p className="login-card-description">Access your RF localization dashboard</p>
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="login-form">
                         {/* Email Input */}
-                        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                            <label htmlFor="email" className="block text-sm font-semibold text-gray-900">
-                                <span className="inline-flex items-center gap-2">
-                                    <span className="text-purple-600 font-bold">@</span>
+                        <div className="login-form-field" style={{ animationDelay: '0.1s' }}>
+                            <label htmlFor="email" className="login-form-label">
+                                <span className="login-form-label-inner">
+                                    <span className="login-form-icon">@</span>
                                     Email Address
                                 </span>
                             </label>
@@ -77,19 +78,19 @@ const Login: React.FC = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-600 focus:bg-purple-50 transition-all duration-200"
+                                className="login-form-input"
                             />
                         </div>
 
                         {/* Password Input */}
-                        <div className="space-y-2 animate-fade-in" style={{ animationDelay: '0.15s' }}>
-                            <label htmlFor="password" className="block text-sm font-semibold text-gray-900">
-                                <span className="inline-flex items-center gap-2">
-                                    <span className="text-purple-600 font-bold">🔐</span>
+                        <div className="login-form-field" style={{ animationDelay: '0.15s' }}>
+                            <label htmlFor="password" className="login-form-label">
+                                <span className="login-form-label-inner">
+                                    <span className="login-form-icon">🔐</span>
                                     Password
                                 </span>
                             </label>
-                            <div className="relative">
+                            <div className="login-password-container">
                                 <input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
@@ -97,12 +98,12 @@ const Login: React.FC = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
-                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 text-gray-900 placeholder-gray-500 rounded-xl focus:outline-none focus:border-purple-600 focus:bg-purple-50 transition-all duration-200 pr-12"
+                                    className="login-form-input login-password-input"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-purple-600 transition-colors"
+                                    className="login-password-toggle"
                                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -112,9 +113,9 @@ const Login: React.FC = () => {
 
                         {/* Error Message */}
                         {error && (
-                            <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl text-red-700 text-sm font-medium animate-shake" role="alert">
-                                <span className="inline-flex items-center gap-2">
-                                    <span className="text-lg">⚠️</span>
+                            <div className="login-error" role="alert">
+                                <span className="login-error-content">
+                                    <span className="login-error-icon">⚠️</span>
                                     {error}
                                 </span>
                             </div>
@@ -124,14 +125,14 @@ const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-3 mt-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 animate-fade-in"
+                            className="login-submit-button"
                             style={{ animationDelay: '0.3s' }}
                         >
                             {isLoading ? (
-                                <>
+                                <span className="login-submit-loading">
                                     <Loader size={20} className="animate-spin" />
                                     <span>Signing In...</span>
-                                </>
+                                </span>
                             ) : (
                                 <span>Sign In</span>
                             )}
@@ -139,74 +140,26 @@ const Login: React.FC = () => {
                     </form>
 
                     {/* Demo Credentials Info */}
-                    <div className="mt-8 pt-8 border-t-2 border-gray-200 space-y-3 animate-fade-in" style={{ animationDelay: '0.35s' }}>
-                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">📋 Demo Credentials</p>
-                        <div className="space-y-2 text-sm font-mono bg-gray-50 p-3 rounded-lg">
+                    <div className="login-demo-section" style={{ animationDelay: '0.35s' }}>
+                        <p className="login-demo-title">📋 Demo Credentials</p>
+                        <div className="login-demo-credentials">
                             <div>
-                                <span className="text-gray-600">Email:</span>{' '}
-                                <span className="text-gray-900 font-bold">{adminEmail}</span>
+                                <span className="login-demo-credential-label">Email:</span>{' '}
+                                <span className="login-demo-credential-value">{adminEmail}</span>
                             </div>
                             <div>
-                                <span className="text-gray-600">Password:</span>{' '}
-                                <span className="text-gray-900 font-bold">{adminPassword}</span>
+                                <span className="login-demo-credential-label">Password:</span>{' '}
+                                <span className="login-demo-credential-value">{adminPassword}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Footer Info */}
-                <div className="text-center mt-8 text-purple-200 text-xs animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                <div className="login-footer" style={{ animationDelay: '0.4s' }}>
                     <p>🛡️ Secure RF Localization System • Phase 7 Alpha</p>
                 </div>
             </div>
-
-            {/* Tailwind Animations */}
-            <style>{`
-                @keyframes fade-in {
-                    from {
-                        opacity: 0;
-                    }
-                    to {
-                        opacity: 1;
-                    }
-                }
-                
-                @keyframes slide-up {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                
-                @keyframes shake {
-                    0%, 100% {
-                        transform: translateX(0);
-                    }
-                    10%, 30%, 50%, 70%, 90% {
-                        transform: translateX(-5px);
-                    }
-                    20%, 40%, 60%, 80% {
-                        transform: translateX(5px);
-                    }
-                }
-                
-                .animate-fade-in {
-                    animation: fade-in 0.6s ease-out forwards;
-                    opacity: 0;
-                }
-                
-                .animate-slide-up {
-                    animation: slide-up 0.6s ease-out forwards;
-                }
-                
-                .animate-shake {
-                    animation: shake 0.5s ease-in-out;
-                }
-            `}</style>
         </div>
     );
 };

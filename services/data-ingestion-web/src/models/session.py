@@ -1,93 +1,88 @@
-"""Recording Session models (SQLAlchemy + Pydantic)"""
+"""
+Session management models
+"""
 from datetime import datetime
-from enum import Enum
-from typing import Optional
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON
-from sqlalchemy.ext.declarative import declarative_base
+from typing import Optional, List
 from pydantic import BaseModel, Field
-
-Base = declarative_base()
-
-
-class SessionStatus(str, Enum):
-    """Session lifecycle states"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+from uuid import UUID
 
 
-# ==================== DATABASE MODELS ====================
-
-class RecordingSessionORM(Base):
-    """SQLAlchemy ORM model for recording sessions"""
-    __tablename__ = "recording_sessions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    session_name = Column(String, nullable=False, index=True)
-    frequency_mhz = Column(Float, nullable=False)
-    duration_seconds = Column(Integer, nullable=False)
-    status = Column(String, default=SessionStatus.PENDING.value)
-    
-    # Celery tracking
-    celery_task_id = Column(String, unique=True, index=True, nullable=True)
-    
-    # Results
-    result_metadata = Column(JSON, nullable=True)  # Contains SNR, offset, etc.
-    minio_path = Column(String, nullable=True)    # s3://heimdall-raw-iq/sessions/{id}/...
-    error_message = Column(String, nullable=True)
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    started_at = Column(DateTime, nullable=True)
-    completed_at = Column(DateTime, nullable=True)
-    
-    # WebSDR details
-    websdrs_enabled = Column(Integer, default=7)  # How many WebSDR were enabled
-    
-    __table_args__ = {"extend_existing": True}
+class KnownSource(BaseModel):
+    """Known RF source for training"""
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    frequency_hz: int
+    latitude: float
+    longitude: float
+    power_dbm: Optional[float] = None
+    source_type: Optional[str] = None
+    is_validated: bool = False
+    created_at: datetime
+    updated_at: datetime
 
 
-# ==================== PYDANTIC SCHEMAS ====================
+class KnownSourceCreate(BaseModel):
+    """Create a new known source"""
+    name: str
+    description: Optional[str] = None
+    frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    power_dbm: Optional[float] = None
+    source_type: Optional[str] = None
+    is_validated: bool = False
+
+
+class RecordingSession(BaseModel):
+    """Recording session model"""
+    id: UUID
+    known_source_id: UUID
+    session_name: str
+    session_start: datetime
+    session_end: Optional[datetime] = None
+    duration_seconds: Optional[float] = None
+    celery_task_id: Optional[str] = None
+    status: str  # pending, in_progress, completed, failed
+    approval_status: str = "pending"  # pending, approved, rejected
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
 
 class RecordingSessionCreate(BaseModel):
-    """Request schema for creating a new recording session"""
-    session_name: str = Field(..., min_length=1, max_length=255, description="Friendly name for this session")
-    frequency_mhz: float = Field(default=145.500, ge=100, le=1000, description="Frequency in MHz")
-    duration_seconds: int = Field(default=30, ge=5, le=300, description="Recording duration in seconds")
-
-
-class RecordingSessionResponse(BaseModel):
-    """Response schema for session queries"""
-    id: int
+    """Create a new recording session"""
+    known_source_id: UUID
     session_name: str
-    frequency_mhz: float
-    duration_seconds: int
-    status: SessionStatus
-    celery_task_id: Optional[str] = None
-    result_metadata: Optional[dict] = None
-    minio_path: Optional[str] = None
-    error_message: Optional[str] = None
-    created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    websdrs_enabled: int
+    frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
+    duration_seconds: float = Field(..., gt=0, le=3600, description="Duration in seconds (max 1 hour)")
+    notes: Optional[str] = None
+
+
+class RecordingSessionWithDetails(RecordingSession):
+    """Recording session with source details"""
+    source_name: str
+    source_frequency: int
+    source_latitude: float
+    source_longitude: float
+    measurements_count: int = 0
     
-    class Config:
-        from_attributes = True
 
-
-class RecordingSessionList(BaseModel):
-    """List of sessions with pagination"""
+class SessionListResponse(BaseModel):
+    """Response for session list"""
+    sessions: List[RecordingSessionWithDetails]
     total: int
-    offset: int
-    limit: int
-    sessions: list[RecordingSessionResponse]
+    page: int
+    per_page: int
 
 
-class SessionStatus_Update(BaseModel):
-    """Internal model to update session status"""
-    status: SessionStatus
-    result_metadata: Optional[dict] = None
-    error_message: Optional[str] = None
+class SessionAnalytics(BaseModel):
+    """Analytics for sessions"""
+    total_sessions: int
+    completed_sessions: int
+    failed_sessions: int
+    pending_sessions: int
+    success_rate: float
+    total_measurements: int
+    average_duration_seconds: Optional[float] = None
+    average_accuracy_meters: Optional[float] = None

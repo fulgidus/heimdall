@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     LogOut,
@@ -16,8 +16,9 @@ import {
     AlertCircle,
     XCircle,
     TrendingUp,
+    RefreshCw,
 } from 'lucide-react';
-import { useAuthStore } from '../store';
+import { useAuthStore, useSystemStore } from '../store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -38,75 +39,63 @@ interface ServiceStatus {
 export const SystemStatus: React.FC = () => {
     const navigate = useNavigate();
     const { logout } = useAuthStore();
+    const { servicesHealth, isLoading, checkAllServices } = useSystemStore();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const [services] = useState<ServiceStatus[]>([
-        {
-            name: 'API Gateway',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:10',
-            uptime: 99.95,
-            responseTime: 45,
-        },
-        {
-            name: 'RF Acquisition Service',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:08',
-            uptime: 99.8,
-            responseTime: 1200,
-        },
-        {
-            name: 'Training Service',
-            status: 'online',
-            lastCheck: '2025-10-22 16:41:55',
-            uptime: 98.9,
-            responseTime: 2500,
-        },
-        {
-            name: 'Inference Service',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:05',
-            uptime: 99.7,
-            responseTime: 234,
-        },
-        {
-            name: 'PostgreSQL Database',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:12',
-            uptime: 99.99,
-            responseTime: 12,
-        },
-        {
-            name: 'RabbitMQ Message Queue',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:09',
-            uptime: 99.85,
-            responseTime: 8,
-        },
-        {
-            name: 'Redis Cache',
-            status: 'online',
-            lastCheck: '2025-10-22 16:42:11',
-            uptime: 99.92,
-            responseTime: 5,
-        },
-        {
-            name: 'MinIO Storage',
-            status: 'degraded',
-            lastCheck: '2025-10-22 16:42:07',
-            uptime: 97.5,
-            responseTime: 450,
-        },
-    ]);
+    // Load services health on mount
+    useEffect(() => {
+        checkAllServices();
+    }, [checkAllServices]);
 
-    const [metrics] = useState({
-        totalRequests: '1.2M',
-        avgLatency: '234ms',
-        errorRate: '0.05%',
-        queueDepth: '42',
-        dbConnections: '15/32',
-        cacheHitRate: '87.3%',
+    // Auto-refresh every 30 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            checkAllServices();
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [checkAllServices]);
+
+    // Handle manual refresh
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await checkAllServices();
+        setIsRefreshing(false);
+    };
+
+    // Convert servicesHealth to ServiceStatus array
+    const services: ServiceStatus[] = Object.entries(servicesHealth).map(([name, health]) => {
+        // Calculate approximate uptime based on status
+        const uptime = health.status === 'healthy' ? 99.9 : health.status === 'degraded' ? 95.0 : 0;
+        
+        // Extract response time from details if available
+        const responseTime = (health.details?.response_time_ms as number) || 
+                           (health.status === 'healthy' ? 50 : 500);
+        
+        return {
+            name: name.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            status: health.status === 'healthy' ? 'online' : 
+                   health.status === 'degraded' ? 'degraded' : 'offline',
+            lastCheck: new Date(health.timestamp).toLocaleString(),
+            uptime,
+            responseTime,
+        };
     });
+
+    // Calculate metrics from services
+    const metrics = {
+        totalRequests: 'N/A', // Would need separate metrics API
+        avgLatency: services.length > 0 
+            ? `${Math.round(services.reduce((sum, s) => sum + s.responseTime, 0) / services.length)}ms`
+            : 'N/A',
+        errorRate: services.filter(s => s.status === 'offline').length > 0 
+            ? `${((services.filter(s => s.status === 'offline').length / services.length) * 100).toFixed(2)}%`
+            : '0.00%',
+        queueDepth: 'N/A', // Would need RabbitMQ metrics API
+        dbConnections: 'N/A', // Would need PostgreSQL metrics API
+        cacheHitRate: 'N/A', // Would need Redis metrics API
+    };
 
     const menuItems = [
         { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
@@ -244,6 +233,16 @@ export const SystemStatus: React.FC = () => {
                             </Button>
                             <h1 className="text-3xl font-bold text-white">System Status & Monitoring</h1>
                         </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={isRefreshing || isLoading}
+                            className="border-slate-700 text-slate-300"
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </Button>
                     </div>
                 </header>
 

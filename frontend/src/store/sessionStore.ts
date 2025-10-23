@@ -1,164 +1,251 @@
-import { create } from 'zustand';
-import axios from 'axios';
-import type { RecordingSession, SessionStatus } from '../types/session';
 
-export type { RecordingSession, SessionStatus };
+/**
+ * Session Store
+ * 
+ * Manages recording session state and operations
+ */
+
+import { create } from 'zustand';
+import type {
+    RecordingSession,
+    RecordingSessionWithDetails,
+    RecordingSessionCreate,
+    SessionAnalytics,
+    KnownSource,
+    KnownSourceCreate,
+} from '@/services/api/session';
+import { sessionService } from '@/services/api';
 
 interface SessionStore {
-    // State
-    sessions: RecordingSession[];
-    currentSession: RecordingSession | null;
+    sessions: RecordingSessionWithDetails[];
+    currentSession: RecordingSessionWithDetails | null;
+    knownSources: KnownSource[];
+    analytics: SessionAnalytics | null;
+
     isLoading: boolean;
     error: string | null;
 
+    // Pagination
+    currentPage: number;
+    totalSessions: number;
+    perPage: number;
+
+    // Filters
+    statusFilter: string | null;
+    approvalFilter: string | null;
+
     // Actions
-    createSession: (name: string, frequency: number, duration: number) => Promise<RecordingSession>;
-    fetchSessions: (offset?: number, limit?: number) => Promise<void>;
-    getSession: (sessionId: number) => Promise<RecordingSession>;
-    getSessionStatus: (sessionId: number) => Promise<SessionStatus>;
-    pollSessionStatus: (sessionId: number, intervalMs?: number) => Promise<void>;
-    deleteSession: (sessionId: number) => Promise<void>;
+    fetchSessions: (params?: {
+        page?: number;
+        per_page?: number;
+        status?: string;
+        approval_status?: string;
+    }) => Promise<void>;
+
+    fetchSession: (sessionId: string) => Promise<void>;
+
+    createSession: (session: RecordingSessionCreate) => Promise<RecordingSession>;
+
+    updateSessionStatus: (
+        sessionId: string,
+        status: string,
+        celeryTaskId?: string
+    ) => Promise<void>;
+
+    approveSession: (sessionId: string) => Promise<void>;
+    rejectSession: (sessionId: string) => Promise<void>;
+
+    deleteSession: (sessionId: string) => Promise<void>;
+
+    fetchAnalytics: () => Promise<void>;
+
+    fetchKnownSources: () => Promise<void>;
+    createKnownSource: (source: KnownSourceCreate) => Promise<KnownSource>;
+
+    setStatusFilter: (status: string | null) => void;
+    setApprovalFilter: (approval: string | null) => void;
+
     clearError: () => void;
-    reset: () => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_V1_PREFIX = '/api/v1';
-
 export const useSessionStore = create<SessionStore>((set, get) => ({
-    // Initial state
     sessions: [],
     currentSession: null,
+    knownSources: [],
+    analytics: null,
     isLoading: false,
     error: null,
+    currentPage: 1,
+    totalSessions: 0,
+    perPage: 20,
+    statusFilter: null,
+    approvalFilter: null,
 
-    // Actions
-    createSession: async (name: string, frequency: number, duration: number) => {
+    fetchSessions: async (params) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await axios.post(
-                `${API_BASE_URL}${API_V1_PREFIX}/sessions/create`,
-                {
-                    session_name: name,
-                    frequency_mhz: frequency,
-                    duration_seconds: duration,
-                }
-            );
-            const newSession = response.data;
-            set((state) => ({
-                sessions: [newSession, ...state.sessions],
-                currentSession: newSession,
-                isLoading: false,
-            }));
-            return newSession;
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to create session';
-            set({ error: errorMsg, isLoading: false });
-            throw new Error(errorMsg);
-        }
-    },
-
-    fetchSessions: async (offset = 0, limit = 20) => {
-        set({ isLoading: true, error: null });
-        try {
-            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions`, {
-                params: { offset, limit },
+            const response = await sessionService.listSessions({
+                page: params?.page || get().currentPage,
+                per_page: params?.per_page || get().perPage,
+                status: params?.status || get().statusFilter || undefined,
+                approval_status: params?.approval_status || get().approvalFilter || undefined,
             });
-            set({ sessions: response.data.sessions, isLoading: false });
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch sessions';
-            set({ error: errorMsg, isLoading: false });
-        }
-    },
 
-    getSession: async (sessionId: number) => {
-        set({ isLoading: true, error: null });
-        try {
-            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}`);
-            const session = response.data;
-            set({ currentSession: session, isLoading: false });
-            return session;
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch session';
-            set({ error: errorMsg, isLoading: false });
-            throw new Error(errorMsg);
-        }
-    },
-
-    getSessionStatus: async (sessionId: number) => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}/status`);
-            return response.data;
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to fetch session status';
-            set({ error: errorMsg });
-            throw new Error(errorMsg);
-        }
-    },
-
-    pollSessionStatus: async (sessionId: number, intervalMs = 2000) => {
-        return new Promise((resolve, reject) => {
-            let maxAttempts = 300; // 10 minutes max with 2s intervals
-            let attempts = 0;
-
-            const pollInterval = setInterval(async () => {
-                try {
-                    const status = await get().getSessionStatus(sessionId);
-
-                    // Update session status in the list
-                    set((state) => ({
-                        sessions: state.sessions.map((s) =>
-                            s.id === sessionId ? { ...s, status: status.status as any } : s
-                        ),
-                        currentSession:
-                            state.currentSession?.id === sessionId
-                                ? { ...state.currentSession, status: status.status as any }
-                                : state.currentSession,
-                    }));
-
-                    // Stop polling when completed or failed
-                    if (status.status === 'completed' || status.status === 'failed') {
-                        clearInterval(pollInterval);
-                        resolve(undefined);
-                    }
-
-                    attempts++;
-                    if (attempts >= maxAttempts) {
-                        clearInterval(pollInterval);
-                        reject(new Error('Polling timeout'));
-                    }
-                } catch (err) {
-                    clearInterval(pollInterval);
-                    reject(err);
-                }
-            }, intervalMs);
-        });
-    },
-
-    deleteSession: async (sessionId: number) => {
-        set({ isLoading: true, error: null });
-        try {
-            await axios.delete(`${API_BASE_URL}${API_V1_PREFIX}/sessions/${sessionId}`);
-
-            // Remove from sessions list
-            set((state) => ({
-                sessions: state.sessions.filter((s) => s.id !== sessionId),
-                currentSession: state.currentSession?.id === sessionId ? null : state.currentSession,
+            set({
+                sessions: response.sessions,
+                totalSessions: response.total,
+                currentPage: response.page,
+                perPage: response.per_page,
                 isLoading: false,
-            }));
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Failed to delete session';
-            set({ error: errorMsg, isLoading: false });
-            throw new Error(errorMsg);
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch sessions';
+            set({ error: errorMessage, isLoading: false });
+            console.error('Session fetch error:', error);
         }
+    },
+
+    fetchSession: async (sessionId: string) => {
+        set({ isLoading: true, error: null });
+        try {
+            const session = await sessionService.getSession(sessionId);
+            set({ currentSession: session, isLoading: false });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch session';
+            set({ error: errorMessage, isLoading: false });
+            console.error('Session fetch error:', error);
+        }
+    },
+
+    createSession: async (session: RecordingSessionCreate) => {
+        set({ isLoading: true, error: null });
+        try {
+            const newSession = await sessionService.createSession(session);
+            set({ isLoading: false });
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            return newSession;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
+            set({ error: errorMessage, isLoading: false });
+            console.error('Session creation error:', error);
+            throw error;
+        }
+    },
+
+    updateSessionStatus: async (sessionId: string, status: string, celeryTaskId?: string) => {
+        try {
+            await sessionService.updateSessionStatus(sessionId, status, celeryTaskId);
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            // Refresh current session if it's the one being updated
+            if (get().currentSession?.id === sessionId) {
+                await get().fetchSession(sessionId);
+            }
+        } catch (error) {
+            console.error('Session status update error:', error);
+            throw error;
+        }
+    },
+
+    approveSession: async (sessionId: string) => {
+        try {
+            await sessionService.updateSessionApproval(sessionId, 'approved');
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            // Refresh current session if it's the one being approved
+            if (get().currentSession?.id === sessionId) {
+                await get().fetchSession(sessionId);
+            }
+        } catch (error) {
+            console.error('Session approval error:', error);
+            throw error;
+        }
+    },
+
+    rejectSession: async (sessionId: string) => {
+        try {
+            await sessionService.updateSessionApproval(sessionId, 'rejected');
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            // Refresh current session if it's the one being rejected
+            if (get().currentSession?.id === sessionId) {
+                await get().fetchSession(sessionId);
+            }
+        } catch (error) {
+            console.error('Session rejection error:', error);
+            throw error;
+        }
+    },
+
+    deleteSession: async (sessionId: string) => {
+        try {
+            await sessionService.deleteSession(sessionId);
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            // Clear current session if it was deleted
+            if (get().currentSession?.id === sessionId) {
+                set({ currentSession: null });
+            }
+        } catch (error) {
+            console.error('Session deletion error:', error);
+            throw error;
+        }
+    },
+
+    fetchAnalytics: async () => {
+        try {
+            const analytics = await sessionService.getSessionAnalytics();
+            set({ analytics });
+        } catch (error) {
+            console.error('Analytics fetch error:', error);
+            // Don't set error for analytics, it's not critical
+        }
+    },
+
+    fetchKnownSources: async () => {
+        try {
+            const sources = await sessionService.listKnownSources();
+            set({ knownSources: sources });
+        } catch (error) {
+            console.error('Known sources fetch error:', error);
+            // Don't set error for known sources, it's not critical
+        }
+    },
+
+    createKnownSource: async (source: KnownSourceCreate) => {
+        try {
+            const newSource = await sessionService.createKnownSource(source);
+
+            // Refresh known sources list
+            await get().fetchKnownSources();
+
+            return newSource;
+        } catch (error) {
+            console.error('Known source creation error:', error);
+            throw error;
+        }
+    },
+
+    setStatusFilter: (status: string | null) => {
+        set({ statusFilter: status, currentPage: 1 });
+        get().fetchSessions();
+    },
+
+    setApprovalFilter: (approval: string | null) => {
+        set({ approvalFilter: approval, currentPage: 1 });
+        get().fetchSessions();
     },
 
     clearError: () => set({ error: null }),
-
-    reset: () => set({
-        sessions: [],
-        currentSession: null,
-        isLoading: false,
-        error: null,
-    }),
 }));
