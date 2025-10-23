@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore } from '../store';
 
 const Analytics: React.FC = () => {
-    const { data, metrics, isLoading, fetchDashboardData } = useDashboardStore();
+    const { data, metrics, fetchDashboardData } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [timeRange, setTimeRange] = useState('7d');

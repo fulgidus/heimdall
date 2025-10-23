@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { useAuthStore } from '../store';
 
 const Settings: React.FC = () => {
-    const { user } = useAuthStore();
     const [activeTab, setActiveTab] = useState<'general' | 'api' | 'notifications' | 'advanced'>('general');
     const [isSaving, setIsSaving] = useState(false);
 

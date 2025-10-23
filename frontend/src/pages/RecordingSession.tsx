@@ -9,11 +9,10 @@ const RecordingSession: React.FC = () => {
         knownSources,
         fetchKnownSources,
         createSession,
-        isLoading: sessionLoading,
         error: sessionError,
     } = useSessionStore();
 
-    const { websdrs, healthStatus, fetchWebSDRs } = useWebSDRStore();
+    const { healthStatus, fetchWebSDRs } = useWebSDRStore();
 
     const [formData, setFormData] = useState({
         knownSourceId: '',
@@ -45,10 +44,9 @@ const RecordingSession: React.FC = () => {
             setIsAcquiring(true);
 
             // Create session in database
-            const session = await createSession({
-                known_source_id: formData.knownSourceId,
+            await createSession({
                 session_name: formData.sessionName,
-                frequency_hz: parseFloat(formData.frequency) * 1e6,
+                frequency_mhz: parseFloat(formData.frequency),
                 duration_seconds: formData.duration,
                 notes: formData.notes,
             });
@@ -57,7 +55,6 @@ const RecordingSession: React.FC = () => {
             const acquisitionResponse = await acquisitionService.triggerAcquisition({
                 frequency_mhz: parseFloat(formData.frequency),
                 duration_seconds: formData.duration,
-                session_id: session.id,
             });
 
             setCurrentTaskId(acquisitionResponse.task_id);
@@ -323,7 +320,7 @@ const RecordingSession: React.FC = () => {
                                                     : 'In Progress'}
                                         </h6>
                                         <p className="text-muted f-12 mb-0">
-                                            {acquisitionStatus.state || 'Processing...'}
+                                            {acquisitionStatus.message || 'Processing...'}
                                         </p>
                                     </div>
                                 </div>

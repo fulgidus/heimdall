@@ -38,32 +38,34 @@ export interface KnownSourceCreate {
 }
 
 export interface RecordingSession {
-    id: string;
-    known_source_id: string;
+    id: number;
     session_name: string;
-    session_start: string;
-    session_end?: string;
-    duration_seconds?: number;
-    celery_task_id?: string;
-    status: 'pending' | 'in_progress' | 'completed' | 'failed';
-    approval_status: 'pending' | 'approved' | 'rejected';
-    notes?: string;
+    frequency_mhz: number;
+    duration_seconds: number;
+    status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
+    celery_task_id?: string | null;
+    result_metadata?: Record<string, any> | null;
+    minio_path?: string | null;
+    error_message?: string | null;
     created_at: string;
-    updated_at: string;
+    started_at?: string | null;
+    completed_at?: string | null;
+    websdrs_enabled?: number;
 }
 
 export interface RecordingSessionWithDetails extends RecordingSession {
-    source_name: string;
-    source_frequency: number;
-    source_latitude: number;
-    source_longitude: number;
-    measurements_count: number;
+    source_name?: string;
+    source_frequency?: number;
+    source_latitude?: number;
+    source_longitude?: number;
+    measurements_count?: number;
+    approval_status?: 'pending' | 'approved' | 'rejected';
+    notes?: string;
 }
 
 export interface RecordingSessionCreate {
-    known_source_id: string;
     session_name: string;
-    frequency_hz: number;
+    frequency_mhz: number;
     duration_seconds: number;
     notes?: string;
 }
@@ -102,7 +104,7 @@ export async function listSessions(params: {
 /**
  * Get a specific session by ID
  */
-export async function getSession(sessionId: string): Promise<RecordingSessionWithDetails> {
+export async function getSession(sessionId: number): Promise<RecordingSessionWithDetails> {
     const response = await api.get<RecordingSessionWithDetails>(`/api/v1/sessions/${sessionId}`);
     return response.data;
 }
@@ -119,7 +121,7 @@ export async function createSession(session: RecordingSessionCreate): Promise<Re
  * Update session status
  */
 export async function updateSessionStatus(
-    sessionId: string,
+    sessionId: number,
     status: string,
     celeryTaskId?: string
 ): Promise<RecordingSession> {
@@ -140,7 +142,7 @@ export async function updateSessionStatus(
  * Update session approval status
  */
 export async function updateSessionApproval(
-    sessionId: string,
+    sessionId: number,
     approvalStatus: 'pending' | 'approved' | 'rejected'
 ): Promise<RecordingSession> {
     const response = await api.patch<RecordingSession>(
@@ -158,7 +160,7 @@ export async function updateSessionApproval(
 /**
  * Delete a recording session
  */
-export async function deleteSession(sessionId: string): Promise<void> {
+export async function deleteSession(sessionId: number): Promise<void> {
     await api.delete(`/api/v1/sessions/${sessionId}`);
 }
 

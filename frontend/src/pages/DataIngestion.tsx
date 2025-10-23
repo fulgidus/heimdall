@@ -15,7 +15,6 @@ const DataIngestion: React.FC = () => {
     } = useSessionStore();
 
     const [activeTab, setActiveTab] = useState<'sources' | 'sessions'>('sources');
-    const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
         // Load data on mount
@@ -225,13 +224,6 @@ const DataIngestion: React.FC = () => {
                                         <h5 className="mb-0">Known RF Sources</h5>
                                         <div className="btn-group">
                                             <button
-                                                className="btn btn-sm btn-primary"
-                                                onClick={() => setShowAddModal(true)}
-                                            >
-                                                <i className="ph ph-plus-circle me-1"></i>
-                                                Add Source
-                                            </button>
-                                            <button
                                                 className="btn btn-sm btn-outline-secondary"
                                                 onClick={handleRefresh}
                                             >
@@ -307,13 +299,6 @@ const DataIngestion: React.FC = () => {
                                         <div className="text-center py-5">
                                             <i className="ph ph-radio-button f-40 text-muted mb-3"></i>
                                             <p className="text-muted mb-0">No known sources configured</p>
-                                            <button
-                                                className="btn btn-primary mt-3"
-                                                onClick={() => setShowAddModal(true)}
-                                            >
-                                                <i className="ph ph-plus-circle me-1"></i>
-                                                Add First Source
-                                            </button>
                                         </div>
                                     )}
                                 </>
@@ -363,12 +348,12 @@ const DataIngestion: React.FC = () => {
                                                                 <div>
                                                                     <div className="mb-1">{session.source_name}</div>
                                                                     <span className="f-12 text-muted">
-                                                                        {(session.source_frequency / 1e6).toFixed(3)} MHz
+                                                                        {session.source_frequency ? (session.source_frequency / 1e6).toFixed(3) + ' MHz' : 'N/A'}
                                                                     </span>
                                                                 </div>
                                                             </td>
                                                             <td className="f-12">
-                                                                {new Date(session.session_start).toLocaleString()}
+                                                                {session.started_at ? new Date(session.started_at).toLocaleString() : 'Not started'}
                                                             </td>
                                                             <td>
                                                                 {session.duration_seconds

@@ -12,7 +12,6 @@ import {
     Zap,
 } from 'lucide-react';
 import { useSessionStore } from '../store/sessionStore';
-import type { RecordingSession } from '../types/session';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -25,8 +24,8 @@ export const SessionsList: React.FC<SessionsListProps> = ({
     onSessionSelect,
     autoRefresh = true,
 }) => {
-    const { sessions, isLoading, error, fetchSessions } = useSessionStore();
-    const [autoRefreshInterval, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+    const { sessions, isLoading, fetchSessions } = useSessionStore();
+    const [, setAutoRefreshInterval] = useState<NodeJS.Timeout | null>(null);
 
     // Initial load
     useEffect(() => {
@@ -160,7 +159,7 @@ export const SessionsList: React.FC<SessionsListProps> = ({
                                     </div>
 
                                     {/* Right side - Actions */}
-                                    <div className="flex gap-2 flex-shrink-0">
+                                    <div className="flex gap-2 shrink-0">
                                         <Button
                                             size="sm"
                                             variant="outline"

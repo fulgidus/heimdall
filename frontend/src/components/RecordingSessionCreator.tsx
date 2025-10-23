@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
     Zap,
     AlertCircle,
-    CheckCircle,
     Radio,
     Clock,
     Waves,
@@ -38,7 +37,11 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
         clearError();
 
         try {
-            const session = await createSession(sessionName, frequency, duration);
+            const newSession = await createSession({
+                session_name: sessionName,
+                frequency_mhz: frequency,
+                duration_seconds: duration,
+            });
 
             // Reset form
             setSessionName('Session ' + new Date().toLocaleTimeString());
@@ -47,7 +50,7 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
 
             // Callback
             if (onSessionCreated) {
-                onSessionCreated(session.id);
+                onSessionCreated(newSession.id);
             }
         } catch (err) {
             // Error is already in store

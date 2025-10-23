@@ -9,17 +9,15 @@ const SessionHistory: React.FC = () => {
         totalSessions,
         perPage,
         statusFilter,
-        approvalFilter,
         isLoading,
         error,
         fetchSessions,
         fetchAnalytics,
         setStatusFilter,
-        setApprovalFilter,
         clearError,
     } = useSessionStore();
 
-    const [selectedSession, setSelectedSession] = useState<string | null>(null);
+    const [selectedSession, setSelectedSession] = useState<number | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -27,7 +25,6 @@ const SessionHistory: React.FC = () => {
                 page: currentPage,
                 per_page: perPage,
                 status: statusFilter || undefined,
-                approval_status: approvalFilter || undefined,
             });
             await fetchAnalytics();
         };
@@ -39,19 +36,17 @@ const SessionHistory: React.FC = () => {
                 page: currentPage,
                 per_page: perPage,
                 status: statusFilter || undefined,
-                approval_status: approvalFilter || undefined,
             });
         }, 60000);
 
         return () => clearInterval(interval);
-    }, [currentPage, perPage, statusFilter, approvalFilter, fetchSessions, fetchAnalytics]);
+    }, [currentPage, perPage, statusFilter, fetchSessions, fetchAnalytics]);
 
     const handlePageChange = (newPage: number) => {
         fetchSessions({
             page: newPage,
             per_page: perPage,
             status: statusFilter || undefined,
-            approval_status: approvalFilter || undefined,
         });
     };
 
@@ -243,12 +238,12 @@ const SessionHistory: React.FC = () => {
                                                             <div>
                                                                 <div className="mb-1">{session.source_name}</div>
                                                                 <span className="f-12 text-muted">
-                                                                    {(session.source_frequency / 1e6).toFixed(3)} MHz
+                                                                    {session.source_frequency ? (session.source_frequency / 1e6).toFixed(3) + ' MHz' : 'N/A'}
                                                                 </span>
                                                             </div>
                                                         </td>
                                                         <td className="f-12">
-                                                            {new Date(session.session_start).toLocaleString()}
+                                                            {session.started_at ? new Date(session.started_at).toLocaleString() : 'Not started'}
                                                         </td>
                                                         <td>
                                                             {session.duration_seconds
@@ -405,11 +400,11 @@ const SessionHistory: React.FC = () => {
                                                 </tr>
                                                 <tr>
                                                     <td className="text-muted">Frequency</td>
-                                                    <td>{(selectedSessionData.source_frequency / 1e6).toFixed(3)} MHz</td>
+                                                    <td>{selectedSessionData.source_frequency ? (selectedSessionData.source_frequency / 1e6).toFixed(3) + ' MHz' : 'N/A'}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="text-muted">Started</td>
-                                                    <td>{new Date(selectedSessionData.session_start).toLocaleString()}</td>
+                                                    <td>{selectedSessionData.started_at ? new Date(selectedSessionData.started_at).toLocaleString() : 'Not started'}</td>
                                                 </tr>
                                                 <tr>
                                                     <td className="text-muted">Duration</td>
@@ -463,10 +458,6 @@ const SessionHistory: React.FC = () => {
                                                 <tr>
                                                     <td className="text-muted">Created</td>
                                                     <td>{new Date(selectedSessionData.created_at).toLocaleString()}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td className="text-muted">Updated</td>
-                                                    <td>{new Date(selectedSessionData.updated_at).toLocaleString()}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
