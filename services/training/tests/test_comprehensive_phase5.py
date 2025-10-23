@@ -742,7 +742,7 @@ class TestErrorHandlingAndEdgeCases:
         x_nan = torch.randn(8, 3, 128, 32)
         x_nan[0, 0, 0, 0] = float('nan')
         # Loss computation should handle NaN
-        model = nn.Linear(10, 4)
+        model = nn.Linear(3 * 128 * 32, 4)
         output = model(x_nan.reshape(8, -1))
         assert torch.isnan(output).any() or True  # May propagate or handle
     
@@ -751,7 +751,7 @@ class TestErrorHandlingAndEdgeCases:
         x_inf = torch.randn(8, 3, 128, 32)
         x_inf[0, 0, 0, 0] = float('inf')
         # Loss computation should handle infinity
-        model = nn.Linear(10, 4)
+        model = nn.Linear(3 * 128 * 32, 4)
         output = model(x_inf.reshape(8, -1))
         # Verify graceful handling
     
@@ -772,7 +772,7 @@ class TestErrorHandlingAndEdgeCases:
     def test_float64_vs_float32(self):
         """Verify handling of different dtypes."""
         x_float64 = torch.randn(8, 3, 128, 32, dtype=torch.float64)
-        model = nn.Linear(10, 4)
+        model = nn.Linear(3 * 128 * 32, 4, dtype=torch.float64)
         # Should handle both dtypes
         output = model(x_float64.reshape(8, -1))
         assert output.dtype in [torch.float32, torch.float64]
