@@ -1,8 +1,66 @@
-@import "tailwindcss";
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
-
+/* CSS Custom Properties - Color Palette */
 :root {
+  /* Primary Colors */
+  --oxford-blue: #0b132b;
+  --neon-blue: #3a86ff;
+  --sea-green: #06a77d;
+  --light-green: #8ec63f;
+  --french-gray: #c5c6c8;
+  
+  /* Tailwind-like colors for compatibility */
+  --purple-50: #faf5ff;
+  --purple-200: #e9d5ff;
+  --purple-500: #a855f7;
+  --purple-600: #9333ea;
+  --purple-700: #7e22ce;
+  --indigo-400: #818cf8;
+  --indigo-600: #4f46e5;
+  --gray-50: #f9fafb;
+  --gray-200: #e5e7eb;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-900: #111827;
+  --red-50: #fef2f2;
+  --red-300: #fca5a5;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+  
+  /* Semantic colors */
+  --primary: var(--neon-blue);
+  --primary-foreground: #ffffff;
+  --secondary: var(--sea-green);
+  --secondary-foreground: #ffffff;
+  --destructive: var(--red-600);
+  --destructive-foreground: #ffffff;
+  --background: var(--oxford-blue);
+  --foreground: rgba(255, 255, 255, 0.95);
+  --card: var(--oxford-blue);
+  --card-foreground: rgba(255, 255, 255, 0.95);
+  --muted-foreground: var(--french-gray);
+  --accent: var(--light-green);
+  --accent-foreground: var(--oxford-blue);
+  --border: var(--neon-blue);
+  --input: var(--neon-blue);
+  --ring: var(--neon-blue);
+  
+  /* Spacing */
+  --spacing-xs: 0.125rem;
+  --spacing-sm: 0.25rem;
+  --spacing-md: 0.5rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
+  --spacing-2xl: 2rem;
+  --spacing-3xl: 3rem;
+  
+  /* Breakpoints (for reference) */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
   font-family: "Inter", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -18,7 +76,7 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #0b132b;
+  background-color: var(--oxford-blue);
   color: rgba(255, 255, 255, 0.95);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -33,4 +91,77 @@ a {
 
 button {
   cursor: pointer;
+}
+
+/* Global Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+/* Utility classes for animations */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
 }

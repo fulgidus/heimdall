@@ -1,5 +1,6 @@
 import React from 'react';
 import classNames from 'classnames';
+import './Input.css';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -11,38 +12,34 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ({ label, error, helperText, icon, className, ...props }, ref) => {
         return (
-            <div className="w-full">
+            <div className="input-wrapper">
                 {label && (
-                    <label className="block text-sm font-medium text-french-gray mb-2">
+                    <label className="input-label">
                         {label}
                     </label>
                 )}
-                <div className="relative">
+                <div className="input-container">
                     {icon && (
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neon-blue">
+                        <div className="input-icon">
                             {icon}
                         </div>
                     )}
                     <input
                         ref={ref}
                         className={classNames(
-                            'w-full px-4 py-2.5 rounded-lg',
-                            'bg-oxford-blue border border-neon-blue border-opacity-30',
-                            'text-white placeholder-french-gray placeholder-opacity-50',
-                            'focus:outline-none focus:ring-2 focus:ring-neon-blue focus:border-transparent',
-                            'focus:bg-opacity-50 transition-all duration-200',
-                            { 'pl-10': !!icon },
-                            { 'border-red-500 focus:ring-red-500': !!error },
+                            'input-field',
+                            { 'input-field-with-icon': !!icon },
+                            { 'input-field-error': !!error },
                             className
                         )}
                         {...props}
                     />
                 </div>
                 {error && (
-                    <p className="text-red-400 text-sm mt-1">{error}</p>
+                    <p className="input-error-text">{error}</p>
                 )}
                 {helperText && !error && (
-                    <p className="text-french-gray text-sm mt-1 opacity-75">{helperText}</p>
+                    <p className="input-helper-text">{helperText}</p>
                 )}
             </div>
         );

@@ -1,0 +1,72 @@
+/* Input Component Styles */
+.input-wrapper {
+    width: 100%;
+}
+
+.input-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--french-gray);
+    margin-bottom: 0.5rem;
+}
+
+.input-container {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--neon-blue);
+}
+
+.input-field {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--oxford-blue);
+    border: 1px solid var(--neon-blue);
+    border-opacity: 0.3;
+    color: white;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.input-field::placeholder {
+    color: var(--french-gray);
+    opacity: 0.5;
+}
+
+.input-field:focus {
+    box-shadow: 0 0 0 2px var(--neon-blue);
+    border-color: transparent;
+    background-color: rgba(11, 19, 43, 0.5);
+}
+
+.input-field-with-icon {
+    padding-left: 2.5rem;
+}
+
+.input-field-error {
+    border-color: var(--red-500);
+}
+
+.input-field-error:focus {
+    box-shadow: 0 0 0 2px var(--red-500);
+}
+
+.input-error-text {
+    color: var(--red-400);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.input-helper-text {
+    color: var(--french-gray);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    opacity: 0.75;
+}

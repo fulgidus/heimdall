@@ -1,5 +1,6 @@
 import React from 'react';
 import classNames from 'classnames';
+import './Card.css';
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
     variant?: 'default' | 'bordered' | 'elevated';
@@ -8,18 +9,12 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
     ({ variant = 'default', className, children, ...props }, ref) => {
-        const variantClasses = {
-            default: 'bg-gradient-to-br from-oxford-blue to-sea-green border border-neon-blue border-opacity-20',
-            bordered: 'bg-oxford-blue border-2 border-neon-blue',
-            elevated: 'bg-oxford-blue border border-french-gray border-opacity-30 shadow-xl',
-        };
-
         return (
             <div
                 ref={ref}
                 className={classNames(
-                    'rounded-lg p-6 transition-all duration-200 backdrop-blur-sm',
-                    variantClasses[variant],
+                    'card',
+                    `card-${variant}`,
                     className
                 )}
                 {...props}
