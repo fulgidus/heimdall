@@ -23,6 +23,83 @@
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
 
 
+## 📋 Project Organization Standards
+
+### Documentation Standards
+
+All documentation files must follow these strict standards:
+
+**Language Requirements:**
+- All documentation MUST be in English (exception: Italian section in bilingual `README.md`)
+- The main `README.md` is bilingual: English section first, followed by Italian translation
+- All technical documentation, guides, and API references must be in English only
+
+**File Location and Naming:**
+- **Root directory** - Only these 4 essential files:
+  - `README.md` - Main project README (bilingual)
+  - `AGENTS.md` - Project phase management guide
+  - `CHANGELOG.md` - Version history following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+  - `WEBSDRS.md` - WebSDR receiver configuration
+
+- **`/docs/` directory** - All public-facing documentation:
+  - `index.md` - Main documentation portal (must be in English)
+  - API references, architecture guides, tutorials, etc.
+  - All files in English only
+
+- **`/docs/agents/` directory** - Internal tracking and progress documents:
+  - Format: `YYYYMMDD_HHmmss_description.md`
+  - Example: `20251023_153000_phase6_completion_summary.md`
+  - Use lowercase with underscores for description
+  - All timestamps use 24-hour format
+  - When creating new tracking documents, always use this format
+
+**Markdown File Standards:**
+- Use proper markdown formatting (headers, lists, code blocks)
+- Include table of contents for documents >500 lines
+- Link to related documents using relative paths
+- Preserve code blocks and technical terms during any translations
+- Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format for CHANGELOG.md
+- Use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for version numbers
+
+### Script Organization Standards
+
+All utility scripts must be organized in the `/scripts/` directory:
+
+**Script Location:**
+- **`/scripts/` directory** - All utility, test, and automation scripts:
+  - Python scripts (`.py`)
+  - Shell scripts (`.sh`)
+  - PowerShell scripts (`.ps1`)
+  - Batch scripts (`.bat`)
+
+**Root Directory Exceptions:**
+- `conftest.py` - Pytest configuration (must remain in root)
+- Any scripts required by CI/CD that must be in root
+
+**Script Naming Conventions:**
+- Use descriptive names: `test_health_endpoint.py`, `load_test.py`
+- Use underscores for Python scripts: `health_check.py`
+- Use hyphens for shell scripts: `health-check.sh`
+- Include action in name: `generate_`, `test_`, `check_`, `monitor_`
+
+**Script Categories in `/scripts/`:**
+- **Testing scripts**: `test_*.py`, `test_*.sh`
+- **Health checks**: `health-check.*`, `*_health_*.py`
+- **Load testing**: `load_test*.py`, `performance_benchmark.py`
+- **Setup/deployment**: `dev-setup.ps1`, `start-*.ps1`
+- **Utilities**: `check_*.py`, `inspect_*.py`, `monitor_*.py`
+- **Generation**: `generate_*.py`, `create_*.py`
+- **Documentation**: `reorganize_docs.py`
+
+### Enforcement
+
+These standards are mandatory for all contributions:
+- Automated scripts enforce file naming conventions
+- CI/CD checks verify documentation is in English
+- Pull requests must follow these standards
+- Use `scripts/reorganize_docs.py` to maintain compliance
+
+
 ## 📚 Documentation Convention
 
 **All project documentation has been consolidated in the `/docs/` folder.**
