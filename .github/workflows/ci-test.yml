@@ -221,6 +221,8 @@ jobs:
   # Frontend testing job
   frontend-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - uses: actions/checkout@v4
