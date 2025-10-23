@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Frontend testing integrated into CI pipeline with Node.js 20 and Vitest
+- Parallel execution of backend and frontend tests for faster CI runs
+- ESLint linting for frontend code (non-blocking)
+- TypeScript build verification in CI (blocking on errors)
+- Comprehensive frontend testing documentation in contributing guide
 - Phase 7: Frontend UI complete rebuild with Datta Able template
 - Analytics page rebuilt with real backend data integration
 - Comprehensive testing frameworks
@@ -22,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frontend development documentation with bilingual support
 
 ### Changed
+- **CI/CD Pipeline Enhancement**
+  - Added `frontend-test` job to GitHub Actions workflow
+  - Backend and frontend tests now run in parallel
+  - Test summary job checks both backend and frontend results
+  - npm caching for faster frontend dependency installation
+  - Security: Added explicit permissions (contents: read) to frontend-test job
+- **Documentation Updates**
+  - Updated `docs/testing_strategies.md` with frontend testing examples
+  - Updated `docs/contributing.md` with frontend test commands
+  - Documented parallel execution strategy for CI
 - **Frontend UI rebuild (Phase 4 COMPLETE - 8/8 pages 100%)**
   - Analytics page: Complete rebuild using Datta Able Bootstrap components
   - WebSDR Management page: Complete rebuild with real-time health monitoring
