@@ -1,4 +1,4 @@
-# 🚀 Data Ingestion Frontend - START HERE
+# 🚀 Date Ingestion Frontend - START HERE
 
 **Last Updated**: 22 October 2025  
 **Status**: ✅ **PRODUCTION READY**  
@@ -8,7 +8,7 @@
 
 ## ⚡ TL;DR
 
-Abbiamo completato il **vero Data Ingestion Frontend** (non il WebSDR Management):
+We have completato il **vero Date Ingestion Frontend** (non il WebSDR Management):
 
 - ✅ **Backend**: 5 file Python/FastAPI, 4 API endpoints, Celery integration
 - ✅ **Frontend**: 4 React components, Zustand store, real-time polling
@@ -22,7 +22,7 @@ Abbiamo completato il **vero Data Ingestion Frontend** (non il WebSDR Management
 
 ## 🎯 Files to Check First
 
-| File                                 | Purpose                             | Time   |
+| Files                                 | Purpose                             | Time   |
 | ------------------------------------ | ----------------------------------- | ------ |
 | `DATA_INGESTION_ITALIANO.md`         | Italian summary (start here!)       | 5 min  |
 | `DATA_INGESTION_COMPLETE_SUMMARY.md` | Executive summary with architecture | 10 min |
@@ -50,7 +50,7 @@ npm run dev
 
 ### Test the Flow
 1. Open http://localhost:5173
-2. Click "Data Ingestion" in sidebar
+2. Click "Date Ingestion" in sidebar
 3. Leave defaults or customize
 4. Click "START ACQUISITION"
 5. Watch session appear in queue
@@ -98,7 +98,7 @@ quick_test.sh                  # Bash test script
 
 ---
 
-## 🔄 Complete Data Flow
+## 🔄 Complete Date Flow
 
 ```
 User Creates Session

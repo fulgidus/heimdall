@@ -323,7 +323,7 @@ Response 200:
 
 | Aspetto                | Prima ❌        | Dopo ✅                                            |
 | ---------------------- | -------------- | ------------------------------------------------- |
-| **Data**               | Hardcoded mock | Real-time da DB                                   |
+| **Date**               | Hardcoded mock | Real-time da DB                                   |
 | **Create Button**      | Non funziona   | Fully functional                                  |
 | **Polling**            | Nessuno        | Auto-refresh 5s                                   |
 | **Form**               | Non esiste     | Complete with validation                          |
