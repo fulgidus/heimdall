@@ -28,8 +28,12 @@ import tempfile
 import json
 from typing import Tuple, Dict, Any
 
-# Import Phase 5 modules (assuming structure from earlier T5.* implementations)
-# These would need to be adjusted based on actual import paths
+# Import Phase 5 modules
+try:
+    from data.features import iq_to_mel_spectrogram, compute_mfcc, normalize_features
+except ImportError:
+    # Fallback to src.data for pytest
+    from src.data.features import iq_to_mel_spectrogram, compute_mfcc, normalize_features
 
 
 # ============================================================================
@@ -182,20 +186,18 @@ class TestFeatureExtraction:
         norm2 = self._normalize_features(norm1)
         np.testing.assert_allclose(norm1, norm2, rtol=1e-5)
     
-    # Helper methods (would use actual imports in real tests)
+    # Helper methods using actual implementations
     def _extract_mel_spectrogram(self, iq_data):
-        """Extract mel-spectrogram (placeholder)."""
-        # In real implementation, import from features.py
-        magnitude = np.abs(iq_data)
-        return magnitude.reshape(128, -1)[:, :375].astype(np.float32)
+        """Extract mel-spectrogram using real implementation."""
+        return iq_to_mel_spectrogram(iq_data)
     
     def _compute_mfcc(self, mel_spec):
-        """Compute MFCC (placeholder)."""
-        return mel_spec[:13, :]
+        """Compute MFCC using real implementation."""
+        return compute_mfcc(mel_spec)
     
     def _normalize_features(self, features):
-        """Normalize features (placeholder)."""
-        return (features - np.mean(features)) / (np.std(features) + 1e-8)
+        """Normalize features using real implementation."""
+        return normalize_features(features)
 
 
 # ============================================================================
