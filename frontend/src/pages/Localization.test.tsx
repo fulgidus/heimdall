@@ -15,7 +15,7 @@ vi.mock('../store', async () => {
                     id: '1',
                     latitude: 45.123,
                     longitude: 7.456,
-                    accuracy: 25.5,
+                    uncertainty_m: 25.5,
                     confidence: 0.92,
                     timestamp: '2025-01-01T12:00:00Z',
                     active_receivers: 7,
