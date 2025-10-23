@@ -80,10 +80,41 @@
 
 ### Task-Specific Documentation
 
+#### Task 5.6: MLflow Integration
 | Document                          | Purpose                              |
 | --------------------------------- | ------------------------------------ |
 | [phase5_t5_6_mlflow_complete.md](20251022_080000_phase5_t5_6_mlflow_complete.md) | Task 5.6 MLflow completion |
+| [t5_6_deliverables_manifest.md](20251022_080000_t5_6_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_6_file_index.md](20251022_080000_t5_6_file_index.md) | Complete file listing and organization |
+| [t5_6_implementation_checklist.md](20251022_080000_t5_6_implementation_checklist.md) | Implementation tasks and verification |
+| [t5_6_completion_report.md](20251022_080000_t5_6_completion_report.md) | Detailed completion report |
+| [t5_6_complete_summary.md](20251022_080000_t5_6_complete_summary.md) | Completion summary |
+| [t5_6_quick_summary.md](20251022_080000_t5_6_quick_summary.md) | Quick reference summary |
+| [t5_6_update_agents_md.md](20251022_080000_t5_6_update_agents_md.md) | AGENTS.md update notes |
+
+#### Task 5.7: ONNX Export
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
 | [phase5_t5_7_onnx_complete.md](20251022_080000_phase5_t5_7_onnx_complete.md) | Task 5.7 ONNX export completion |
+| [t5_7_deliverables_manifest.md](20251022_080000_t5_7_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_7_file_index.md](20251022_080000_t5_7_file_index.md) | Complete file listing and organization |
+| [t5_7_implementation_checklist.md](20251022_080000_t5_7_implementation_checklist.md) | Implementation tasks and verification |
+| [t5_7_completion_report.md](20251022_080000_t5_7_completion_report.md) | Detailed completion report |
+| [t5_7_quick_summary.md](20251022_080000_t5_7_quick_summary.md) | Quick reference summary |
+| [t5_7_update_agents_md.md](20251022_080000_t5_7_update_agents_md.md) | AGENTS.md update notes |
+
+#### Task 5.8: Training Entry Point
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [t5_8_training_entry_complete.md](20251022_080000_t5_8_training_entry_complete.md) | Task 5.8 training entry completion |
+| [t5_8_deliverables_manifest.md](20251022_080000_t5_8_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_8_readme.md](20251022_080000_t5_8_readme.md) | Task README and overview |
+| [t5_8_quick_summary.md](20251022_080000_t5_8_quick_summary.md) | Quick reference summary |
+| [t5_8_final_verification.md](20251022_080000_t5_8_final_verification.md) | Final verification checklist |
+
+#### Tasks 5.9 & 5.10
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
 | [phase5_t5_9_t5_10_complete.md](20251022_080000_phase5_t5_9_t5_10_complete.md) | Tasks 5.9 & 5.10 completion |
 
 ### Architecture & Progress

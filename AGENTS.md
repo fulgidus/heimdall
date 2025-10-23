@@ -1601,12 +1601,15 @@ Each phase must maintain knowledge through:
 
 ### Handoff Protocols
 
+Smooth transitions between agents and sessions are critical for project continuity. The [Agent Handoff Protocol](docs/agents/20251022_080000_handoff_protocol.md) provides detailed procedures for maintaining context and ensuring seamless knowledge transfer across work sessions.
+
 When transitioning between phases:
 1. Complete all checkpoints in current phase
 2. Document any deviations from original plan
 3. Update `.copilot-instructions` with new learnings
 4. Brief next agent on critical decisions and constraints
 5. Ensure all artifacts are properly versioned and accessible
+6. Follow the mandatory update rules defined in the handoff protocol
 
 ---
 
