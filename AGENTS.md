@@ -950,6 +950,7 @@ After CP3.* pass, merge feature branch into `develop` and proceed to Phase 4.
 **Critical Path**: NO (completed, Phase 5 can start immediately)
 
 **📋 Tracking**:
+- [Phase 4 Index](docs/agents/20251022_080000_phase4_index.md) - Navigation hub
 - [Phase 4 Progress Dashboard](docs/agents/20251022_080000_phase4_progress_dashboard.md) - 50% complete (2/4 tasks done)
 - [Phase 4 Plan](docs/agents/20251022_080000_phase4_plan.md) - Detailed plan
 - [Phase 4 Handoff Status](docs/agents/20251022_080000_phase4_handoff_status.md) - Infrastructure verified
@@ -1358,6 +1359,7 @@ When inference service is validated, proceed to Phase 7: Frontend
 **Critical Path**: YES
 
 **📋 Tracking**:
+- [Phase 7 Index](docs/agents/20251023_153000_phase7_index.md) - Navigation hub
 - [Phase 7 Start Here](docs/agents/20251023_153000_phase7_start_here.md) - Getting started
 - [Phase 7 Quick Start](docs/agents/20251023_153000_phase7_quick_start.md) - Quick reference
 - [Phase 7 Frontend Complete](docs/agents/20251023_153000_phase7_frontend_complete.md) - Status report

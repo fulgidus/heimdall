@@ -115,12 +115,12 @@ The project follows a structured phase-based development approach. For detailed 
 - **[Phase 1: Infrastructure & Database](agents/20251022_080000_phase1_index.md)** - Infrastructure setup complete
 - **[Phase 2: Core Services Scaffolding](agents/20251022_080000_phase2_complete.md)** - Microservices scaffolding complete
 - **[Phase 3: RF Acquisition Service](agents/20251022_080000_phase3_index.md)** - WebSDR data acquisition complete
-- **[Phase 4: Data Ingestion & Validation](agents/20251022_080000_phase4_progress_dashboard.md)** - Infrastructure validation complete
+- **[Phase 4: Data Ingestion & Validation](agents/20251022_080000_phase4_index.md)** - Infrastructure validation complete
 - **[Phase 5: Training Pipeline](agents/20251022_080000_phase5_document_index.md)** - ML training pipeline complete
 - **[Phase 6: Inference Service](agents/20251023_153000_phase6_index.md)** - Real-time inference complete
 
 ### Active Phases
-- **[Phase 7: Frontend](agents/20251023_153000_phase7_start_here.md)** - React + Mapbox UI (In Progress)
+- **[Phase 7: Frontend](agents/20251023_153000_phase7_index.md)** - React + Mapbox UI (In Progress)
 
 ### Upcoming Phases
 - **Phase 8: Kubernetes & Deployment** - Production deployment
