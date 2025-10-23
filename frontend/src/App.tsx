@@ -14,8 +14,7 @@ import {
     DataIngestion,
 } from './pages';
 import { useAuthStore } from './store';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import './index.css';
+import DattaLayout from './components/layout/DattaLayout';
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
@@ -28,7 +27,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         return <Navigate to="/login" replace />;
     }
 
-    return <>{children}</>;
+    return <DattaLayout>{children}</DattaLayout>;
 };
 
 function App() {
@@ -42,111 +41,89 @@ function App() {
                 <Route
                     path="/dashboard"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Dashboard />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/localization"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Localization />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Localization />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/analytics"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Analytics />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Analytics />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/data-ingestion"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <DataIngestion />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <DataIngestion />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/projects"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Projects />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Projects />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/settings"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Settings />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Settings />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/profile"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <Profile />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <Profile />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/recording"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <RecordingSession />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <RecordingSession />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/history"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <SessionHistory />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <SessionHistory />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/websdrs"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <WebSDRManagement />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <WebSDRManagement />
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/system-status"
                     element={
-                        <SidebarProvider>
-                            <ProtectedRoute>
-                                <SystemStatus />
-                            </ProtectedRoute>
-                        </SidebarProvider>
+                        <ProtectedRoute>
+                            <SystemStatus />
+                        </ProtectedRoute>
                     }
                 />
 
