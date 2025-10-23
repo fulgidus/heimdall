@@ -1,440 +1,302 @@
-'use client';
+import React, { useEffect, useState } from 'react';
+import { useSessionStore } from '../store/sessionStore';
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    LogOut,
-    Home,
-    MapPin,
-    Radio,
-    BarChart3,
-    Zap,
-    Radar,
-    Menu,
-    X,
-    Check,
-    Trash2,
-    X as XIcon,
-    RefreshCw,
-    AlertCircle,
-} from 'lucide-react';
-import { useAuthStore, useSessionStore } from '../store';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-
-export const SessionHistory: React.FC = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuthStore();
+const SessionHistory: React.FC = () => {
     const {
         sessions,
         analytics,
+        currentPage,
+        totalSessions,
+        perPage,
+        statusFilter,
+        approvalFilter,
         isLoading,
         error,
         fetchSessions,
         fetchAnalytics,
-        approveSession,
-        rejectSession,
-        deleteSession,
         setStatusFilter,
-        totalSessions,
+        setApprovalFilter,
+        clearError,
     } = useSessionStore();
-    
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [filterStatus, setFilterStatus] = useState('all');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    // Load sessions and analytics on mount
+    const [selectedSession, setSelectedSession] = useState<string | null>(null);
+
     useEffect(() => {
-        fetchSessions();
-        fetchAnalytics();
-    }, [fetchSessions, fetchAnalytics]);
+        const loadData = async () => {
+            await fetchSessions({
+                page: currentPage,
+                per_page: perPage,
+                status: statusFilter || undefined,
+                approval_status: approvalFilter || undefined,
+            });
+            await fetchAnalytics();
+        };
+        loadData();
 
-    // Handle refresh
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await Promise.all([fetchSessions(), fetchAnalytics()]);
-        setIsRefreshing(false);
+        // Auto-refresh every minute
+        const interval = setInterval(() => {
+            fetchSessions({
+                page: currentPage,
+                per_page: perPage,
+                status: statusFilter || undefined,
+                approval_status: approvalFilter || undefined,
+            });
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [currentPage, perPage, statusFilter, approvalFilter, fetchSessions, fetchAnalytics]);
+
+    const handlePageChange = (newPage: number) => {
+        fetchSessions({
+            page: newPage,
+            per_page: perPage,
+            status: statusFilter || undefined,
+            approval_status: approvalFilter || undefined,
+        });
     };
 
-    // Handle status filter change
-    const handleStatusFilterChange = (status: string) => {
-        setFilterStatus(status);
-        if (status === 'all') {
-            setStatusFilter(null);
-        } else {
-            setStatusFilter(status);
-        }
-    };
+    const totalPages = Math.ceil(totalSessions / perPage);
 
-    // Handle approval
-    const handleApprove = async (id: string) => {
-        try {
-            await approveSession(id);
-        } catch (error) {
-            console.error('Failed to approve session:', error);
-        }
-    };
-
-    // Handle rejection
-    const handleReject = async (id: string) => {
-        try {
-            await rejectSession(id);
-        } catch (error) {
-            console.error('Failed to reject session:', error);
-        }
-    };
-
-    // Handle delete
-    const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this session?')) {
-            try {
-                await deleteSession(id);
-            } catch (error) {
-                console.error('Failed to delete session:', error);
-            }
-        }
-    };
-
-    // Filter sessions by search term
-    const filteredSessions = sessions.filter((session) =>
-        session.session_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (session.source_frequency / 1000000).toFixed(3).includes(searchTerm)
-    );
-
-    const menuItems = [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
-        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
-        { icon: Radio, label: 'Recording Sessions', path: '/history', active: true },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
-        { icon: Zap, label: 'Settings', path: '/settings', active: false },
-    ];
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setSidebarOpen(false);
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'completed':
-                return 'bg-green-500/20 text-green-400 border-green-500/50';
-            case 'pending':
-            case 'in_progress':
-                return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-            case 'failed':
-                return 'bg-red-500/20 text-red-400 border-red-500/50';
-            default:
-                return 'bg-gray-500/20 text-gray-400 border-gray-500/50';
-        }
-    };
-
-    const getStatusLabel = (status: string) => {
-        switch (status) {
-            case 'completed':
-                return '✓ Completed';
-            case 'pending':
-                return '⏳ Pending';
-            case 'in_progress':
-                return '▶ In Progress';
-            case 'failed':
-                return '✗ Failed';
-            default:
-                return status;
-        }
-    };
-
-    const formatFrequency = (freqHz: number) => {
-        return (freqHz / 1000000).toFixed(3) + ' MHz';
-    };
-
-    const formatDuration = (seconds?: number) => {
-        if (!seconds) return 'N/A';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}m ${secs}s`;
-    };
+    const selectedSessionData = sessions.find(s => s.id === selectedSession);
 
     return (
-        <div className="flex h-screen w-screen bg-slate-950">
-            {/* Sidebar */}
-            <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
-                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
-                transition-all duration-300 overflow-hidden flex flex-col`}
-            >
-                <div className="p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <Radar className="w-8 h-8 text-purple-500" />
-                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
-                    </div>
-                </div>
-
-                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-                    {menuItems.map((item, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleNavigation(item.path)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                                item.active
-                                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                    : 'text-slate-300 hover:bg-slate-800/50'
-                            }`}
-                        >
-                            <item.icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
-
-                <div className="p-4 border-t border-slate-800">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="w-full justify-start text-slate-300">
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
-                                    AD
-                                </div>
-                                <span className="ml-2 text-sm">admin</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-                                Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
-                <header className="bg-slate-900 border-b border-slate-800 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                            </Button>
-                            <h1 className="text-3xl font-bold text-white">Session History</h1>
+        <>
+            {/* Breadcrumb */}
+            <div className="page-header">
+                <div className="page-block">
+                    <div className="row align-items-center">
+                        <div className="col-md-12">
+                            <ul className="breadcrumb">
+                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li className="breadcrumb-item"><a href="#">RF Operations</a></li>
+                                <li className="breadcrumb-item" aria-current="page">Session History</li>
+                            </ul>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRefresh}
-                            disabled={isRefreshing}
-                            className="border-slate-700 text-slate-300"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                            Refresh
-                        </Button>
-                    </div>
-                </header>
-
-                <div className="flex-1 overflow-auto p-6">
-                    <div className="space-y-6 max-w-7xl mx-auto">
-                        {/* Error Alert */}
-                        {error && (
-                            <Alert className="bg-red-900/20 border-red-800">
-                                <AlertCircle className="h-4 w-4 text-red-500" />
-                                <AlertDescription className="text-red-300">{error}</AlertDescription>
-                            </Alert>
-                        )}
-
-                        {/* Analytics Cards */}
-                        {analytics && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardContent className="p-6">
-                                        <p className="text-slate-400 text-sm">Total Sessions</p>
-                                        <p className="text-3xl font-bold text-white mt-2">
-                                            {analytics.total_sessions}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardContent className="p-6">
-                                        <p className="text-slate-400 text-sm">Completed</p>
-                                        <p className="text-3xl font-bold text-green-400 mt-2">
-                                            {analytics.completed_sessions}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardContent className="p-6">
-                                        <p className="text-slate-400 text-sm">Success Rate</p>
-                                        <p className="text-3xl font-bold text-cyan-400 mt-2">
-                                            {analytics.success_rate.toFixed(1)}%
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-slate-900 border-slate-800">
-                                    <CardContent className="p-6">
-                                        <p className="text-slate-400 text-sm">Measurements</p>
-                                        <p className="text-3xl font-bold text-purple-400 mt-2">
-                                            {analytics.total_measurements}
-                                        </p>
-                                    </CardContent>
-                                </Card>
+                        <div className="col-md-12">
+                            <div className="page-header-title">
+                                <h2 className="mb-0">Session History</h2>
                             </div>
-                        )}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        {/* Filters */}
-                        <Card className="bg-slate-900 border-slate-800">
-                            <CardContent className="p-4 flex gap-4 items-end">
-                                <div className="flex-1">
-                                    <label className="text-sm text-slate-400 mb-2 block">Search</label>
-                                    <Input
-                                        placeholder="Search by name or frequency..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="bg-slate-800 border-slate-700"
-                                    />
+            {/* Error Alert */}
+            {error && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {error}
+                    <button type="button" className="btn-close" data-bs-dismiss="alert" onClick={clearError}></button>
+                </div>
+            )}
+
+            {/* Analytics Cards */}
+            {analytics && (
+                <div className="row">
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-shrink-0">
+                                        <div className="avtar avtar-s bg-light-primary rounded">
+                                            <i className="ph ph-database f-20"></i>
+                                        </div>
+                                    </div>
+                                    <div className="flex-grow-1 ms-3">
+                                        <h6 className="mb-0">Total Sessions</h6>
+                                        <h4 className="mb-0">{analytics.total_sessions}</h4>
+                                    </div>
                                 </div>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="border-slate-700">
-                                            <span className="mr-2">Filter: {filterStatus}</span>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={() => handleStatusFilterChange('all')}>
-                                            All
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusFilterChange('completed')}>
-                                            Completed
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusFilterChange('pending')}>
-                                            Pending
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusFilterChange('failed')}>
-                                            Failed
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
+                    </div>
 
-                        {/* Sessions Table */}
-                        <Card className="bg-slate-900 border-slate-800">
-                            <CardHeader>
-                                <CardTitle className="text-white">Recording Sessions</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading && filteredSessions.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <RefreshCw className="w-12 h-12 mx-auto mb-4 text-purple-500 animate-spin" />
-                                        <p className="text-slate-400">Loading sessions...</p>
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-shrink-0">
+                                        <div className="avtar avtar-s bg-light-success rounded">
+                                            <i className="ph ph-check-circle f-20"></i>
+                                        </div>
                                     </div>
-                                ) : filteredSessions.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-slate-400">No sessions found</p>
+                                    <div className="flex-grow-1 ms-3">
+                                        <h6 className="mb-0">Completed</h6>
+                                        <h4 className="mb-0">{analytics.completed_sessions}</h4>
                                     </div>
-                                ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead className="border-b border-slate-700">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-shrink-0">
+                                        <div className="avtar avtar-s bg-light-warning rounded">
+                                            <i className="ph ph-clock f-20"></i>
+                                        </div>
+                                    </div>
+                                    <div className="flex-grow-1 ms-3">
+                                        <h6 className="mb-0">Pending</h6>
+                                        <h4 className="mb-0">{analytics.pending_sessions}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-md-6 col-xl-3">
+                        <div className="card">
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-shrink-0">
+                                        <div className="avtar avtar-s bg-light-info rounded">
+                                            <i className="ph ph-chart-line f-20"></i>
+                                        </div>
+                                    </div>
+                                    <div className="flex-grow-1 ms-3">
+                                        <h6 className="mb-0">Success Rate</h6>
+                                        <h4 className="mb-0">{analytics.success_rate.toFixed(1)}%</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Sessions Table */}
+            <div className="row">
+                <div className="col-12">
+                    <div className="card">
+                        <div className="card-header">
+                            <div className="d-flex align-items-center justify-content-between">
+                                <h5 className="mb-0">Recording Sessions</h5>
+                                <div className="btn-group">
+                                    <button
+                                        className={`btn btn-sm ${statusFilter === null ? 'btn-primary' : 'btn-outline-primary'}`}
+                                        onClick={() => setStatusFilter(null)}
+                                    >
+                                        All
+                                    </button>
+                                    <button
+                                        className={`btn btn-sm ${statusFilter === 'completed' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                        onClick={() => setStatusFilter('completed')}
+                                    >
+                                        Completed
+                                    </button>
+                                    <button
+                                        className={`btn btn-sm ${statusFilter === 'pending' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                        onClick={() => setStatusFilter('pending')}
+                                    >
+                                        Pending
+                                    </button>
+                                    <button
+                                        className={`btn btn-sm ${statusFilter === 'failed' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                        onClick={() => setStatusFilter('failed')}
+                                    >
+                                        Failed
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="card-body">
+                            {isLoading ? (
+                                <div className="text-center py-5">
+                                    <div className="spinner-border text-primary" role="status">
+                                        <span className="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p className="text-muted mt-2">Loading sessions...</p>
+                                </div>
+                            ) : sessions.length > 0 ? (
+                                <>
+                                    <div className="table-responsive">
+                                        <table className="table table-hover mb-0">
+                                            <thead>
                                                 <tr>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Session</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Frequency</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Date</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Duration</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Status</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Approval</th>
-                                                    <th className="text-left py-3 px-4 text-slate-400">Actions</th>
+                                                    <th>Session</th>
+                                                    <th>Source</th>
+                                                    <th>Started</th>
+                                                    <th>Duration</th>
+                                                    <th>Status</th>
+                                                    <th>Approval</th>
+                                                    <th>Measurements</th>
+                                                    <th>Actions</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-800">
-                                                {filteredSessions.map((session) => (
-                                                    <tr key={session.id} className="hover:bg-slate-800/50">
-                                                        <td className="py-3 px-4">
+                                            <tbody>
+                                                {sessions.map((session) => (
+                                                    <tr
+                                                        key={session.id}
+                                                        className={selectedSession === session.id ? 'table-active' : ''}
+                                                    >
+                                                        <td>
+                                                            <h6 className="mb-0">{session.session_name}</h6>
+                                                            {session.notes && (
+                                                                <p className="text-muted f-12 mb-0 text-truncate" style={{ maxWidth: '200px' }}>
+                                                                    {session.notes}
+                                                                </p>
+                                                            )}
+                                                        </td>
+                                                        <td>
                                                             <div>
-                                                                <p className="text-white font-medium">
-                                                                    {session.session_name}
-                                                                </p>
-                                                                <p className="text-slate-500 text-xs">
-                                                                    {session.source_name}
-                                                                </p>
+                                                                <div className="mb-1">{session.source_name}</div>
+                                                                <span className="f-12 text-muted">
+                                                                    {(session.source_frequency / 1e6).toFixed(3)} MHz
+                                                                </span>
                                                             </div>
                                                         </td>
-                                                        <td className="py-3 px-4 text-cyan-400">
-                                                            {formatFrequency(session.source_frequency)}
-                                                        </td>
-                                                        <td className="py-3 px-4 text-slate-300">
+                                                        <td className="f-12">
                                                             {new Date(session.session_start).toLocaleString()}
                                                         </td>
-                                                        <td className="py-3 px-4 text-slate-300">
-                                                            {formatDuration(session.duration_seconds)}
+                                                        <td>
+                                                            {session.duration_seconds
+                                                                ? `${Math.round(session.duration_seconds / 60)}min`
+                                                                : '-'}
                                                         </td>
-                                                        <td className="py-3 px-4">
+                                                        <td>
                                                             <span
-                                                                className={`px-2 py-1 rounded text-xs font-semibold border ${getStatusBadge(
-                                                                    session.status
-                                                                )}`}
+                                                                className={`badge ${session.status === 'completed'
+                                                                        ? 'bg-light-success'
+                                                                        : session.status === 'in_progress'
+                                                                            ? 'bg-light-primary'
+                                                                            : session.status === 'failed'
+                                                                                ? 'bg-light-danger'
+                                                                                : 'bg-light-warning'
+                                                                    }`}
                                                             >
-                                                                {getStatusLabel(session.status)}
+                                                                {session.status}
                                                             </span>
                                                         </td>
-                                                        <td className="py-3 px-4">
+                                                        <td>
                                                             <span
-                                                                className={`px-2 py-1 rounded text-xs font-semibold border ${getStatusBadge(
-                                                                    session.approval_status
-                                                                )}`}
+                                                                className={`badge ${session.approval_status === 'approved'
+                                                                        ? 'bg-light-success'
+                                                                        : session.approval_status === 'rejected'
+                                                                            ? 'bg-light-danger'
+                                                                            : 'bg-light-warning'
+                                                                    }`}
                                                             >
                                                                 {session.approval_status}
                                                             </span>
                                                         </td>
-                                                        <td className="py-3 px-4">
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="text-green-400 hover:text-green-300"
-                                                                    onClick={() => handleApprove(session.id)}
-                                                                    disabled={session.approval_status === 'approved'}
+                                                        <td>{session.measurements_count}</td>
+                                                        <td>
+                                                            <div className="btn-group">
+                                                                <button
+                                                                    className="btn btn-sm btn-link-primary"
+                                                                    onClick={() => setSelectedSession(session.id)}
+                                                                    title="View Details"
                                                                 >
-                                                                    <Check className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="text-red-400 hover:text-red-300"
-                                                                    onClick={() => handleReject(session.id)}
-                                                                    disabled={session.approval_status === 'rejected'}
+                                                                    <i className="ph ph-eye"></i>
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-sm btn-link-secondary"
+                                                                    title="Download"
                                                                 >
-                                                                    <XIcon className="w-4 h-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="text-slate-400 hover:text-slate-300"
-                                                                    onClick={() => handleDelete(session.id)}
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
+                                                                    <i className="ph ph-download-simple"></i>
+                                                                </button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -442,20 +304,186 @@ export const SessionHistory: React.FC = () => {
                                             </tbody>
                                         </table>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
 
-                        {/* Pagination Info */}
-                        {totalSessions > 0 && (
-                            <div className="text-center text-slate-400 text-sm">
-                                Showing {filteredSessions.length} of {totalSessions} sessions
-                            </div>
-                        )}
+                                    {/* Pagination */}
+                                    {totalPages > 1 && (
+                                        <div className="d-flex justify-content-between align-items-center mt-3">
+                                            <span className="text-muted f-12">
+                                                Showing {sessions.length} of {totalSessions} sessions
+                                            </span>
+                                            <nav>
+                                                <ul className="pagination pagination-sm mb-0">
+                                                    <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                                                        <a
+                                                            className="page-link"
+                                                            href="#!"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                if (currentPage > 1) handlePageChange(currentPage - 1);
+                                                            }}
+                                                        >
+                                                            Previous
+                                                        </a>
+                                                    </li>
+                                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map((page) => (
+                                                        <li key={page} className={`page-item ${currentPage === page ? 'active' : ''}`}>
+                                                            <a
+                                                                className="page-link"
+                                                                href="#!"
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    handlePageChange(page);
+                                                                }}
+                                                            >
+                                                                {page}
+                                                            </a>
+                                                        </li>
+                                                    ))}
+                                                    <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                                                        <a
+                                                            className="page-link"
+                                                            href="#!"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                                                            }}
+                                                        >
+                                                            Next
+                                                        </a>
+                                                    </li>
+                                                </ul>
+                                            </nav>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-center py-5">
+                                    <i className="ph ph-folder-open f-40 text-muted mb-3"></i>
+                                    <p className="text-muted mb-0">No recording sessions found</p>
+                                    <a href="/recording" className="btn btn-primary mt-3">
+                                        <i className="ph ph-plus-circle me-1"></i>
+                                        Create New Session
+                                    </a>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+
+            {/* Session Details Modal/Panel */}
+            {selectedSessionData && (
+                <div className="row">
+                    <div className="col-12">
+                        <div className="card">
+                            <div className="card-header d-flex align-items-center justify-content-between">
+                                <h5 className="mb-0">Session Details</h5>
+                                <button
+                                    className="btn btn-sm btn-link-secondary"
+                                    onClick={() => setSelectedSession(null)}
+                                >
+                                    <i className="ph ph-x"></i>
+                                </button>
+                            </div>
+                            <div className="card-body">
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <h6>Session Information</h6>
+                                        <table className="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td className="text-muted">ID</td>
+                                                    <td>{selectedSessionData.id}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Name</td>
+                                                    <td>{selectedSessionData.session_name}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Source</td>
+                                                    <td>{selectedSessionData.source_name}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Frequency</td>
+                                                    <td>{(selectedSessionData.source_frequency / 1e6).toFixed(3)} MHz</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Started</td>
+                                                    <td>{new Date(selectedSessionData.session_start).toLocaleString()}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Duration</td>
+                                                    <td>
+                                                        {selectedSessionData.duration_seconds
+                                                            ? `${Math.round(selectedSessionData.duration_seconds / 60)} minutes`
+                                                            : 'N/A'}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <h6>Status & Results</h6>
+                                        <table className="table table-sm">
+                                            <tbody>
+                                                <tr>
+                                                    <td className="text-muted">Status</td>
+                                                    <td>
+                                                        <span
+                                                            className={`badge ${selectedSessionData.status === 'completed'
+                                                                    ? 'bg-light-success'
+                                                                    : selectedSessionData.status === 'failed'
+                                                                        ? 'bg-light-danger'
+                                                                        : 'bg-light-warning'
+                                                                }`}
+                                                        >
+                                                            {selectedSessionData.status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Approval</td>
+                                                    <td>
+                                                        <span
+                                                            className={`badge ${selectedSessionData.approval_status === 'approved'
+                                                                    ? 'bg-light-success'
+                                                                    : selectedSessionData.approval_status === 'rejected'
+                                                                        ? 'bg-light-danger'
+                                                                        : 'bg-light-warning'
+                                                                }`}
+                                                        >
+                                                            {selectedSessionData.approval_status}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Measurements</td>
+                                                    <td>{selectedSessionData.measurements_count}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Created</td>
+                                                    <td>{new Date(selectedSessionData.created_at).toLocaleString()}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td className="text-muted">Updated</td>
+                                                    <td>{new Date(selectedSessionData.updated_at).toLocaleString()}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {selectedSessionData.notes && (
+                                        <div className="col-12">
+                                            <h6>Notes</h6>
+                                            <p className="text-muted">{selectedSessionData.notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

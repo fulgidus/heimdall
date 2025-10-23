@@ -1,449 +1,359 @@
-'use client';
+import React, { useEffect, useState } from 'react';
+import { useSessionStore } from '../store/sessionStore';
+import { useWebSDRStore } from '../store/websdrStore';
+import { acquisitionService } from '../services/api';
+import type { AcquisitionStatusResponse } from '../services/api/types';
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    LogOut,
-    Home,
-    MapPin,
-    Radio,
-    BarChart3,
-    Zap,
-    Radar,
-    Menu,
-    X,
-    Play,
-    Square,
-    Check,
-    X as XIcon,
-    AlertCircle,
-    Wifi,
-} from 'lucide-react';
-import { useAuthStore, useWebSDRStore, useAcquisitionStore } from '../store';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+const RecordingSession: React.FC = () => {
+    const {
+        knownSources,
+        fetchKnownSources,
+        createSession,
+        isLoading: sessionLoading,
+        error: sessionError,
+    } = useSessionStore();
 
-interface WebSDRStatus {
-    name: string;
-    online: boolean;
-    snr: number;
-    frequency: string;
-}
+    const { websdrs, healthStatus, fetchWebSDRs } = useWebSDRStore();
 
-export const RecordingSession: React.FC = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuthStore();
-    const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
-    const { startAcquisition, pollTask } = useAcquisitionStore();
-    
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordingProgress, setRecordingProgress] = useState(0);
-    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
-    const [sessionName, setSessionName] = useState('');
-    const [frequency, setFrequency] = useState('145.500');
-    const [duration, setDuration] = useState('60');
-    const [description, setDescription] = useState('');
-    const [isKnownSource, setIsKnownSource] = useState(false);
-
-    // Load WebSDRs and their health status on mount
-    useEffect(() => {
-        fetchWebSDRs();
-        checkHealth();
-    }, [fetchWebSDRs, checkHealth]);
-
-    // Poll health status every 10 seconds
-    useEffect(() => {
-        const interval = setInterval(() => {
-            checkHealth();
-        }, 10000);
-
-        return () => clearInterval(interval);
-    }, [checkHealth]);
-
-    // Convert WebSDRs to display format
-    const webSdrStatus: WebSDRStatus[] = websdrs.map((websdr) => {
-        const health = healthStatus[websdr.id];
-        return {
-            name: websdr.location_name.split(',')[0], // Extract city name
-            online: health?.status === 'online',
-            snr: health?.status === 'online' ? 15 + Math.random() * 10 : 0, // Simulated SNR
-            frequency: `${(parseFloat(frequency)).toFixed(3)}`,
-        };
+    const [formData, setFormData] = useState({
+        knownSourceId: '',
+        sessionName: '',
+        frequency: '',
+        duration: 60,
+        notes: '',
     });
 
-    const menuItems = [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
-        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
-        { icon: Radio, label: 'Recording Sessions', path: '/projects', active: true },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
-        { icon: Zap, label: 'Settings', path: '/settings', active: false },
-    ];
+    const [acquisitionStatus, setAcquisitionStatus] = useState<AcquisitionStatusResponse | null>(null);
+    const [isAcquiring, setIsAcquiring] = useState(false);
+    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
+    useEffect(() => {
+        fetchKnownSources();
+        fetchWebSDRs();
+    }, [fetchKnownSources, fetchWebSDRs]);
 
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setSidebarOpen(false);
-    };
+    const selectedSource = knownSources.find(s => s.id === formData.knownSourceId);
+    const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
 
-    const handleStartRecording = async () => {
-        if (!sessionName.trim()) {
-            alert('Please enter a session name');
+    const handleStartAcquisition = async () => {
+        if (!formData.knownSourceId || !formData.sessionName) {
+            alert('Please select a source and enter a session name');
             return;
         }
 
         try {
-            setIsRecording(true);
-            setRecordingProgress(0);
+            setIsAcquiring(true);
 
-            const durationSeconds = parseFloat(duration);
-
-            // Start acquisition (session_name is stored separately in session management)
-            const response = await startAcquisition({
-                frequency_mhz: parseFloat(frequency),
-                duration_seconds: durationSeconds,
+            // Create session in database
+            const session = await createSession({
+                known_source_id: formData.knownSourceId,
+                session_name: formData.sessionName,
+                frequency_hz: parseFloat(formData.frequency) * 1e6,
+                duration_seconds: formData.duration,
+                notes: formData.notes,
             });
 
-            setCurrentTaskId(response.task_id);
-            console.log(`Recording started: ${sessionName}, Task ID: ${response.task_id}`);
-
-            // Poll task status for progress
-            await pollTask(response.task_id, (status) => {
-                setRecordingProgress(status.progress || 0);
+            // Trigger acquisition
+            const acquisitionResponse = await acquisitionService.triggerAcquisition({
+                frequency_mhz: parseFloat(formData.frequency),
+                duration_seconds: formData.duration,
+                session_id: session.id,
             });
 
-            // Recording complete
-            setIsRecording(false);
-            setRecordingProgress(100);
-            alert('Recording completed successfully!');
+            setCurrentTaskId(acquisitionResponse.task_id);
 
+            // Poll status
+            const finalStatus = await acquisitionService.pollAcquisitionStatus(
+                acquisitionResponse.task_id,
+                (status) => {
+                    setAcquisitionStatus(status);
+                }
+            );
+
+            setAcquisitionStatus(finalStatus);
         } catch (error) {
-            console.error('Recording failed:', error);
-            alert('Recording failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
-            setIsRecording(false);
-            setRecordingProgress(0);
+            console.error('Acquisition failed:', error);
+            alert('Failed to start acquisition');
+        } finally {
+            setIsAcquiring(false);
         }
     };
 
-    const handleStopRecording = () => {
-        // In a real implementation, we would cancel the Celery task
-        if (currentTaskId) {
-            console.log(`Stopping task: ${currentTaskId}`);
-        }
-        setIsRecording(false);
-        setRecordingProgress(0);
+    const handleReset = () => {
+        setFormData({
+            knownSourceId: '',
+            sessionName: '',
+            frequency: '',
+            duration: 60,
+            notes: '',
+        });
+        setAcquisitionStatus(null);
         setCurrentTaskId(null);
     };
 
     return (
-        <div className="flex h-screen w-screen bg-slate-950">
-            {/* Sidebar */}
-            <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
-                bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
-                transition-all duration-300 overflow-hidden flex flex-col`}
-            >
-                {/* Logo Section */}
-                <div className="p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <Radar className="w-8 h-8 text-purple-500" />
-                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
-                    </div>
-                </div>
-
-                {/* Menu Items */}
-                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-                    {menuItems.map((item, idx) => {
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleNavigation(item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                        ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                        : 'text-slate-300 hover:bg-slate-800/50'
-                                    }`}
-                            >
-                                <Icon className="w-5 h-5" />
-                                <span className="font-medium">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-
-                {/* User Section */}
-                <div className="p-4 border-t border-slate-800">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
-                                    AD
-                                </div>
-                                <span className="ml-2 text-sm">admin</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-                                Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
-                {/* Header */}
-                <header className="bg-slate-900 border-b border-slate-800 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                            </Button>
-                            <h1 className="text-3xl font-bold text-white">
-                                {isRecording ? '🔴 Recording in Progress' : 'Start New Recording Session'}
-                            </h1>
+        <>
+            {/* Breadcrumb */}
+            <div className="page-header">
+                <div className="page-block">
+                    <div className="row align-items-center">
+                        <div className="col-md-12">
+                            <ul className="breadcrumb">
+                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li className="breadcrumb-item"><a href="#">RF Operations</a></li>
+                                <li className="breadcrumb-item" aria-current="page">Recording Session</li>
+                            </ul>
+                        </div>
+                        <div className="col-md-12">
+                            <div className="page-header-title">
+                                <h2 className="mb-0">Create Recording Session</h2>
+                            </div>
                         </div>
                     </div>
-                </header>
+                </div>
+            </div>
 
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                        {/* Left: Recording Form & Controls */}
-                        <div className="lg:col-span-1 space-y-4">
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardHeader>
-                                    <CardTitle className="text-white">Session Configuration</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Session Name */}
-                                    <div>
-                                        <label className="text-sm text-slate-400 mb-2 block">Session Name</label>
-                                        <Input
-                                            placeholder="e.g., Session Alpha - 2m Band"
-                                            value={sessionName}
-                                            onChange={(e) => setSessionName(e.target.value)}
-                                            disabled={isRecording}
-                                            className="bg-slate-800 border-slate-700"
-                                        />
-                                    </div>
+            {/* Error Alert */}
+            {sessionError && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {sessionError}
+                    <button type="button" className="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            )}
 
-                                    {/* Frequency */}
-                                    <div>
-                                        <label className="text-sm text-slate-400 mb-2 block">Target Frequency (MHz)</label>
-                                        <Input
-                                            type="number"
-                                            step="0.001"
-                                            placeholder="145.500"
-                                            value={frequency}
-                                            onChange={(e) => setFrequency(e.target.value)}
-                                            disabled={isRecording}
-                                            className="bg-slate-800 border-slate-700"
-                                        />
-                                    </div>
-
-                                    {/* Duration */}
-                                    <div>
-                                        <label className="text-sm text-slate-400 mb-2 block">Duration (seconds)</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="60"
-                                            value={duration}
-                                            onChange={(e) => setDuration(e.target.value)}
-                                            disabled={isRecording}
-                                            className="bg-slate-800 border-slate-700"
-                                        />
-                                    </div>
-
-                                    {/* Description */}
-                                    <div>
-                                        <label className="text-sm text-slate-400 mb-2 block">Notes (optional)</label>
-                                        <textarea
-                                            placeholder="Any notes about this recording..."
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            disabled={isRecording}
-                                            rows={3}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded text-slate-200 p-2 text-sm"
-                                        />
-                                    </div>
-
-                                    {/* Known Source Checkbox */}
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            id="known-source"
-                                            checked={isKnownSource}
-                                            onChange={(e) => setIsKnownSource(e.target.checked)}
-                                            disabled={isRecording}
-                                            className="w-4 h-4"
-                                        />
-                                        <label htmlFor="known-source" className="text-sm text-slate-300">
-                                            Known RF source (for supervised training)
-                                        </label>
-                                    </div>
-
-                                    {/* Recording Controls */}
-                                    <div className="flex gap-2 pt-4">
-                                        {!isRecording ? (
-                                            <Button
-                                                onClick={handleStartRecording}
-                                                className="w-full bg-green-600 hover:bg-green-700"
-                                            >
-                                                <Play className="w-4 h-4 mr-2" />
-                                                Start Recording
-                                            </Button>
-                                        ) : (
-                                            <Button
-                                                onClick={handleStopRecording}
-                                                className="w-full bg-red-600 hover:bg-red-700"
-                                            >
-                                                <Square className="w-4 h-4 mr-2" />
-                                                Stop Recording
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+            <div className="row">
+                {/* Session Configuration */}
+                <div className="col-lg-8">
+                    <div className="card">
+                        <div className="card-header">
+                            <h5 className="mb-0">Session Configuration</h5>
                         </div>
-
-                        {/* Middle: Live Monitor */}
-                        <div className="lg:col-span-2 space-y-4">
-                            {/* Recording Progress */}
-                            {isRecording && (
-                                <Card className="bg-slate-900 border-green-600/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-green-400 flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-                                            Recording Progress
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-slate-300">
-                                                    {Math.round(recordingProgress)}% complete
-                                                </span>
-                                                <span className="text-slate-400">
-                                                    {Math.round((recordingProgress / 100) * parseInt(duration))}s / {duration}s
-                                                </span>
-                                            </div>
-                                            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-linear-to-r from-green-500 to-cyan-500 transition-all"
-                                                    style={{ width: `${recordingProgress}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            {/* WebSDR Status - SNR Monitor */}
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-white">
-                                        <Wifi className="w-5 h-5 text-cyan-400" />
-                                        WebSDR Status & Signal Quality
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        {webSdrStatus.map((sdr, idx) => (
-                                            <div
-                                                key={idx}
-                                                className={`p-3 rounded border ${sdr.online
-                                                        ? 'bg-green-500/10 border-green-500/50'
-                                                        : 'bg-red-500/10 border-red-500/50'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className="font-semibold text-white">{sdr.name}</p>
-                                                        <p
-                                                            className={`text-sm ${sdr.online ? 'text-green-400' : 'text-red-400'
-                                                                }`}
-                                                        >
-                                                            {sdr.online ? `SNR: ${sdr.snr.toFixed(1)} dB` : 'Offline'}
-                                                        </p>
-                                                    </div>
-                                                    {sdr.online ? (
-                                                        <Check className="w-5 h-5 text-green-500" />
-                                                    ) : (
-                                                        <XIcon className="w-5 h-5 text-red-500" />
-                                                    )}
-                                                </div>
-                                            </div>
+                        <div className="card-body">
+                            <div className="row g-3">
+                                <div className="col-12">
+                                    <label className="form-label">Known Source *</label>
+                                    <select
+                                        className="form-select"
+                                        value={formData.knownSourceId}
+                                        onChange={(e) => {
+                                            const source = knownSources.find(s => s.id === e.target.value);
+                                            setFormData({
+                                                ...formData,
+                                                knownSourceId: e.target.value,
+                                                frequency: source ? (source.frequency_hz / 1e6).toString() : '',
+                                            });
+                                        }}
+                                        disabled={isAcquiring}
+                                    >
+                                        <option value="">Select a source...</option>
+                                        {knownSources.map((source) => (
+                                            <option key={source.id} value={source.id}>
+                                                {source.name} - {(source.frequency_hz / 1e6).toFixed(3)} MHz
+                                            </option>
                                         ))}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                    </select>
+                                </div>
 
-                            {/* Spectrogram Placeholder */}
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardHeader>
-                                    <CardTitle className="text-white">Live Spectrogram Monitor</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="h-48 flex items-center justify-center border border-slate-700 rounded bg-slate-800/50">
-                                        <div className="text-center">
-                                            <p className="text-slate-500">📊 Spectrogram visualization</p>
-                                            <p className="text-slate-600 text-sm mt-2">
-                                                {isRecording ? 'Updating in real-time...' : 'Waiting for recording to start'}
-                                            </p>
+                                <div className="col-md-6">
+                                    <label className="form-label">Session Name *</label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        value={formData.sessionName}
+                                        onChange={(e) => setFormData({ ...formData, sessionName: e.target.value })}
+                                        placeholder="e.g., Beacon Recording 2024-10-23"
+                                        disabled={isAcquiring}
+                                    />
+                                </div>
+
+                                <div className="col-md-6">
+                                    <label className="form-label">Frequency (MHz) *</label>
+                                    <input
+                                        type="number"
+                                        className="form-control"
+                                        value={formData.frequency}
+                                        onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
+                                        step="0.001"
+                                        min="144"
+                                        max="148"
+                                        disabled={isAcquiring}
+                                    />
+                                </div>
+
+                                <div className="col-12">
+                                    <label className="form-label">Duration (seconds)</label>
+                                    <input
+                                        type="range"
+                                        className="form-range"
+                                        min="10"
+                                        max="300"
+                                        step="10"
+                                        value={formData.duration}
+                                        onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                                        disabled={isAcquiring}
+                                    />
+                                    <div className="d-flex justify-content-between">
+                                        <span className="f-12 text-muted">10s</span>
+                                        <span className="badge bg-primary">{formData.duration}s</span>
+                                        <span className="f-12 text-muted">300s (5min)</span>
+                                    </div>
+                                </div>
+
+                                <div className="col-12">
+                                    <label className="form-label">Notes (Optional)</label>
+                                    <textarea
+                                        className="form-control"
+                                        rows={3}
+                                        value={formData.notes}
+                                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                        placeholder="Additional notes about this recording session..."
+                                        disabled={isAcquiring}
+                                    ></textarea>
+                                </div>
+
+                                {selectedSource && (
+                                    <div className="col-12">
+                                        <div className="alert alert-info">
+                                            <h6 className="mb-2">Source Information</h6>
+                                            <table className="table table-sm table-borderless mb-0">
+                                                <tbody>
+                                                    <tr>
+                                                        <td className="text-muted">Name:</td>
+                                                        <td>{selectedSource.name}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Location:</td>
+                                                        <td>
+                                                            {selectedSource.latitude.toFixed(4)}, {selectedSource.longitude.toFixed(4)}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td className="text-muted">Power:</td>
+                                                        <td>{selectedSource.power_dbm ? `${selectedSource.power_dbm} dBm` : 'N/A'}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Recording Status Info */}
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6 flex items-start gap-4">
-                                    <AlertCircle className="w-5 h-5 text-cyan-400 mt-1 shrink-0" />
-                                    <div className="text-sm text-slate-300">
-                                        <p className="font-semibold text-white mb-1">Recording Information</p>
-                                        <ul className="space-y-1 text-xs">
-                                            <li>• Target Frequency: <span className="text-cyan-400">{frequency} MHz</span></li>
-                                            <li>• Duration: <span className="text-cyan-400">{duration}s</span></li>
-                                            <li>• Active WebSDRs: <span className="text-green-400">{webSdrStatus.filter(s => s.online).length}/{webSdrStatus.length}</span></li>
-                                            <li>• Data Destination: <span className="text-cyan-400">MinIO Cloud Storage</span></li>
-                                            <li>• Status: <span className={isRecording ? 'text-green-400' : 'text-yellow-400'}>{isRecording ? 'RECORDING' : 'READY'}</span></li>
-                                        </ul>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                )}
+                            </div>
+                        </div>
+                        <div className="card-footer">
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleStartAcquisition}
+                                disabled={isAcquiring || !formData.knownSourceId || !formData.sessionName}
+                            >
+                                {isAcquiring ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2"></span>
+                                        Acquiring...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="ph ph-record me-2"></i>
+                                        Start Acquisition
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                className="btn btn-outline-secondary ms-2"
+                                onClick={handleReset}
+                                disabled={isAcquiring}
+                            >
+                                <i className="ph ph-arrow-counter-clockwise me-2"></i>
+                                Reset
+                            </button>
                         </div>
                     </div>
                 </div>
-            </main>
-        </div>
+
+                {/* Status Panel */}
+                <div className="col-lg-4">
+                    {/* System Status */}
+                    <div className="card">
+                        <div className="card-header">
+                            <h5 className="mb-0">System Status</h5>
+                        </div>
+                        <div className="card-body">
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <span>WebSDR Receivers</span>
+                                <span className="badge bg-light-primary">{onlineWebSDRs}/7 Online</span>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <span>Known Sources</span>
+                                <span className="badge bg-light-info">{knownSources.length}</span>
+                            </div>
+                            <div className="d-flex justify-content-between align-items-center">
+                                <span>System Ready</span>
+                                <span className={`badge ${onlineWebSDRs > 0 ? 'bg-light-success' : 'bg-light-danger'}`}>
+                                    {onlineWebSDRs > 0 ? 'Yes' : 'No'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Acquisition Status */}
+                    {acquisitionStatus && (
+                        <div className="card">
+                            <div className="card-header">
+                                <h5 className="mb-0">Acquisition Status</h5>
+                            </div>
+                            <div className="card-body">
+                                <div className="d-flex align-items-center mb-3">
+                                    <div className={`avtar avtar-s ${acquisitionStatus.status === 'SUCCESS'
+                                            ? 'bg-light-success'
+                                            : acquisitionStatus.status === 'FAILURE'
+                                                ? 'bg-light-danger'
+                                                : 'bg-light-primary'
+                                        }`}>
+                                        <i className={`ph ${acquisitionStatus.status === 'SUCCESS'
+                                                ? 'ph-check-circle'
+                                                : acquisitionStatus.status === 'FAILURE'
+                                                    ? 'ph-x-circle'
+                                                    : 'ph-hourglass'
+                                            }`}></i>
+                                    </div>
+                                    <div className="ms-3 flex-grow-1">
+                                        <h6 className="mb-0">
+                                            {acquisitionStatus.status === 'SUCCESS'
+                                                ? 'Completed'
+                                                : acquisitionStatus.status === 'FAILURE'
+                                                    ? 'Failed'
+                                                    : 'In Progress'}
+                                        </h6>
+                                        <p className="text-muted f-12 mb-0">
+                                            {acquisitionStatus.state || 'Processing...'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {acquisitionStatus.progress !== undefined && (
+                                    <div className="mb-3">
+                                        <div className="d-flex justify-content-between mb-1">
+                                            <span className="f-12">Progress</span>
+                                            <span className="f-12">{Math.round(acquisitionStatus.progress * 100)}%</span>
+                                        </div>
+                                        <div className="progress" style={{ height: '6px' }}>
+                                            <div
+                                                className="progress-bar bg-primary"
+                                                style={{ width: `${acquisitionStatus.progress * 100}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {currentTaskId && (
+                                    <div className="f-12 text-muted">
+                                        Task ID: <code>{currentTaskId}</code>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </>
     );
 };
 
