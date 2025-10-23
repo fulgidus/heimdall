@@ -30,10 +30,14 @@ class TestMLflowTracker:
         # Mock the MLflow client and experiment creation to avoid database connection
         with patch('src.mlflow_setup.mlflow.set_tracking_uri'), \
              patch('src.mlflow_setup.mlflow.set_experiment') as mock_set_exp, \
-             patch('src.mlflow_setup.MlflowClient'):
+             patch('src.mlflow_setup.MlflowClient') as MockClient:
             
             # Mock experiment ID
             mock_set_exp.return_value = "test-experiment-id"
+            
+            # Create a mock client instance that will persist
+            mock_client_instance = Mock()
+            MockClient.return_value = mock_client_instance
             
             tracker = MLflowTracker(
                 tracking_uri="postgresql://test:test@localhost:5432/mlflow",
@@ -45,6 +49,9 @@ class TestMLflowTracker:
                 s3_secret_access_key="testsecret",
                 experiment_name="test-experiment",
             )
+            
+            # Ensure the client attribute is set and persists
+            tracker.client = mock_client_instance
             
             return tracker
     
