@@ -61,6 +61,54 @@ All documentation files must follow these strict standards:
 - Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format for CHANGELOG.md
 - Use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for version numbers
 
+**README.md Maintenance Guidelines:**
+
+The main `README.md` file requires regular verification to ensure accuracy with the current project state.
+
+**Setup Instructions Verification:**
+1. **Cross-platform compatibility**: Always use cross-platform commands
+   - Use `cp` instead of Windows-specific `copy`
+   - Verify commands work on Linux, macOS, and Windows (Git Bash)
+   - Add clarifying comments for each setup step
+
+2. **Command accuracy**: Verify all commands are correct and functional
+   - Test `cp .env.example .env` (creates configuration file)
+   - Test `docker-compose up -d` (starts all infrastructure)
+   - Test `make health-check` (verifies services are running)
+   - Ensure script paths are correct (e.g., `scripts/health-check.py`)
+
+3. **Documentation links**: Keep all links current and accurate
+   - Use correct paths: `docs/agents/YYYYMMDD_HHmmss_filename.md`
+   - Update links when files are renamed or moved
+   - Verify links point to existing files, not orphaned references
+   - Examples: `phase1_guide.md`, `phase4_completion_final.md`, `phase5_handoff.md`
+
+4. **Project status updates**: Reflect actual development progress
+   - Update phase status headers to show current phase
+   - Mark completed phases with ✅ COMPLETE
+   - Add new phases as they are completed
+   - Keep phase descriptions accurate (not outdated "READY TO START" when already done)
+   - Update both English and Italian sections consistently
+
+5. **Architecture accuracy**: Ensure technical details match current implementation
+   - Verify service names and descriptions
+   - Check technology stack is current
+   - Validate performance metrics reflect latest benchmarks
+   - Confirm deployment instructions match actual setup
+
+**Bilingual Consistency:**
+- English section comes first, Italian section follows
+- Both sections must have identical content (just translated)
+- Both sections must have same structure and links
+- Update both when making changes to either
+
+**When to Update README.md:**
+- After completing a new phase
+- When commands or setup procedures change
+- When documentation is reorganized or files moved
+- When performance benchmarks are updated
+- During major architecture changes
+
 **Preventing Orphaned Files:**
 
 All documentation files MUST be discoverable and contextual. Orphaned files (not linked from anywhere) are NOT allowed.
