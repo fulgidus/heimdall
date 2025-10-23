@@ -42,20 +42,20 @@ interface SessionStore {
         approval_status?: string;
     }) => Promise<void>;
 
-    fetchSession: (sessionId: string) => Promise<void>;
+    fetchSession: (sessionId: number) => Promise<void>;
 
     createSession: (session: RecordingSessionCreate) => Promise<RecordingSession>;
 
     updateSessionStatus: (
-        sessionId: string,
+        sessionId: number,
         status: string,
         celeryTaskId?: string
     ) => Promise<void>;
 
-    approveSession: (sessionId: string) => Promise<void>;
-    rejectSession: (sessionId: string) => Promise<void>;
+    approveSession: (sessionId: number) => Promise<void>;
+    rejectSession: (sessionId: number) => Promise<void>;
 
-    deleteSession: (sessionId: string) => Promise<void>;
+    deleteSession: (sessionId: number) => Promise<void>;
 
     fetchAnalytics: () => Promise<void>;
 
@@ -105,7 +105,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    fetchSession: async (sessionId: string) => {
+    fetchSession: async (sessionId: number) => {
         set({ isLoading: true, error: null });
         try {
             const session = await sessionService.getSession(sessionId);
@@ -135,7 +135,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    updateSessionStatus: async (sessionId: string, status: string, celeryTaskId?: string) => {
+    updateSessionStatus: async (sessionId: number, status: string, celeryTaskId?: string) => {
         try {
             await sessionService.updateSessionStatus(sessionId, status, celeryTaskId);
 
@@ -152,7 +152,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    approveSession: async (sessionId: string) => {
+    approveSession: async (sessionId: number) => {
         try {
             await sessionService.updateSessionApproval(sessionId, 'approved');
 
@@ -169,7 +169,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    rejectSession: async (sessionId: string) => {
+    rejectSession: async (sessionId: number) => {
         try {
             await sessionService.updateSessionApproval(sessionId, 'rejected');
 
@@ -186,7 +186,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    deleteSession: async (sessionId: string) => {
+    deleteSession: async (sessionId: number) => {
         try {
             await sessionService.deleteSession(sessionId);
 

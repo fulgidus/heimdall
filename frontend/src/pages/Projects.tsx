@@ -29,7 +29,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { RecordingSession } from '../types/session';
 
 export const Projects: React.FC = () => {
     const navigate = useNavigate();
@@ -57,7 +56,11 @@ export const Projects: React.FC = () => {
         }
         setSubmitting(true);
         try {
-            await createSession(newSessionName, parseFloat(newSessionFrequency), parseInt(newSessionDuration));
+            await createSession({
+                session_name: newSessionName,
+                frequency_mhz: parseFloat(newSessionFrequency),
+                duration_seconds: parseInt(newSessionDuration),
+            });
             setNewSessionName('');
             setNewSessionFrequency('145.5');
             setNewSessionDuration('10');
@@ -88,7 +91,7 @@ export const Projects: React.FC = () => {
         }
     };
 
-    const getStatusColor = (status: RecordingSession['status']) => {
+    const getStatusColor = (status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed') => {
         switch (status) {
             case 'processing':
             case 'pending':
@@ -102,9 +105,10 @@ export const Projects: React.FC = () => {
         }
     };
 
-    const getStatusLabel = (status: RecordingSession['status']) => {
+    const getStatusLabel = (status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed') => {
         switch (status) {
             case 'processing':
+            case 'in_progress':
                 return 'Processing';
             case 'pending':
                 return 'Pending';
@@ -112,8 +116,6 @@ export const Projects: React.FC = () => {
                 return 'Completed';
             case 'failed':
                 return 'Failed';
-            case 'cancelled':
-                return 'Cancelled';
             default:
                 return status;
         }
@@ -144,7 +146,7 @@ export const Projects: React.FC = () => {
 
     const formatFrequency = (freq: number) => `${freq.toFixed(3)} MHz`;
     const formatDuration = (seconds: number) => `${seconds} sec`;
-    const formatDateTime = (dateStr: string | null) => {
+    const formatDateTime = (dateStr: string | null | undefined) => {
         if (!dateStr) return 'Not started';
         const date = new Date(dateStr);
         return date.toLocaleString('it-IT');
@@ -249,7 +251,7 @@ export const Projects: React.FC = () => {
                         {error && (
                             <Card className="bg-red-500/10 border-red-500/50">
                                 <CardContent className="p-4 flex items-center gap-3 text-red-400">
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    <AlertCircle className="w-5 h-5 shrink-0" />
                                     <div>
                                         <p className="font-semibold">Error Loading Sessions</p>
                                         <p className="text-sm">{error}</p>
@@ -358,7 +360,7 @@ export const Projects: React.FC = () => {
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-3">
                                                             {session.status === 'processing' && (
-                                                                <Loader className="w-5 h-5 text-green-400 animate-spin flex-shrink-0" />
+                                                                <Loader className="w-5 h-5 text-green-400 animate-spin shrink-0" />
                                                             )}
                                                             <div>
                                                                 <h3 className="text-white font-bold text-lg">

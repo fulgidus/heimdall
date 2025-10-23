@@ -1,240 +1,410 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-    LogOut,
-    Home,
-    MapPin,
-    Radio,
-    BarChart3,
-    Zap,
-    Radar,
-    Menu,
-    X,
-    Settings,
-} from 'lucide-react';
-import { useAuthStore } from '../store';
+import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { RecordingSessionCreator } from '../components/RecordingSessionCreator';
-import { SessionsList } from '../components/SessionsList';
 
-export const DataIngestion: React.FC = () => {
-    const navigate = useNavigate();
-    const { logout } = useAuthStore();
-    const { sessions } = useSessionStore();
+const DataIngestion: React.FC = () => {
+    const {
+        knownSources,
+        sessions,
+        analytics,
+        isLoading,
+        error,
+        fetchKnownSources,
+        fetchSessions,
+        fetchAnalytics,
+        clearError,
+    } = useSessionStore();
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<'sources' | 'sessions'>('sources');
 
-    const menuItems = [
-        { icon: Home, label: 'Dashboard', path: '/dashboard', active: false },
-        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
-        { icon: Radio, label: 'Data Ingestion', path: '/data-ingestion', active: true },
-        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
-        { icon: Settings, label: 'Settings', path: '/settings', active: false },
-    ];
+    useEffect(() => {
+        // Load data on mount
+        const loadData = async () => {
+            await Promise.all([
+                fetchKnownSources(),
+                fetchSessions(),
+                fetchAnalytics(),
+            ]);
+        };
+        loadData();
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
+        // Auto-refresh every minute
+        const interval = setInterval(() => {
+            fetchSessions();
+            fetchAnalytics();
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [fetchKnownSources, fetchSessions, fetchAnalytics]);
+
+    const handleRefresh = async () => {
+        await Promise.all([
+            fetchKnownSources(),
+            fetchSessions(),
+            fetchAnalytics(),
+        ]);
     };
 
-    const handleNavigation = (path: string) => {
-        navigate(path);
-        setSidebarOpen(false);
-    };
-
-    // Stats
-    const totalSessions = sessions.length;
-    const completedSessions = sessions.filter((s) => s.status === 'completed').length;
-    const processingSessions = sessions.filter((s) => s.status === 'processing').length;
-    const failedSessions = sessions.filter((s) => s.status === 'failed').length;
+    // Calculate statistics
+    const totalSources = knownSources.length;
+    const validatedSources = knownSources.filter(s => s.is_validated).length;
+    const pendingSessions = sessions.filter(s => s.status === 'pending').length;
+    const completedSessions = sessions.filter(s => s.status === 'completed').length;
+    const successRate = analytics?.success_rate || 0;
 
     return (
-        <div className="flex h-screen w-screen bg-slate-950">
-            {/* Sidebar */}
-            <aside
-                className={`${sidebarOpen ? 'w-64' : 'w-0'} 
-        bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 
-        transition-all duration-300 overflow-hidden flex flex-col`}
-            >
-                {/* Logo Section */}
-                <div className="p-6 border-b border-slate-800">
-                    <div className="flex items-center gap-3">
-                        <Radar className="w-8 h-8 text-purple-500" />
-                        <h1 className="text-xl font-bold text-white">Heimdall</h1>
+        <>
+            {/* Breadcrumb */}
+            <div className="page-header">
+                <div className="page-block">
+                    <div className="row align-items-center">
+                        <div className="col-md-12">
+                            <ul className="breadcrumb">
+                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
+                                <li className="breadcrumb-item"><a href="#">RF Operations</a></li>
+                                <li className="breadcrumb-item" aria-current="page">Data Ingestion</li>
+                            </ul>
+                        </div>
+                        <div className="col-md-12">
+                            <div className="page-header-title">
+                                <h2 className="mb-0">Data Ingestion</h2>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Menu Items */}
-                <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-                    {menuItems.map((item, idx) => {
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleNavigation(item.path)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${item.active
-                                    ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
-                                    : 'text-slate-300 hover:bg-slate-800/50'
-                                    }`}
-                            >
-                                <Icon className="w-5 h-5" />
-                                <span className="font-medium">{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
+            {/* Error Alert */}
+            {error && (
+                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Error!</strong> {error}
+                    <button type="button" className="btn-close" data-bs-dismiss="alert" onClick={clearError}></button>
+                </div>
+            )}
 
-                {/* User Section */}
-                <div className="p-4 border-t border-slate-800">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="w-full justify-start text-slate-300 hover:bg-slate-800"
-                            >
-                                <div className="w-8 h-8 rounded-full bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold">
-                                    AD
+            {/* Statistics Cards */}
+            <div className="row">
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-primary rounded">
+                                        <i className="ph ph-database f-20"></i>
+                                    </div>
                                 </div>
-                                <span className="ml-2 text-sm">admin</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-                                Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleNavigation('/settings')}>
-                                Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-400">
-                                <LogOut className="w-4 h-4 mr-2" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
-                {/* Header */}
-                <header className="bg-slate-900 border-b border-slate-800 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                className="text-slate-400 hover:text-white"
-                            >
-                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                            </Button>
-                            <h1 className="text-3xl font-bold text-white">Data Ingestion</h1>
-                        </div>
-                    </div>
-                </header>
-
-                {/* Content Area */}
-                <div className="flex-1 overflow-auto p-6">
-                    <div className="space-y-6 max-w-6xl mx-auto">
-                        {/* Statistics */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Total Sessions</p>
-                                            <p className="text-3xl font-bold text-purple-400 mt-2">{totalSessions}</p>
-                                        </div>
-                                        <Radio className="w-12 h-12 text-purple-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Completed</p>
-                                            <p className="text-3xl font-bold text-green-400 mt-2">{completedSessions}</p>
-                                        </div>
-                                        <Zap className="w-12 h-12 text-green-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Processing</p>
-                                            <p className="text-3xl font-bold text-cyan-400 mt-2">{processingSessions}</p>
-                                        </div>
-                                        <Zap className="w-12 h-12 text-cyan-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="bg-slate-900 border-slate-800">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-slate-400 text-sm">Failed</p>
-                                            <p className="text-3xl font-bold text-red-400 mt-2">{failedSessions}</p>
-                                        </div>
-                                        <Zap className="w-12 h-12 text-red-500 opacity-20" />
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Two Column Layout */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Creator Form (Left - 1 column) */}
-                            <div className="lg:col-span-1">
-                                <RecordingSessionCreator
-                                    onSessionCreated={(sessionId) => {
-                                        setSelectedSessionId(sessionId);
-                                    }}
-                                />
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Known Sources</h6>
+                                    <h4 className="mb-0">{totalSources}</h4>
+                                </div>
                             </div>
-
-                            {/* Sessions Queue (Right - 2 columns) */}
-                            <div className="lg:col-span-2">
-                                <SessionsList
-                                    onSessionSelect={(sessionId) => {
-                                        setSelectedSessionId(sessionId);
-                                    }}
-                                    autoRefresh={true}
-                                />
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Validated</p>
+                                    <span className="badge bg-light-success">{validatedSources}</span>
+                                </div>
                             </div>
                         </div>
-
-                        {/* Selected Session Details */}
-                        {selectedSessionId && (
-                            <Card className="bg-slate-900 border-slate-800 col-span-full">
-                                <CardHeader>
-                                    <CardTitle className="text-white">Session Details</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-slate-400">Session #{selectedSessionId} details will appear here</p>
-                                </CardContent>
-                            </Card>
-                        )}
                     </div>
                 </div>
-            </main>
-        </div>
+
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-warning rounded">
+                                        <i className="ph ph-clock f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Pending Sessions</h6>
+                                    <h4 className="mb-0">{pendingSessions}</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Status</p>
+                                    <span className="badge bg-light-warning">Awaiting</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-success rounded">
+                                        <i className="ph ph-check-circle f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Completed</h6>
+                                    <h4 className="mb-0">{completedSessions}</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Total Sessions</p>
+                                    <span className="badge bg-light-primary">{sessions.length}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="col-md-6 col-xl-3">
+                    <div className="card">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="avtar avtar-s bg-light-info rounded">
+                                        <i className="ph ph-chart-line f-20"></i>
+                                    </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                    <h6 className="mb-0">Success Rate</h6>
+                                    <h4 className="mb-0">{successRate.toFixed(1)}%</h4>
+                                </div>
+                            </div>
+                            <div className="bg-body p-2 mt-2 rounded">
+                                <div className="d-flex align-items-center justify-content-between">
+                                    <p className="text-muted mb-0 f-12">Quality</p>
+                                    <span className={`badge ${successRate > 80 ? 'bg-light-success' : successRate > 60 ? 'bg-light-warning' : 'bg-light-danger'}`}>
+                                        {successRate > 80 ? 'Excellent' : successRate > 60 ? 'Good' : 'Poor'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tabs Navigation */}
+            <div className="row">
+                <div className="col-12">
+                    <div className="card">
+                        <div className="card-header">
+                            <ul className="nav nav-tabs card-header-tabs" role="tablist">
+                                <li className="nav-item">
+                                    <a
+                                        className={`nav-link ${activeTab === 'sources' ? 'active' : ''}`}
+                                        href="#!"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setActiveTab('sources');
+                                        }}
+                                    >
+                                        <i className="ph ph-radio-button me-2"></i>
+                                        Known Sources ({totalSources})
+                                    </a>
+                                </li>
+                                <li className="nav-item">
+                                    <a
+                                        className={`nav-link ${activeTab === 'sessions' ? 'active' : ''}`}
+                                        href="#!"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setActiveTab('sessions');
+                                        }}
+                                    >
+                                        <i className="ph ph-record me-2"></i>
+                                        Recording Sessions ({sessions.length})
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="card-body">
+                            {/* Known Sources Tab */}
+                            {activeTab === 'sources' && (
+                                <>
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 className="mb-0">Known RF Sources</h5>
+                                        <div className="btn-group">
+                                            <button
+                                                className="btn btn-sm btn-outline-secondary"
+                                                onClick={handleRefresh}
+                                            >
+                                                <i className="ph ph-arrows-clockwise"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {isLoading ? (
+                                        <div className="text-center py-5">
+                                            <div className="spinner-border text-primary" role="status">
+                                                <span className="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p className="text-muted mt-2">Loading sources...</p>
+                                        </div>
+                                    ) : knownSources.length > 0 ? (
+                                        <div className="table-responsive">
+                                            <table className="table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Frequency</th>
+                                                        <th>Location</th>
+                                                        <th>Coordinates</th>
+                                                        <th>Power</th>
+                                                        <th>Validated</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {knownSources.map((source) => (
+                                                        <tr key={source.id}>
+                                                            <td>
+                                                                <div className="d-flex align-items-center">
+                                                                    <div className={`avtar avtar-xs ${source.is_validated ? 'bg-light-success' : 'bg-light-warning'}`}>
+                                                                        <i className="ph ph-radio-button"></i>
+                                                                    </div>
+                                                                    <div className="ms-2">
+                                                                        <h6 className="mb-0">{source.name}</h6>
+                                                                        {source.description && (
+                                                                            <p className="text-muted f-12 mb-0">{source.description}</p>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td>{(source.frequency_hz / 1e6).toFixed(3)} MHz</td>
+                                                            <td>{source.source_type || '-'}</td>
+                                                            <td className="f-12">
+                                                                {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
+                                                            </td>
+                                                            <td>{source.power_dbm ? `${source.power_dbm} dBm` : '-'}</td>
+                                                            <td>
+                                                                <span className={`badge ${source.is_validated ? 'bg-light-success' : 'bg-light-warning'}`}>
+                                                                    {source.is_validated ? 'Yes' : 'Pending'}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <div className="btn-group">
+                                                                    <button className="btn btn-sm btn-link-primary" title="View">
+                                                                        <i className="ph ph-eye"></i>
+                                                                    </button>
+                                                                    <button className="btn btn-sm btn-link-secondary" title="Edit">
+                                                                        <i className="ph ph-pencil-simple"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-5">
+                                            <i className="ph ph-radio-button f-40 text-muted mb-3"></i>
+                                            <p className="text-muted mb-0">No known sources configured</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Recording Sessions Tab */}
+                            {activeTab === 'sessions' && (
+                                <>
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 className="mb-0">Recording Sessions</h5>
+                                        <button className="btn btn-sm btn-outline-secondary" onClick={handleRefresh}>
+                                            <i className="ph ph-arrows-clockwise"></i>
+                                        </button>
+                                    </div>
+
+                                    {isLoading ? (
+                                        <div className="text-center py-5">
+                                            <div className="spinner-border text-primary" role="status">
+                                                <span className="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p className="text-muted mt-2">Loading sessions...</p>
+                                        </div>
+                                    ) : sessions.length > 0 ? (
+                                        <div className="table-responsive">
+                                            <table className="table table-hover mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Session</th>
+                                                        <th>Source</th>
+                                                        <th>Started</th>
+                                                        <th>Duration</th>
+                                                        <th>Status</th>
+                                                        <th>Approval</th>
+                                                        <th>Measurements</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sessions.map((session) => (
+                                                        <tr key={session.id}>
+                                                            <td>
+                                                                <h6 className="mb-0">{session.session_name}</h6>
+                                                                {session.notes && (
+                                                                    <p className="text-muted f-12 mb-0">{session.notes}</p>
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <div>
+                                                                    <div className="mb-1">{session.source_name}</div>
+                                                                    <span className="f-12 text-muted">
+                                                                        {session.source_frequency ? (session.source_frequency / 1e6).toFixed(3) + ' MHz' : 'N/A'}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="f-12">
+                                                                {session.started_at ? new Date(session.started_at).toLocaleString() : 'Not started'}
+                                                            </td>
+                                                            <td>
+                                                                {session.duration_seconds
+                                                                    ? `${Math.round(session.duration_seconds / 60)}min`
+                                                                    : '-'}
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    className={`badge ${session.status === 'completed'
+                                                                        ? 'bg-light-success'
+                                                                        : session.status === 'in_progress'
+                                                                            ? 'bg-light-primary'
+                                                                            : session.status === 'failed'
+                                                                                ? 'bg-light-danger'
+                                                                                : 'bg-light-warning'
+                                                                        }`}
+                                                                >
+                                                                    {session.status}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    className={`badge ${session.approval_status === 'approved'
+                                                                        ? 'bg-light-success'
+                                                                        : session.approval_status === 'rejected'
+                                                                            ? 'bg-light-danger'
+                                                                            : 'bg-light-warning'
+                                                                        }`}
+                                                                >
+                                                                    {session.approval_status}
+                                                                </span>
+                                                            </td>
+                                                            <td>{session.measurements_count}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-5">
+                                            <i className="ph ph-record f-40 text-muted mb-3"></i>
+                                            <p className="text-muted mb-0">No recording sessions yet</p>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
     );
 };
 
