@@ -9,39 +9,39 @@
 ## 🎯 START HERE - RECOMMENDED READING ORDER
 
 ### 1. Quick Overview (5 minutes)
-📄 **PHASE5_QUICK_REFERENCE.md**
+📄 **[phase5_quick_reference.md](20251022_080000_phase5_quick_reference.md)**
 - What was completed
 - Key files to know
 - Quick status overview
 
 ### 2. Session Summary (10 minutes)
-📄 **SESSION_COMPLETION_SUMMARY.md**
+📄 **[session_completion_summary.md](20251022_080000_session_completion_summary.md)**
 - Session achievements
 - What was delivered
 - Next steps
 
 ### 3. Verification Status (5 minutes)
-📄 **PHASE5_VERIFICATION_COMPLETE.md**
+📄 **[phase5_verification_complete.md](20251022_080000_phase5_verification_complete.md)**
 - Completion checklist
 - All metrics verified
 - Quality assurance passed
 
 ### 4. Detailed Session Report (20 minutes)
-📄 **PHASE5_COMPLETE_SESSION_REPORT.md**
+📄 **[phase5_complete_session_report.md](20251022_080000_phase5_complete_session_report.md)**
 - Executive summary
 - Task details
 - Technical achievements
 - Quality verification
 
 ### 5. Phase 6 Preparation (30 minutes)
-📄 **PHASE6_HANDOFF.md**
+📄 **[phase6_handoff.md](20251022_080000_phase6_handoff.md)**
 - Available assets
 - Integration points
 - API specifications
 - Success criteria
 
 ### 6. Complete Reference (60+ minutes)
-📄 **docs/TRAINING.md**
+📄 **[TRAINING.md](../TRAINING.md)**
 - Architecture overview
 - Design rationale
 - All 11 sections detailed
@@ -55,17 +55,74 @@
 
 | Document                        | Purpose                      | Read Time |
 | ------------------------------- | ---------------------------- | --------- |
-| PHASE5_QUICK_REFERENCE.md       | Quick overview of completion | 5 min     |
-| SESSION_COMPLETION_SUMMARY.md   | What was delivered           | 10 min    |
-| PHASE5_VERIFICATION_COMPLETE.md | Verification checklist       | 5 min     |
+| [phase5_quick_reference.md](20251022_080000_phase5_quick_reference.md) | Quick overview of completion | 5 min |
+| [session_completion_summary.md](20251022_080000_session_completion_summary.md) | What was delivered | 10 min |
+| [phase5_verification_complete.md](20251022_080000_phase5_verification_complete.md) | Verification checklist | 5 min |
+| [00_phase5_complete_final.md](20251022_080000_00_phase5_complete_final.md) | Final completion report | 10 min |
+| [00_phase5_executive_summary.md](20251022_080000_00_phase5_executive_summary.md) | Executive summary | 10 min |
 
 ### Detailed Documentation
 
 | Document                          | Purpose                              | Read Time |
 | --------------------------------- | ------------------------------------ | --------- |
-| PHASE5_COMPLETE_SESSION_REPORT.md | Full session report                  | 20 min    |
-| PHASE6_HANDOFF.md                 | Phase 6 preparation                  | 30 min    |
-| docs/TRAINING.md                  | Complete reference (all 11 sections) | 60+ min   |
+| [phase5_complete_session_report.md](20251022_080000_phase5_complete_session_report.md) | Full session report | 20 min |
+| [phase6_handoff.md](20251022_080000_phase6_handoff.md) | Phase 6 preparation | 30 min |
+| [phase5_handoff.md](20251022_080000_phase5_handoff.md) | Phase 5 completion handoff | 20 min |
+| [TRAINING.md](../TRAINING.md) | Complete reference (all 11 sections) | 60+ min |
+
+### Getting Started Guides
+
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [phase5_start_here.md](20251022_080000_phase5_start_here.md) | Phase 5 entry point |
+| [phase5_quick_start.md](20251022_080000_phase5_quick_start.md) | Quick start guide |
+| [phase5_setup_complete.md](20251022_080000_phase5_setup_complete.md) | Setup completion status |
+
+### Task-Specific Documentation
+
+#### Task 5.6: MLflow Integration
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [phase5_t5_6_mlflow_complete.md](20251022_080000_phase5_t5_6_mlflow_complete.md) | Task 5.6 MLflow completion |
+| [t5_6_deliverables_manifest.md](20251022_080000_t5_6_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_6_file_index.md](20251022_080000_t5_6_file_index.md) | Complete file listing and organization |
+| [t5_6_implementation_checklist.md](20251022_080000_t5_6_implementation_checklist.md) | Implementation tasks and verification |
+| [t5_6_completion_report.md](20251022_080000_t5_6_completion_report.md) | Detailed completion report |
+| [t5_6_complete_summary.md](20251022_080000_t5_6_complete_summary.md) | Completion summary |
+| [t5_6_quick_summary.md](20251022_080000_t5_6_quick_summary.md) | Quick reference summary |
+| [t5_6_update_agents_md.md](20251022_080000_t5_6_update_agents_md.md) | AGENTS.md update notes |
+
+#### Task 5.7: ONNX Export
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [phase5_t5_7_onnx_complete.md](20251022_080000_phase5_t5_7_onnx_complete.md) | Task 5.7 ONNX export completion |
+| [t5_7_deliverables_manifest.md](20251022_080000_t5_7_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_7_file_index.md](20251022_080000_t5_7_file_index.md) | Complete file listing and organization |
+| [t5_7_implementation_checklist.md](20251022_080000_t5_7_implementation_checklist.md) | Implementation tasks and verification |
+| [t5_7_completion_report.md](20251022_080000_t5_7_completion_report.md) | Detailed completion report |
+| [t5_7_quick_summary.md](20251022_080000_t5_7_quick_summary.md) | Quick reference summary |
+| [t5_7_update_agents_md.md](20251022_080000_t5_7_update_agents_md.md) | AGENTS.md update notes |
+
+#### Task 5.8: Training Entry Point
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [t5_8_training_entry_complete.md](20251022_080000_t5_8_training_entry_complete.md) | Task 5.8 training entry completion |
+| [t5_8_deliverables_manifest.md](20251022_080000_t5_8_deliverables_manifest.md) | Deliverables checklist and file inventory |
+| [t5_8_readme.md](20251022_080000_t5_8_readme.md) | Task README and overview |
+| [t5_8_quick_summary.md](20251022_080000_t5_8_quick_summary.md) | Quick reference summary |
+| [t5_8_final_verification.md](20251022_080000_t5_8_final_verification.md) | Final verification checklist |
+
+#### Tasks 5.9 & 5.10
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [phase5_t5_9_t5_10_complete.md](20251022_080000_phase5_t5_9_t5_10_complete.md) | Tasks 5.9 & 5.10 completion |
+
+### Architecture & Progress
+
+| Document                          | Purpose                              |
+| --------------------------------- | ------------------------------------ |
+| [phase5_architecture_upgrade.md](20251022_080000_phase5_architecture_upgrade.md) | Architecture improvements |
+| [phase5_progress.md](20251022_080000_phase5_progress.md) | Progress tracking |
 
 ### Reference Files
 

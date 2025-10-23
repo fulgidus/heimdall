@@ -21,6 +21,7 @@
 - When modifying configuration or setup files, ensure that the instructions in the `README.md` file reflect these changes.
 - When adding new dependencies or tools, update the "Technology Stack" section in the `README.md` file to include these new technologies.
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
+- **For navigation**: Use [Agents Master Index](docs/agents/MASTER_INDEX.md) to find all agent tracking documentation.
 
 
 ## 📋 Project Organization Standards
@@ -529,9 +530,11 @@ docker-compose up -d  # Ready for Phase 1
 **Critical Path**: YES
 
 **📋 Tracking**:
-- [Phase 1 Guide](PHASE1_GUIDE.md) - Setup instructions
-- [Phase 1 Status Report](PHASE1_STATUS.md) - Detailed status
-- [Phase 1 Checklist](PHASE1_CHECKLIST.md) - Task tracking
+- [Phase 1 Index](docs/agents/20251022_080000_phase1_index.md) - Navigation hub
+- [Phase 1 Guide](docs/agents/20251022_080000_phase1_guide.md) - Setup instructions
+- [Phase 1 Status Report](docs/agents/20251022_080000_phase1_status.md) - Detailed status
+- [Phase 1 Checklist](docs/agents/20251022_080000_phase1_checklist.md) - Task tracking
+- [Phase 1 Complete](docs/agents/20251022_080000_phase1_complete.md) - Completion summary
 
 ### Objective
 
@@ -681,6 +684,11 @@ make db-migrate
 **Depends On**: Phase 1 ✅  
 **Critical Path**: YES
 
+**📋 Tracking**:
+- [Phase 2 Complete](docs/agents/20251022_080000_phase2_complete.md) - Completion report
+- [Phase 2 Final Status](docs/agents/20251022_080000_phase2_final_status.md) - Final status
+- [Phase 2 Fixes Applied](docs/agents/20251022_080000_phase2_fixes_applied.md) - Fixes log
+
 ### Objective
 
 Create base FastAPI applications for all microservices with proper structure, logging, and health checks.
@@ -805,6 +813,12 @@ When all checkpoints pass, ready for Phase 3: Implement RF Acquisition.
 **Status**: 🟢 COMPLETE  
 **Depends On**: Phase 2 ✅  
 **Critical Path**: YES (blocks Phase 4 and 5)
+
+**📋 Tracking**:
+- [Phase 3 Index](docs/agents/20251022_080000_phase3_index.md) - Navigation hub
+- [Phase 3 README](docs/agents/20251022_080000_phase3_readme.md) - Getting started
+- [Phase 3 Status](docs/agents/20251022_080000_phase3_status.md) - Detailed status
+- [Phase 3 Complete Summary](docs/agents/20251022_080000_phase3_complete_summary.md) - Final report
 
 ### Objective
 
@@ -937,10 +951,12 @@ After CP3.* pass, merge feature branch into `develop` and proceed to Phase 4.
 **Critical Path**: NO (completed, Phase 5 can start immediately)
 
 **📋 Tracking**:
-- [Phase 4 Progress Dashboard](PHASE4_PROGRESS_DASHBOARD.md) - 50% complete (2/4 tasks done)
-- [Phase 4 Docker Validation Report](PHASE4_TASK_A2_DOCKER_VALIDATION.md) - Task A2 completed
-- [Phase 4 Handoff Status](PHASE4_HANDOFF_STATUS.md) - Infrastructure verified
-- [00 Phase 4 Status](00_PHASE4_STATUS.md) - Quick reference
+- [Phase 4 Index](docs/agents/20251022_080000_phase4_index.md) - Navigation hub
+- [Phase 4 Progress Dashboard](docs/agents/20251022_080000_phase4_progress_dashboard.md) - 50% complete (2/4 tasks done)
+- [Phase 4 Plan](docs/agents/20251022_080000_phase4_plan.md) - Detailed plan
+- [Phase 4 Handoff Status](docs/agents/20251022_080000_phase4_handoff_status.md) - Infrastructure verified
+- [Phase 4 Status](docs/agents/20251022_080000_00_phase4_status.md) - Quick reference
+- [Phase 4 Completion Final](docs/agents/20251022_080000_phase4_completion_final.md) - Final report
 
 ### Objective
 
@@ -1173,6 +1189,13 @@ git pull origin develop
 **Depends On**: Phase 1 ✅, Phase 3 ✅  
 **Critical Path**: YES (blocks Phase 6)
 
+**📋 Tracking**:
+- [Phase 5 Document Index](docs/agents/20251022_080000_phase5_document_index.md) - Navigation hub
+- [Phase 5 Start Here](docs/agents/20251022_080000_phase5_start_here.md) - Getting started
+- [Phase 5 Complete Final](docs/agents/20251022_080000_00_phase5_complete_final.md) - Final report
+- [Phase 5 Executive Summary](docs/agents/20251022_080000_00_phase5_executive_summary.md) - Overview
+- [Phase 5 Handoff](docs/agents/20251022_080000_phase5_handoff.md) - To Phase 6
+
 ### Objective
 
 Implement PyTorch Lightning training pipeline for neural network localization model with uncertainty estimation.
@@ -1232,8 +1255,14 @@ mlflow.delete_run(run_id)
 **Assignee**: Agent-Backend (fulgidus)  
 **Status**: 🟢 COMPLETE (10/10 tasks)  
 **Depends On**: Phase 5 ✅, Phase 2 ✅  
-**Critical Path**: YES  
-**Documentation**: `PHASE6_START_HERE.md`, `PHASE6_PREREQUISITES_CHECK.md`
+**Critical Path**: YES
+
+**📋 Tracking**:
+- [Phase 6 Index](docs/agents/20251023_153000_phase6_index.md) - Navigation hub
+- [Phase 6 Start Here](docs/agents/20251023_153000_phase6_start_here.md) - Getting started
+- [Phase 6 Complete Final](docs/agents/20251023_153000_phase6_complete_final.md) - Final report
+- [Phase 6 Documentation Index](docs/agents/20251023_153000_phase6_documentation_index.md) - All docs
+- [Phase 6 README](docs/agents/20251023_153000_phase6_readme.md) - Overview
 
 ### Objective
 
@@ -1329,6 +1358,13 @@ When inference service is validated, proceed to Phase 7: Frontend
 **Status**: 🟢 STARTED  
 **Depends On**: Phase 6 ✅, Phase 4 ✅  
 **Critical Path**: YES
+
+**📋 Tracking**:
+- [Phase 7 Index](docs/agents/20251023_153000_phase7_index.md) - Navigation hub
+- [Phase 7 Start Here](docs/agents/20251023_153000_phase7_start_here.md) - Getting started
+- [Phase 7 Quick Start](docs/agents/20251023_153000_phase7_quick_start.md) - Quick reference
+- [Phase 7 Frontend Complete](docs/agents/20251023_153000_phase7_frontend_complete.md) - Status report
+- [Phase 7 Backend Integration](docs/agents/20251023_153000_phase7_backend_integration.md) - Integration guide
 
 ### Objective
 
@@ -1565,12 +1601,15 @@ Each phase must maintain knowledge through:
 
 ### Handoff Protocols
 
+Smooth transitions between agents and sessions are critical for project continuity. The [Agent Handoff Protocol](docs/agents/20251022_080000_handoff_protocol.md) provides detailed procedures for maintaining context and ensuring seamless knowledge transfer across work sessions.
+
 When transitioning between phases:
 1. Complete all checkpoints in current phase
 2. Document any deviations from original plan
 3. Update `.copilot-instructions` with new learnings
 4. Brief next agent on critical decisions and constraints
 5. Ensure all artifacts are properly versioned and accessible
+6. Follow the mandatory update rules defined in the handoff protocol
 
 ---
 
