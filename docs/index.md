@@ -80,9 +80,9 @@ For questions or support, please contact the project maintainers at [alessio.cor
 
 ## Changelog
 
-Consulta il [Changelog](../CHANGELOG.md) per una lista completa di tutte le modifiche, aggiornamenti e versioni rilasciate del progetto.
-Il changelog rispetta il formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-Il changelog è mantenuto secondo le [Linee Guida di Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+See the [Changelog](../CHANGELOG.md) for a complete list of all changes, updates, and released versions of the project.
+The changelog follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
+The changelog is maintained according to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) guidelines.
 
 ## FAQs
 Find answers to common questions in our [FAQ section](faqs).
