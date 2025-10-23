@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .models.health import HealthResponse
+from .routers import predict, analytics
 
 SERVICE_NAME = "inference"
 SERVICE_VERSION = "0.1.0"
@@ -11,6 +12,10 @@ SERVICE_PORT = 8003
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Include routers
+app.include_router(predict.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
