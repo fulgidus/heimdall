@@ -14,6 +14,8 @@ export default defineConfig({
             VITE_ADMIN_EMAIL: 'admin@heimdall.local',
             VITE_ADMIN_PASSWORD: 'Admin123!@#',
         },
+        mockReset: true,
+        restoreMocks: true,
     },
     resolve: {
         alias: {
