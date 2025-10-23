@@ -8,7 +8,7 @@
 
 ## 📚 Documentation Created
 
-Sono stati creati **5 documenti guida** completi:
+Sono stati created **5 documenti guide** completi:
 
 ### 1. **PHASE5_START_HERE.md** (Main Onboarding)
 - Welcome message in italiano
@@ -38,7 +38,7 @@ Sono stati creati **5 documenti guida** completi:
 - Why Phase 5 can start immediately
 - Pre-start verification checklist
 - Architecture context
-- Data flow diagram
+- Date flow diagram
 - ⏱️ **Tempo lettura**: 15 minuti
 
 ### 5. **PHASE5_DASHBOARD.txt** (Visual Overview)
@@ -86,7 +86,7 @@ PHASE5_DASHBOARD.txt          ← VISUAL OVERVIEW
 
 All 10 tasks already defined with:
 - Detailed descriptions
-- File paths
+- Files paths
 - Dependencies
 - Effort estimates
 - Execution order
@@ -133,7 +133,7 @@ python -c "import torch; import pytorch_lightning; print('✅ Ready!')"
 
 ## 📊 What Phase 5 Delivers
 
-| Component                | File                                         | Checkpoint |
+| Component                | Files                                         | Checkpoint |
 | ------------------------ | -------------------------------------------- | ---------- |
 | **Neural Network**       | `src/models/localization_net.py`             | CP5.1      |
 | **Feature Extraction**   | `src/data/features.py`                       | -          |

@@ -60,7 +60,7 @@ Se ritorna:
 ❌ Connection Error: [Errno 10061]
 ```
 
-→ **I servizi non sono online:**
+→ **I services non sono online:**
 ```powershell
 docker-compose up -d api-gateway rf-acquisition
 python test_full_stack.py  # Riprova
@@ -70,7 +70,7 @@ python test_full_stack.py  # Riprova
 
 ## Se il Test Passa ma Browser Mostra 404
 
-### Check 1: Verifica il .env
+### Check 1: Verification il .env
 ```bash
 # frontend/.env deve avere:
 VITE_API_URL=http://localhost:8000
@@ -90,7 +90,7 @@ Dovresti vedere log come:
 📤 API Request: {method: 'GET', url: '/api/v1/acquisition/websdrs', ...}
 ```
 
-Se NO → il frontend non è stato aggiornato
+Se NO → il frontend non has been updated
 
 ---
 
@@ -134,5 +134,5 @@ F12 → Console → Scroll up
 ---
 
 **Status**: ✅ Diagnostica completa
-**Prossimo**: Esegui `python test_full_stack.py`
+**Next**: Esegui `python test_full_stack.py`
 

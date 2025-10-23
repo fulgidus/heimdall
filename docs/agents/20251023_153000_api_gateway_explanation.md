@@ -8,14 +8,14 @@
 
 ## ✅ Risposta: IL BACKEND È CORRETTO!
 
-**Non è un problema di 404.** L'endpoint esiste ed è correttamente configurato. Il problema è nella **visualizzazione della documentazione (FastAPI Swagger docs)**.
+**Non è un problema di 404.** L'endpoint esiste ed è correttamente configurato. Il problema è nella **visualizzazione della documentation (FastAPI Swagger docs)**.
 
 ---
 
 ## 🏗️ Come Funziona l'Architettura
 
 ### Layer 1: API Gateway (port 8000)
-**File**: `services/api-gateway/src/main.py`
+**Files**: `services/api-gateway/src/main.py`
 
 ```python
 @app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", ...])
@@ -30,7 +30,7 @@ async def proxy_to_rf_acquisition(request: Request, path: str):
 - Rispedisce la risposta al client
 
 ### Layer 2: RF-Acquisition Service (port 8001)
-**File**: `services/rf-acquisition/src/routers/acquisition.py`
+**Files**: `services/rf-acquisition/src/routers/acquisition.py`
 
 ```python
 router = APIRouter(prefix="/api/v1/acquisition", tags=["acquisition"])
@@ -99,7 +99,7 @@ curl http://localhost:8000/api/v1/acquisition/websdrs
 # Output atteso: IDENTICO al Test 1
 ```
 
-### Test 3: Verifica che il Gateway faccia il proxy
+### Test 3: Verification che il Gateway faccia il proxy
 
 ```powershell
 # Se ricevi 404, significa:
@@ -118,7 +118,7 @@ curl http://localhost:8001/health
 
 ---
 
-## ⚠️ Perché Non Vedo l'Endpoint nella Documentazione Swagger?
+## ⚠️ Perché Non Vedo l'Endpoint nella Documentation Swagger?
 
 ### Swagger Docs Disponibili
 
@@ -129,7 +129,7 @@ curl http://localhost:8001/health
 
 **RF-Acquisition Docs**: http://localhost:8001/docs
 - ✅ Mostra TUTTI gli endpoint: `/websdrs`, `/websdrs/health`, `/acquire`, `/status/{task_id}`, `/config`
-- Questo è il "vero" service
+- This è il "vero" service
 
 ---
 
@@ -149,7 +149,7 @@ Data-Ingestion Docs:     http://localhost:8004/docs
 
 ---
 
-## 🧪 Verifica Finale: E2E Test
+## 🧪 Verification Finale: E2E Test
 
 ```python
 import httpx
@@ -185,7 +185,7 @@ Se ricevi **404 quando chiami l'endpoint**:
 
 ## 🎯 Conclusione
 
-**Il backend NON ha problemi di 404!**
+**Il backend NON ha issues di 404!**
 
 ✅ **L'endpoint esiste** sul RF-Acquisition service
 ✅ **L'API Gateway** lo proxya correttamente
@@ -199,11 +199,11 @@ Se ricevi **404 quando chiami l'endpoint**:
 
 ---
 
-**Per consultare la documentazione completa dell'API**:
+**Per consultare la documentation completa dell'API**:
 👉 **Apri http://localhost:8001/docs** per il RF-Acquisition service!
 
 ---
 
 Ultimo Update: 2025-10-22
 Diagnosi: ✅ Backend è corretto
-Azione Richiesta: Verifica che i servizi siano online
+Azione Richiesta: Verification che i services siano online

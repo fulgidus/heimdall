@@ -7,7 +7,7 @@
 
 ---
 
-## ✅ Checklist di Verifica
+## ✅ Checklist di Verification
 
 ### 1. Layout Desktop
 - [ ] La login page è **centrata** (non occupa tutta la pagina)
@@ -158,7 +158,7 @@ VITE_SOCKET_URL=ws://localhost:8000/ws
 "@ | Set-Content c:\Users\aless\Documents\Projects\heimdall\frontend\.env
 ```
 
-### Verifica nel localStorage (Console)
+### Verification nel localStorage (Console)
 ```javascript
 // Browser Console
 console.log(localStorage.getItem('auth-store'));
@@ -173,7 +173,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 
 ---
 
-## 🔴 Problemi Comuni e Soluzioni
+## 🔴 Issues Comuni e Soluzioni
 
 ### "Invalid email or password" appare sempre
 **Causa**: Le credenziali nel .env non corrispondono a quello che inserisci
@@ -184,11 +184,11 @@ cat .env | grep VITE_ADMIN
 ```
 
 ### Il password input non mostra/nasconde la password
-**Causa**: showPassword state non aggiornato
+**Causa**: showPassword state non updated
 **Soluzione**: Refresh il browser (F5)
 
 ### La login page occupa tutta la pagina
-**Causa**: Stile non aggiornato (cache)
+**Causa**: Stile non updated (cache)
 **Soluzione**: 
 ```bash
 # Hard refresh
@@ -288,9 +288,9 @@ npm run dev  # Riparte il dev server
 
 ## ✅ Sign Off
 
-Una volta che tutti i test in questa checklist passano, la login page è **PRONTA PER PRODUZIONE** ✅
+Una volta che all i test in this checklist passano, la login page è **PRONTA PER PRODUZIONE** ✅
 
-Segnala i risultati:
+Segnala i results:
 ```
 ✅ All 17 test categories passed
 ✅ WCAG AA compliance verified

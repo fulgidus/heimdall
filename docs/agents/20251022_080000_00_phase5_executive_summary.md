@@ -9,8 +9,8 @@ Status: 🟢 READY TO START IMMEDIATELY
 
 Phase 5 (Training Pipeline) è ora completamente preparato per l'inizio.
 
-Sono stati creati 7 documenti guida + 1 todo list con tutti i dettagli necessari
-per implementare il PyTorch Lightning training pipeline con 10 task in 3 giorni.
+Sono stati created 7 documenti guide + 1 todo list con all i dettagli necessari
+per implementare il PyTorch Lightning training pipeline con 10 task in 3 days.
 
 ═══════════════════════════════════════════════════════════════════════════════
 
@@ -46,8 +46,8 @@ per implementare il PyTorch Lightning training pipeline con 10 task in 3 giorni.
 
 🎯 PHASE 5 AT A GLANCE
 
-Duration:      3 giorni (2025-10-22 to 2025-10-25)
-Tasks:         10 tasks = 18.5 ore
+Duration:      3 days (2025-10-22 to 2025-10-25)
+Tasks:         10 tasks = 18.5 hours
 Checkpoints:   5 validation gates
 Coverage:      >85% test suite
 Status:        ✅ Ready to start now (no blockers)
@@ -195,7 +195,7 @@ Each guide includes:
 ✓ Step-by-step implementation guidance
 ✓ Code examples and templates
 ✓ Architecture diagrams
-✓ Data flow illustrations
+✓ Date flow illustrations
 ✓ Dependency graphs
 ✓ Hyperparameter justification
 ✓ Known risks and mitigations

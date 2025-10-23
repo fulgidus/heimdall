@@ -95,7 +95,7 @@ python test_full_stack.py
 
 ---
 
-## 📚 Documenti Creati per Te
+## 📚 Documenti Created per Te
 
 1. **QUICK_ANSWER_404.md** ← Risposta rapida (TL;DR)
 2. **DIAGNOSTIC_404_ISSUE.md** ← Diagnosis completa
@@ -144,16 +144,16 @@ http://localhost:3001/websdrs
 
 ---
 
-**Prossimo**: 
+**Next**: 
 ```
 python test_full_stack.py
 ```
 
-Questo ti dirà esattamente se tutto funziona o cosa manca.
+This ti dirà esattamente se all funziona o cosa manca.
 
 ---
 
 **Status**: ✅ Diagnostica completata
 **Creato**: 4 markdown files + 1 test script
-**Prossimo**: Esegui test_full_stack.py
+**Next**: Esegui test_full_stack.py
 

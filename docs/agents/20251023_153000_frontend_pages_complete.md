@@ -27,12 +27,12 @@ src/pages/
 ## 🎯 Pages Overview
 
 ### 1. **Dashboard** (`/dashboard`)
-**Descrizione**: Pagina principale con panoramica del sistema
+**Descrizione**: Pagina principale con panoramica del system
 
 **Componenti**:
 - Stats cards (localizzazioni totali, accuratezza media, uptime, tempo risposta)
 - Activity stream (ultimi eventi)
-- System Health (status servizi)
+- System Health (status services)
 - WebSDR Network Status (7 ricevitori)
 
 **Features**:
@@ -98,13 +98,13 @@ src/pages/
 ---
 
 ### 5. **Settings** (`/settings`)
-**Descrizione**: Configurazione del sistema Heimdall
+**Descrizione**: Configurazione del system Heimdall
 
 **Componenti**:
 - Profile settings
 - Security preferences
 - System configuration
-- Data management
+- Date management
 
 **Features**:
 - User preferences
@@ -197,14 +197,14 @@ src/pages/
 
 ### Components Used
 - **Shadcn/ui**: Card, Button, Input, Dropdown, Dialog, Separator, Tooltip
-- **Lucide Icons**: 50+ icone per il sistema
+- **Lucide Icons**: 50+ icone per il system
 - **Custom**: Sidebar collapsibile, Charts ascii, Tables
 
 ---
 
 ## 📊 Component Reusability
 
-### Sidebar Template (Usato in tutte le pagine protette)
+### Sidebar Template (Usato in all le pagine protette)
 ```tsx
 {/* Sidebar collapsibile */}
 <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300`}>

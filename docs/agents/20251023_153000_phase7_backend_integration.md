@@ -4,15 +4,15 @@
 
 ### Obiettivo Completato
 
-Abbiamo implementato con successo l'integrazione del frontend React con il backend FastAPI tramite API Gateway. La Dashboard è ora completamente funzionale con dati reali dal backend.
+We have implementato con successo l'integrazione del frontend React con il backend FastAPI tramite API Gateway. La Dashboard è ora completamente funzionale con dati reali dal backend.
 
 ### Implementazioni Completate
 
 #### 1. API Services Layer (`frontend/src/services/api/`)
 
-Creato un layer completo di servizi API TypeScript che comunicano con il backend:
+Creato un layer completo di services API TypeScript che comunicano con il backend:
 
-**File creati:**
+**Files created:**
 - `types.ts` (4.5 KB) - TypeScript interfaces matching FastAPI Pydantic schemas
 - `websdr.ts` (1.4 KB) - WebSDR operations (list, health check, get active)
 - `acquisition.ts` (2.1 KB) - RF acquisition (trigger, status, polling)
@@ -22,19 +22,19 @@ Creato un layer completo di servizi API TypeScript che comunicano con il backend
 
 **Endpoints implementati:**
 - `GET /v1/acquisition/websdrs` - Lista WebSDR receivers
-- `GET /v1/acquisition/websdrs/health` - Health check tutti i receivers
+- `GET /v1/acquisition/websdrs/health` - Health check all i receivers
 - `POST /v1/acquisition/acquire` - Trigger acquisition task
 - `GET /v1/acquisition/status/{task_id}` - Status task acquisition
 - `GET /v1/inference/model/info` - Informazioni modello ML
 - `GET /v1/inference/model/performance` - Performance metrics modello
-- `GET /{service}/health` - Health check servizi
+- `GET /{service}/health` - Health check services
 
 #### 2. Zustand Stores (`frontend/src/store/`)
 
 Implementato state management centralizzato con 4 stores:
 
-**dashboardStore.ts** (4.3 KB aggiornato)
-- Gestisce metriche dashboard
+**dashboardStore.ts** (4.3 KB updated)
+- Gestisce metrics dashboard
 - Integra WebSDR, Model Info, Services Health
 - Auto-refresh ogni 30 secondi
 - Error handling
@@ -58,7 +58,7 @@ Implementato state management centralizzato con 4 stores:
 
 #### 3. Dashboard Integration (Dashboard.tsx)
 
-Aggiornato completamente con dati reali dal backend:
+Updated completamente con dati reali dal backend:
 
 **Features implementate:**
 - Real-time WebSDR status (7 receivers dal backend)

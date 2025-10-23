@@ -1,6 +1,6 @@
-# 🔗 Guida: Verifica che Frontend Chiama Davvero il Backend
+# 🔗 Guide: Verification che Frontend Chiama Davvero il Backend
 
-**Status**: ✅ Debug logging aggiunto a tutti i layer
+**Status**: ✅ Debug logging added a all i layer
 
 ---
 
@@ -57,9 +57,9 @@ npm run dev
 └─────────────────────────────┘
 ```
 
-### Files Modificati per Debug
+### Files Modified per Debug
 
-Ho aggiunto `console.log()` a 3 layer:
+Ho added `console.log()` a 3 layer:
 
 **1. `frontend/src/lib/api.ts`** - Livello Axios
 ```typescript
@@ -157,7 +157,7 @@ Quando vai a http://localhost:3001/websdrs e apri F12:
 ✅ WebSDRManagement: caricamento completato
 ```
 
-**Se vedi questo** → ✅ **Frontend chiama davvero il backend!**
+**Se vedi this** → ✅ **Frontend chiama davvero il backend!**
 
 ---
 
@@ -251,7 +251,7 @@ curl http://localhost:8001/api/v1/acquisition/websdrs  # Direct to service
 
 **Significa**: 
 - Frontend non è in reload
-- Oppure i file modificati non sono stati caricati
+- Oppure i file modified non have been caricati
 
 **Soluzione**:
 ```powershell
@@ -273,7 +273,7 @@ npm run dev
 
 Se la pagina mostra i 7 WebSDRs ma hanno sempre lo stesso status "online" e stesso SNR:
 
-**Significa**: Codice non è stato aggiornato nel browser.
+**Significa**: Codice non has been updated nel browser.
 
 **Soluzione**:
 ```
@@ -338,7 +338,7 @@ curl -v -H "Content-Type: application/json" http://localhost:8000/api/v1/acquisi
 
 ---
 
-## 🎯 Verifica Passo-Passo (3 minuti)
+## 🎯 Verification Passo-Passo (3 minuti)
 
 ```powershell
 # 1. Test Backend (30 secondi)
@@ -400,4 +400,4 @@ Con questi dati posso diagnosticare il problema specifico.
 
 **Ultimo Aggiornamento**: 2025-10-23
 **Modifiche**: 3 file (api.ts, WebSDRManagement.tsx, websdr.ts)
-**Stato**: ✅ Pronto per verifica runtime
+**Stato**: ✅ Pronto per verification runtime

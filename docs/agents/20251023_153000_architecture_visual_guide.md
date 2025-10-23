@@ -182,7 +182,7 @@ Possibili cause:
 1. Gateway non è online → `docker-compose up -d api-gateway`
 2. Service non è online → `docker-compose up -d rf-acquisition`
 3. Path è sbagliato nel frontend (ma dovrebbe essere `/api/v1/acquisition/websdrs`)
-4. Service non ha definito questo endpoint (ma lo ha, è nella linea ~245 di acquisition.py)
+4. Service non ha definito this endpoint (ma lo ha, è nella linea ~245 di acquisition.py)
 
 ---
 

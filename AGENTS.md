@@ -23,6 +23,178 @@
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
 
 
+## 📋 Project Organization Standards
+
+### Documentation Standards
+
+All documentation files must follow these strict standards:
+
+**Language Requirements:**
+- All documentation MUST be in English (exception: Italian section in bilingual `README.md`)
+- The main `README.md` is bilingual: English section first, followed by Italian translation
+- All technical documentation, guides, and API references must be in English only
+
+**File Location and Naming:**
+- **Root directory** - Only these 4 essential files:
+  - `README.md` - Main project README (bilingual)
+  - `AGENTS.md` - Project phase management guide
+  - `CHANGELOG.md` - Version history following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+  - `WEBSDRS.md` - WebSDR receiver configuration
+
+- **`/docs/` directory** - All public-facing documentation:
+  - `index.md` - Main documentation portal (must be in English)
+  - API references, architecture guides, tutorials, etc.
+  - All files in English only
+
+- **`/docs/agents/` directory** - Internal tracking and progress documents:
+  - Format: `YYYYMMDD_HHmmss_description.md`
+  - Example: `20251023_153000_phase6_completion_summary.md`
+  - Use lowercase with underscores for description
+  - All timestamps use 24-hour format
+  - When creating new tracking documents, always use this format
+
+**Markdown File Standards:**
+- Use proper markdown formatting (headers, lists, code blocks)
+- Include table of contents for documents >500 lines
+- Link to related documents using relative paths
+- Preserve code blocks and technical terms during any translations
+- Follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format for CHANGELOG.md
+- Use [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for version numbers
+
+**README.md Maintenance Guidelines:**
+
+The main `README.md` file requires regular verification to ensure accuracy with the current project state.
+
+**Setup Instructions Verification:**
+1. **Cross-platform compatibility**: Always use cross-platform commands
+   - Use `cp` instead of Windows-specific `copy`
+   - Verify commands work on Linux, macOS, and Windows (Git Bash)
+   - Add clarifying comments for each setup step
+
+2. **Command accuracy**: Verify all commands are correct and functional
+   - Test `cp .env.example .env` (creates configuration file)
+   - Test `docker-compose up -d` (starts all infrastructure)
+   - Test `make health-check` (verifies services are running)
+   - Ensure script paths are correct (e.g., `scripts/health-check.py`)
+
+3. **Documentation links**: Keep all links current and accurate
+   - Use correct paths: `docs/agents/YYYYMMDD_HHmmss_filename.md`
+   - Update links when files are renamed or moved
+   - Verify links point to existing files, not orphaned references
+   - Examples: `phase1_guide.md`, `phase4_completion_final.md`, `phase5_handoff.md`
+
+4. **Project status updates**: Reflect actual development progress
+   - Update phase status headers to show current phase
+   - Mark completed phases with ✅ COMPLETE
+   - Add new phases as they are completed
+   - Keep phase descriptions accurate (not outdated "READY TO START" when already done)
+   - Update both English and Italian sections consistently
+
+5. **Architecture accuracy**: Ensure technical details match current implementation
+   - Verify service names and descriptions
+   - Check technology stack is current
+   - Validate performance metrics reflect latest benchmarks
+   - Confirm deployment instructions match actual setup
+
+**Bilingual Consistency:**
+- English section comes first, Italian section follows
+- Both sections must have identical content (just translated)
+- Both sections must have same structure and links
+- Update both when making changes to either
+
+**When to Update README.md:**
+- After completing a new phase
+- When commands or setup procedures change
+- When documentation is reorganized or files moved
+- When performance benchmarks are updated
+- During major architecture changes
+
+**Preventing Orphaned Files:**
+
+All documentation files MUST be discoverable and contextual. Orphaned files (not linked from anywhere) are NOT allowed.
+
+**When creating tracking documents in `/docs/agents/`:**
+1. **Always add context**: Every new tracking document must include:
+   - Clear title indicating the phase/task it relates to
+   - Date and session information
+   - Links to related documents (previous session, related phases)
+   - Summary of what the document contains
+
+2. **Link from appropriate locations**:
+   - Add link in phase-specific index files (e.g., `PHASE6_INDEX.md`)
+   - Reference from `AGENTS.md` in the relevant phase section
+   - Link from related tracking documents
+   - Update progress dashboards or status files
+
+3. **Provide navigation aids**:
+   - Include "Related Documents" section at end of file
+   - Add "Previous Session" / "Next Session" links when applicable
+   - Reference from completion summaries and handoff documents
+
+4. **Integration requirements**:
+   - New phase documents must be linked from phase descriptions in `AGENTS.md`
+   - Session summaries must be linked from phase tracking documents
+   - Completion reports must be referenced in phase status updates
+   - All significant tracking files should appear in navigation chains
+
+**Example of proper context and linking:**
+```markdown
+# Phase 6 Session 2 Progress Report
+
+**Related Documents:**
+- [Phase 6 Start Guide](./PHASE6_START_HERE.md)
+- [Phase 6 Session 1 Report](./PHASE6_SESSION1_FINAL_REPORT.md)
+- [Phase 6 Index](./PHASE6_INDEX.md)
+- [Previous: Phase 5 Completion](./PHASE5_COMPLETE_SESSION_REPORT.md)
+
+**Session Info:** 2025-10-23 | Agent: copilot | Status: In Progress
+```
+
+**Orphan Prevention Tools:**
+- Use `scripts/reorganize_docs.py --find-orphans` to identify unreachable files
+- Review orphan reports regularly
+- Before PR merge, ensure all new files are properly linked
+- Update documentation index when adding significant new files
+
+### Script Organization Standards
+
+All utility scripts must be organized in the `/scripts/` directory:
+
+**Script Location:**
+- **`/scripts/` directory** - All utility, test, and automation scripts:
+  - Python scripts (`.py`)
+  - Shell scripts (`.sh`)
+  - PowerShell scripts (`.ps1`)
+  - Batch scripts (`.bat`)
+
+**Root Directory Exceptions:**
+- `conftest.py` - Pytest configuration (must remain in root)
+- Any scripts required by CI/CD that must be in root
+
+**Script Naming Conventions:**
+- Use descriptive names: `test_health_endpoint.py`, `load_test.py`
+- Use underscores for Python scripts: `health_check.py`
+- Use hyphens for shell scripts: `health-check.sh`
+- Include action in name: `generate_`, `test_`, `check_`, `monitor_`
+
+**Script Categories in `/scripts/`:**
+- **Testing scripts**: `test_*.py`, `test_*.sh`
+- **Health checks**: `health-check.*`, `*_health_*.py`
+- **Load testing**: `load_test*.py`, `performance_benchmark.py`
+- **Setup/deployment**: `dev-setup.ps1`, `start-*.ps1`
+- **Utilities**: `check_*.py`, `inspect_*.py`, `monitor_*.py`
+- **Generation**: `generate_*.py`, `create_*.py`
+- **Documentation**: `reorganize_docs.py`
+
+### Enforcement
+
+These standards are mandatory for all contributions:
+- Automated scripts enforce file naming conventions
+- CI/CD checks verify documentation is in English
+- Pull requests must follow these standards
+- Use `scripts/reorganize_docs.py` to maintain compliance
+
+
 ## 📚 Documentation Convention
 
 **All project documentation has been consolidated in the `/docs/` folder.**

@@ -29,7 +29,7 @@ L'API Gateway Swagger docs (`http://localhost:8000/docs`) non mostra gli endpoin
 **Motivo**: Gli endpoint sono **dinamici** (proxied al service backend, non definiti direttamente nel gateway).
 
 ### 3️⃣ **Però IL GATEWAY lo PROXYA** ✅
-Anche se non lo vedi in Swagger, l'API Gateway **cattura e proxya** tutte le richieste.
+Anche se non lo vedi in Swagger, l'API Gateway **cattura e proxya** all le richieste.
 
 **Definito in**: `services/api-gateway/src/main.py` (riga 79)
 ```python
@@ -65,7 +65,7 @@ GET http://rf-acquisition:8001/api/v1/acquisition/websdrs
 
 ---
 
-## 📚 Come Consultare la Documentazione
+## 📚 Come Consultare la Documentation
 
 ```
 API Gateway Swagger:    http://localhost:8000/docs
@@ -94,7 +94,7 @@ cd c:\Users\aless\Documents\Projects\heimdall
 python test_full_stack.py
 ```
 
-Questo testa:
+This testa:
 1. ✅ API Gateway è online (port 8000)
 2. ✅ RF-Acquisition è online (port 8001)
 3. ✅ GET /api/v1/acquisition/websdrs (direct)
@@ -144,9 +144,9 @@ curl http://localhost:8000/api/v1/acquisition/websdrs
 python test_full_stack.py
 ```
 
-**Se tutti test passano** → Vai a Step 2
+**Se all test passano** → Vai a Step 2
 
-**Se un test fallisce** → Lo script ti dirà quale servizio avviare:
+**Se un test fallisce** → Lo script ti dirà quale service avviare:
 ```powershell
 # Avvia i servizi
 docker-compose up -d api-gateway rf-acquisition
@@ -156,7 +156,7 @@ python services/api-gateway/src/main.py
 python services/rf-acquisition/src/main.py
 ```
 
-### Step 2: Verifica Frontend (5 minuti)
+### Step 2: Verification Frontend (5 minuti)
 
 ```powershell
 # Terminal 1: Avvia frontend
@@ -169,7 +169,7 @@ npm run dev
 
 **Guarda i log della console**: Dovresti vedere `📤 API Request: GET /api/v1/acquisition/websdrs`
 
-### Step 3: Verifica Network Tab (2 minuti)
+### Step 3: Verification Network Tab (2 minuti)
 
 **DevTools F12 → Network tab → Reload F5**
 
@@ -181,7 +181,7 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 
 ---
 
-## ✅ Checklist: Se Vedi Questo, È Tutto OK
+## ✅ Checklist: Se Vedi This, È Tutto OK
 
 - [ ] `python test_full_stack.py` → Tutti test passano
 - [ ] `http://localhost:8000/health` → Risponde 200 OK
@@ -191,7 +191,7 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 - [ ] Pagina visualizza 7 WebSDRs reali
 - [ ] Ogni 30 secondi: auto-refresh
 
-**Se tutto è spuntato** → ✅ **Frontend chiama davvero il backend!**
+**Se all è spuntato** → ✅ **Frontend chiama davvero il backend!**
 
 ---
 
@@ -203,7 +203,7 @@ GET /api/v1/acquisition/websdrs/health → 200 OK
 ❌ Connection Error: [Errno 10061] No connection could be made
 ```
 
-**Significa**: I servizi non sono online.
+**Significa**: I services non sono online.
 
 **Soluzione**:
 ```powershell
@@ -220,7 +220,7 @@ Frontend Console: ❌ API Error: {status: 404, ...}
 
 **Significa**: Il path nel frontend è sbagliato (ma l'ho già corretto).
 
-**Verifica**:
+**Verification**:
 ```
 File: frontend/.env
 Deve avere: VITE_API_URL=http://localhost:8000 (NO trailing /api)
@@ -235,7 +235,7 @@ npm run dev  # Restart
 
 ### Scenario 3: Frontend cache issue
 
-Anche se tutto è corretto, il browser ha cached la vecchia versione.
+Anche se all è corretto, il browser ha cached la vecchia versione.
 
 **Soluzione**:
 ```
@@ -245,12 +245,12 @@ Oppure: Ctrl+Shift+Delete (cancella cache)
 
 ---
 
-## 📖 Documenti Creati
+## 📖 Documenti Created
 
-Per capire meglio il sistema:
+Per capire meglio il system:
 
-1. **API_GATEWAY_EXPLANATION.md** ← Leggi questo se vuoi capire l'architettura
-2. **DEBUG_FRONTEND_BACKEND.md** ← Guida debug dettagliata
+1. **API_GATEWAY_EXPLANATION.md** ← Leggi this se vuoi capire l'architettura
+2. **DEBUG_FRONTEND_BACKEND.md** ← Guide debug dettagliata
 3. **VERIFICA_FRONTEND_BACKEND_IT.md** ← Troubleshooting in italiano
 4. **FIX_SUMMARY.md** ← Recap delle modifiche
 
@@ -262,7 +262,7 @@ Per capire meglio il sistema:
 ✅ **L'API Gateway lo proxya correttamente**
 ✅ **Il frontend è configurato correttamente**
 
-⚠️ **Il 404 che vedi è probabilmente perché i servizi non sono online**
+⚠️ **Il 404 che vedi è probabilmente perché i services non sono online**
 
 **Soluzione**:
 ```powershell
@@ -273,10 +273,10 @@ python test_full_stack.py  # Testa tutto
 
 ---
 
-**Prossimo Step**: Esegui `python test_full_stack.py` e condividi l'output!
+**Next Step**: Esegui `python test_full_stack.py` e condividi l'output!
 
 ---
 
 Ultimo Update: 2025-10-22
-Diagnosi: ✅ Backend è corretto, probabile issue è servizi offline o browser cache
+Diagnosi: ✅ Backend è corretto, probabile issue è services offline o browser cache
 Next: Run test_full_stack.py to verify
