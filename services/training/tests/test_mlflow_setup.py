@@ -175,20 +175,19 @@ class TestMLflowTracker:
         assert version == "1"
         mock_register_model.assert_called_once()
     
-    @patch.object(MLflowTracker, 'client')
-    def test_transition_model_stage(self, mock_client, mlflow_tracker):
+    def test_transition_model_stage(self, mlflow_tracker):
         """Test transitioning model stage."""
         
+        # The fixture already provides a mock client
         mlflow_tracker.transition_model_stage(
             model_name="heimdall-localization-v1",
             version="1",
             stage="Production",
         )
         
-        mock_client.transition_model_version_stage.assert_called_once()
+        mlflow_tracker.client.transition_model_version_stage.assert_called_once()
     
-    @patch.object(MLflowTracker, 'client')
-    def test_get_run_info(self, mock_client, mlflow_tracker):
+    def test_get_run_info(self, mlflow_tracker):
         """Test getting run information."""
         
         # Mock run
@@ -200,7 +199,7 @@ class TestMLflowTracker:
         mock_run.data.metrics = {'loss': 0.5}
         mock_run.data.tags = {'model': 'test'}
         
-        mock_client.get_run.return_value = mock_run
+        mlflow_tracker.client.get_run.return_value = mock_run
         
         run_info = mlflow_tracker.get_run_info("test-run-id")
         
