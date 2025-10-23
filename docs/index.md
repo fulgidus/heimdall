@@ -64,16 +64,16 @@ Heimdall is an AI-powered platform that locates radio transmissions in real-time
   - FAQs and troubleshooting guides
 
 ## Installation
-To install Heimdall, follow the instructions in the [Installation Guide](installation).
+To install Heimdall, follow the instructions in the [Installation Guide](installation.md).
 
 ## Usage
-For usage instructions, refer to the [User Guide](usage).
+For usage instructions, refer to the [User Guide](usage.md).
 
 ## Contributing
-We welcome contributions! Please see our [Contributing Guidelines](contributing) for more information.
+We welcome contributions! Please see our [Contributing Guidelines](contributing.md) for more information.
 
 ## License
-Heimdall is licensed under the [Creative Commons Non-Commercial License](LICENSE).
+Heimdall is licensed under the [Creative Commons Non-Commercial License](../LICENSE).
 
 ## Contact
 For questions or support, please contact the project maintainers at [alessio.corsi[AT]gmail.com](mailto:alessio.corsi@gmail.com).
@@ -85,24 +85,47 @@ The changelog follows the [Keep a Changelog](https://keepachangelog.com/en/1.0.0
 The changelog is maintained according to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) guidelines.
 
 ## FAQs
-Find answers to common questions in our [FAQ section](faqs).
+Find answers to common questions in our [FAQ section](faqs.md).
 
 ## Additional Resources
-- [Architecture Diagrams](architecture_diagrams)
-- [API Documentation](api_documentation)
-- [Performance Benchmarks](performance_benchmarks)
-- [Testing Strategies](testing_strategies)
-- [Deployment Instructions](deployment_instructions)
-- [Troubleshooting Guide](troubleshooting_guide)
-- [Glossary of Terms](glossary)
-- [Acknowledgements](acknowledgements)
-- [Related Projects](related_projects)
-- [Community Resources](community_resources)
-- [Roadmap](roadmap)
-- [Security Considerations](security_considerations)
-- [Performance Optimization Tips](performance_optimization)
-- [Data Schema Documentation](data_schema)
-- [API Reference](api_reference)
-- [Developer Guide](developer_guide)
-- [Heimdall Wiki](wiki)
+- [Architecture Diagrams](architecture_diagrams.md)
+- [API Documentation](api_documentation.md)
+- [Performance Benchmarks](performance_benchmarks.md)
+- [Testing Strategies](testing_strategies.md)
+- [Deployment Instructions](deployment_instructions.md)
+- [Troubleshooting Guide](troubleshooting_guide.md)
+- [Glossary of Terms](glossary.md)
+- [Acknowledgements](acknowledgements.md)
+- [Roadmap](roadmap.md)
+- [Security Considerations](security_considerations.md)
+- [Performance Optimization Tips](performance_optimization.md)
+- [Data Schema Documentation](data_schema.md)
+- [API Reference](api_reference.md)
+- [Developer Guide](developer_guide.md)
+- [Training Guide](TRAINING.md)
+- [Architecture Guide](ARCHITECTURE.md)
+- [API Specification](API.md)
+- [WebSDR Configuration](websdrs.md)
+
+## Development Phase Tracking
+
+The project follows a structured phase-based development approach. For detailed tracking of each phase:
+
+### Completed Phases
+- **[Phase 1: Infrastructure & Database](agents/20251022_080000_phase1_index.md)** - Infrastructure setup complete
+- **[Phase 2: Core Services Scaffolding](agents/20251022_080000_phase2_complete.md)** - Microservices scaffolding complete
+- **[Phase 3: RF Acquisition Service](agents/20251022_080000_phase3_index.md)** - WebSDR data acquisition complete
+- **[Phase 4: Data Ingestion & Validation](agents/20251022_080000_phase4_progress_dashboard.md)** - Infrastructure validation complete
+- **[Phase 5: Training Pipeline](agents/20251022_080000_phase5_document_index.md)** - ML training pipeline complete
+- **[Phase 6: Inference Service](agents/20251023_153000_phase6_index.md)** - Real-time inference complete
+
+### Active Phases
+- **[Phase 7: Frontend](agents/20251023_153000_phase7_start_here.md)** - React + Mapbox UI (In Progress)
+
+### Upcoming Phases
+- **Phase 8: Kubernetes & Deployment** - Production deployment
+- **Phase 9: Testing & QA** - Comprehensive testing
+- **Phase 10: Documentation & Release** - Final documentation and release
+
+For the complete phase management guide, see [AGENTS.md](../AGENTS.md).
 
