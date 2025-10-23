@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated WebSDR performance table to use analytics data when available (uptime, SNR, acquisitions, success rate)
   - Added loading states and error handling for analytics data fetching
   - Fixed metric calculations to use time series data from predictionMetrics API
+
+### Fixed
+- **API Gateway Analytics Routing**: Fixed missing routing for `/api/v1/analytics/*` endpoints
+  - Corrected INFERENCE_URL port from 8002 to 8003 in api-gateway service
+  - Added analytics proxy route in api-gateway to forward requests to inference service
+  - Fixed router imports in inference service __init__.py for proper module loading
+  - Added test endpoint `/api/v1/analytics/test` for debugging routing issues
+  - Temporarily disabled predict router to isolate analytics endpoint problems
   - Updated time range selector to reload analytics data for different periods (24h, 7d, 30d)
   - Added proper TypeScript interfaces and error handling throughout
   - Removed all mock data placeholders and replaced with real API calls
