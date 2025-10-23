@@ -772,7 +772,7 @@ class TestErrorHandlingAndEdgeCases:
     def test_float64_vs_float32(self):
         """Verify handling of different dtypes."""
         x_float64 = torch.randn(8, 3, 128, 32, dtype=torch.float64)
-        model = nn.Linear(3 * 128 * 32, 4, dtype=torch.float64)
+        model = nn.Linear(3 * 128 * 32, 4).to(torch.float64)
         # Should handle both dtypes
         output = model(x_float64.reshape(8, -1))
         assert output.dtype in [torch.float32, torch.float64]
