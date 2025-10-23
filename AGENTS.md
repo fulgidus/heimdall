@@ -11,6 +11,8 @@
 ---
 ## General Instructions
 
+- Commit messages must be in English.
+- All documentation must be written in English.
 - Use a professional and concise tone.
 - Provide detailed explanations when requested.
 - Whenever you want to generate markdown files to track your progress or communicate important information, create the files inside the `docs/agents/` folder following the format `YYYYMMDD_HHMMSS_description.md`.
