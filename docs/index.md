@@ -80,19 +80,9 @@ For questions or support, please contact the project maintainers at [alessio.cor
 
 ## Changelog
 
-For a comprehensive history of all changes, updates, and releases in this project, please consult the [Changelog](../CHANGELOG.md).
-
-The changelog is maintained according to the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format and follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) guidelines.
-
-Key information tracked in the changelog:
-- **Added**: New features and capabilities
-- **Changed**: Modifications to existing functionality
-- **Fixed**: Bug fixes and corrections
-- **Deprecated**: Features planned for removal
-- **Removed**: Features that have been removed
-- **Security**: Security-related updates
-
-The changelog provides version-by-version tracking of the project's evolution through its development phases.
+Consulta il [Changelog](../CHANGELOG.md) per una lista completa di tutte le modifiche, aggiornamenti e versioni rilasciate del progetto.
+Il changelog rispetta il formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+Il changelog è mantenuto secondo le [Linee Guida di Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## FAQs
 Find answers to common questions in our [FAQ section](faqs).
