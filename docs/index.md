@@ -111,6 +111,10 @@ Find answers to common questions in our [FAQ section](faqs.md).
 
 The project follows a structured phase-based development approach. For detailed tracking of each phase:
 
+### 📚 Navigation Hubs
+- **[Agents Master Index](agents/MASTER_INDEX.md)** - Complete navigation hub for all agent documentation
+- **[AGENTS.md](../AGENTS.md)** - Phase management guide (primary reference)
+
 ### Completed Phases
 - **[Phase 1: Infrastructure & Database](agents/20251022_080000_phase1_index.md)** - Infrastructure setup complete
 - **[Phase 2: Core Services Scaffolding](agents/20251022_080000_phase2_complete.md)** - Microservices scaffolding complete
@@ -126,6 +130,4 @@ The project follows a structured phase-based development approach. For detailed 
 - **Phase 8: Kubernetes & Deployment** - Production deployment
 - **Phase 9: Testing & QA** - Comprehensive testing
 - **Phase 10: Documentation & Release** - Final documentation and release
-
-For the complete phase management guide, see [AGENTS.md](../AGENTS.md).
 

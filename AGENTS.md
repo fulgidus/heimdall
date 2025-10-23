@@ -21,6 +21,7 @@
 - When modifying configuration or setup files, ensure that the instructions in the `README.md` file reflect these changes.
 - When adding new dependencies or tools, update the "Technology Stack" section in the `README.md` file to include these new technologies.
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
+- **For navigation**: Use [Agents Master Index](docs/agents/MASTER_INDEX.md) to find all agent tracking documentation.
 
 
 ## 📋 Project Organization Standards
