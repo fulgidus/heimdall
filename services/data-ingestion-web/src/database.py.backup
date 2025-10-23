@@ -4,12 +4,7 @@ from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
-# Create this file:
-# /c:/Users/aless/Documents/Projects/heimdall/services/data-ingestion-web/src/models/__init__.py
-
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from .models.session import Base
 
 # Connection string from environment
 POSTGRES_USER = os.getenv("POSTGRES_USER", "heimdall_user")

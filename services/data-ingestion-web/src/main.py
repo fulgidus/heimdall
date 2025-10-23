@@ -6,7 +6,6 @@ import logging
 
 from .config import settings
 from .models.health import HealthResponse
-from .database import init_db
 from .db import get_pool, close_pool
 from .routers import sessions
 
@@ -56,12 +55,6 @@ app.include_router(sessions.router)
 
 # Register routers
 app.include_router(sessions.router)
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize database on startup"""
-    init_db()
 
 
 @app.get("/")

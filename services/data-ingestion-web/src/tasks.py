@@ -58,26 +58,16 @@ def trigger_acquisition(
     This task calls the rf-acquisition service API.
     """
     import requests
-    from .repository import SessionRepository
-    from .database import SessionLocal
-
-    db = SessionLocal()
-    repo = SessionRepository()
+    import logging
+    
+    logger = logging.getLogger(__name__)
 
     try:
-        # Update session as processing
-        from .models.session import SessionStatus
-        session = repo.update_status(
-            db,
-            session_id,
-            status=SessionStatus.PROCESSING,
-            celery_task_id=self.request.id,
-            started_at=datetime.utcnow(),
-        )
-        
         # Call RF acquisition API
         # The rf-acquisition service is available at http://rf-acquisition:8001 in docker-compose
         rf_api_url = os.getenv("RF_ACQUISITION_API_URL", "http://rf-acquisition:8001")
+        
+        logger.info(f"Triggering RF acquisition for session {session_id} at {frequency_mhz} MHz")
         
         response = requests.post(
             f"{rf_api_url}/api/acquire",
@@ -91,14 +81,6 @@ def trigger_acquisition(
         
         acquisition_data = response.json()
         
-        # Mark as completed with results
-        repo.update_completed(
-            db,
-            session_id,
-            result_metadata=acquisition_data.get("metadata", {}),
-            minio_path=acquisition_data.get("minio_path", ""),
-        )
-        
         return {
             "status": "completed",
             "session_id": session_id,
@@ -108,7 +90,7 @@ def trigger_acquisition(
 
     except requests.exceptions.RequestException as e:
         error_msg = f"RF acquisition failed: {str(e)}"
-        repo.update_failed(db, session_id, error_msg)
+        logger.error(error_msg)
         return {
             "status": "failed",
             "session_id": session_id,
@@ -117,12 +99,10 @@ def trigger_acquisition(
         }
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
-        repo.update_failed(db, session_id, error_msg)
+        logger.error(error_msg)
         return {
             "status": "failed",
             "session_id": session_id,
             "task_id": self.request.id,
             "error": error_msg,
         }
-    finally:
-        db.close()
