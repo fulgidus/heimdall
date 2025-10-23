@@ -197,7 +197,8 @@ class TestFeatureExtraction:
     
     def _normalize_features(self, features):
         """Normalize features using real implementation."""
-        return normalize_features(features)
+        normalized, stats = normalize_features(features)
+        return normalized
 
 
 # ============================================================================
