@@ -103,7 +103,7 @@ class OrphanFinder:
         
         print(f"   Found {len(all_md_files)} markdown files in docs/")
         
-        # Build link graph
+        # Build link graph for all files in docs/
         for file_path in all_md_files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -114,6 +114,19 @@ class OrphanFinder:
                 
             except Exception as e:
                 print(f"   ⚠️  Error reading {file_path.relative_to(BASE_PATH)}: {e}")
+        
+        # Also add AGENTS.md to link graph (it's in root, not docs/)
+        agents_md = BASE_PATH / 'AGENTS.md'
+        if agents_md.exists():
+            try:
+                with open(agents_md, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                links = self.find_all_markdown_links(content, agents_md)
+                self.link_graph[agents_md] = links
+                
+            except Exception as e:
+                print(f"   ⚠️  Error reading AGENTS.md: {e}")
     
     def find_reachable_files(self, start_file: Path) -> Set[Path]:
         """Find all files reachable from a starting file via links (BFS)."""
