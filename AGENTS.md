@@ -11,6 +11,7 @@
 ---
 ## General Instructions
 
+### Core Directives
 - Commit messages must be in English.
 - All documentation must be written in English.
 - Use a professional and concise tone.
@@ -22,6 +23,27 @@
 - When adding new dependencies or tools, update the "Technology Stack" section in the `README.md` file to include these new technologies.
 - Keep the `CHANGELOG.md` file updated with a summary of changes made in each work session. Never ask for confirmation, just update it.
 - **For navigation**: Use [Agents Master Index](docs/agents/MASTER_INDEX.md) to find all agent tracking documentation.
+
+### Strict Terminal Command Rules
+**MANDATORY - No exceptions:**
+1. **NO arbitrary sleep commands**: Do NOT insert `sleep` statements anywhere in terminal commands unless explicitly required by the actual task logic (e.g., waiting for a specific asynchronous operation). Never use sleep for "safety" or "to be sure" - it wastes time and shows lazy thinking. BANNED: `sleep 10`, `sleep 15`, `sleep 30`, etc.
+2. **NO output redirection (`2>&1`)**: Do NOT append `2>&1` or any output redirection to console output commands. Commands that naturally print to stdout don't need redirection. BANNED: `command 2>&1 | head -100`, `docker compose ps 2>&1`
+
+**When it's actually needed:**
+- Use sleep ONLY for documented async wait conditions (e.g., "wait for service to bind port")
+- Use `2>&1` ONLY when capturing output to files and need both stdout AND stderr combined
+- When output redirection is actually needed: state the reason clearly in the explanation parameter
+
+**The rule applies to ALL agents in this project, without exception.**
+
+### Frontend Package Manager Preference
+**MANDATORY - Frontend projects use pnpm exclusively:**
+- Use `pnpm install`, `pnpm add`, `pnpm script-name` for all frontend package management
+- Do NOT use `npm` for frontend tasks - use `pnpm` instead
+- pnpm is faster, uses less disk space, and provides better dependency management
+- Applies to: `frontend/` directory and all frontend-related workflows
+- Example: `pnpm install` (instead of `npm install`), `pnpm dev` (instead of `npm run dev`)
+- This rule applies to ALL agents working on frontend code, without exception
 
 
 ## 📋 Project Organization Standards
@@ -220,6 +242,13 @@ These standards are mandatory for all contributions:
 
 - [🤖 AGENTS.md - Heimdall SDR Project Phase Management Guide](#-agentsmd---heimdall-sdr-project-phase-management-guide)
     - [General Instructions](#general-instructions)
+        - [Core Directives](#core-directives)
+        - [Strict Terminal Command Rules](#strict-terminal-command-rules)
+        - [Frontend Package Manager Preference](#frontend-package-manager-preference)
+    - [📋 Project Organization Standards](#-project-organization-standards)
+        - [Documentation Standards](#documentation-standards)
+        - [Script Organization Standards](#script-organization-standards)
+        - [Enforcement](#enforcement)
     - [📚 Documentation Convention](#-documentation-convention)
         - [Key Documentation Files:](#key-documentation-files)
     - [📑 Table of Contents](#-table-of-contents)

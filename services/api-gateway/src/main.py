@@ -202,7 +202,7 @@ async def readiness_check():
     return {"ready": True}
 
 
-@app.post("/auth/login")
+@app.post("/api/v1/auth/login")
 async def login_proxy(request: Request):
     """
     Proxy OAuth2 token request to Keycloak.
@@ -250,7 +250,7 @@ async def login_proxy(request: Request):
 
 
 if AUTH_ENABLED:
-    @app.get("/auth/check")
+    @app.get("/api/v1/auth/check")
     async def auth_check(user: User = Depends(get_current_user)):
         """Check authentication status and return user info."""
         return {
@@ -267,7 +267,7 @@ if AUTH_ENABLED:
             }
         }
 else:
-    @app.get("/auth/check")
+    @app.get("/api/v1/auth/check")
     async def auth_check():
         """Check authentication status and return user info."""
         return {
