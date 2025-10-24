@@ -793,51 +793,154 @@ spec:
 
 ### Authentication & Authorization
 
-```python
-# JWT-based authentication
-class AuthenticationService:
-    def __init__(self, secret_key: str):
-        self.secret_key = secret_key
-        self.algorithm = "HS256"
-    
-    def create_access_token(self, user_id: str, permissions: List[str]) -> str:
-        """Create JWT access token with user permissions."""
-        payload = {
-            "sub": user_id,
-            "permissions": permissions,
-            "exp": datetime.utcnow() + timedelta(hours=1),
-            "iat": datetime.utcnow()
-        }
-        return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
-    
-    def verify_token(self, token: str) -> Dict[str, Any]:
-        """Verify and decode JWT token."""
-        try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            return payload
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(401, "Token expired")
-        except jwt.InvalidTokenError:
-            raise HTTPException(401, "Invalid token")
+Heimdall uses **Keycloak** as a centralized Identity and Access Management (IAM) solution.
 
-# Role-based access control
-PERMISSIONS = {
-    "admin": [
-        "signals:read", "signals:write", "signals:delete",
-        "models:read", "models:write", "models:deploy",
-        "system:read", "system:write"
-    ],
-    "operator": [
-        "signals:read", "signals:write",
-        "models:read", "models:write",
-        "system:read"
-    ],
-    "viewer": [
-        "signals:read",
-        "models:read",
-        "system:read"
-    ]
+#### Architecture
+
+```
+┌─────────────────┐
+│   Frontend      │  ◄─── SSO (OIDC/PKCE)
+│   (React)       │
+└────────┬────────┘
+         │ JWT Bearer Token
+         ▼
+┌─────────────────┐      ┌──────────────┐
+│  API Gateway    │ ◄────┤  Keycloak    │
+│                 │      │  (IAM)       │
+└────────┬────────┘      └──────────────┘
+         │ JWT Bearer Token      ▲
+         ▼                       │
+┌─────────────────┐             │
+│  Microservices  │ ────────────┘
+│  (RF, Training, │   Client Credentials
+│   Inference)    │   (Service Auth)
+└─────────────────┘
+```
+
+#### Authentication Implementation
+
+```python
+# services/common/auth/keycloak_auth.py
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer
+import jwt
+from jwt import PyJWKClient
+
+class KeycloakAuth:
+    """Keycloak authentication handler."""
+    
+    def __init__(self, keycloak_url: str, realm: str):
+        self.keycloak_url = keycloak_url
+        self.realm = realm
+        self.jwks_url = f"{keycloak_url}/realms/{realm}/protocol/openid-connect/certs"
+        self.jwk_client = PyJWKClient(self.jwks_url)
+    
+    def verify_token(self, token: str) -> dict:
+        """Verify JWT token and extract claims."""
+        signing_key = self.jwk_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=["account"],
+        )
+        return payload
+
+# Usage in FastAPI endpoints
+from auth import get_current_user, require_operator, User
+
+@app.post("/acquisition/trigger")
+async def trigger_acquisition(user: User = Depends(require_operator)):
+    """Only operators and admins can trigger acquisitions."""
+    return {"status": "triggered", "by": user.username}
+```
+
+#### Role-Based Access Control (RBAC)
+
+```python
+# Heimdall roles and permissions
+ROLES = {
+    "admin": {
+        "description": "Administrator with full system access",
+        "permissions": [
+            "signals:read", "signals:write", "signals:delete",
+            "models:read", "models:write", "models:deploy",
+            "system:read", "system:write", "users:manage"
+        ]
+    },
+    "operator": {
+        "description": "Operator with read/write access",
+        "permissions": [
+            "signals:read", "signals:write",
+            "models:read", "models:write",
+            "system:read"
+        ]
+    },
+    "viewer": {
+        "description": "Viewer with read-only access",
+        "permissions": [
+            "signals:read",
+            "models:read",
+            "system:read"
+        ]
+    }
 }
+
+# FastAPI dependencies for role checking
+@app.get("/admin-only")
+async def admin_endpoint(user: User = Depends(require_admin)):
+    return {"access": "granted"}
+
+@app.post("/operator-action")
+async def operator_endpoint(user: User = Depends(require_operator)):
+    return {"action": "performed"}
+
+@app.get("/public-data")
+async def viewer_endpoint(user: User = Depends(get_current_user)):
+    # Any authenticated user can access
+    return {"data": "..."}
+```
+
+#### Service-to-Service Authentication
+
+```python
+# Service client for inter-service communication
+class ServiceAuthClient:
+    """Client for service-to-service authentication."""
+    
+    def __init__(self, client_id: str, client_secret: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token = None
+        self.token_expiry = None
+    
+    def get_token(self) -> str:
+        """Get access token using client credentials flow."""
+        if self.token and datetime.now() < self.token_expiry:
+            return self.token
+        
+        # Fetch new token from Keycloak
+        token_url = f"{KEYCLOAK_URL}/realms/{REALM}/protocol/openid-connect/token"
+        response = requests.post(token_url, data={
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        })
+        
+        result = response.json()
+        self.token = result["access_token"]
+        self.token_expiry = datetime.now() + timedelta(seconds=result["expires_in"] - 300)
+        
+        return self.token
+    
+    def call_service(self, url: str, method: str = "GET", **kwargs):
+        """Make authenticated request to another service."""
+        token = self.get_token()
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {token}"
+        kwargs["headers"] = headers
+        
+        return requests.request(method, url, **kwargs)
 ```
 
 ### Data Encryption
