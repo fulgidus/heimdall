@@ -30,6 +30,9 @@ const mockWebSDRStore = {
         url: `http://localhost:800${i}`,
         country: 'Italy',
         location: `Receiver ${i + 1}`,
+        location_name: `City ${i + 1}, Italy`,
+        latitude: 45.0 + i * 0.1,
+        longitude: 7.0 + i * 0.1,
         is_active: true,
     })),
     healthStatus: Object.fromEntries(
@@ -45,6 +48,7 @@ const mockWebSDRStore = {
         avg_response_time_ms: 151,
     },
     isLoading: false,
+    loading: false,
     error: null,
     fetchWebSDRs: vi.fn(),
     checkHealth: vi.fn(),
@@ -95,7 +99,68 @@ const mockAuthStore = {
     updateProfile: vi.fn(),
 };
 
+const mockAnalyticsStore = {
+    predictionMetrics: {
+        total_predictions: [{ timestamp: '2025-10-24T00:00:00Z', value: 100 }],
+        successful_predictions: [{ timestamp: '2025-10-24T00:00:00Z', value: 85 }],
+        failed_predictions: [{ timestamp: '2025-10-24T00:00:00Z', value: 15 }],
+        average_confidence: [{ timestamp: '2025-10-24T00:00:00Z', value: 0.85 }],
+        average_uncertainty: [{ timestamp: '2025-10-24T00:00:00Z', value: 25 }],
+    },
+    websdrPerformance: [],
+    systemPerformance: null,
+    accuracyDistribution: {},
+    isLoading: false,
+    error: null,
+    timeRange: '24h',
+    setTimeRange: vi.fn(),
+    fetchPredictionMetrics: vi.fn(),
+    fetchWebSDRPerformance: vi.fn(),
+    fetchSystemPerformance: vi.fn(),
+    fetchAccuracyDistribution: vi.fn(),
+    fetchAllAnalytics: vi.fn(),
+    refreshData: vi.fn(),
+};
+
+const mockLocalizationStore = {
+    recentLocalizations: [],
+    isLoading: false,
+    error: null,
+    predictLocalization: vi.fn(),
+    predictLocalizationBatch: vi.fn(),
+    fetchRecentLocalizations: vi.fn(),
+};
+
+const mockAcquisitionStore = {
+    currentTask: null,
+    taskHistory: [],
+    isLoading: false,
+    error: null,
+    triggerAcquisition: vi.fn(),
+    pollTaskStatus: vi.fn(),
+    clearCurrentTask: vi.fn(),
+};
+
+const mockSystemStore = {
+    health: {
+        status: 'healthy',
+        services: {
+            postgres: 'healthy',
+            rabbitmq: 'healthy',
+            redis: 'healthy',
+            minio: 'healthy',
+        },
+    },
+    isLoading: false,
+    error: null,
+    fetchSystemHealth: vi.fn(),
+};
+
 export const useDashboardStore = vi.fn(() => mockDashboardStore);
 export const useWebSDRStore = vi.fn(() => mockWebSDRStore);
 export const useSessionStore = vi.fn(() => mockSessionStore);
 export const useAuthStore = vi.fn(() => mockAuthStore);
+export const useAnalyticsStore = vi.fn(() => mockAnalyticsStore);
+export const useLocalizationStore = vi.fn(() => mockLocalizationStore);
+export const useAcquisitionStore = vi.fn(() => mockAcquisitionStore);
+export const useSystemStore = vi.fn(() => mockSystemStore);
