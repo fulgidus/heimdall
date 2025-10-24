@@ -209,10 +209,34 @@ async def login_proxy(request: Request):
     
     This endpoint proxies login requests to Keycloak, allowing the frontend
     to request tokens through the API Gateway (which has CORS enabled).
+    
+    Accepts both:
+    - application/x-www-form-urlencoded (from OAuth2 clients)
+    - application/json (for convenience)
     """
     try:
-        # Parse JSON body from request
-        body = await request.json()
+        # Parse body based on content type
+        content_type = request.headers.get("content-type", "").lower()
+        
+        if "application/json" in content_type:
+            # Parse JSON body
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+            logger.debug(f"📋 Parsed JSON body: email={email}")
+        else:
+            # Parse form-urlencoded body (OAuth2 standard)
+            form_data = await request.form()
+            email = form_data.get("username") or form_data.get("email")
+            password = form_data.get("password")
+            logger.debug(f"📋 Parsed form-urlencoded body: email={email}")
+        
+        # Validate required fields
+        if not email or not password:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Missing email/username or password"}
+            )
         
         # Keycloak token endpoint
         keycloak_url = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
@@ -220,11 +244,13 @@ async def login_proxy(request: Request):
         client_id = os.getenv("VITE_KEYCLOAK_CLIENT_ID", "heimdall-frontend")
         token_endpoint = f"{keycloak_url}/realms/{keycloak_realm}/protocol/openid-connect/token"
         
+        logger.info(f"🔐 Proxying login to: {token_endpoint}")
+        
         # Build form data for Keycloak (it expects form-urlencoded, not JSON)
         form_data = {
             "client_id": client_id,
-            "username": body.get("email") or body.get("username"),  # Support both email and username
-            "password": body.get("password"),
+            "username": email,
+            "password": password,
             "grant_type": "password"
         }
         
@@ -236,13 +262,23 @@ async def login_proxy(request: Request):
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
         
+        logger.info(f"🔐 Keycloak response: {response.status_code}")
+        
         # Return Keycloak response with CORS headers (added by middleware)
-        return JSONResponse(
-            status_code=response.status_code,
-            content=response.json() if response.status_code == 200 else {"error": "Authentication failed"}
-        )
+        if response.status_code == 200:
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
+        else:
+            error_content = response.json() if response.text else {}
+            logger.warning(f"⚠️ Keycloak error: {error_content}")
+            return JSONResponse(
+                status_code=response.status_code,
+                content=error_content or {"error": "Authentication failed"}
+            )
     except Exception as e:
-        logger.error(f"Login proxy error: {str(e)}")
+        logger.error(f"❌ Login proxy error: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": "Internal server error"}
