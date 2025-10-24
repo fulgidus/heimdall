@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 AUTH_ENABLED = False  # TEMPORARILY DISABLED FOR FRONTEND TESTING
 try:
     from auth import get_current_user, require_role, require_admin, require_operator, User
-    logger.info("⚠️ Authentication module imported (but disabled for development)")
+    logger.info("⚠️ Authentication module imported (but disabled)")
 except ImportError as e:
     logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
     # Define dummy user for when auth is disabled
