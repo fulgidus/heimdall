@@ -4,7 +4,7 @@
  * Utilities for Playwright E2E tests
  */
 
-import { expect, Page, Route } from '@playwright/test';
+import { expect, Page, Route, Response, Request } from '@playwright/test';
 
 /**
  * Backend origin for API requests
@@ -27,7 +27,7 @@ export async function waitForBackendCall(
     console.log(`🔍 Waiting for backend call: ${urlPattern}`);
 
     const response = await page.waitForResponse(
-        (response) => {
+        (response: Response) => {
             const url = response.url();
             const status = response.status();
 
@@ -63,21 +63,21 @@ export async function waitForBackendCall(
  * @param page - Playwright page
  */
 export async function setupRequestLogging(page: Page) {
-    page.on('request', (request) => {
+    page.on('request', (request: Request) => {
         const url = request.url();
         if (url.includes('/api/')) {
             console.log(`📤 Request: ${request.method()} ${url}`);
         }
     });
 
-    page.on('response', (response) => {
+    page.on('response', (response: Response) => {
         const url = response.url();
         if (url.includes('/api/')) {
             console.log(`📥 Response: ${response.status()} ${url}`);
         }
     });
 
-    page.on('requestfailed', (request) => {
+    page.on('requestfailed', (request: Request) => {
         const url = request.url();
         if (url.includes('/api/')) {
             console.error(`❌ Request failed: ${request.method()} ${url}`);
@@ -159,7 +159,7 @@ export async function saveHAR(page: Page, testName: string) {
 export async function assertBackendCallMade(page: Page, urlPattern: string | RegExp) {
     let callDetected = false;
 
-    page.on('response', (response) => {
+    page.on('response', (response: Response) => {
         const url = response.url();
         const matches = typeof urlPattern === 'string'
             ? url.includes(urlPattern)
