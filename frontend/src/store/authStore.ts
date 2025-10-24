@@ -20,6 +20,9 @@ interface AuthStore {
     setToken: (token: string | null) => void;
 }
 
+// API Gateway configuration (reads from .env)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 // Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';
 
@@ -36,7 +39,8 @@ export const useAuthStore = create<AuthStore>()(
                     // Use API Gateway as proxy to Keycloak (CORS-enabled)
                     // This avoids direct CORS requests to Keycloak
                     // Endpoint: POST /api/v1/auth/login (proxies to Keycloak internally)
-                    const tokenUrl = `http://localhost:8000/api/v1/auth/login`;
+                    // Base URL comes from VITE_API_URL environment variable
+                    const tokenUrl = `${API_URL}/api/v1/auth/login`;
 
                     const params = new URLSearchParams();
                     params.append('grant_type', 'password');
