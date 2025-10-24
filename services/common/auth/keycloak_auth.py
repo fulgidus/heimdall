@@ -74,15 +74,15 @@ class KeycloakAuth:
             signing_key = self.jwk_client.get_signing_key_from_jwt(token)
             
             # Decode and verify token
+            # Note: Public clients don't have aud claim by default
             payload = jwt.decode(
                 token,
                 signing_key.key,
                 algorithms=["RS256"],
-                audience=["account"],  # Keycloak default audience
                 options={
                     "verify_signature": True,
                     "verify_exp": True,
-                    "verify_aud": True,
+                    "verify_aud": False,  # Public clients may not have aud claim
                 }
             )
             

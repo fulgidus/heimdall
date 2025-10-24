@@ -206,8 +206,8 @@ services:
   # API Gateway - Main REST API entry point
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: api-gateway/Dockerfile
     container_name: heimdall-api-gateway
     environment:
       SERVICE_NAME: api-gateway
@@ -215,6 +215,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
       CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret-change-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
