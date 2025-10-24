@@ -103,25 +103,25 @@ export async function login(page: Page, email: string = 'admin@heimdall.local', 
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
 
-    // Setup listener for Keycloak token endpoint call BEFORE clicking submit
-    // Keycloak uses OAuth2 token endpoint: /realms/{realm}/protocol/openid-connect/token
+    // Setup listener for API Gateway auth endpoint BEFORE clicking submit
+    // API Gateway exposes: POST /api/v1/auth/login (proxies to Keycloak internally)
     const loginResponsePromise = page.waitForResponse(
-        response => response.url().includes('/protocol/openid-connect/token') && response.status() === 200,
+        response => response.url().includes('/api/v1/auth/login') && response.status() === 200,
         { timeout: 30000 }
     );
 
     // Submit form
     await page.click('button[type="submit"]');
 
-    // Wait for Keycloak token response
+    // Wait for API Gateway login response
     const loginResponse = await loginResponsePromise;
 
-    // Verify we got a successful OAuth2 token response
+    // Verify we got a successful token response
     expect(loginResponse.status()).toBe(200);
     
     const responseData = await loginResponse.json();
     expect(responseData.access_token).toBeDefined();
-    console.log(`✅ OAuth2 token received from Keycloak`);
+    console.log(`✅ OAuth2 token received from API Gateway`);
 
     // Wait for redirect to dashboard
     await page.waitForURL('/dashboard', { timeout: 10000 });
