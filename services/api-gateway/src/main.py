@@ -5,24 +5,35 @@ from fastapi.responses import JSONResponse
 import httpx
 import logging
 import os
+import sys
+
+# Add parent directory to path for auth module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..', 'common'))
 
 from .config import settings
 from .models.health import HealthResponse
 
-logger = logging.getLogger(__name__)
-
-# Import authentication
-AUTH_ENABLED = True  # ENABLED: Keycloak OAuth2 authentication
+# Import Keycloak authentication
 try:
-    from auth import get_current_user, require_role, require_admin, require_operator, User
-    logger.info("⚠️ Authentication module imported (but disabled)")
+    from auth.keycloak_auth import get_current_user, require_admin, require_operator
+    from auth.models import User
+    AUTH_ENABLED = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Keycloak authentication enabled")
 except ImportError as e:
+    logger = logging.getLogger(__name__)
     logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
+    AUTH_ENABLED = False
     # Define dummy user for when auth is disabled
     class User:
         def __init__(self):
+            self.id = "anonymous"
             self.username = "anonymous"
+            self.email = "anonymous@heimdall.local"
             self.roles = []
+            self.is_admin = False
+            self.is_operator = False
+            self.is_viewer = False
 
 SERVICE_NAME = "api-gateway"
 SERVICE_VERSION = "0.1.0"
@@ -314,296 +325,103 @@ else:
 
 
 # =============================================================================
-# Stub Endpoints for E2E Testing
+# User Profile & Preferences Endpoints (Keycloak-based)
 # =============================================================================
-# These endpoints provide mock data for testing until full implementation
 
 @app.get("/api/v1/auth/me")
-async def get_current_user_info():
-    """Get current user information (stub for testing)."""
+async def get_current_user_info(user: User = Depends(get_current_user)):
+    """Get current authenticated user information from Keycloak token."""
     return {
-        "id": "test-user-123",
-        "username": "test@example.com",
-        "email": "test@example.com",
-        "roles": ["operator", "viewer"],
-        "is_admin": False,
-        "is_operator": True,
-        "is_viewer": True,
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": user.roles,
+        "is_admin": user.is_admin,
+        "is_operator": user.is_operator,
+        "is_viewer": user.is_viewer,
     }
 
 
 @app.get("/api/v1/profile")
-async def get_user_profile():
-    """Get user profile (stub for testing)."""
+async def get_user_profile(user: User = Depends(get_current_user)):
+    """Get user profile from Keycloak."""
+    # TODO: Extend with additional profile data from database if needed
     return {
-        "id": "test-user-123",
-        "username": "test@example.com",
-        "email": "test@example.com",
-        "first_name": "Test",
-        "last_name": "User",
-        "created_at": "2025-01-01T00:00:00Z",
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": user.roles,
+        "first_name": user.username.split("@")[0] if user.username else "",
+        "last_name": "",
+        "created_at": datetime.utcnow().isoformat(),
         "last_login": datetime.utcnow().isoformat(),
-        "preferences": {
-            "theme": "dark",
-            "notifications_enabled": True,
-        }
     }
 
 
-@app.patch("/api/v1/profile")
-async def update_user_profile(request: Request):
-    """Update user profile (stub for testing)."""
-    body = await request.json()
-    return {
-        "success": True,
-        "message": "Profile updated successfully",
-        "profile": body
-    }
-
-
-@app.get("/api/v1/profile/history")
-async def get_user_activity_history():
-    """Get user activity history (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "activities": [
-            {
-                "id": i,
-                "timestamp": (now - timedelta(hours=i)).isoformat(),
-                "action": "session_created" if i % 2 == 0 else "acquisition_started",
-                "description": f"Test activity {i}",
-            }
-            for i in range(10)
-        ]
-    }
-
-
-@app.get("/api/v1/user")
-async def get_user():
-    """Get user information (stub for testing)."""
-    return {
-        "id": "test-user-123",
-        "username": "test@example.com",
-        "email": "test@example.com",
-        "roles": ["operator"],
-    }
-
-
-@app.get("/api/v1/user/activity")
-async def get_user_activity():
-    """Get user activity (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "recent_sessions": 5,
-        "recent_predictions": 12,
-        "last_active": now.isoformat(),
-    }
-
-
-@app.get("/api/v1/user/preferences")
-async def get_user_preferences():
-    """Get user preferences (stub for testing)."""
-    return {
-        "theme": "dark",
-        "notifications_enabled": True,
-        "auto_refresh": True,
-        "default_time_range": "7d",
-    }
-
-
-@app.patch("/api/v1/user/preferences")
-async def update_user_preferences(request: Request):
-    """Update user preferences (stub for testing)."""
-    body = await request.json()
-    return {
-        "success": True,
-        "preferences": body
-    }
-
-
-@app.get("/api/v1/settings")
-async def get_settings():
-    """Get application settings (stub for testing)."""
-    return {
-        "websdr_count": 7,
-        "auto_approval": False,
-        "default_duration": 30,
-        "default_frequency": 145.5,
-        "notification_email": "operator@example.com",
-    }
-
-
-@app.patch("/api/v1/settings")
-async def update_settings(request: Request):
-    """Update application settings (stub for testing)."""
-    body = await request.json()
-    return {
-        "success": True,
-        "settings": body
-    }
-
+# =============================================================================
+# System Status & Metrics Endpoints
+# =============================================================================
 
 @app.get("/api/v1/config")
 async def get_config():
-    """Get application configuration (stub for testing)."""
+    """Get application configuration."""
     return {
         "websdrs": 7,
         "supported_bands": ["2m", "70cm"],
         "max_duration_seconds": 300,
         "min_frequency_mhz": 144.0,
         "max_frequency_mhz": 146.0,
+        "keycloak_realm": os.getenv("KEYCLOAK_REALM", "heimdall"),
+        "keycloak_url": os.getenv("KEYCLOAK_URL", "http://keycloak:8080"),
     }
 
 
 @app.get("/api/v1/stats")
 async def get_dashboard_stats():
-    """Get dashboard statistics (stub for testing)."""
+    """Get dashboard statistics from database."""
+    # TODO: Implement real stats aggregation from database
     return {
-        "total_sessions": 42,
-        "active_sessions": 3,
-        "completed_predictions": 128,
-        "average_accuracy_m": 25.3,
+        "total_sessions": 0,
+        "active_sessions": 0,
+        "completed_predictions": 0,
+        "average_accuracy_m": 0.0,
         "websdrs_online": 7,
-        "uptime_percentage": 99.2,
-    }
-
-
-@app.get("/api/v1/activity")
-async def get_recent_activity():
-    """Get recent system activity (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "activities": [
-            {
-                "id": i,
-                "timestamp": (now - timedelta(minutes=i*10)).isoformat(),
-                "type": "acquisition" if i % 3 == 0 else "prediction",
-                "user": "test@example.com",
-                "status": "completed",
-            }
-            for i in range(20)
-        ]
-    }
-
-
-@app.get("/api/v1/recent")
-async def get_recent_items():
-    """Get recent items (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "sessions": [
-            {
-                "id": i,
-                "name": f"Session {i}",
-                "created_at": (now - timedelta(hours=i)).isoformat(),
-                "status": "completed",
-            }
-            for i in range(5)
-        ]
+        "uptime_percentage": 100.0,
     }
 
 
 @app.get("/api/v1/system/status")
 async def get_system_status():
-    """Get system status (stub for testing)."""
+    """Aggregate health status from all services."""
+    services_health = []
+    service_urls = {
+        "api-gateway": "http://localhost:8000",
+        "rf-acquisition": RF_ACQUISITION_URL,
+        "data-ingestion-web": DATA_INGESTION_URL,
+        "inference": INFERENCE_URL,
+        "training": TRAINING_URL,
+    }
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for service_name, url in service_urls.items():
+            try:
+                response = await client.get(f"{url}/health")
+                status = "healthy" if response.status_code == 200 else "unhealthy"
+            except Exception:
+                status = "unreachable"
+            
+            services_health.append({
+                "name": service_name,
+                "status": status,
+                "url": url,
+            })
+    
+    overall_healthy = all(s["status"] == "healthy" for s in services_health)
+    
     return {
-        "overall_status": "healthy",
-        "services": [
-            {"name": "api-gateway", "status": "healthy", "uptime": "99.9%"},
-            {"name": "rf-acquisition", "status": "healthy", "uptime": "99.5%"},
-            {"name": "data-ingestion-web", "status": "healthy", "uptime": "99.8%"},
-            {"name": "inference", "status": "healthy", "uptime": "99.7%"},
-            {"name": "training", "status": "healthy", "uptime": "99.6%"},
-        ],
+        "overall_status": "healthy" if overall_healthy else "degraded",
+        "services": services_health,
         "timestamp": datetime.utcnow().isoformat(),
-    }
-
-
-@app.get("/api/v1/system/services")
-async def get_system_services():
-    """Get system services status (stub for testing)."""
-    return {
-        "services": [
-            {
-                "id": "api-gateway",
-                "name": "API Gateway",
-                "status": "running",
-                "health": "healthy",
-                "cpu_usage": 15.2,
-                "memory_usage": 45.3,
-            },
-            {
-                "id": "rf-acquisition",
-                "name": "RF Acquisition",
-                "status": "running",
-                "health": "healthy",
-                "cpu_usage": 22.1,
-                "memory_usage": 52.7,
-            },
-            {
-                "id": "data-ingestion-web",
-                "name": "Data Ingestion",
-                "status": "running",
-                "health": "healthy",
-                "cpu_usage": 12.5,
-                "memory_usage": 38.2,
-            },
-            {
-                "id": "inference",
-                "name": "Inference",
-                "status": "running",
-                "health": "healthy",
-                "cpu_usage": 18.3,
-                "memory_usage": 48.9,
-            },
-            {
-                "id": "training",
-                "name": "Training",
-                "status": "running",
-                "health": "healthy",
-                "cpu_usage": 8.7,
-                "memory_usage": 35.1,
-            },
-        ]
-    }
-
-
-@app.get("/api/v1/system/metrics")
-async def get_system_metrics():
-    """Get system metrics (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "cpu_usage": [
-            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 15 + (i % 10)}
-            for i in range(60)
-        ],
-        "memory_usage": [
-            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 40 + (i % 15)}
-            for i in range(60)
-        ],
-        "api_requests": [
-            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 100 + (i % 50)}
-            for i in range(60)
-        ],
-    }
-
-
-@app.get("/api/v1/localizations")
-async def get_localizations():
-    """Get recent localizations (stub for testing)."""
-    now = datetime.utcnow()
-    return {
-        "localizations": [
-            {
-                "id": i,
-                "timestamp": (now - timedelta(minutes=i*5)).isoformat(),
-                "latitude": 45.0 + (i % 10) * 0.01,
-                "longitude": 8.5 + (i % 10) * 0.01,
-                "uncertainty_m": 15 + (i % 20),
-                "confidence": 0.75 + (i % 5) * 0.05,
-            }
-            for i in range(20)
-        ]
     }
 
 
