@@ -1,5 +1,58 @@
 import '@testing-library/jest-dom';
-import { beforeEach, beforeAll } from 'vitest';
+import { beforeEach, beforeAll, vi } from 'vitest';
+import {
+    createMockDashboardStore,
+    createMockWebSDRStore,
+    createMockSessionStore,
+    createMockAuthStore,
+} from './mockStoreFactories';
+
+// ============================================
+// SETUP MOCKS - MUST BE BEFORE COMPONENT IMPORTS
+// ============================================
+
+const mockDashboardStore = createMockDashboardStore();
+const mockWebSDRStore = createMockWebSDRStore();
+const mockSessionStore = createMockSessionStore();
+const mockAuthStore = createMockAuthStore();
+
+// Mock all stores GLOBALLY
+vi.mock('../store', () => ({
+    useDashboardStore: () => ({
+        ...mockDashboardStore.getState(),
+        ...mockDashboardStore,
+    }),
+    useWebSDRStore: () => ({
+        ...mockWebSDRStore.getState(),
+        ...mockWebSDRStore,
+    }),
+    useSessionStore: () => ({
+        ...mockSessionStore.getState(),
+        ...mockSessionStore,
+    }),
+    useAuthStore: () => ({
+        ...mockAuthStore.getState(),
+        ...mockAuthStore,
+    }),
+}));
+
+vi.mock('../store/sessionStore', () => ({
+    useSessionStore: () => ({
+        ...mockSessionStore.getState(),
+        ...mockSessionStore,
+    }),
+}));
+
+vi.mock('../store/websdrStore', () => ({
+    useWebSDRStore: () => ({
+        ...mockWebSDRStore.getState(),
+        ...mockWebSDRStore,
+    }),
+}));
+
+// ============================================
+// WINDOW & ENV MOCKS
+// ============================================
 
 // Mock window.matchMedia
 beforeAll(() => {
@@ -31,4 +84,5 @@ Object.defineProperty(import.meta, 'env', {
 // Clear localStorage before each test
 beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
 });

@@ -15,7 +15,7 @@ Modern, responsive dashboard built with React, TypeScript, and TailwindCSS.
 
 - **Frontend Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
-- **Styling**: TailwindCSS + SCSS
+- **Styling**: SCSS
 - **State Management**: Zustand
 - **HTTP Client**: Axios
 - **Routing**: React Router v6

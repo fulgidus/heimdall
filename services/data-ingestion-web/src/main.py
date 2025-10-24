@@ -53,6 +53,9 @@ app.add_middleware(
 # Include routers
 app.include_router(sessions.router)
 
+# Register routers
+app.include_router(sessions.router)
+
 
 @app.get("/")
 async def root():

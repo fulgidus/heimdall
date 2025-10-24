@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings
 from typing import List
 
@@ -8,7 +9,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     cors_origins: List[str] = ["*"]
     database_url: str = "postgresql://heimdall:heimdall@postgres:5432/heimdall"
-    redis_url: str = "redis://redis:6379/0"
+    redis_password: str = os.getenv("REDIS_PASSWORD", "changeme")
+    redis_url: str = f"redis://:{os.getenv('REDIS_PASSWORD', 'changeme')}@redis:6379/0"
     
     class Config:
         env_file = ".env"

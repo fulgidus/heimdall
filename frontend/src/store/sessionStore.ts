@@ -1,3 +1,4 @@
+
 /**
  * Session Store
  * 
@@ -20,19 +21,19 @@ interface SessionStore {
     currentSession: RecordingSessionWithDetails | null;
     knownSources: KnownSource[];
     analytics: SessionAnalytics | null;
-    
+
     isLoading: boolean;
     error: string | null;
-    
+
     // Pagination
     currentPage: number;
     totalSessions: number;
     perPage: number;
-    
+
     // Filters
     statusFilter: string | null;
     approvalFilter: string | null;
-    
+
     // Actions
     fetchSessions: (params?: {
         page?: number;
@@ -40,30 +41,30 @@ interface SessionStore {
         status?: string;
         approval_status?: string;
     }) => Promise<void>;
-    
-    fetchSession: (sessionId: string) => Promise<void>;
-    
+
+    fetchSession: (sessionId: number) => Promise<void>;
+
     createSession: (session: RecordingSessionCreate) => Promise<RecordingSession>;
-    
+
     updateSessionStatus: (
-        sessionId: string,
+        sessionId: number,
         status: string,
         celeryTaskId?: string
     ) => Promise<void>;
-    
-    approveSession: (sessionId: string) => Promise<void>;
-    rejectSession: (sessionId: string) => Promise<void>;
-    
-    deleteSession: (sessionId: string) => Promise<void>;
-    
+
+    approveSession: (sessionId: number) => Promise<void>;
+    rejectSession: (sessionId: number) => Promise<void>;
+
+    deleteSession: (sessionId: number) => Promise<void>;
+
     fetchAnalytics: () => Promise<void>;
-    
+
     fetchKnownSources: () => Promise<void>;
     createKnownSource: (source: KnownSourceCreate) => Promise<KnownSource>;
-    
+
     setStatusFilter: (status: string | null) => void;
     setApprovalFilter: (approval: string | null) => void;
-    
+
     clearError: () => void;
 }
 
@@ -89,7 +90,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
                 status: params?.status || get().statusFilter || undefined,
                 approval_status: params?.approval_status || get().approvalFilter || undefined,
             });
-            
+
             set({
                 sessions: response.sessions,
                 totalSessions: response.total,
@@ -104,7 +105,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    fetchSession: async (sessionId: string) => {
+    fetchSession: async (sessionId: number) => {
         set({ isLoading: true, error: null });
         try {
             const session = await sessionService.getSession(sessionId);
@@ -121,10 +122,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         try {
             const newSession = await sessionService.createSession(session);
             set({ isLoading: false });
-            
+
             // Refresh session list
             await get().fetchSessions();
-            
+
             return newSession;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
@@ -134,13 +135,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    updateSessionStatus: async (sessionId: string, status: string, celeryTaskId?: string) => {
+    updateSessionStatus: async (sessionId: number, status: string, celeryTaskId?: string) => {
         try {
             await sessionService.updateSessionStatus(sessionId, status, celeryTaskId);
-            
+
             // Refresh session list
             await get().fetchSessions();
-            
+
             // Refresh current session if it's the one being updated
             if (get().currentSession?.id === sessionId) {
                 await get().fetchSession(sessionId);
@@ -151,13 +152,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    approveSession: async (sessionId: string) => {
+    approveSession: async (sessionId: number) => {
         try {
             await sessionService.updateSessionApproval(sessionId, 'approved');
-            
+
             // Refresh session list
             await get().fetchSessions();
-            
+
             // Refresh current session if it's the one being approved
             if (get().currentSession?.id === sessionId) {
                 await get().fetchSession(sessionId);
@@ -168,13 +169,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    rejectSession: async (sessionId: string) => {
+    rejectSession: async (sessionId: number) => {
         try {
             await sessionService.updateSessionApproval(sessionId, 'rejected');
-            
+
             // Refresh session list
             await get().fetchSessions();
-            
+
             // Refresh current session if it's the one being rejected
             if (get().currentSession?.id === sessionId) {
                 await get().fetchSession(sessionId);
@@ -185,13 +186,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         }
     },
 
-    deleteSession: async (sessionId: string) => {
+    deleteSession: async (sessionId: number) => {
         try {
             await sessionService.deleteSession(sessionId);
-            
+
             // Refresh session list
             await get().fetchSessions();
-            
+
             // Clear current session if it was deleted
             if (get().currentSession?.id === sessionId) {
                 set({ currentSession: null });
@@ -225,10 +226,10 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     createKnownSource: async (source: KnownSourceCreate) => {
         try {
             const newSource = await sessionService.createKnownSource(source);
-            
+
             // Refresh known sources list
             await get().fetchKnownSources();
-            
+
             return newSource;
         } catch (error) {
             console.error('Known source creation error:', error);

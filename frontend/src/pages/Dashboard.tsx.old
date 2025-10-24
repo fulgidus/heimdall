@@ -1,0 +1,444 @@
+﻿'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    LogOut,
+    Home,
+    MapPin,
+    Radio,
+    BarChart3,
+    ActivitySquare,
+    Zap,
+    Wifi,
+    Cpu,
+    Radar,
+    ChevronRight,
+    Menu,
+    X,
+    RefreshCw,
+} from 'lucide-react';
+import { useAuthStore, useDashboardStore, useWebSDRStore } from '../store';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface StatCard {
+    icon: React.ReactNode;
+    title: string;
+    value: string | number;
+    subtitle: string;
+    color: string;
+}
+
+interface ActivityItem {
+    id: number;
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    timestamp: string;
+    color: string;
+}
+
+interface WebSDRStatus {
+    id: number;
+    city: string;
+    status: 'online' | 'offline';
+    signal: number;
+    frequency: string;
+}
+
+const Dashboard: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, logout } = useAuthStore();
+    const { 
+        metrics, 
+        data, 
+        isLoading, 
+        error, 
+        fetchDashboardData,
+        lastUpdate,
+    } = useDashboardStore();
+    const { websdrs, healthStatus } = useWebSDRStore();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    useEffect(() => {
+        // Fetch data on component mount
+        fetchDashboardData();
+
+        // Setup auto-refresh every 30 seconds
+        const interval = setInterval(() => {
+            fetchDashboardData();
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [fetchDashboardData]);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const handleNavigation = (path: string) => {
+        navigate(path);
+        setSidebarOpen(false);
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        await fetchDashboardData();
+        setIsRefreshing(false);
+    };
+
+    const menuItems = [
+        { icon: Home, label: 'Dashboard', path: '/dashboard', active: true },
+        { icon: MapPin, label: 'Localization', path: '/localization', active: false },
+        { icon: Radio, label: 'WebSDR', path: '/websdrs', active: false },
+        { icon: ActivitySquare, label: 'Activity', path: '/history', active: false },
+        { icon: BarChart3, label: 'Analytics', path: '/analytics', active: false },
+    ];
+
+    // Calculate online WebSDRs from health status
+    const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
+    const totalWebSDRs = websdrs.length || 7;
+
+    const stats: StatCard[] = [
+        {
+            icon: <Radio className="w-6 h-6" />,
+            title: 'Active WebSDR',
+            value: `${onlineWebSDRs}/${totalWebSDRs}`,
+            subtitle: onlineWebSDRs === totalWebSDRs ? 'All online' : `${totalWebSDRs - onlineWebSDRs} offline`,
+            color: 'from-blue-400 to-cyan-400',
+        },
+        {
+            icon: <Zap className="w-6 h-6" />,
+            title: 'Signal Detection',
+            value: metrics.signalDetections || '0',
+            subtitle: 'Last 24h',
+            color: 'from-yellow-400 to-orange-400',
+        },
+        {
+            icon: <Wifi className="w-6 h-6" />,
+            title: 'System Uptime',
+            value: metrics.systemUptime > 0 
+                ? `${(metrics.systemUptime / 3600).toFixed(1)}h`
+                : '0h',
+            subtitle: 'Current session',
+            color: 'from-green-400 to-emerald-400',
+        },
+        {
+            icon: <Radar className="w-6 h-6" />,
+            title: 'Model Accuracy',
+            value: data.modelInfo?.accuracy 
+                ? `${(data.modelInfo.accuracy * 100).toFixed(1)}%`
+                : 'N/A',
+            subtitle: data.modelInfo ? 'ML Model ready' : 'Model loading',
+            color: 'from-purple-400 to-pink-400',
+        },
+    ];
+
+    const activities: ActivityItem[] = [
+        {
+            id: 1,
+            icon: <Zap className="w-4 h-4" />,
+            title: 'System Status',
+            description: `${onlineWebSDRs} WebSDR receivers online and operational`,
+            timestamp: lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'Just now',
+            color: 'text-yellow-400',
+        },
+        {
+            id: 2,
+            icon: <Radio className="w-4 h-4" />,
+            title: 'Network Status',
+            description: data.modelInfo 
+                ? `ML Model ${data.modelInfo.active_version} - ${data.modelInfo.health_status}`
+                : 'Initializing ML model',
+            timestamp: data.modelInfo?.loaded_at 
+                ? new Date(data.modelInfo.loaded_at).toLocaleTimeString() 
+                : '-',
+            color: 'text-blue-400',
+        },
+        {
+            id: 3,
+            icon: <Radar className="w-4 h-4" />,
+            title: 'Service Health',
+            description: `${Object.values(data.servicesHealth).filter(s => s.status === 'healthy').length} of ${Object.keys(data.servicesHealth).length} services healthy`,
+            timestamp: lastUpdate ? 'Updated' : 'Checking',
+            color: 'text-green-400',
+        },
+        {
+            id: 4,
+            icon: <BarChart3 className="w-4 h-4" />,
+            title: 'Predictions',
+            description: data.modelInfo 
+                ? `${data.modelInfo.predictions_total} total predictions (${data.modelInfo.predictions_successful} successful)`
+                : 'No predictions yet',
+            timestamp: data.modelInfo?.last_prediction_at || '-',
+            color: 'text-purple-400',
+        },
+    ];
+
+    // Map websdrs to status display
+    const webSDRStatuses: WebSDRStatus[] = websdrs.slice(0, 7).map((sdr) => {
+        const health = healthStatus[sdr.id];
+        return {
+            id: sdr.id,
+            city: sdr.location_name.split(',')[0], // Extract city name
+            status: health?.status === 'online' ? 'online' : 'offline',
+            signal: health?.response_time_ms 
+                ? Math.max(0, 100 - health.response_time_ms / 10) 
+                : 0,
+            frequency: '144.2 MHz', // Default 2m band
+        };
+    });
+
+    // Fill remaining slots if less than 7 WebSDRs
+    const defaultCities = ['Turin', 'Milan', 'Genoa', 'Alessandria', 'Asti', 'La Spezia', 'Piacenza'];
+    while (webSDRStatuses.length < 7) {
+        webSDRStatuses.push({
+            id: webSDRStatuses.length + 1,
+            city: defaultCities[webSDRStatuses.length] || `Location ${webSDRStatuses.length + 1}`,
+            status: 'offline',
+            signal: 0,
+            frequency: '144.2 MHz',
+        });
+    }
+
+    return (
+        <div className="flex h-screen w-screen bg-slate-950">
+            {/* Sidebar - Custom Implementation */}
+            <aside className={`${sidebarOpen ? 'w-64' : 'w-0'
+                } bg-linear-to-b from-slate-900 to-slate-950 border-r border-slate-800 transition-all duration-300 overflow-hidden flex flex-col`}>
+                {/* Sidebar Header */}
+                <div className="flex items-center gap-3 px-4 py-6 border-b border-slate-800">
+                    <div className="w-10 h-10 rounded-lg bg-linear-to-br from-blue-400 to-cyan-500 flex items-center justify-center shadow-lg shrink-0">
+                        <Radar className="w-6 h-6 text-slate-900 animate-spin" />
+                    </div>
+                    <h1 className="text-xl font-bold text-white whitespace-nowrap">Heimdall</h1>
+                </div>
+
+                {/* Sidebar Menu */}
+                <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+                    {menuItems.map((item, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleNavigation(item.path)}
+                            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${item.active
+                                ? 'bg-slate-700 text-white'
+                                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                                }`}
+                        >
+                            <item.icon className="w-5 h-5 shrink-0" />
+                            <span className="whitespace-nowrap">{item.label}</span>
+                        </button>
+                    ))}
+                </nav>
+
+                {/* Sidebar Footer */}
+                <div className="px-4 py-6 border-t border-slate-800 space-y-4">
+                    <div>
+                        <p className="text-slate-400 text-xs font-medium whitespace-nowrap">LOGGED IN AS</p>
+                        <p className="text-white font-semibold text-sm mt-2 truncate">{user?.email || 'User'}</p>
+                    </div>
+                    <Button onClick={handleLogout} variant="destructive" className="w-full gap-2 justify-start">
+                        <LogOut className="w-4 h-4 shrink-0" />
+                        <span className="whitespace-nowrap">Logout</span>
+                    </Button>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto flex flex-col">
+                {/* Header */}
+                <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-6 py-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="text-slate-400 hover:text-white shrink-0"
+                            >
+                                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            </Button>
+                            <div className="min-w-0">
+                                <h2 className="text-2xl font-bold text-white truncate">Dashboard</h2>
+                                <p className="text-slate-400 text-sm mt-1 truncate">
+                                    Welcome back, {user?.email?.split('@')[0]}
+                                    {lastUpdate && ` • Updated ${new Date(lastUpdate).toLocaleTimeString()}`}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleRefresh}
+                                disabled={isRefreshing}
+                                className="shrink-0"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" className="gap-2 shrink-0">
+                                        {user?.email}
+                                        <ChevronRight className="w-4 h-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={handleLogout}>
+                                        <LogOut className="w-4 h-4 mr-2" />
+                                        Logout
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Error Display */}
+                {error && (
+                    <div className="mx-6 mt-4 p-4 bg-red-900/20 border border-red-500 rounded-lg text-red-300">
+                        <p className="font-medium">Error loading dashboard data:</p>
+                        <p className="text-sm mt-1">{error}</p>
+                    </div>
+                )}
+
+                {/* Content */}
+                <div className="flex-1 overflow-auto p-6 space-y-8">
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {stats.map((stat, idx) => (
+                            <Card key={idx} className="bg-slate-800/50 border-slate-700 hover:border-slate-600 transition-all cursor-pointer">
+                                <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between">
+                                        <div className={`p-3 rounded-lg bg-linear-to-br ${stat.color} text-slate-900`}>
+                                            {stat.icon}
+                                        </div>
+                                        <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-400'}`} />
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-slate-400 text-sm font-medium">{stat.title}</p>
+                                    <p className="text-3xl font-bold text-white mt-2">{stat.value}</p>
+                                    <p className="text-slate-400 text-xs mt-2">{stat.subtitle}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Activity Feed */}
+                        <Card className="lg:col-span-2 bg-slate-800/50 border-slate-700">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-white">
+                                    <ActivitySquare className="w-5 h-5" />
+                                    System Activity
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {activities.map((activity) => (
+                                    <div
+                                        key={activity.id}
+                                        className="flex items-start gap-4 p-4 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-colors border border-slate-700/50"
+                                    >
+                                        <div className={`mt-1 ${activity.color}`}>{activity.icon}</div>
+                                        <div className="flex-1">
+                                            <p className="text-white font-medium text-sm">{activity.title}</p>
+                                            <p className="text-slate-400 text-xs mt-1">{activity.description}</p>
+                                        </div>
+                                        <p className="text-slate-500 text-xs whitespace-nowrap">{activity.timestamp}</p>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+
+                        {/* System Health */}
+                        <Card className="bg-slate-800/50 border-slate-700">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-white text-base">
+                                    <Cpu className="w-5 h-5" />
+                                    Services Status
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {Object.entries(data.servicesHealth).length > 0 ? (
+                                    Object.entries(data.servicesHealth).map(([name, health]) => (
+                                        <div key={name} className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-slate-300 text-sm font-medium capitalize">
+                                                    {name.replace('-', ' ')}
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${
+                                                        health.status === 'healthy' ? 'bg-green-400' :
+                                                        health.status === 'degraded' ? 'bg-yellow-400' :
+                                                        'bg-red-400'
+                                                    }`} />
+                                                    <p className="text-white text-xs font-bold capitalize">{health.status}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p className="text-slate-400 text-sm text-center py-4">
+                                        {isLoading ? 'Checking services...' : 'No service data available'}
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* WebSDR Network Status */}
+                    <Card className="bg-slate-800/50 border-slate-700">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-white">
+                                <Wifi className="w-5 h-5" />
+                                WebSDR Network Status
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {webSDRStatuses.map((sdr, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="p-4 rounded-lg bg-slate-700/30 border border-slate-700/50 hover:border-slate-600 transition-colors"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <p className="text-white font-semibold text-sm">{sdr.city}</p>
+                                            <div
+                                                className={`w-2 h-2 rounded-full ${sdr.status === 'online'
+                                                    ? 'bg-green-400 animate-pulse'
+                                                    : 'bg-red-400'
+                                                    }`}
+                                            />
+                                        </div>
+                                        <p className="text-slate-400 text-xs mb-2">{sdr.frequency}</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-linear-to-r from-cyan-400 to-blue-400 transition-all"
+                                                    style={{ width: `${sdr.signal}%` }}
+                                                />
+                                            </div>
+                                            <p className="text-slate-300 text-xs font-medium">{Math.round(sdr.signal)}%</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default Dashboard;

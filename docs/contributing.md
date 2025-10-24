@@ -130,7 +130,8 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
    - Maintain clean history
 
 3. **Continuous Integration**
-   - Ensure all checks pass
+   - Ensure all backend checks pass (pytest, black, ruff)
+   - Ensure all frontend checks pass (vitest, eslint, TypeScript)
    - Maintain test coverage >80%
    - No linting errors
 
@@ -141,10 +142,10 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
 
 ## Testing Guidelines
 
-### Running Tests
+### Running Backend Tests
 
 ```bash
-# Run all tests
+# Run all backend tests
 make test
 
 # Run with coverage
@@ -152,6 +153,28 @@ make test-coverage
 
 # Run specific test
 pytest tests/test_signal_processor.py -v
+```
+
+### Running Frontend Tests
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run all frontend tests
+npm run test
+
+# Run tests once (CI mode)
+npm run test:run
+
+# Run linting
+npm run lint
+
+# Build frontend
+npm run build
 ```
 
 ### Writing Tests

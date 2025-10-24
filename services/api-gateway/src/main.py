@@ -15,8 +15,8 @@ SERVICE_PORT = 8000
 
 # Backend service URLs
 RF_ACQUISITION_URL = "http://rf-acquisition:8001"
-INFERENCE_URL = "http://inference:8002"
-TRAINING_URL = "http://training:8003"
+INFERENCE_URL = "http://inference:8003"
+TRAINING_URL = "http://training:8002"
 DATA_INGESTION_URL = "http://data-ingestion-web:8004"
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
@@ -114,6 +114,11 @@ async def proxy_to_data_ingestion(request: Request, path: str):
     logger.debug(f"💾 Data Ingestion route matched: path={path}")
     return await proxy_request(request, DATA_INGESTION_URL)
 
+@app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_inference_analytics(request: Request, path: str):
+    """Proxy analytics requests to Inference service."""
+    logger.debug(f"� Analytics route matched: path={path}")
+    return await proxy_request(request, INFERENCE_URL)
 
 @app.get("/")
 async def root():
