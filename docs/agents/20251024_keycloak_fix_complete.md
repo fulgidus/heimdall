@@ -211,12 +211,12 @@ VITE_KEYCLOAK_CLIENT_ID=heimdall-frontend
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `scripts/init-keycloak.sh` | Updated all API paths, improved idempotency, fixed shebang |
+| File                               | Changes                                                     |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `scripts/init-keycloak.sh`         | Updated all API paths, improved idempotency, fixed shebang  |
 | `services/api-gateway/src/main.py` | Enabled AUTH_ENABLED, fixed login endpoint payload handling |
-| `docker-compose.yml` | No changes (keycloak-init service already configured) |
-| `.env.example` | No changes (already had all variables) |
+| `docker-compose.yml`               | No changes (keycloak-init service already configured)       |
+| `.env.example`                     | No changes (already had all variables)                      |
 
 ## Git Commit
 ```

@@ -5,9 +5,10 @@ import { defineConfig, devices } from '@playwright/test';
  * 
  * Tests real HTTP calls from frontend to backend (NO mocks/stubs).
  * 
- * Environment Variables:
- * - BASE_URL: Frontend URL (default: http://localhost:3001)
- * - TEST_BACKEND_ORIGIN: Backend URL (default: http://localhost:8000)
+ * Environment Variables (from .env.test):
+ * - VITE_TEST_USER_EMAIL: Test user email
+ * - VITE_TEST_USER_PASSWORD: Test user password
+ * - VITE_API_BACKEND_ORIGIN: Backend URL
  */
 
 export default defineConfig({

@@ -89,11 +89,19 @@ export async function setupRequestLogging(page: Page) {
 /**
  * Login helper - perform authentication via Keycloak and verify token storage
  * 
+ * Reads credentials from environment variables:
+ * - APP_USER_EMAIL: Test user email (default: admin@heimdall.local)
+ * - APP_USER_PASSWORD: Test user password (default: admin)
+ * 
  * @param page - Playwright page
- * @param email - User email
- * @param password - User password
+ * @param email - User email (optional, reads from APP_USER_EMAIL env var if not provided)
+ * @param password - User password (optional, reads from APP_USER_PASSWORD env var if not provided)
  */
-export async function login(page: Page, email: string = 'admin@heimdall.local', password: string = 'admin') {
+export async function login(
+    page: Page,
+    email: string = process.env.APP_USER_EMAIL || 'admin@heimdall.local',
+    password: string = process.env.APP_USER_PASSWORD || 'admin'
+) {
     console.log(`🔐 Logging in as ${email}`);
 
     await page.goto('/login');

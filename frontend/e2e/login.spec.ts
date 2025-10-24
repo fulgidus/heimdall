@@ -10,6 +10,7 @@ import {
   setupRequestLogging, 
   waitForBackendCall, 
   verifyBackendReachable,
+  login,
   TEST_BACKEND_ORIGIN 
 } from './helpers/test-utils';
 
@@ -37,9 +38,12 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     
-    // Fill credentials
-    await page.fill('input[type="email"]', 'admin@heimdall.local');
-    await page.fill('input[type="password"]', 'Admin123!@#');
+    // Fill credentials (reads APP_USER_EMAIL and APP_USER_PASSWORD from .env)
+    const email = process.env.APP_USER_EMAIL || 'admin@heimdall.local';
+    const password = process.env.APP_USER_PASSWORD || 'admin';
+    
+    await page.fill('input[type="email"]', email);
+    await page.fill('input[type="password"]', password);
     
     // Setup listener BEFORE clicking submit
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
@@ -63,9 +67,12 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     
-    // Fill credentials
-    await page.fill('input[type="email"]', 'admin@heimdall.local');
-    await page.fill('input[type="password"]', 'Admin123!@#');
+    // Fill credentials (reads APP_USER_EMAIL and APP_USER_PASSWORD from .env)
+    const email = process.env.APP_USER_EMAIL || 'admin@heimdall.local';
+    const password = process.env.APP_USER_PASSWORD || 'admin';
+    
+    await page.fill('input[type="email"]', email);
+    await page.fill('input[type="password"]', password);
     
     // Setup listener
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
@@ -113,9 +120,12 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     
-    // Fill credentials
-    await page.fill('input[type="email"]', 'admin@heimdall.local');
-    await page.fill('input[type="password"]', 'Admin123!@#');
+    // Fill credentials (reads APP_USER_EMAIL and APP_USER_PASSWORD from .env)
+    const email = process.env.APP_USER_EMAIL || 'admin@heimdall.local';
+    const password = process.env.APP_USER_PASSWORD || 'admin';
+    
+    await page.fill('input[type="email"]', email);
+    await page.fill('input[type="password"]', password);
     
     // Submit
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
