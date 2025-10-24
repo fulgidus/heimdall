@@ -4,7 +4,8 @@
  * Utilities for Playwright E2E tests
  */
 
-import { expect, Page, Route, Response, Request } from '@playwright/test';
+import { expect } from '@playwright/test';
+import type { Page, Response, Request } from '@playwright/test';
 
 /**
  * Backend origin for API requests
