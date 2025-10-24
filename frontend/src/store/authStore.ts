@@ -27,34 +27,32 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
 
             login: async (email: string, password: string) => {
-                // Get credentials from env variables
-                const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@heimdall.local';
-                const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin123!@#';
-
-                // Validate credentials
-                if (email !== adminEmail || password !== adminPassword) {
-                    throw new Error('Invalid email or password');
-                }
-
                 try {
-                    // In production, replace with actual API call:
-                    // const response = await fetch('/api/auth/login', {
-                    //   method: 'POST',
-                    //   headers: { 'Content-Type': 'application/json' },
-                    //   body: JSON.stringify({ email, password })
-                    // })
-                    // const data = await response.json()
+                    // Make real API call to backend
+                    const response = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
 
-                    const mockUser: User = {
-                        id: '1',
-                        email,
-                        name: 'Administrator',
-                        role: 'admin',
+                    if (!response.ok) {
+                        throw new Error('Invalid email or password');
+                    }
+
+                    const data = await response.json();
+
+                    // Extract user and token from response
+                    const user: User = {
+                        id: data.user?.id || '1',
+                        email: data.user?.email || email,
+                        name: data.user?.name || 'Administrator',
+                        role: data.user?.role || 'admin',
+                        avatar: data.user?.avatar,
                     };
 
                     set({
-                        user: mockUser,
-                        token: `bearer_${Date.now()}_${Math.random().toString(36).substr(2)}`,
+                        user,
+                        token: data.token,
                         isAuthenticated: true,
                     });
                 } catch (error) {
