@@ -13,3 +13,8 @@ pytest==7.4.3
 pytest-asyncio==0.21.1
 httpx==0.25.1
 slowapi==0.1.9
+
+# Authentication
+PyJWT[crypto]==2.8.0
+cryptography==41.0.7
+python-jose[cryptography]==3.3.0

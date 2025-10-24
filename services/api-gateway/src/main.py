@@ -1,13 +1,33 @@
 from datetime import datetime
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 import logging
+import sys
+import os
+
+# Add common modules to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../common'))
+
 from .config import settings
 from .models.health import HealthResponse
 
-logger = logging.getLogger(__name__)
+# Import authentication
+try:
+    from auth import get_current_user, require_role, require_admin, require_operator, User
+    AUTH_ENABLED = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Authentication enabled")
+except ImportError as e:
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
+    AUTH_ENABLED = False
+    # Define dummy user for when auth is disabled
+    class User:
+        def __init__(self):
+            self.username = "anonymous"
+            self.roles = []
 
 SERVICE_NAME = "api-gateway"
 SERVICE_VERSION = "0.1.0"
@@ -88,51 +108,116 @@ async def proxy_request(request: Request, target_url: str):
 
 
 @app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_rf_acquisition(request: Request, path: str):
-    """Proxy requests to RF Acquisition service."""
-    logger.debug(f"📡 Acquisition route matched: path={path}")
+async def proxy_to_rf_acquisition(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user) if AUTH_ENABLED else None
+):
+    """Proxy requests to RF Acquisition service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"📡 Acquisition route matched: path={path} (user={user.username if AUTH_ENABLED else 'anonymous'})")
     return await proxy_request(request, RF_ACQUISITION_URL)
 
 
 @app.api_route("/api/v1/inference/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_inference(request: Request, path: str):
-    """Proxy requests to Inference service."""
-    logger.debug(f"🧠 Inference route matched: path={path}")
+async def proxy_to_inference(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user) if AUTH_ENABLED else None
+):
+    """Proxy requests to Inference service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_viewer:
+        raise HTTPException(status_code=403, detail="Viewer access required")
+    logger.debug(f"🧠 Inference route matched: path={path} (user={user.username if AUTH_ENABLED else 'anonymous'})")
     return await proxy_request(request, INFERENCE_URL)
 
 
 @app.api_route("/api/v1/training/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_training(request: Request, path: str):
-    """Proxy requests to Training service."""
-    logger.debug(f"📚 Training route matched: path={path}")
+async def proxy_to_training(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user) if AUTH_ENABLED else None
+):
+    """Proxy requests to Training service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"📚 Training route matched: path={path} (user={user.username if AUTH_ENABLED else 'anonymous'})")
     return await proxy_request(request, TRAINING_URL)
 
 
 @app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_data_ingestion(request: Request, path: str):
-    """Proxy requests to Data Ingestion service."""
-    logger.debug(f"💾 Data Ingestion route matched: path={path}")
+async def proxy_to_data_ingestion(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user) if AUTH_ENABLED else None
+):
+    """Proxy requests to Data Ingestion service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"💾 Data Ingestion route matched: path={path} (user={user.username if AUTH_ENABLED else 'anonymous'})")
     return await proxy_request(request, DATA_INGESTION_URL)
 
 @app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_inference_analytics(request: Request, path: str):
-    """Proxy analytics requests to Inference service."""
-    logger.debug(f"� Analytics route matched: path={path}")
+async def proxy_to_inference_analytics(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user) if AUTH_ENABLED else None
+):
+    """Proxy analytics requests to Inference service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_viewer:
+        raise HTTPException(status_code=403, detail="Viewer access required")
+    logger.debug(f"📊 Analytics route matched: path={path} (user={user.username if AUTH_ENABLED else 'anonymous'})")
     return await proxy_request(request, INFERENCE_URL)
 
 @app.get("/")
 async def root():
-    return {"service": SERVICE_NAME, "status": "running", "timestamp": datetime.utcnow().isoformat()}
+    return {
+        "service": SERVICE_NAME,
+        "status": "running",
+        "timestamp": datetime.utcnow().isoformat(),
+        "auth_enabled": AUTH_ENABLED
+    }
 
 
 @app.get("/health")
 async def health_check():
-    return HealthResponse(status="healthy", service=SERVICE_NAME, version=SERVICE_VERSION, timestamp=datetime.utcnow())
+    return HealthResponse(
+        status="healthy",
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION,
+        timestamp=datetime.utcnow()
+    )
 
 
 @app.get("/ready")
 async def readiness_check():
     return {"ready": True}
+
+
+@app.get("/auth/check")
+async def auth_check(user: User = Depends(get_current_user) if AUTH_ENABLED else None):
+    """Check authentication status and return user info."""
+    if not AUTH_ENABLED:
+        return {
+            "authenticated": False,
+            "auth_enabled": False,
+            "message": "Authentication is disabled"
+        }
+    
+    return {
+        "authenticated": True,
+        "auth_enabled": True,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "roles": user.roles,
+            "is_admin": user.is_admin,
+            "is_operator": user.is_operator,
+            "is_viewer": user.is_viewer,
+        }
+    }
 
 
 if __name__ == "__main__":
