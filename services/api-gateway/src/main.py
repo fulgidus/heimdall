@@ -12,14 +12,12 @@ from .models.health import HealthResponse
 logger = logging.getLogger(__name__)
 
 # Import authentication
+AUTH_ENABLED = False  # TEMPORARILY DISABLED FOR FRONTEND TESTING
 try:
     from auth import get_current_user, require_role, require_admin, require_operator, User
-    # TEMPORARILY DISABLED FOR FRONTEND TESTING
-    AUTH_ENABLED = False  # Set to True when Keycloak is configured
-    logger.info("⚠️ Authentication disabled for development")
+    logger.info("⚠️ Authentication module imported (but disabled for development)")
 except ImportError as e:
     logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
-    AUTH_ENABLED = False
     # Define dummy user for when auth is disabled
     class User:
         def __init__(self):
