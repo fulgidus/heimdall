@@ -1,0 +1,9 @@
+# Keycloak CORS Configuration Script
+# Run with: kcadm.sh or jboss-cli.sh
+
+# Enable CORS for heimdall-frontend client
+/subsystem=keycloak-server/spi=cors:add(default-provider=default)
+
+# Configure CORS provider settings
+/subsystem=keycloak-server/spi=cors/provider=default:add(enabled=true)
+/subsystem=keycloak-server/spi=cors/provider=default:write-attribute(name=properties,value={allowed-origins="http://localhost:3001,http://localhost:8000,http://127.0.0.1:3001",allowed-methods="GET,HEAD,OPTIONS,POST,PUT,DELETE",allowed-headers="Content-Type,Authorization,X-Requested-With,Accept,Origin,Access-Control-Request-Method,Access-Control-Request-Headers"})

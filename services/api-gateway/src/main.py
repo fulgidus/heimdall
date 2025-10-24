@@ -210,6 +210,44 @@ async def readiness_check():
     return {"ready": True}
 
 
+@app.post("/auth/login")
+async def login_proxy(request: Request):
+    """
+    Proxy OAuth2 token request to Keycloak.
+    
+    This endpoint proxies login requests to Keycloak, allowing the frontend
+    to request tokens through the API Gateway (which has CORS enabled).
+    """
+    try:
+        # Get form data from request
+        body = await request.body()
+        
+        # Keycloak token endpoint
+        keycloak_url = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
+        keycloak_realm = os.getenv("KEYCLOAK_REALM", "heimdall")
+        token_endpoint = f"{keycloak_url}/realms/{keycloak_realm}/protocol/openid-connect/token"
+        
+        # Forward to Keycloak
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                token_endpoint,
+                content=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+        
+        # Return Keycloak response with CORS headers (added by middleware)
+        return JSONResponse(
+            status_code=response.status_code,
+            content=response.json() if response.status_code == 200 else {"error": "Authentication failed"}
+        )
+    except Exception as e:
+        logger.error(f"Login proxy error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
+
+
 if AUTH_ENABLED:
     @app.get("/auth/check")
     async def auth_check(user: User = Depends(get_current_user)):

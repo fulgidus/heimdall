@@ -20,9 +20,7 @@ interface AuthStore {
     setToken: (token: string | null) => void;
 }
 
-// Keycloak OAuth2/OIDC configuration from environment variables
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080';
-const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'heimdall';
+// Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';
 
 export const useAuthStore = create<AuthStore>()(
@@ -35,10 +33,10 @@ export const useAuthStore = create<AuthStore>()(
 
             login: async (email: string, password: string) => {
                 try {
-                    // OAuth2 Resource Owner Password Credentials Grant (for development/E2E tests)
-                    // Production should use PKCE or Authorization Code flow
-                    const tokenUrl = `${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
-                    
+                    // Use API Gateway as proxy to Keycloak (CORS-enabled)
+                    // This avoids direct CORS requests to Keycloak
+                    const tokenUrl = `http://localhost:8000/auth/login`;
+
                     const params = new URLSearchParams();
                     params.append('grant_type', 'password');
                     params.append('client_id', KEYCLOAK_CLIENT_ID);
@@ -50,6 +48,9 @@ export const useAuthStore = create<AuthStore>()(
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
+                        credentials: 'omit',
+                        mode: 'cors',
+                        cache: 'no-cache',
                         body: params.toString(),
                     });
 
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthStore>()(
                     }
 
                     const data = await response.json();
-                    
+
                     // Decode JWT access token to extract user information
                     // Note: This is safe for client-side as we don't verify signature here
                     // Backend services verify JWT signature using Keycloak public keys
@@ -67,9 +68,9 @@ export const useAuthStore = create<AuthStore>()(
                     if (tokenParts.length !== 3) {
                         throw new Error('Invalid JWT token format');
                     }
-                    
+
                     const payload = JSON.parse(atob(tokenParts[1]));
-                    
+
                     // Extract user information from JWT claims
                     const user: User = {
                         id: payload.sub || '1',

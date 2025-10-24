@@ -475,6 +475,9 @@ services:
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
       KC_METRICS_ENABLED: true
+      # CORS configuration for Keycloak 23
+      KC_HTTP_RELATIVE_PATH: /
+      KC_SPI_CORS_ORIGINS: "http://localhost:3001,http://localhost:8000,http://127.0.0.1:3001,http://localhost:5173,http://localhost:3000"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./db/keycloak:/opt/keycloak/data/import:ro
