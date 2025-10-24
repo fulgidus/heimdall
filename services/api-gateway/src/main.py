@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -311,6 +311,300 @@ else:
             "auth_enabled": False,
             "message": "Authentication is disabled"
         }
+
+
+# =============================================================================
+# Stub Endpoints for E2E Testing
+# =============================================================================
+# These endpoints provide mock data for testing until full implementation
+
+@app.get("/api/v1/auth/me")
+async def get_current_user_info():
+    """Get current user information (stub for testing)."""
+    return {
+        "id": "test-user-123",
+        "username": "test@example.com",
+        "email": "test@example.com",
+        "roles": ["operator", "viewer"],
+        "is_admin": False,
+        "is_operator": True,
+        "is_viewer": True,
+    }
+
+
+@app.get("/api/v1/profile")
+async def get_user_profile():
+    """Get user profile (stub for testing)."""
+    return {
+        "id": "test-user-123",
+        "username": "test@example.com",
+        "email": "test@example.com",
+        "first_name": "Test",
+        "last_name": "User",
+        "created_at": "2025-01-01T00:00:00Z",
+        "last_login": datetime.utcnow().isoformat(),
+        "preferences": {
+            "theme": "dark",
+            "notifications_enabled": True,
+        }
+    }
+
+
+@app.patch("/api/v1/profile")
+async def update_user_profile(request: Request):
+    """Update user profile (stub for testing)."""
+    body = await request.json()
+    return {
+        "success": True,
+        "message": "Profile updated successfully",
+        "profile": body
+    }
+
+
+@app.get("/api/v1/profile/history")
+async def get_user_activity_history():
+    """Get user activity history (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "activities": [
+            {
+                "id": i,
+                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "action": "session_created" if i % 2 == 0 else "acquisition_started",
+                "description": f"Test activity {i}",
+            }
+            for i in range(10)
+        ]
+    }
+
+
+@app.get("/api/v1/user")
+async def get_user():
+    """Get user information (stub for testing)."""
+    return {
+        "id": "test-user-123",
+        "username": "test@example.com",
+        "email": "test@example.com",
+        "roles": ["operator"],
+    }
+
+
+@app.get("/api/v1/user/activity")
+async def get_user_activity():
+    """Get user activity (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "recent_sessions": 5,
+        "recent_predictions": 12,
+        "last_active": now.isoformat(),
+    }
+
+
+@app.get("/api/v1/user/preferences")
+async def get_user_preferences():
+    """Get user preferences (stub for testing)."""
+    return {
+        "theme": "dark",
+        "notifications_enabled": True,
+        "auto_refresh": True,
+        "default_time_range": "7d",
+    }
+
+
+@app.patch("/api/v1/user/preferences")
+async def update_user_preferences(request: Request):
+    """Update user preferences (stub for testing)."""
+    body = await request.json()
+    return {
+        "success": True,
+        "preferences": body
+    }
+
+
+@app.get("/api/v1/settings")
+async def get_settings():
+    """Get application settings (stub for testing)."""
+    return {
+        "websdr_count": 7,
+        "auto_approval": False,
+        "default_duration": 30,
+        "default_frequency": 145.5,
+        "notification_email": "operator@example.com",
+    }
+
+
+@app.patch("/api/v1/settings")
+async def update_settings(request: Request):
+    """Update application settings (stub for testing)."""
+    body = await request.json()
+    return {
+        "success": True,
+        "settings": body
+    }
+
+
+@app.get("/api/v1/config")
+async def get_config():
+    """Get application configuration (stub for testing)."""
+    return {
+        "websdrs": 7,
+        "supported_bands": ["2m", "70cm"],
+        "max_duration_seconds": 300,
+        "min_frequency_mhz": 144.0,
+        "max_frequency_mhz": 146.0,
+    }
+
+
+@app.get("/api/v1/stats")
+async def get_dashboard_stats():
+    """Get dashboard statistics (stub for testing)."""
+    return {
+        "total_sessions": 42,
+        "active_sessions": 3,
+        "completed_predictions": 128,
+        "average_accuracy_m": 25.3,
+        "websdrs_online": 7,
+        "uptime_percentage": 99.2,
+    }
+
+
+@app.get("/api/v1/activity")
+async def get_recent_activity():
+    """Get recent system activity (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "activities": [
+            {
+                "id": i,
+                "timestamp": (now - timedelta(minutes=i*10)).isoformat(),
+                "type": "acquisition" if i % 3 == 0 else "prediction",
+                "user": "test@example.com",
+                "status": "completed",
+            }
+            for i in range(20)
+        ]
+    }
+
+
+@app.get("/api/v1/recent")
+async def get_recent_items():
+    """Get recent items (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "sessions": [
+            {
+                "id": i,
+                "name": f"Session {i}",
+                "created_at": (now - timedelta(hours=i)).isoformat(),
+                "status": "completed",
+            }
+            for i in range(5)
+        ]
+    }
+
+
+@app.get("/api/v1/system/status")
+async def get_system_status():
+    """Get system status (stub for testing)."""
+    return {
+        "overall_status": "healthy",
+        "services": [
+            {"name": "api-gateway", "status": "healthy", "uptime": "99.9%"},
+            {"name": "rf-acquisition", "status": "healthy", "uptime": "99.5%"},
+            {"name": "data-ingestion-web", "status": "healthy", "uptime": "99.8%"},
+            {"name": "inference", "status": "healthy", "uptime": "99.7%"},
+            {"name": "training", "status": "healthy", "uptime": "99.6%"},
+        ],
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@app.get("/api/v1/system/services")
+async def get_system_services():
+    """Get system services status (stub for testing)."""
+    return {
+        "services": [
+            {
+                "id": "api-gateway",
+                "name": "API Gateway",
+                "status": "running",
+                "health": "healthy",
+                "cpu_usage": 15.2,
+                "memory_usage": 45.3,
+            },
+            {
+                "id": "rf-acquisition",
+                "name": "RF Acquisition",
+                "status": "running",
+                "health": "healthy",
+                "cpu_usage": 22.1,
+                "memory_usage": 52.7,
+            },
+            {
+                "id": "data-ingestion-web",
+                "name": "Data Ingestion",
+                "status": "running",
+                "health": "healthy",
+                "cpu_usage": 12.5,
+                "memory_usage": 38.2,
+            },
+            {
+                "id": "inference",
+                "name": "Inference",
+                "status": "running",
+                "health": "healthy",
+                "cpu_usage": 18.3,
+                "memory_usage": 48.9,
+            },
+            {
+                "id": "training",
+                "name": "Training",
+                "status": "running",
+                "health": "healthy",
+                "cpu_usage": 8.7,
+                "memory_usage": 35.1,
+            },
+        ]
+    }
+
+
+@app.get("/api/v1/system/metrics")
+async def get_system_metrics():
+    """Get system metrics (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "cpu_usage": [
+            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 15 + (i % 10)}
+            for i in range(60)
+        ],
+        "memory_usage": [
+            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 40 + (i % 15)}
+            for i in range(60)
+        ],
+        "api_requests": [
+            {"timestamp": (now - timedelta(minutes=i)).isoformat(), "value": 100 + (i % 50)}
+            for i in range(60)
+        ],
+    }
+
+
+@app.get("/api/v1/localizations")
+async def get_localizations():
+    """Get recent localizations (stub for testing)."""
+    now = datetime.utcnow()
+    return {
+        "localizations": [
+            {
+                "id": i,
+                "timestamp": (now - timedelta(minutes=i*5)).isoformat(),
+                "latitude": 45.0 + (i % 10) * 0.01,
+                "longitude": 8.5 + (i % 10) * 0.01,
+                "uncertainty_m": 15 + (i % 20),
+                "confidence": 0.75 + (i % 5) * 0.05,
+            }
+            for i in range(20)
+        ]
+    }
 
 
 if __name__ == "__main__":

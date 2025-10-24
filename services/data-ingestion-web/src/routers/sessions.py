@@ -119,6 +119,56 @@ async def list_sessions(
         )
 
 
+@router.get("/analytics", response_model=SessionAnalytics)
+async def get_session_analytics():
+    """Get analytics for all sessions"""
+    pool = await get_pool()
+    
+    query = """
+        SELECT 
+            COUNT(*) as total_sessions,
+            COUNT(*) FILTER (WHERE status = 'completed') as completed_sessions,
+            COUNT(*) FILTER (WHERE status = 'failed') as failed_sessions,
+            COUNT(*) FILTER (WHERE status = 'pending') as pending_sessions,
+            AVG(duration_seconds) as average_duration_seconds,
+            SUM((SELECT COUNT(*) FROM heimdall.measurements m 
+                 WHERE m.created_at >= rs.session_start 
+                 AND (rs.session_end IS NULL OR m.created_at <= rs.session_end))) as total_measurements
+        FROM heimdall.recording_sessions rs
+    """
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query)
+        
+        total = row["total_sessions"] or 0
+        completed = row["completed_sessions"] or 0
+        failed = row["failed_sessions"] or 0
+        pending = row["pending_sessions"] or 0
+        
+        success_rate = (completed / total * 100) if total > 0 else 0.0
+        
+        # Calculate average accuracy from inference results if available
+        accuracy_query = """
+            SELECT AVG(uncertainty_meters) as avg_accuracy
+            FROM heimdall.recording_sessions rs
+            WHERE rs.status = 'completed'
+        """
+        
+        accuracy_row = await conn.fetchrow(accuracy_query)
+        average_accuracy = accuracy_row["avg_accuracy"] if accuracy_row else None
+        
+        return SessionAnalytics(
+            total_sessions=total,
+            completed_sessions=completed,
+            failed_sessions=failed,
+            pending_sessions=pending,
+            success_rate=success_rate,
+            total_measurements=row["total_measurements"] or 0,
+            average_duration_seconds=row["average_duration_seconds"],
+            average_accuracy_meters=average_accuracy,
+        )
+
+
 @router.get("/{session_id}", response_model=RecordingSessionWithDetails)
 async def get_session(session_id: UUID):
     """Get a specific recording session by ID"""
@@ -305,56 +355,6 @@ async def delete_session(session_id: UUID):
             raise HTTPException(status_code=404, detail="Session not found")
         
         return None
-
-
-@router.get("/analytics", response_model=SessionAnalytics)
-async def get_session_analytics():
-    """Get analytics for all sessions"""
-    pool = await get_pool()
-    
-    query = """
-        SELECT 
-            COUNT(*) as total_sessions,
-            COUNT(*) FILTER (WHERE status = 'completed') as completed_sessions,
-            COUNT(*) FILTER (WHERE status = 'failed') as failed_sessions,
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_sessions,
-            AVG(duration_seconds) as average_duration_seconds,
-            SUM((SELECT COUNT(*) FROM heimdall.measurements m 
-                 WHERE m.created_at >= rs.session_start 
-                 AND (rs.session_end IS NULL OR m.created_at <= rs.session_end))) as total_measurements
-        FROM heimdall.recording_sessions rs
-    """
-    
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(query)
-        
-        total = row["total_sessions"] or 0
-        completed = row["completed_sessions"] or 0
-        failed = row["failed_sessions"] or 0
-        pending = row["pending_sessions"] or 0
-        
-        success_rate = (completed / total * 100) if total > 0 else 0.0
-        
-        # Calculate average accuracy from inference results if available
-        accuracy_query = """
-            SELECT AVG(uncertainty_meters) as avg_accuracy
-            FROM heimdall.recording_sessions rs
-            WHERE rs.status = 'completed'
-        """
-        
-        accuracy_row = await conn.fetchrow(accuracy_query)
-        average_accuracy = accuracy_row["avg_accuracy"] if accuracy_row else None
-        
-        return SessionAnalytics(
-            total_sessions=total,
-            completed_sessions=completed,
-            failed_sessions=failed,
-            pending_sessions=pending,
-            success_rate=success_rate,
-            total_measurements=row["total_measurements"] or 0,
-            average_duration_seconds=row["average_duration_seconds"],
-            average_accuracy_meters=average_accuracy,
-        )
 
 
 @router.get("/known-sources", response_model=List[KnownSource])
