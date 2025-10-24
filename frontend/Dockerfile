@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
@@ -32,22 +32,22 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create a script to inject runtime environment variables
 RUN echo $'#!/bin/sh\n\
-set -e\n\
-\n\
-# Replace environment variables in JavaScript files\n\
-for file in /usr/share/nginx/html/assets/*.js; do\n\
-  if [ -f "$file" ]; then\n\
+    set -e\n\
+    \n\
+    # Replace environment variables in JavaScript files\n\
+    for file in /usr/share/nginx/html/assets/*.js; do\n\
+    if [ -f "$file" ]; then\n\
     # Create backup\n\
     cp "$file" "$file.bak"\n\
     \n\
     # Replace environment variables\n\
     envsubst "\\$VITE_API_URL \\$VITE_ENV" < "$file.bak" > "$file"\n\
     rm "$file.bak"\n\
-  fi\n\
-done\n\
-\n\
-# Start nginx\n\
-exec nginx -g "daemon off;"' > /docker-entrypoint.sh
+    fi\n\
+    done\n\
+    \n\
+    # Start nginx\n\
+    exec nginx -g "daemon off;"' > /docker-entrypoint.sh
 
 RUN chmod +x /docker-entrypoint.sh
 
