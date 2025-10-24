@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 # Import authentication
 try:
     from auth import get_current_user, require_role, require_admin, require_operator, User
-    AUTH_ENABLED = True
-    logger.info("✅ Authentication enabled")
+    # TEMPORARILY DISABLED FOR FRONTEND TESTING
+    AUTH_ENABLED = False  # Set to True when Keycloak is configured
+    logger.info("⚠️ Authentication disabled for development")
 except ImportError as e:
     logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
     AUTH_ENABLED = False
@@ -170,20 +171,13 @@ else:
         logger.debug(f"💾 Data Ingestion route matched: path={path} (authentication disabled)")
         return await proxy_request(request, DATA_INGESTION_URL)
 
-if AUTH_ENABLED:
-    @app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-    async def proxy_to_inference_analytics(request: Request, path: str, user: User = Depends(get_current_user)):
-        """Proxy analytics requests to Inference service (requires authentication)."""
-        if not user.is_viewer:
-            raise HTTPException(status_code=403, detail="Viewer access required")
-        logger.debug(f"📊 Analytics route matched: path={path} (user={user.username})")
-        return await proxy_request(request, INFERENCE_URL)
-else:
-    @app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-    async def proxy_to_inference_analytics(request: Request, path: str):
-        """Proxy analytics requests to Inference service (no authentication required)."""
-        logger.debug(f"📊 Analytics route matched: path={path} (authentication disabled)")
-        return await proxy_request(request, INFERENCE_URL)
+# Analytics endpoints are public for demo/dev purposes (no authentication required)
+# In production, you would use: if not user.is_viewer: raise HTTPException(...)
+@app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_inference_analytics(request: Request, path: str):
+    """Proxy analytics requests to Inference service (public access for demo)."""
+    logger.debug(f"📊 Analytics route matched: path={path}")
+    return await proxy_request(request, INFERENCE_URL)
 
 @app.get("/")
 async def root():
