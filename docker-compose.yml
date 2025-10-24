@@ -206,8 +206,8 @@ services:
   # API Gateway - Main REST API entry point
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: api-gateway/Dockerfile
     container_name: heimdall-api-gateway
     environment:
       SERVICE_NAME: api-gateway
@@ -215,6 +215,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
       CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret-change-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
@@ -450,6 +454,49 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Keycloak - Authentication & Authorization Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: heimdall-keycloak
+    command:
+      - start-dev
+      - --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-heimdall}
+      KC_DB_USERNAME: ${POSTGRES_USER:-heimdall_user}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./db/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 3s
+      start_period: 60s
+      retries: 5
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   postgres_data:
     driver: local
@@ -462,6 +509,8 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  keycloak_data:
     driver: local
 
 networks:

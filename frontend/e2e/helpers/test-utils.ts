@@ -87,13 +87,13 @@ export async function setupRequestLogging(page: Page) {
 }
 
 /**
- * Login helper - perform authentication and verify token storage
+ * Login helper - perform authentication via Keycloak and verify token storage
  * 
  * @param page - Playwright page
  * @param email - User email
  * @param password - User password
  */
-export async function login(page: Page, email: string = 'admin@heimdall.local', password: string = 'Admin123!@') {
+export async function login(page: Page, email: string = 'admin@heimdall.local', password: string = 'Admin123!@#') {
     console.log(`🔐 Logging in as ${email}`);
 
     await page.goto('/login');
@@ -103,17 +103,25 @@ export async function login(page: Page, email: string = 'admin@heimdall.local', 
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
 
-    // Setup listener for login API call BEFORE clicking submit
-    const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
+    // Setup listener for Keycloak token endpoint call BEFORE clicking submit
+    // Keycloak uses OAuth2 token endpoint: /realms/{realm}/protocol/openid-connect/token
+    const loginResponsePromise = page.waitForResponse(
+        response => response.url().includes('/protocol/openid-connect/token') && response.status() === 200,
+        { timeout: 30000 }
+    );
 
     // Submit form
     await page.click('button[type="submit"]');
 
-    // Wait for login response
+    // Wait for Keycloak token response
     const loginResponse = await loginResponsePromise;
 
-    // Verify we got a successful response
+    // Verify we got a successful OAuth2 token response
     expect(loginResponse.status()).toBe(200);
+    
+    const responseData = await loginResponse.json();
+    expect(responseData.access_token).toBeDefined();
+    console.log(`✅ OAuth2 token received from Keycloak`);
 
     // Wait for redirect to dashboard
     await page.waitForURL('/dashboard', { timeout: 10000 });

@@ -4,8 +4,8 @@ services:
   # API Gateway - Main entry point
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: api-gateway/Dockerfile
     container_name: heimdall-api-gateway
     ports:
       - "8000:8000"
@@ -29,8 +29,8 @@ services:
   # RF Acquisition Service
   rf-acquisition:
     build:
-      context: ./services/rf-acquisition
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: rf-acquisition/Dockerfile
     container_name: heimdall-rf-acquisition
     ports:
       - "8001:8001"
@@ -79,8 +79,8 @@ services:
   # Inference Service
   inference:
     build:
-      context: ./services/inference
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: inference/Dockerfile
     container_name: heimdall-inference
     ports:
       - "8003:8003"
@@ -104,8 +104,8 @@ services:
   # Data Ingestion Web Service
   data-ingestion-web:
     build:
-      context: ./services/data-ingestion-web
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: data-ingestion-web/Dockerfile
     container_name: heimdall-data-ingestion-web
     ports:
       - "8004:8004"

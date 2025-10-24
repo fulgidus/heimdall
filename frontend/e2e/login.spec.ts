@@ -38,8 +38,8 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.waitForLoadState('networkidle');
     
     // Fill credentials
-    await page.fill('input[type="email"]', 'demo@heimdall.local');
-    await page.fill('input[type="password"]', 'demo123');
+    await page.fill('input[type="email"]', 'admin@heimdall.local');
+    await page.fill('input[type="password"]', 'Admin123!@#');
     
     // Setup listener BEFORE clicking submit
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
@@ -64,8 +64,8 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.waitForLoadState('networkidle');
     
     // Fill credentials
-    await page.fill('input[type="email"]', 'demo@heimdall.local');
-    await page.fill('input[type="password"]', 'demo123');
+    await page.fill('input[type="email"]', 'admin@heimdall.local');
+    await page.fill('input[type="password"]', 'Admin123!@#');
     
     // Setup listener
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);
@@ -114,8 +114,8 @@ test.describe('Login Page - Real Backend Integration', () => {
     await page.waitForLoadState('networkidle');
     
     // Fill credentials
-    await page.fill('input[type="email"]', 'demo@heimdall.local');
-    await page.fill('input[type="password"]', 'demo123');
+    await page.fill('input[type="email"]', 'admin@heimdall.local');
+    await page.fill('input[type="password"]', 'Admin123!@#');
     
     // Submit
     const loginResponsePromise = waitForBackendCall(page, '/api/v1/auth/login', 200);

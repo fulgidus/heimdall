@@ -40,12 +40,13 @@ make health-check
 | **MinIO Console** | `minioadmin` | `minioadmin` | http://localhost:9001 | S3-compatible object storage UI |
 | **Grafana** | `admin` | `admin` | http://localhost:3000 | Metrics visualization and dashboards |
 | **Prometheus** | *(no auth)* | *(no auth)* | http://localhost:9090 | Metrics collection and queries |
-| **API Gateway** | *(no auth)* | *(no auth)* | http://localhost:8000 | Main REST API entry point |
-| **RF Acquisition Service** | *(no auth)* | *(no auth)* | http://localhost:8001 | WebSDR data collection service |
-| **Training Service** | *(no auth)* | *(no auth)* | http://localhost:8002 | ML model training service |
-| **Inference Service** | *(no auth)* | *(no auth)* | http://localhost:8003 | Real-time inference service |
-| **Data Ingestion Web** | *(no auth)* | *(no auth)* | http://localhost:8004 | Data collection UI and API |
-| **Frontend (Dev)** | *(no auth)* | *(no auth)* | http://localhost:5173 | React development server (when running) |
+| **Keycloak Admin Console** | `admin` | `admin` | http://localhost:8080 | Authentication & Authorization Provider |
+| **API Gateway** | *JWT Bearer Token* | *(via Keycloak)* | http://localhost:8000 | Main REST API entry point - requires authentication |
+| **RF Acquisition Service** | *JWT Bearer Token* | *(via Keycloak)* | http://localhost:8001 | WebSDR data collection service - requires authentication |
+| **Training Service** | *JWT Bearer Token* | *(via Keycloak)* | http://localhost:8002 | ML model training service - requires authentication |
+| **Inference Service** | *JWT Bearer Token* | *(via Keycloak)* | http://localhost:8003 | Real-time inference service - requires authentication |
+| **Data Ingestion Web** | *JWT Bearer Token* | *(via Keycloak)* | http://localhost:8004 | Data collection UI and API - requires authentication |
+| **Frontend (Dev)** | *SSO via Keycloak* | *(login required)* | http://localhost:5173 | React development server with SSO authentication |
 
 ---
 
@@ -222,6 +223,39 @@ print(response['Buckets'])
    - `up` - Check which targets are up
    - `rate(http_requests_total[5m])` - HTTP request rate
    - `container_memory_usage_bytes` - Container memory usage
+
+### Keycloak
+
+**Admin Console:**
+1. Open http://localhost:8080
+2. Login with `admin` / `admin`
+3. Select "Heimdall SDR" realm from dropdown (top left)
+4. Navigate to:
+   - **Users** - Manage users and passwords
+   - **Clients** - Configure OAuth2/OIDC clients
+   - **Realm Roles** - Manage user roles (admin, operator, viewer)
+   - **Sessions** - Monitor active user sessions
+
+**Default User Accounts:**
+- **Admin**: `admin` / `admin` - Full system access
+- **Operator**: `operator` / `operator` - Read/write access to signals and models
+- **Viewer**: `viewer` / `viewer` - Read-only access
+
+**API Testing with JWT:**
+```bash
+# Get access token for admin user
+curl -X POST http://localhost:8080/realms/heimdall/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=heimdall-frontend" \
+  -d "username=admin" \
+  -d "password=admin" \
+  | jq -r '.access_token'
+
+# Use token to access protected endpoint
+TOKEN="<your-token-here>"
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/health
+```
 
 ---
 

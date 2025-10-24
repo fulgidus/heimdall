@@ -1,4 +1,4 @@
-name: E2E Tests - Real Backend Integration
+name: E2E Tests
 
 on:
   push:
@@ -69,9 +69,25 @@ jobs:
           # Start infrastructure first
           docker compose -f docker-compose.yml up -d postgres redis
 
+          echo "📁 Verifying service directories exist..."
+          for service in api-gateway rf-acquisition data-ingestion-web inference; do
+            echo "  Checking services/$service/src/..."
+            ls -la services/$service/src/ > /dev/null || { echo "❌ Missing src/ directory for $service"; exit 1; }
+            echo "  Checking services/$service/requirements.txt..."
+            ls services/$service/requirements.txt > /dev/null || { echo "❌ Missing requirements.txt for $service"; exit 1; }
+          done
+          echo "✅ All required files present"
+
           # Build and start only essential microservices to save disk space
           # Skip training service as it's not needed for E2E tests
-          docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
+          echo "🔨 Building services..."
+          docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference || {
+            echo "❌ Build failed! Showing docker compose config..."
+            docker compose -f docker-compose.services.yml config
+            exit 1
+          }
+
+          echo "🚀 Starting services..."
           docker compose -f docker-compose.services.yml up -d api-gateway rf-acquisition data-ingestion-web inference
 
           echo "📋 Service status:"
