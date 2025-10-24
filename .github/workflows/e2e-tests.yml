@@ -32,16 +32,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Free up disk space
+        run: |
+          echo "🧹 Freeing up disk space..."
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          sudo docker container prune -f
+          sudo apt-get clean
+          echo "📊 Disk space after cleanup:"
+          df -h
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+          buildkitd-flags: --debug
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
       
       - name: Start backend services
         run: |
-          echo "🚀 Starting backend services..."
-          docker compose -f docker-compose.yml -f docker-compose.services.yml up -d --build
+          echo "🚀 Starting essential backend services for E2E tests..."
+          # Start infrastructure first
+          docker compose -f docker-compose.yml up -d postgres redis
+          
+          # Build and start only essential microservices to save disk space
+          # Skip training service as it's not needed for E2E tests
+          docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
+          docker compose -f docker-compose.services.yml up -d api-gateway rf-acquisition data-ingestion-web inference
           
           echo "📋 Service status:"
           docker compose ps
+          
+          echo "💾 Disk space after build:"
+          df -h
+      
+      - name: Clean up Docker build artifacts
+        run: |
+          echo "🧹 Cleaning up Docker build artifacts..."
+          docker builder prune -af
+          docker image prune -af
+          echo "💾 Disk space after cleanup:"
+          df -h
       
       - name: Wait for backend health
         timeout-minutes: 5
@@ -221,7 +264,8 @@ jobs:
         if: always()
         run: |
           echo "🛑 Stopping services..."
-          docker compose -f docker-compose.yml -f docker-compose.services.yml down -v
+          docker compose -f docker-compose.yml down -v
+          docker compose -f docker-compose.services.yml down -v
           echo "✅ Services stopped"
       
       - name: Final status
