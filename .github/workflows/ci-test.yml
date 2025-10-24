@@ -2,14 +2,9 @@ name: CI Tests
 
 on:
   push:
-    branches: [copilot/*, feature/*, fix/*]
+    branches: [fix/*]
   pull_request:
     branches: [main, develop]
-    paths:
-      - "frontend/**"
-      - "services/**"
-      - "docker-compose*.yml"
-      - ".github/workflows/e2e-tests.yml"
 
 jobs:
   # First job: discovery - scopri quali servizi sono testabili

@@ -2,14 +2,9 @@ name: E2E Tests
 
 on:
   push:
-    branches: [copilot/*, feature/*, fix/*]
+    branches: [fix/*]
   pull_request:
     branches: [main, develop]
-    paths:
-      - "frontend/**"
-      - "services/**"
-      - "docker-compose*.yml"
-      - ".github/workflows/e2e-tests.yml"
   workflow_dispatch:
     inputs:
       debug_enabled:
