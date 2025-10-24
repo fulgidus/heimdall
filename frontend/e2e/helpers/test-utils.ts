@@ -126,7 +126,7 @@ export async function login(
 
     // Verify we got a successful token response
     expect(loginResponse.status()).toBe(200);
-    
+
     const responseData = await loginResponse.json();
     expect(responseData.access_token).toBeDefined();
     console.log(`✅ OAuth2 token received from API Gateway`);

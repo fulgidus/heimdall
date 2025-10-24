@@ -35,7 +35,8 @@ export const useAuthStore = create<AuthStore>()(
                 try {
                     // Use API Gateway as proxy to Keycloak (CORS-enabled)
                     // This avoids direct CORS requests to Keycloak
-                    const tokenUrl = `http://localhost:8000/auth/login`;
+                    // Endpoint: POST /api/v1/auth/login (proxies to Keycloak internally)
+                    const tokenUrl = `http://localhost:8000/api/v1/auth/login`;
 
                     const params = new URLSearchParams();
                     params.append('grant_type', 'password');
