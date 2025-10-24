@@ -460,7 +460,6 @@ services:
     container_name: heimdall-keycloak
     command:
       - start-dev
-      - --import-realm
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
@@ -478,6 +477,13 @@ services:
       # CORS configuration for Keycloak 23
       KC_HTTP_RELATIVE_PATH: /
       KC_SPI_CORS_ORIGINS: "http://localhost:3001,http://localhost:8000,http://127.0.0.1:3001,http://localhost:5173,http://localhost:3000"
+      # Realm configuration
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      APP_USER_EMAIL: ${APP_USER_EMAIL:-admin@heimdall.local}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-admin}
+      KEYCLOAK_API_GATEWAY_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_API_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./db/keycloak:/opt/keycloak/data/import:ro
@@ -499,6 +505,30 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Initialize Keycloak realm and users on startup
+  keycloak-init:
+    image: alpine:3.18
+    container_name: heimdall-keycloak-init
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      APP_USER_EMAIL: ${APP_USER_EMAIL:-admin@heimdall.local}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-Admin123!@#}
+      KEYCLOAK_API_GATEWAY_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_API_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
+    volumes:
+      - ./scripts/init-keycloak.sh:/init-keycloak.sh:ro
+    entrypoint: /bin/sh -c "apk add --no-cache curl jq && /bin/sh /init-keycloak.sh"
+    networks:
+      - heimdall-network
+    restart: on-failure
 
 volumes:
   postgres_data:
