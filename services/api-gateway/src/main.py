@@ -12,7 +12,7 @@ from .models.health import HealthResponse
 logger = logging.getLogger(__name__)
 
 # Import authentication
-AUTH_ENABLED = False  # TEMPORARILY DISABLED FOR FRONTEND TESTING
+AUTH_ENABLED = True  # ENABLED: Keycloak OAuth2 authentication
 try:
     from auth import get_current_user, require_role, require_admin, require_operator, User
     logger.info("⚠️ Authentication module imported (but disabled)")
@@ -211,19 +211,28 @@ async def login_proxy(request: Request):
     to request tokens through the API Gateway (which has CORS enabled).
     """
     try:
-        # Get form data from request
-        body = await request.body()
+        # Parse JSON body from request
+        body = await request.json()
         
         # Keycloak token endpoint
         keycloak_url = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
         keycloak_realm = os.getenv("KEYCLOAK_REALM", "heimdall")
+        client_id = os.getenv("VITE_KEYCLOAK_CLIENT_ID", "heimdall-frontend")
         token_endpoint = f"{keycloak_url}/realms/{keycloak_realm}/protocol/openid-connect/token"
+        
+        # Build form data for Keycloak (it expects form-urlencoded, not JSON)
+        form_data = {
+            "client_id": client_id,
+            "username": body.get("email") or body.get("username"),  # Support both email and username
+            "password": body.get("password"),
+            "grant_type": "password"
+        }
         
         # Forward to Keycloak
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 token_endpoint,
-                content=body,
+                data=form_data,  # Use data= for form-urlencoded
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
         
