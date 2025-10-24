@@ -69,6 +69,20 @@ Heimdall provides comprehensive setup options for different development scenario
 
 For quick installation, follow the instructions in the [Installation Guide](installation.md). Windows users can refer to the [Windows Quick Setup](agents/20251022_080000_setup_windows_quick.md) for platform-specific instructions.
 
+### Development Credentials
+
+When running Heimdall in local development mode, all services use default credentials for quick access. The [Development Default Credentials Guide](dev-credentials.md) provides:
+
+- Complete table of default usernames and passwords
+- Connection strings for databases and services
+- Web UI access instructions (Grafana, pgAdmin, RabbitMQ Management, MinIO Console, etc.)
+- Security best practices for development and production
+- Post-setup instructions for changing passwords
+
+**⚠️ Security Warning:** These credentials are for **development only** and must never be used in production environments.
+
+📖 **See:** [docs/dev-credentials.md](dev-credentials.md) for complete documentation.
+
 ## Usage
 For usage instructions, refer to the [User Guide](usage.md).
 
