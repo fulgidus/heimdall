@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Frontend Rebuild Phase 8**: Docker Integration (In Progress)
+  - Updated Dockerfile to use Node 20 (required for rolldown-vite)
+  - Switched from node+serve to nginx for production deployment
+  - Created comprehensive nginx.conf with gzip, caching, API proxy, WebSocket support
+  - Added security headers (X-Frame-Options, CSP, X-XSS-Protection)
+  - Configured health check endpoint at /health
+  - Added frontend service to docker-compose.yml on port 3001
+  - Environment variable support via build args (VITE_API_URL, VITE_ENV, etc.)
+  - Multi-stage build for optimized image size
+  - Logging configuration with rotation (10MB max, 3 files)
 - **Frontend Rebuild Phase 7**: Testing & Validation (In Progress)
   - Created comprehensive responsive design tests for mobile/tablet/desktop viewports
   - Created real-time data update tests with timer mocking
