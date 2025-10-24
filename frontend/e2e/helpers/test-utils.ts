@@ -93,7 +93,7 @@ export async function setupRequestLogging(page: Page) {
  * @param email - User email
  * @param password - User password
  */
-export async function login(page: Page, email: string = 'admin@heimdall.local', password: string = 'Admin123!@#') {
+export async function login(page: Page, email: string = 'admin@heimdall.local', password: string = 'admin') {
     console.log(`🔐 Logging in as ${email}`);
 
     await page.goto('/login');
