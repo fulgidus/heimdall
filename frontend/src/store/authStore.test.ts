@@ -61,6 +61,20 @@ describe('authStore - Authentication Store', () => {
 
     describe('logout()', () => {
         it('should clear auth state on logout', async () => {
+            // Mock successful API response for login
+            global.fetch = vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({
+                    token: 'test-token-123',
+                    user: {
+                        id: '1',
+                        email: 'admin@heimdall.local',
+                        name: 'Administrator',
+                        role: 'admin',
+                    },
+                }),
+            });
+
             const store = useAuthStore.getState();
             await store.login('admin@heimdall.local', 'Admin123!@#');
             store.logout();
