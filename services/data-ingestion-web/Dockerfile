@@ -1,7 +1,7 @@
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y gcc postgresql-client
-COPY data-ingestion-web/requirements.txt .
+COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
 FROM python:3.11-slim
@@ -9,7 +9,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY --from=builder /root/.local /home/appuser/.local
-COPY --chown=appuser:appuser data-ingestion-web/src/ ./src/
+COPY --chown=appuser:appuser src/ ./src/
 ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1
 USER appuser
 EXPOSE 8004
