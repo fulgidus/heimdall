@@ -1,28 +1,39 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 import logging
 import os
+import sys
+
+# Add parent directory to path for auth module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..', 'common'))
 
 from .config import settings
 from .models.health import HealthResponse
 
-logger = logging.getLogger(__name__)
-
-# Import authentication
-AUTH_ENABLED = True  # ENABLED: Keycloak OAuth2 authentication
+# Import Keycloak authentication
 try:
-    from auth import get_current_user, require_role, require_admin, require_operator, User
-    logger.info("⚠️ Authentication module imported (but disabled)")
+    from auth.keycloak_auth import get_current_user, require_admin, require_operator
+    from auth.models import User
+    AUTH_ENABLED = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Keycloak authentication enabled")
 except ImportError as e:
+    logger = logging.getLogger(__name__)
     logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
+    AUTH_ENABLED = False
     # Define dummy user for when auth is disabled
     class User:
         def __init__(self):
+            self.id = "anonymous"
             self.username = "anonymous"
+            self.email = "anonymous@heimdall.local"
             self.roles = []
+            self.is_admin = False
+            self.is_operator = False
+            self.is_viewer = False
 
 SERVICE_NAME = "api-gateway"
 SERVICE_VERSION = "0.1.0"
@@ -311,6 +322,107 @@ else:
             "auth_enabled": False,
             "message": "Authentication is disabled"
         }
+
+
+# =============================================================================
+# User Profile & Preferences Endpoints (Keycloak-based)
+# =============================================================================
+
+@app.get("/api/v1/auth/me")
+async def get_current_user_info(user: User = Depends(get_current_user)):
+    """Get current authenticated user information from Keycloak token."""
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": user.roles,
+        "is_admin": user.is_admin,
+        "is_operator": user.is_operator,
+        "is_viewer": user.is_viewer,
+    }
+
+
+@app.get("/api/v1/profile")
+async def get_user_profile(user: User = Depends(get_current_user)):
+    """Get user profile from Keycloak."""
+    # TODO: Extend with additional profile data from database if needed
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "roles": user.roles,
+        "first_name": user.username.split("@")[0] if user.username else "",
+        "last_name": "",
+        "created_at": datetime.utcnow().isoformat(),
+        "last_login": datetime.utcnow().isoformat(),
+    }
+
+
+# =============================================================================
+# System Status & Metrics Endpoints
+# =============================================================================
+
+@app.get("/api/v1/config")
+async def get_config():
+    """Get application configuration."""
+    return {
+        "websdrs": 7,
+        "supported_bands": ["2m", "70cm"],
+        "max_duration_seconds": 300,
+        "min_frequency_mhz": 144.0,
+        "max_frequency_mhz": 146.0,
+        "keycloak_realm": os.getenv("KEYCLOAK_REALM", "heimdall"),
+        "keycloak_url": os.getenv("KEYCLOAK_URL", "http://keycloak:8080"),
+    }
+
+
+@app.get("/api/v1/stats")
+async def get_dashboard_stats():
+    """Get dashboard statistics from database."""
+    # TODO: Implement real stats aggregation from database
+    return {
+        "total_sessions": 0,
+        "active_sessions": 0,
+        "completed_predictions": 0,
+        "average_accuracy_m": 0.0,
+        "websdrs_online": 7,
+        "uptime_percentage": 100.0,
+    }
+
+
+@app.get("/api/v1/system/status")
+async def get_system_status():
+    """Aggregate health status from all services."""
+    services_health = []
+    service_urls = {
+        "api-gateway": "http://localhost:8000",
+        "rf-acquisition": RF_ACQUISITION_URL,
+        "data-ingestion-web": DATA_INGESTION_URL,
+        "inference": INFERENCE_URL,
+        "training": TRAINING_URL,
+    }
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for service_name, url in service_urls.items():
+            try:
+                response = await client.get(f"{url}/health")
+                status = "healthy" if response.status_code == 200 else "unhealthy"
+            except Exception:
+                status = "unreachable"
+            
+            services_health.append({
+                "name": service_name,
+                "status": status,
+                "url": url,
+            })
+    
+    overall_healthy = all(s["status"] == "healthy" for s in services_health)
+    
+    return {
+        "overall_status": "healthy" if overall_healthy else "degraded",
+        "services": services_health,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 if __name__ == "__main__":

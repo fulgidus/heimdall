@@ -171,6 +171,13 @@ async def get_system_performance(time_range: str = Query("7d", description="Time
         raise HTTPException(status_code=500, detail=f"Failed to get system performance: {str(e)}")
 
 
+# Alias for backward compatibility
+@router.get("/system")
+async def get_system_metrics_alias(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+    """Get system metrics (alias for /system/performance)."""
+    return await get_system_performance(time_range)
+
+
 @router.get("/localizations/accuracy-distribution")
 async def get_accuracy_distribution(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
     """Get localization accuracy distribution."""

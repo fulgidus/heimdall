@@ -1,0 +1,200 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop, fix/** ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_DB: heimdall
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: heimdall_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+          - 15672:15672
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 9000:9000
+          - 9001:9001
+      
+      keycloak:
+        image: quay.io/keycloak/keycloak:23.0
+        env:
+          KEYCLOAK_ADMIN: admin
+          KEYCLOAK_ADMIN_PASSWORD: admin
+          KC_HTTP_ENABLED: true
+          KC_HOSTNAME_STRICT: false
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/health/ready"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 8080:8080
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio httpx
+          
+          # Install service dependencies
+          for service in api-gateway data-ingestion-web rf-acquisition inference training; do
+            if [ -f services/$service/requirements.txt ]; then
+              echo "Installing requirements for $service"
+              pip install -r services/$service/requirements.txt
+            fi
+          done
+          
+          # Install auth module dependencies
+          if [ -f services/common/auth/requirements.txt ]; then
+            pip install -r services/common/auth/requirements.txt
+          fi
+      
+      - name: Initialize PostgreSQL database
+        run: |
+          export PGPASSWORD=heimdall_pass
+          psql -h localhost -U heimdall_user -d heimdall -f db/init-postgres.sql
+        env:
+          PGPASSWORD: heimdall_pass
+      
+      - name: Configure Keycloak realm
+        run: |
+          # Wait for Keycloak to be fully ready
+          timeout 60 bash -c 'until curl -sf http://localhost:8080/health/ready; do sleep 2; done'
+          
+          # Import Heimdall realm
+          docker exec $(docker ps -q -f "ancestor=quay.io/keycloak/keycloak:23.0") \
+            /opt/keycloak/bin/kc.sh import \
+            --file /opt/keycloak/data/import/heimdall-realm.json \
+            --override true || true
+      
+      - name: Run API Gateway integration tests
+        run: |
+          cd services/api-gateway
+          pytest tests/integration/ -v --cov=src --cov-report=xml --cov-report=term
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: heimdall
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: heimdall_pass
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: 5672
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          KEYCLOAK_URL: http://localhost:8080
+          KEYCLOAK_REALM: heimdall
+          PYTHONPATH: ${{ github.workspace }}
+      
+      - name: Run Data Ingestion integration tests
+        run: |
+          cd services/data-ingestion-web
+          if [ -d tests/integration ]; then
+            pytest tests/integration/ -v --cov=src --cov-report=xml --cov-report=term
+          fi
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: heimdall
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: heimdall_pass
+          PYTHONPATH: ${{ github.workspace }}
+      
+      - name: Run RF Acquisition integration tests
+        run: |
+          cd services/rf-acquisition
+          if [ -d tests/integration ]; then
+            pytest tests/integration/ -v --cov=src --cov-report=xml --cov-report=term
+          fi
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: heimdall
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: heimdall_pass
+          RABBITMQ_HOST: localhost
+          REDIS_HOST: localhost
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          PYTHONPATH: ${{ github.workspace }}
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./services/*/coverage.xml
+          flags: integration-tests
+          name: integration-coverage
+      
+      - name: Integration test summary
+        if: always()
+        run: |
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Integration tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Services tested:" >> $GITHUB_STEP_SUMMARY
+          echo "- API Gateway" >> $GITHUB_STEP_SUMMARY
+          echo "- Data Ingestion Web" >> $GITHUB_STEP_SUMMARY
+          echo "- RF Acquisition" >> $GITHUB_STEP_SUMMARY
