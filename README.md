@@ -115,6 +115,24 @@ make health-check
 
 See [Phase 1 Guide](docs/agents/20251022_080000_phase1_guide.md) for detailed setup instructions.
 
+### Development Credentials
+
+For local development, all services use default credentials documented in [Development Default Credentials Guide](docs/dev-credentials.md).
+
+**⚠️ Important:** These are development-only credentials. See the guide for:
+- Default usernames and passwords for all services
+- Connection strings and login examples
+- How to access web UIs (Grafana, pgAdmin, RabbitMQ, MinIO, etc.)
+- Security best practices and password rotation
+
+**Quick reference:**
+- PostgreSQL: `heimdall_user` / `changeme` @ `localhost:5432`
+- Grafana: `admin` / `admin` @ http://localhost:3000
+- RabbitMQ: `guest` / `guest` @ http://localhost:15672
+- MinIO: `minioadmin` / `minioadmin` @ http://localhost:9001
+
+📖 **Full credentials documentation:** [docs/dev-credentials.md](docs/dev-credentials.md)
+
 ## License
 
 Creative Commons Non-Commercial. Developed by fulgidus for the amateur radio community.
@@ -264,6 +282,24 @@ make health-check
 ```
 
 Vedi [Guida Fase 1](docs/agents/20251022_080000_phase1_guide.md) per istruzioni di setup dettagliate.
+
+### Credenziali di Sviluppo
+
+Per lo sviluppo locale, tutti i servizi utilizzano credenziali predefinite documentate nella [Guida Credenziali Predefinite di Sviluppo](docs/dev-credentials.md).
+
+**⚠️ Importante:** Queste sono credenziali solo per sviluppo. Consulta la guida per:
+- Username e password predefinite per tutti i servizi
+- Stringhe di connessione ed esempi di login
+- Come accedere alle interfacce web (Grafana, pgAdmin, RabbitMQ, MinIO, ecc.)
+- Best practice di sicurezza e rotazione password
+
+**Riferimento rapido:**
+- PostgreSQL: `heimdall_user` / `changeme` @ `localhost:5432`
+- Grafana: `admin` / `admin` @ http://localhost:3000
+- RabbitMQ: `guest` / `guest` @ http://localhost:15672
+- MinIO: `minioadmin` / `minioadmin` @ http://localhost:9001
+
+📖 **Documentazione completa credenziali:** [docs/dev-credentials.md](docs/dev-credentials.md)
 
 ## Licenza
 
