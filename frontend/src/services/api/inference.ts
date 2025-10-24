@@ -14,7 +14,7 @@ import type { ModelInfo, ModelPerformanceMetrics, LocalizationResult } from './t
  * Get information about the active model
  */
 export async function getModelInfo(): Promise<ModelInfo> {
-    const response = await api.get<ModelInfo>('/api/v1/inference/model/info');
+    const response = await api.get<ModelInfo>('/api/v1/analytics/model/info');
     return response.data;
 }
 
@@ -22,7 +22,7 @@ export async function getModelInfo(): Promise<ModelInfo> {
  * Get model performance metrics
  */
 export async function getModelPerformance(): Promise<ModelPerformanceMetrics> {
-    const response = await api.get<ModelPerformanceMetrics>('/api/v1/inference/model/performance');
+    const response = await api.get<ModelPerformanceMetrics>('/api/v1/analytics/model/performance');
     return response.data;
 }
 
@@ -93,7 +93,7 @@ export async function predictLocalizationBatch(request: BatchPredictionRequest):
  * Get recent localization results
  */
 export async function getRecentLocalizations(limit: number = 10): Promise<LocalizationResult[]> {
-    const response = await api.get<LocalizationResult[]>('/api/v1/inference/localizations/recent', {
+    const response = await api.get<LocalizationResult[]>('/api/v1/analytics/localizations/recent', {
         params: { limit }
     });
     return response.data;
