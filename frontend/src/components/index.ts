@@ -9,3 +9,15 @@ export { default as MainLayout } from './MainLayout';
 export { default as Tabs } from './Tabs';
 export { default as Alert } from './Alert';
 export { default as Modal } from './Modal';
+
+// Phase 5: New reusable components library
+export { default as Table } from './Table';
+export { default as Select } from './Select';
+export { default as Textarea } from './Textarea';
+export { default as StatCard } from './StatCard';
+export { default as ChartCard } from './ChartCard';
+
+export type { TableColumn, TableProps } from './Table';
+export type { SelectOption } from './Select';
+export type { StatCardProps } from './StatCard';
+export type { ChartCardProps } from './ChartCard';

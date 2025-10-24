@@ -1,0 +1,77 @@
+.table-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 1rem;
+}
+
+.table-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3rem 1rem;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 0.5rem;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Bootstrap table enhancements */
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: var(--bs-body-color);
+    vertical-align: middle;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.75rem;
+    background-color: transparent;
+    border-bottom-width: 1px;
+    box-shadow: inset 0 0 0 9999px transparent;
+}
+
+.table > tbody {
+    vertical-align: inherit;
+}
+
+.table > thead {
+    vertical-align: bottom;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    --bs-table-accent-bg: rgba(255, 255, 255, 0.02);
+    color: var(--bs-body-color);
+}
+
+.table-hover > tbody > tr:hover > * {
+    --bs-table-accent-bg: rgba(70, 110, 246, 0.1);
+    color: var(--bs-body-color);
+}
+
+.table-bordered > :not(caption) > * {
+    border-width: 1px 0;
+}
+
+.table-bordered > :not(caption) > * > * {
+    border-width: 0 1px;
+}
+
+.table-sm > :not(caption) > * > * {
+    padding: 0.5rem;
+}
+
+th {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+td {
+    color: rgba(255, 255, 255, 0.7);
+}
