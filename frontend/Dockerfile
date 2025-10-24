@@ -34,6 +34,13 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 RUN echo $'#!/bin/sh\n\
     set -e\n\
     \n\
+    # Set default values if not provided\n\
+    export VITE_API_URL=${VITE_API_URL:-http://localhost:8000}\n\
+    export VITE_ENV=${VITE_ENV:-production}\n\
+    \n\
+    # Substitute variables in nginx.conf\n\
+    envsubst \'$VITE_API_URL $VITE_ENV\' < /etc/nginx/nginx.conf > /etc/nginx/nginx.conf.new && mv /etc/nginx/nginx.conf.new /etc/nginx/nginx.conf\n\
+    \n\
     # Replace environment variables in JavaScript files\n\
     for file in /usr/share/nginx/html/assets/*.js; do\n\
     if [ -f "$file" ]; then\n\
