@@ -16,6 +16,17 @@ export default defineConfig({
         },
         mockReset: true,
         restoreMocks: true,
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'text-summary', 'html'],
+            exclude: [
+                'node_modules/',
+                'src/test/setup.ts',
+                '**/*.d.ts',
+                '**/*.test.{ts,tsx}',
+                '**/index.ts',
+            ],
+        },
     },
     resolve: {
         alias: {
