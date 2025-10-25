@@ -96,11 +96,33 @@ export async function getAccuracyDistribution(timeRange: string = '7d'): Promise
     return response.data;
 }
 
+/**
+ * Dashboard metrics aggregated from various sources
+ */
+export interface DashboardMetrics {
+    signalDetections: number;
+    systemUptime: number;
+    modelAccuracy: number;
+    predictionsTotal: number;
+    predictionsSuccessful: number;
+    predictionsFailed: number;
+    lastUpdate: string;
+}
+
+/**
+ * Get aggregated dashboard metrics
+ */
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+    const response = await api.get<DashboardMetrics>('/api/v1/analytics/dashboard/metrics');
+    return response.data;
+}
+
 const analyticsService = {
     getPredictionMetrics,
     getWebSDRPerformance,
     getSystemPerformance,
     getAccuracyDistribution,
+    getDashboardMetrics,
 };
 
 export default analyticsService;

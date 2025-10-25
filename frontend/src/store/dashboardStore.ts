@@ -8,7 +8,8 @@ import type {
 import {
     webSDRService,
     inferenceService,
-    systemService
+    systemService,
+    analyticsService
 } from '@/services/api';
 
 interface DashboardMetrics {
@@ -144,6 +145,24 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         set({ isLoading: true, error: null });
 
         try {
+            // Fetch all data in parallel
+            const [metricsData] = await Promise.allSettled([
+                analyticsService.getDashboardMetrics(),
+            ]);
+
+            // Update metrics from analytics endpoint
+            if (metricsData.status === 'fulfilled') {
+                set((state) => ({
+                    metrics: {
+                        ...state.metrics,
+                        signalDetections: metricsData.value.signalDetections,
+                        systemUptime: metricsData.value.systemUptime,
+                        averageAccuracy: metricsData.value.modelAccuracy * 100,
+                    },
+                }));
+            }
+
+            // Fetch other data sources
             await Promise.allSettled([
                 get().fetchWebSDRs(),
                 get().fetchModelInfo(),
