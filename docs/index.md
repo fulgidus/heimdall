@@ -164,6 +164,7 @@ Find answers to common questions in our [FAQ section](faqs.md).
 - [Documentation Index](agents/20251023_153000_documentation_index.md) - Complete documentation index
 - [Documentation Reorganization Complete](agents/20251023_150000_documentation_reorganization_complete.md) - Documentation restructuring report
 - [Orphan Resolution Summary](agents/20251023_182900_orphan_resolution_summary.md) - Orphaned files resolution process
+- [Orphan Resolution Protocol](agents/20251025_200000_orphan_resolution_protocol.md) - Detailed protocol for handling orphaned documentation
 - [Orphan Fix Plan](agents/ORPHAN_FIX_PLAN.md) - Plan for fixing orphaned documentation
 - [docs/changelog.md](changelog.md) - Documentation-specific changelog
 - [docs/handoff.md](handoff.md) - General handoff procedures
