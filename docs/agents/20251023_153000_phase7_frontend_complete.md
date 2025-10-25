@@ -66,7 +66,7 @@ frontend/
 │   ├── main.tsx             # Entry point
 │   └── index.css            # Global styles + TailwindCSS
 ├── Dockerfile               # Multi-stage Docker build
-├── docker-compose.yml       # (To be created)
+├── docker compose.yml       # (To be created)
 ├── tailwind.config.js       # TailwindCSS configuration
 ├── postcss.config.js        # PostCSS with Tailwind
 ├── vite.config.ts           # Vite configuration

@@ -276,32 +276,44 @@ describe('Analytics API Service', () => {
 
     describe('Error Handling', () => {
         it('should handle 401 Unauthorized errors', async () => {
-            const error = new Error('Unauthorized');
-            (error as any).response = { status: 401 };
+            interface ErrorWithResponse extends Error {
+                response?: { status: number };
+            }
+            const error: ErrorWithResponse = new Error('Unauthorized');
+            error.response = { status: 401 };
             vi.mocked(api.get).mockRejectedValue(error);
 
             await expect(getPredictionMetrics('7d')).rejects.toThrow('Unauthorized');
         });
 
         it('should handle 404 Not Found errors', async () => {
-            const error = new Error('Not Found');
-            (error as any).response = { status: 404 };
+            interface ErrorWithResponse extends Error {
+                response?: { status: number };
+            }
+            const error: ErrorWithResponse = new Error('Not Found');
+            error.response = { status: 404 };
             vi.mocked(api.get).mockRejectedValue(error);
 
             await expect(getPredictionMetrics('7d')).rejects.toThrow('Not Found');
         });
 
         it('should handle 500 Server errors', async () => {
-            const error = new Error('Internal Server Error');
-            (error as any).response = { status: 500 };
+            interface ErrorWithResponse extends Error {
+                response?: { status: number };
+            }
+            const error: ErrorWithResponse = new Error('Internal Server Error');
+            error.response = { status: 500 };
             vi.mocked(api.get).mockRejectedValue(error);
 
             await expect(getPredictionMetrics('7d')).rejects.toThrow('Internal Server Error');
         });
 
         it('should handle network timeouts', async () => {
-            const error = new Error('Request Timeout');
-            (error as any).code = 'ECONNABORTED';
+            interface ErrorWithCode extends Error {
+                code?: string;
+            }
+            const error: ErrorWithCode = new Error('Request Timeout');
+            error.code = 'ECONNABORTED';
             vi.mocked(api.get).mockRejectedValue(error);
 
             await expect(getPredictionMetrics('7d')).rejects.toThrow('Request Timeout');

@@ -1,0 +1,231 @@
+name: Test Coverage Report
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    name: Generate & Deploy Coverage Report
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "frontend/pnpm-lock.yaml"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov python-dotenv
+          # Install service dependencies
+          pip install -r services/common/requirements-base.txt || true
+          for service in services/*/requirements.txt; do
+            if [ -f "$service" ]; then
+              pip install -r "$service" || true
+            fi
+          done
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          pnpm install
+
+      - name: Run backend tests with coverage
+        id: backend_tests
+        continue-on-error: true
+        run: |
+          mkdir -p coverage_reports
+          # Test each service separately to avoid conftest conflicts
+          # Combine coverage from all services
+          for service_dir in services/api-gateway services/rf-acquisition services/training services/inference services/data-ingestion-web; do
+            if [ -d "$service_dir/tests" ]; then
+              echo "Testing $service_dir..."
+              pytest "$service_dir/tests" \
+                --cov="$service_dir/src" \
+                --cov-append \
+                --cov-report= \
+                -v || true
+            fi
+          done
+          # Generate final reports
+          python -m coverage json -o coverage_reports/backend.json
+          python -m coverage html -d coverage_reports/backend
+          python -m coverage report | tee coverage_reports/backend.log
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend
+          pnpm run coverage:full 2>&1 | tee ../coverage_reports/frontend.log || true
+          if [ -d coverage ]; then
+            mv coverage ../coverage_reports/frontend
+          fi
+
+      - name: Copy coverage reports to docs
+        run: |
+          mkdir -p docs/coverage
+          cp -r coverage_reports/backend docs/coverage/backend_latest
+          cp -r coverage_reports/frontend docs/coverage/frontend_latest 2>/dev/null || true
+          cp coverage_reports/backend.log docs/coverage/backend_latest.log 2>/dev/null || true
+          cp coverage_reports/frontend.log docs/coverage/frontend_latest.log 2>/dev/null || true
+
+      - name: Generate coverage badge in docs
+        run: |
+          # Check if backend tests failed
+          if [ "${{ steps.backend_tests.outcome }}" != "success" ] || [ ! -f coverage_reports/backend.json ]; then
+            echo "Backend tests failed or no coverage data - generating N/A badge"
+            python scripts/generate_coverage_badge.py --na
+          else
+            echo "Generating coverage badge with actual data"
+            python scripts/generate_coverage_badge.py
+          fi
+          # Ensure the badge is in the correct location for GitHub Pages
+          mkdir -p docs/coverage/develop
+          # The script already saves it to docs/coverage/develop/badge.svg
+
+      - name: Generate coverage summary
+        run: |
+          python scripts/create_coverage_summary.py coverage_reports/backend.json
+          # Copy summary to docs
+          mkdir -p docs/coverage
+          cp docs/coverage/README.md docs/coverage/README.md || true
+
+      - name: Create merged coverage index
+        run: |
+          python scripts/create_coverage_index.py
+          # Copy index to docs
+          mkdir -p docs/coverage
+          cp coverage_reports/index.html docs/coverage/index.html || true
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.ref_name }}
+          path: coverage_reports/
+          retention-days: 30
+
+      - name: Commit and push docs changes
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/coverage/ -f
+          git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs [skip ci]" && git push)
+
+      - name: Comment PR with coverage summary
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let coverageContent = '## 📊 Test Coverage Results\n\n';
+
+            // Backend Coverage
+            if (fs.existsSync('coverage_reports/backend.json')) {
+              try {
+                const backendCoverage = JSON.parse(fs.readFileSync('coverage_reports/backend.json', 'utf8'));
+                const percent = backendCoverage.totals.percent_covered.toFixed(2);
+                const lines = backendCoverage.totals.covered_lines;
+                const totalLines = backendCoverage.totals.num_statements;
+                const missing = totalLines - lines;
+                
+                coverageContent += '### 🔧 Backend Coverage\n';
+                coverageContent += `- 📈 **Overall Coverage**: ${percent}%\n`;
+                coverageContent += `- ✅ **Lines Covered**: ${lines}\n`;
+                coverageContent += `- ❌ **Lines Missing**: ${missing}\n`;
+                coverageContent += `- 📊 **Total Lines**: ${totalLines}\n\n`;
+                
+                if (percent >= 80) {
+                  coverageContent += '✅ **Excellent coverage!** (≥80%)\n\n';
+                } else if (percent >= 70) {
+                  coverageContent += '⚠️  **Good coverage** but could be improved (≥70%)\n\n';
+                } else {
+                  coverageContent += '❌ **Coverage below recommended threshold** (<70%)\n\n';
+                }
+              } catch(e) {
+                coverageContent += '### 🔧 Backend Coverage\n';
+                coverageContent += '⚠️  **Backend coverage data could not be parsed**\n\n';
+              }
+            } else {
+              coverageContent += '### 🔧 Backend Coverage\n';
+              coverageContent += '⚠️  **Backend coverage report not found**\n\n';
+            }
+
+            // Frontend Coverage (if exists)
+            if (fs.existsSync('coverage_reports/frontend.log')) {
+              try {
+                const frontendLog = fs.readFileSync('coverage_reports/frontend.log', 'utf8');
+                const coverageMatch = frontendLog.match(/All files\s*\|\s*([\d.]+)/);
+                if (coverageMatch) {
+                  const frontendPercent = parseFloat(coverageMatch[1]).toFixed(2);
+                  coverageContent += '### 🎨 Frontend Coverage\n';
+                  coverageContent += `- 📈 **Overall Coverage**: ${frontendPercent}%\n\n`;
+                } else {
+                  coverageContent += '### 🎨 Frontend Coverage\n';
+                  coverageContent += '⚠️  **Frontend coverage percentage not detected**\n\n';
+                }
+              } catch(e) {
+                coverageContent += '### 🎨 Frontend Coverage\n';
+                coverageContent += '⚠️  **Frontend coverage log could not be read**\n\n';
+              }
+            }
+
+            // Test Status
+            if ('${{ steps.backend_tests.outcome }}' !== 'success') {
+              coverageContent += '❌ **Backend tests failed** - Please review the test results.\n\n';
+            } else {
+              coverageContent += '✅ **Backend tests passed successfully!**\n\n';
+            }
+
+            coverageContent += `📋 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            coverageContent += `📦 Coverage artifacts are available for download in the workflow run.\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverageContent
+            });
+
+      - name: Commit coverage badge to develop
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/coverage/develop/badge.svg 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "ci: update coverage badge [skip ci]" && git push)
+
+      - name: Fail workflow if backend tests failed
+        if: steps.backend_tests.outcome != 'success'
+        run: |
+          echo "❌ Backend tests failed - check the logs above"
+          exit 1

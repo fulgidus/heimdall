@@ -263,7 +263,7 @@ services/inference/
 │   └── test_comprehensive_integration.py (700+ lines, 50 tests) ✅ T6.10
 ├── requirements.txt
 ├── Dockerfile
-└── docker-compose.yml
+└── docker compose.yml
 ```
 
 ---

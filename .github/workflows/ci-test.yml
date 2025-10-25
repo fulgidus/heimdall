@@ -1,8 +1,8 @@
-name: CI - Test & Lint
+name: CI Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [fix/*]
   pull_request:
     branches: [main, develop]
 
@@ -47,15 +47,43 @@ jobs:
     # Skip se non ci sono servizi
     if: needs.discover.outputs.services != '[]'
 
+    # Define credentials once for the entire job
+    env:
+      # PostgreSQL credentials
+      POSTGRES_DB: heimdall_test
+      POSTGRES_USER: heimdall_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+      # RabbitMQ credentials
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+
+      # Redis configuration
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+
+      # Python path
+      PYTHONPATH: ${{ github.workspace }}
+
+      # Test configuration
+      TESTING: "true"
+      LOG_LEVEL: "WARNING"
+      CELERY_ALWAYS_EAGER: "true"
+      CELERY_EAGER_PROPAGATES_EXCEPTIONS: "true"
+
     services:
       postgres:
         image: timescale/timescaledb:latest-pg15
         env:
-          POSTGRES_DB: heimdall_test
-          POSTGRES_USER: heimdall_user
-          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U ${POSTGRES_USER}"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -75,8 +103,8 @@ jobs:
       rabbitmq:
         image: rabbitmq:3.12-management-alpine
         env:
-          RABBITMQ_DEFAULT_USER: guest
-          RABBITMQ_DEFAULT_PASS: guest
+          RABBITMQ_DEFAULT_USER: ${{ env.RABBITMQ_USER }}
+          RABBITMQ_DEFAULT_PASS: ${{ env.RABBITMQ_PASS }}
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping"
           --health-interval 10s
@@ -168,22 +196,6 @@ jobs:
 
       - name: Test with pytest (unit tests only)
         timeout-minutes: 30
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_DB: heimdall_test
-          POSTGRES_USER: heimdall_user
-          POSTGRES_PASSWORD: test_password
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          RABBITMQ_HOST: localhost
-          RABBITMQ_PORT: 5672
-          RABBITMQ_USER: guest
-          RABBITMQ_PASS: guest
-          TESTING: "true"
-          LOG_LEVEL: "WARNING"
-          CELERY_ALWAYS_EAGER: "true"
-          CELERY_EAGER_PROPAGATES_EXCEPTIONS: "true"
         run: |
           cd services/${{ matrix.service }}
           export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
@@ -223,15 +235,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
@@ -264,6 +276,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [discover, test, frontend-test]
     if: always()
+
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Calculate test results
@@ -303,6 +319,58 @@ jobs:
             echo "  - Frontend tests: PASSED"
             exit 0
           fi
+
+      - name: Comment PR with CI results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let resultsContent = '## 🔬 CI Test Results\n\n';
+
+            const servicesCount = '${{ needs.discover.outputs.services_count }}';
+            const backendResult = '${{ needs.test.result }}';
+            const frontendResult = '${{ needs.frontend-test.result }}';
+
+            // Backend Tests Section
+            resultsContent += '### 🔧 Backend Tests\n';
+            if (servicesCount === '0') {
+              resultsContent += '⚠️  **No testable services found**\n\n';
+            } else {
+              resultsContent += `- 📦 **Services tested**: ${servicesCount}\n`;
+              if (backendResult === 'success') {
+                resultsContent += '- ✅ **Status**: All backend tests passed\n\n';
+              } else {
+                resultsContent += '- ❌ **Status**: Some backend tests failed\n\n';
+              }
+            }
+
+            // Frontend Tests Section
+            resultsContent += '### 🎨 Frontend Tests\n';
+            if (frontendResult === 'success') {
+              resultsContent += '- ✅ **Status**: All frontend tests passed\n';
+              resultsContent += '- 🔍 **Linting**: Completed\n';
+              resultsContent += '- 🏗️  **Build**: Successful\n\n';
+            } else {
+              resultsContent += '- ❌ **Status**: Frontend tests failed\n';
+              resultsContent += '- ⚠️  **Issues**: Check build, lint, or test failures\n\n';
+            }
+
+            // Overall Status
+            const overallStatus = '${{ steps.results.outputs.status }}';
+            if (overallStatus === 'FAILED') {
+              resultsContent += '❌ **Overall Result**: CI tests failed - Please review the failures above.\n\n';
+            } else {
+              resultsContent += '✅ **Overall Result**: All CI tests passed successfully!\n\n';
+            }
+
+            resultsContent += `📋 [View detailed test report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: resultsContent
+            });
 
       - name: Final status
         if: always()

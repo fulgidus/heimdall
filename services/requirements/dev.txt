@@ -1,0 +1,16 @@
+# Development and testing tools
+# Include base dependencies
+-r base.txt
+
+# Testing framework
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.21.1
+
+# Code quality and formatting
+black==23.10.0
+ruff==0.1.0
+mypy==1.6.1
+
+# Development utilities
+ipython==8.17.0

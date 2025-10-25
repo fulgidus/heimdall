@@ -21,7 +21,7 @@ export async function checkServiceHealth(serviceName: string): Promise<ServiceHe
  * Check health of all services
  */
 export async function checkAllServicesHealth(): Promise<Record<string, ServiceHealth>> {
-    const services = ['api-gateway', 'rf-acquisition', 'inference'];
+    const services = ['api-gateway', 'rf-acquisition', 'training', 'inference', 'data-ingestion-web'];
     const healthChecks = await Promise.allSettled(
         services.map(async (service) => {
             try {
@@ -63,7 +63,7 @@ export async function checkAllServicesHealth(): Promise<Record<string, ServiceHe
 /**
  * Get API Gateway root status
  */
-export async function getAPIGatewayStatus(): Promise<any> {
+export async function getAPIGatewayStatus(): Promise<Record<string, unknown>> {
     const response = await api.get('/');
     return response.data;
 }

@@ -127,7 +127,7 @@ services:
       - "9001:9001"  # UI
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -163,23 +163,25 @@ services:
   # RF Acquisition Service - WebSDR data collection and processing
   rf-acquisition:
     build:
-      context: ./services/rf-acquisition
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/rf-acquisition/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-rf-acquisition
     environment:
       SERVICE_NAME: rf-acquisition
-      SERVICE_PORT: 8001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
-      CELERY_RESULT_BACKEND_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/1
-      MINIO_URL: http://minio:9000
+      SERVICE_PORT: ${RF_ACQUISITION_PORT:-8001}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
+      CELERY_RESULT_BACKEND_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
+      MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
-      - "8001:8001"
+      - "${RF_ACQUISITION_PORT:-8001}:${RF_ACQUISITION_PORT:-8001}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,11 +192,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${RF_ACQUISITION_PORT:-8001}/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -206,19 +208,25 @@ services:
   # API Gateway - Main REST API entry point
   api-gateway:
     build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-api-gateway
     environment:
       SERVICE_NAME: api-gateway
-      SERVICE_PORT: 8000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
+      SERVICE_PORT: ${API_GATEWAY_PORT:-8000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret-change-in-production}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
-      - "8000:8000"
+      - "${API_GATEWAY_PORT:-8000}:${API_GATEWAY_PORT:-8000}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -227,11 +235,11 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -243,22 +251,24 @@ services:
   # Training Service - ML model training pipeline
   training:
     build:
-      context: ./services/training
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/training/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-training
     environment:
       SERVICE_NAME: training
-      SERVICE_PORT: 8002
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
-      MINIO_URL: http://minio:9000
+      SERVICE_PORT: ${TRAINING_PORT:-8002}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
+      MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
-      - "8002:8002"
+      - "${TRAINING_PORT:-8002}:${TRAINING_PORT:-8002}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -269,11 +279,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${TRAINING_PORT:-8002}/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -285,21 +295,23 @@ services:
   # Inference Service - ML model inference
   inference:
     build:
-      context: ./services/inference
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/inference/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-inference
     environment:
       SERVICE_NAME: inference
-      SERVICE_PORT: 8003
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      MINIO_URL: http://minio:9000
+      SERVICE_PORT: ${INFERENCE_PORT:-8003}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
-      - "8003:8003"
+      - "${INFERENCE_PORT:-8003}:${INFERENCE_PORT:-8003}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -308,11 +320,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${INFERENCE_PORT:-8003}/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -324,22 +336,24 @@ services:
   # Data Ingestion Web - Data collection UI and API
   data-ingestion-web:
     build:
-      context: ./services/data-ingestion-web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/data-ingestion-web/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-data-ingestion-web
     environment:
       SERVICE_NAME: data-ingestion-web
-      SERVICE_PORT: 8004
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@redis:6379/0
-      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@rabbitmq:5672//
-      MINIO_URL: http://minio:9000
+      SERVICE_PORT: ${DATA_INGESTION_PORT:-8004}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
+      MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
     ports:
-      - "8004:8004"
+      - "${DATA_INGESTION_PORT:-8004}:${DATA_INGESTION_PORT:-8004}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -350,11 +364,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${DATA_INGESTION_PORT:-8004}/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -377,7 +391,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:9090/-/healthy"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -405,7 +419,7 @@ services:
       prometheus:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/api/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -423,13 +437,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:8000
+        VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
         VITE_ENV: development
         VITE_ENABLE_ANALYTICS: "true"
         VITE_ENABLE_DEBUG: "false"
     container_name: heimdall-frontend
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
       VITE_ENV: development
     ports:
       - "3001:3000"
@@ -437,7 +451,7 @@ services:
       api-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/"]
       interval: 30s
       timeout: 3s
       start_period: 10s
@@ -449,6 +463,82 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Keycloak - Authentication & Authorization Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: heimdall-keycloak
+    command:
+      - start-dev
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-heimdall}
+      KC_DB_USERNAME: ${POSTGRES_USER:-heimdall_user}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+      # CORS configuration for Keycloak 23
+      KC_HTTP_RELATIVE_PATH: /
+      KC_SPI_CORS_ORIGINS: "http://${DOCKER_HOST:-localhost}:3001,http://${DOCKER_HOST:-localhost}:8000,http://${DOCKER_HOST:-localhost}:5173,http://${DOCKER_HOST:-localhost}:3000"
+      # Realm configuration
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      APP_USER_EMAIL: ${APP_USER_EMAIL:-admin@heimdall.local}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-admin}
+      KEYCLOAK_API_GATEWAY_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_API_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+      - ./db/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && timeout 2 cat <&3 | grep -q 'UP' || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 60s
+      retries: 5
+    networks:
+      - heimdall-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Initialize Keycloak realm and users on startup
+  keycloak-init:
+    image: alpine:3.18
+    container_name: heimdall-keycloak-init
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
+      APP_USER_EMAIL: ${APP_USER_EMAIL:-admin@heimdall.local}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-admin}
+      KEYCLOAK_API_GATEWAY_CLIENT_ID: ${KEYCLOAK_API_GATEWAY_CLIENT_ID:-api-gateway}
+      KEYCLOAK_API_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_API_GATEWAY_CLIENT_SECRET:-api-gateway-secret}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
+    volumes:
+      - ./scripts/init-keycloak.sh:/init-keycloak.sh:ro
+    entrypoint: /bin/sh -c "apk add --no-cache curl jq && /bin/sh /init-keycloak.sh"
+    networks:
+      - heimdall-network
+    restart: on-failure
 
 volumes:
   postgres_data:
@@ -462,6 +552,8 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  keycloak_data:
     driver: local
 
 networks:

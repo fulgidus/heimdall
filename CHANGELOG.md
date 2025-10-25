@@ -10,13 +10,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Centralized Dependency Management System** (2025-10-25, PR #3)
+  - Created `services/requirements/` directory with modular requirement files
+  - Added `base.txt`, `dev.txt`, `ml.txt`, `api.txt`, `data.txt` for shared dependencies
+  - Implemented `scripts/lock_requirements.py` for generating version-pinned lock files
+  - Implemented `scripts/audit_dependencies.py` for dependency analysis and conflict detection
+  - Created `.github/workflows/dependency-updates.yml` for automated weekly dependency updates
+  - Added comprehensive dependency management documentation in `docs/dependency_management.md`
+  - Added Makefile targets: `lock-deps`, `audit-deps`, `deps-check`
+  - Updated all service Dockerfiles to use centralized requirements with proper build contexts
+  - Updated `docker-compose.yml` with consistent build contexts and PIP_NO_CACHE_DIR arg
+  - Created `.github/ISSUE_TEMPLATE/dependency-update.md` for dependency issue reporting
+  - Resolved version conflicts in boto3 and onnxruntime across services
+  - Security: Automated vulnerability scanning with safety library
+  - Security: Weekly dependency update workflow with security checks
+  - Production stability: Version pinning strategy ensures reproducible and secure builds
+
+- **WebSocket Real-Time Dashboard Updates** (2025-10-25)
+  - Implemented WebSocket support for real-time updates to Dashboard without polling overhead
+  - Frontend WebSocket manager with auto-reconnection and exponential backoff (1s → 30s max)
+  - Connection state tracking (Connected, Connecting, Reconnecting, Disconnected)
+  - Event subscription/unsubscription system for targeted updates
+  - Heartbeat/ping-pong for connection keep-alive (30s interval)
+  - Backend WebSocket endpoint at `/ws/updates` in API Gateway
+  - Connection manager for broadcasting to multiple clients
+  - Dashboard integration with connection status indicator (badge with color-coded states)
+  - Reconnection button for manual reconnect attempts
+  - Graceful fallback to 30s polling when WebSocket unavailable
+  - Event types: `services:health`, `websdrs:status`, `signals:detected`, `localizations:updated`
+  - Test coverage: 16/16 frontend WebSocket tests, 5/5 backend WebSocket tests, 11/11 Dashboard integration tests
+  - Files: frontend/src/lib/websocket.ts, services/api-gateway/src/websocket_manager.py, services/api-gateway/src/main.py (WebSocket route)
+
+### Fixed
+- **Health Check Endpoints**: Fixed all service health check paths (2025-10-25)
+  - Issue: Frontend dashboard calls `/api/v1/{service}/health` but backend services only had `/health` at root
+  - Root cause: API Gateway's `proxy_request()` preserved full paths, but backends didn't have nested `/api/v1/*` paths
+  - Solution:
+    - API Gateway: Added path-stripping handlers for `/api/v1/api-gateway/health`, `/api/v1/rf-acquisition/health`, `/api/v1/inference/health`
+    - Inference service: Added `/api/v1/inference/health` endpoint to match frontend expectations
+    - All health endpoints now return proper HealthResponse JSON with status, service name, version, and timestamp
+  - **Verification**: ✅ All 3 health check endpoints return HTTP 200
+  - Changes: services/api-gateway/src/main.py (lines 175-230), services/inference/src/main.py (lines 38-41)
+
+- **Frontend Tests**: Fixed all 283 frontend test failures (2025-10-25)
+  - Added React to global scope in vitest test setup to resolve "React is not defined" errors
+  - Fixed authStore test expectations to match API Gateway endpoint instead of Keycloak
+  - All test files now properly support JSX syntax in React 19 with new JSX transform
+  - 100% test success rate: 283 tests passing across 19 test files
+  - Test execution time: ~14 seconds
+  - Changes: frontend/src/test/setup.ts (added global React), frontend/src/store/authStore.test.ts (fixed endpoint)
+
+### Added
 - **Frontend Rebuild Phase 8**: Docker Integration (In Progress)
   - Updated Dockerfile to use Node 20 (required for rolldown-vite)
   - Switched from node+serve to nginx for production deployment
   - Created comprehensive nginx.conf with gzip, caching, API proxy, WebSocket support
   - Added security headers (X-Frame-Options, CSP, X-XSS-Protection)
   - Configured health check endpoint at /health
-  - Added frontend service to docker-compose.yml on port 3001
+  - Added frontend service to docker compose.yml on port 3001
   - Environment variable support via build args (VITE_API_URL, VITE_ENV, etc.)
   - Multi-stage build for optimized image size
   - Logging configuration with rotation (10MB max, 3 files)
@@ -246,7 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimized API response times (P95: 52.81ms, P99: 62.63ms)
 - Improved container health checks (process-based instead of HTTP)
 - Enhanced logging throughout all services
-- Updated docker-compose.yml with better health check strategies
+- Updated docker compose.yml with better health check strategies
 
 ### Fixed
 - WebSDR connection stability issues
@@ -298,7 +349,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoints for all services (`/health`)
 - Dockerfile templates (multi-stage builds with healthchecks)
 - Common requirements.txt for shared dependencies
-- docker-compose.services.yml for service orchestration
+- docker compose.services.yml for service orchestration
 - Service containers: rf-acquisition, training, inference, data-ingestion-web, api-gateway
 - Structured logging via structlog for all services
 
@@ -324,8 +375,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MLflow experiment tracker integration
 - pgAdmin for database management
 - Prometheus + Grafana for monitoring
-- Development environment setup (docker-compose.yml)
-- Production environment configuration (docker-compose.prod.yml)
+- Development environment setup (docker compose.yml)
+- Production environment configuration (docker compose.prod.yml)
 - Database schema initialization (db/init-postgres.sql)
   - Tables: known_sources, measurements, training_datasets, models, websdr_stations
   - TimescaleDB hypertables for time-series data

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heimdall Map - Visual Test</title>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            max-width: 300px;
+            z-index: 1;
+        }
+        .marker-online {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #10b981;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        .marker-localization {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="info-panel">
+        <h3 style="margin: 0 0 10px 0;">Heimdall Map Test</h3>
+        <p style="margin: 5px 0; font-size: 14px;">
+            <strong>Green markers:</strong> WebSDR Receivers<br>
+            <strong>Red markers:</strong> Localizations<br>
+            <strong>Colored areas:</strong> Uncertainty ellipses
+        </p>
+        <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+            Note: Replace MAPBOX_TOKEN with your actual token
+        </p>
+    </div>
+    <div id="map"></div>
+
+    <script>
+        // WebSDR receivers from Northwestern Italy
+        const websdrs = [
+            { name: 'Aquila di Giaveno', lat: 45.02, lng: 7.29 },
+            { name: 'Montanaro', lat: 45.234, lng: 7.857 },
+            { name: 'Torino', lat: 45.044, lng: 7.672 },
+            { name: 'Coazze', lat: 45.03, lng: 7.27 },
+            { name: 'Passo del Giovi', lat: 44.561, lng: 8.956 },
+            { name: 'Genova', lat: 44.395, lng: 8.956 },
+            { name: 'Milano - Baggio', lat: 45.478, lng: 9.123 }
+        ];
+
+        // Mock localization data
+        const localizations = [
+            { lat: 44.8, lng: 8.5, uncertainty: 50 },
+            { lat: 45.1, lng: 7.8, uncertainty: 30 },
+            { lat: 44.6, lng: 9.0, uncertainty: 40 }
+        ];
+
+        // Initialize map
+        mapboxgl.accessToken = 'MAPBOX_TOKEN_HERE'; // Replace with actual token
+        
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-v9',
+            center: [8.5, 44.8],
+            zoom: 8
+        });
+
+        map.on('load', () => {
+            // Add WebSDR markers
+            websdrs.forEach(websdr => {
+                const el = document.createElement('div');
+                el.className = 'marker-online pulse';
+                
+                new mapboxgl.Marker(el)
+                    .setLngLat([websdr.lng, websdr.lat])
+                    .setPopup(new mapboxgl.Popup().setHTML(
+                        `<div style="padding: 10px;">
+                            <h6 style="margin: 0 0 5px 0;">${websdr.name}</h6>
+                            <p style="margin: 0; font-size: 12px;">
+                                Coordinates: ${websdr.lat.toFixed(4)}, ${websdr.lng.toFixed(4)}
+                            </p>
+                        </div>`
+                    ))
+                    .addTo(map);
+            });
+
+            // Add uncertainty ellipses
+            localizations.forEach((loc, idx) => {
+                // Create circular uncertainty ellipse
+                const circle = createCircle([loc.lng, loc.lat], loc.uncertainty);
+                
+                map.addSource(`ellipse-${idx}`, {
+                    type: 'geojson',
+                    data: circle
+                });
+
+                map.addLayer({
+                    id: `ellipse-${idx}`,
+                    type: 'fill',
+                    source: `ellipse-${idx}`,
+                    paint: {
+                        'fill-color': '#10b981',
+                        'fill-opacity': 0.3
+                    }
+                });
+
+                // Add localization marker
+                const el = document.createElement('div');
+                el.className = 'marker-localization';
+                
+                new mapboxgl.Marker(el)
+                    .setLngLat([loc.lng, loc.lat])
+                    .setPopup(new mapboxgl.Popup().setHTML(
+                        `<div style="padding: 10px;">
+                            <h6 style="margin: 0 0 5px 0;">Localization</h6>
+                            <p style="margin: 0; font-size: 12px;">
+                                Uncertainty: ±${loc.uncertainty}m<br>
+                                Confidence: 68%
+                            </p>
+                        </div>`
+                    ))
+                    .addTo(map);
+            });
+        });
+
+        // Create circular feature
+        function createCircle(center, radiusInMeters) {
+            const points = 64;
+            const coords = [];
+            const distanceX = radiusInMeters / 111320; // degrees per meter lat
+            const distanceY = radiusInMeters / (111320 * Math.cos(center[1] * Math.PI / 180));
+
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * 2 * Math.PI;
+                const x = distanceY * Math.cos(angle);
+                const y = distanceX * Math.sin(angle);
+                coords.push([center[0] + x, center[1] + y]);
+            }
+
+            return {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates: [coords]
+                }
+            };
+        }
+
+        // Add controls
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+        map.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+    </script>
+</body>
+</html>

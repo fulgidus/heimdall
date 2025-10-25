@@ -35,7 +35,7 @@ kill -9 <PID>
 
 # Or change port in .env
 # Restart containers
-docker-compose restart
+docker compose restart
 ```
 
 ### Memory issues
@@ -63,16 +63,16 @@ docker system prune -a
 **Solution**:
 ```bash
 # Check database is running
-docker-compose ps postgres
+docker compose ps postgres
 
 # Check logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Verify credentials in .env
 grep DATABASE_URL .env
 
 # Test connection
-docker-compose exec postgres psql -U heimdall_user -d heimdall -c "SELECT 1"
+docker compose exec postgres psql -U heimdall_user -d heimdall -c "SELECT 1"
 ```
 
 ### Database migration failed
@@ -137,7 +137,7 @@ curl http://localhost:8000/api/v1/tasks
 curl http://localhost:8000/docs
 
 # Check logs for routing errors
-docker-compose logs api-gateway | grep -i error
+docker compose logs api-gateway | grep -i error
 ```
 
 ### API request timeout
@@ -147,13 +147,13 @@ docker-compose logs api-gateway | grep -i error
 **Solution**:
 ```bash
 # Check worker pool size
-docker-compose ps | grep worker
+docker compose ps | grep worker
 
 # Scale up workers
-docker-compose up -d --scale worker=5
+docker compose up -d --scale worker=5
 
 # Check queue depth
-docker-compose exec rabbitmq rabbitmqctl list_queues name messages
+docker compose exec rabbitmq rabbitmqctl list_queues name messages
 
 # Increase timeout in config
 # Set REQUEST_TIMEOUT=300 in .env
@@ -222,7 +222,7 @@ WEBSDR_CONFIG = {
 
 # Use exponential backoff
 # Check network connectivity
-docker-compose exec api-gateway ping 8.8.8.8
+docker compose exec api-gateway ping 8.8.8.8
 ```
 
 ## Performance Issues
@@ -240,7 +240,7 @@ docker stats
 python -m cProfile -s cumulative script.py > profile.txt
 
 # Check for long-running queries
-docker-compose logs ml-detector | grep -i slow
+docker compose logs ml-detector | grep -i slow
 ```
 
 ### High memory usage
@@ -256,10 +256,10 @@ docker stats
 # Look for unbounded arrays or caches
 
 # Clear cache
-docker-compose exec redis redis-cli FLUSHALL
+docker compose exec redis redis-cli FLUSHALL
 
 # Limit memory per container
-# Update docker-compose.yml with mem_limit
+# Update docker compose.yml with mem_limit
 ```
 
 ### GPU not being used
@@ -293,17 +293,17 @@ INFERENCE_DEVICE=cuda
 **Solution**:
 ```bash
 # Check RabbitMQ running
-docker-compose ps rabbitmq
+docker compose ps rabbitmq
 
 # Check logs
-docker-compose logs rabbitmq
+docker compose logs rabbitmq
 
 # Reset RabbitMQ
-docker-compose exec rabbitmq rabbitmqctl reset
-docker-compose restart rabbitmq
+docker compose exec rabbitmq rabbitmqctl reset
+docker compose restart rabbitmq
 
 # Monitor queue
-docker-compose exec rabbitmq rabbitmqctl list_queues
+docker compose exec rabbitmq rabbitmqctl list_queues
 ```
 
 ### Tasks stuck in queue
@@ -313,16 +313,16 @@ docker-compose exec rabbitmq rabbitmqctl list_queues
 **Solution**:
 ```bash
 # Check worker count
-docker-compose ps worker | wc -l
+docker compose ps worker | wc -l
 
 # Check queue size
-docker-compose exec rabbitmq rabbitmqctl list_queues name messages
+docker compose exec rabbitmq rabbitmqctl list_queues name messages
 
 # Purge queue (WARNING: Deletes tasks!)
-docker-compose exec rabbitmq rabbitmqctl purge_queue celery
+docker compose exec rabbitmq rabbitmqctl purge_queue celery
 
 # Restart workers
-docker-compose restart worker
+docker compose restart worker
 ```
 
 ## Redis Cache Issues
@@ -334,16 +334,16 @@ docker-compose restart worker
 **Solution**:
 ```bash
 # Check Redis running
-docker-compose ps redis
+docker compose ps redis
 
 # Check port mapping
-docker-compose port redis 6379
+docker compose port redis 6379
 
 # Check logs
-docker-compose logs redis
+docker compose logs redis
 
 # Restart Redis
-docker-compose restart redis
+docker compose restart redis
 ```
 
 ### Memory full
@@ -353,16 +353,101 @@ docker-compose restart redis
 **Solution**:
 ```bash
 # Check memory usage
-docker-compose exec redis redis-cli INFO memory
+docker compose exec redis redis-cli INFO memory
 
 # Increase maxmemory
-docker-compose exec redis redis-cli CONFIG SET maxmemory 1gb
+docker compose exec redis redis-cli CONFIG SET maxmemory 1gb
 
 # Enable eviction policy
-docker-compose exec redis redis-cli CONFIG SET maxmemory-policy allkeys-lru
+docker compose exec redis redis-cli CONFIG SET maxmemory-policy allkeys-lru
 
 # Clear cache
-docker-compose exec redis redis-cli FLUSHALL
+docker compose exec redis redis-cli FLUSHALL
+```
+
+## CI/CD Issues
+
+### GitHub Actions integration tests failing
+
+**Error**: `Service container <name> failed` or `Failed to initialize container`
+
+**Common Causes**:
+- Service containers not starting (missing commands)
+- MinIO or Keycloak showing help text instead of running
+- Health checks timing out
+
+**Solution**:
+
+See the comprehensive [GitHub Actions Service Containers Troubleshooting Guide](agents/github_actions_service_containers_troubleshooting.md) for detailed solutions including:
+- Service container limitations and workarounds
+- Manual container startup patterns
+- Network discovery for service communication
+- Health check implementation
+- Cleanup procedures
+
+For the specific MinIO and Keycloak fix, see [Integration Tests Fix Documentation](agents/20251024_235900_integration_tests_fix.md).
+
+**Quick Fix Pattern**:
+```yaml
+# Don't use service containers for commands
+steps:
+  - name: Start MinIO
+    run: |
+      NETWORK=$(docker network ls --format '{{.Name}}' | grep github || echo "bridge")
+      docker run -d --name minio --network "$NETWORK" \
+        -p 9000:9000 minio/minio:latest \
+        server /data --console-address ":9001"
+      timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+```
+
+### Workflow timeout
+
+**Error**: Workflow exceeds time limit
+
+**Solution**:
+```yaml
+# Increase timeout in workflow
+jobs:
+  test:
+    timeout-minutes: 30  # Increase as needed
+```
+
+### Secrets not available
+
+**Error**: Environment variable undefined
+
+**Solution**:
+```yaml
+# Add secrets to GitHub repository
+# Settings > Secrets and variables > Actions > New repository secret
+
+# Reference in workflow
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
+
+### Tests pass locally but fail in CI
+
+**Error**: Tests work on local machine but not in GitHub Actions
+
+**Solution**:
+```bash
+# Match CI environment
+docker compose -f docker compose.test.yml up -d
+
+# Use same Python version as CI
+pyenv install 3.11.0
+pyenv local 3.11.0
+
+# Clear caches
+rm -rf __pycache__ .pytest_cache
+pip cache purge
+
+# Run tests with same flags as CI
+pytest -v --cov=src --cov-report=xml
+
+# Check environment variables
+env | grep -E 'DATABASE|REDIS|MINIO|KEYCLOAK'
 ```
 
 ## Log & Debugging
@@ -371,16 +456,16 @@ docker-compose exec redis redis-cli FLUSHALL
 
 ```bash
 # All containers
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f api-gateway
+docker compose logs -f api-gateway
 
 # Last N lines
-docker-compose logs --tail 100 signal-processor
+docker compose logs --tail 100 signal-processor
 
 # Since specific time
-docker-compose logs --since 2025-10-22T10:00:00
+docker compose logs --since 2025-10-22T10:00:00
 ```
 
 ### Enable debug logging
@@ -390,17 +475,17 @@ docker-compose logs --since 2025-10-22T10:00:00
 LOG_LEVEL=DEBUG
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # View detailed logs
-docker-compose logs -f | grep DEBUG
+docker compose logs -f | grep DEBUG
 ```
 
 ### Capture network traffic
 
 ```bash
 # Using tcpdump
-docker-compose exec api-gateway tcpdump -i eth0 -w capture.pcap
+docker compose exec api-gateway tcpdump -i eth0 -w capture.pcap
 
 # View with Wireshark
 # Transfer file and open in Wireshark
@@ -425,11 +510,11 @@ docker compose version >> diagnostics.txt
 
 # Container status
 echo -e "\n=== Container Status ===" >> diagnostics.txt
-docker-compose ps >> diagnostics.txt
+docker compose ps >> diagnostics.txt
 
 # Recent logs
 echo -e "\n=== Recent Logs ===" >> diagnostics.txt
-docker-compose logs --tail 100 >> diagnostics.txt
+docker compose logs --tail 100 >> diagnostics.txt
 
 # Environment (redacted)
 echo -e "\n=== Environment ===" >> diagnostics.txt

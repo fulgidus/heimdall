@@ -1,23 +1,67 @@
-from datetime import datetime
-from fastapi import FastAPI, Request, HTTPException
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 import logging
+import os
+import sys
+import asyncio
+
+# Add parent directory to path for auth module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..', 'common'))
+
 from .config import settings
 from .models.health import HealthResponse
+from .websocket_manager import manager as ws_manager, heartbeat_task
 
-logger = logging.getLogger(__name__)
+# Import Keycloak authentication
+try:
+    from auth.keycloak_auth import get_current_user, require_admin, require_operator
+    from auth.models import User
+    AUTH_ENABLED = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ Keycloak authentication enabled")
+except ImportError as e:
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ Authentication disabled - could not import auth module: {e}")
+    AUTH_ENABLED = False
+    
+    # Define dummy user for when auth is disabled
+    class User:
+        def __init__(self):
+            self.id = "anonymous"
+            self.username = "anonymous"
+            self.email = "anonymous@heimdall.local"
+            self.roles = []
+            self.is_admin = False
+            self.is_operator = False
+            self.is_viewer = False
+    
+    # Create a dummy dependency that never fails
+    async def get_current_user():
+        """Dummy auth - returns anonymous user when auth is disabled."""
+        return User()
+    
+    def require_admin():
+        async def _require_admin(user: User = Depends(get_current_user)):
+            return user
+        return _require_admin
+    
+    def require_operator():
+        async def _require_operator(user: User = Depends(get_current_user)):
+            return user
+        return _require_operator
 
 SERVICE_NAME = "api-gateway"
 SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8000
 
-# Backend service URLs
-RF_ACQUISITION_URL = "http://rf-acquisition:8001"
-INFERENCE_URL = "http://inference:8003"
-TRAINING_URL = "http://training:8002"
-DATA_INGESTION_URL = "http://data-ingestion-web:8004"
+# Backend service URLs - from settings
+RF_ACQUISITION_URL = settings.rf_acquisition_url
+INFERENCE_URL = settings.inference_url
+TRAINING_URL = settings.training_url
+DATA_INGESTION_URL = settings.data_ingestion_url
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
@@ -87,52 +131,477 @@ async def proxy_request(request: Request, target_url: str):
             raise HTTPException(status_code=500, detail=f"Proxy error: {str(e)}")
 
 
-@app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_rf_acquisition(request: Request, path: str):
-    """Proxy requests to RF Acquisition service."""
-    logger.debug(f"📡 Acquisition route matched: path={path}")
-    return await proxy_request(request, RF_ACQUISITION_URL)
-
-
-@app.api_route("/api/v1/inference/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_inference(request: Request, path: str):
-    """Proxy requests to Inference service."""
-    logger.debug(f"🧠 Inference route matched: path={path}")
-    return await proxy_request(request, INFERENCE_URL)
-
-
-@app.api_route("/api/v1/training/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_training(request: Request, path: str):
-    """Proxy requests to Training service."""
-    logger.debug(f"📚 Training route matched: path={path}")
-    return await proxy_request(request, TRAINING_URL)
-
-
-@app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_data_ingestion(request: Request, path: str):
-    """Proxy requests to Data Ingestion service."""
-    logger.debug(f"💾 Data Ingestion route matched: path={path}")
-    return await proxy_request(request, DATA_INGESTION_URL)
-
-@app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_inference_analytics(request: Request, path: str):
-    """Proxy analytics requests to Inference service."""
-    logger.debug(f"� Analytics route matched: path={path}")
-    return await proxy_request(request, INFERENCE_URL)
-
-@app.get("/")
-async def root():
-    return {"service": SERVICE_NAME, "status": "running", "timestamp": datetime.utcnow().isoformat()}
-
+# =============================================================================
+# PUBLIC HEALTH ENDPOINTS - No authentication required
+# =============================================================================
 
 @app.get("/health")
 async def health_check():
-    return HealthResponse(status="healthy", service=SERVICE_NAME, version=SERVICE_VERSION, timestamp=datetime.utcnow())
+    """Health check for API Gateway."""
+    return HealthResponse(
+        status="healthy",
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION,
+        timestamp=datetime.utcnow()
+    )
 
 
 @app.get("/ready")
 async def readiness_check():
+    """Readiness check for API Gateway."""
     return {"ready": True}
+
+
+# These must be defined BEFORE the catch-all {path:path} routes to take precedence
+@app.get("/api/v1/acquisition/health")
+async def acquisition_health_public(request: Request):
+    """Public health check endpoint for RF Acquisition service."""
+    logger.debug(f"📡 Public health check: /api/v1/acquisition/health")
+    return await proxy_request(request, RF_ACQUISITION_URL)
+
+
+@app.get("/api/v1/acquisition/websdrs")
+async def acquisition_websdrs_public(request: Request):
+    """Public endpoint to get WebSDR configuration."""
+    logger.debug(f"📡 Public WebSDRs endpoint: /api/v1/acquisition/websdrs")
+    return await proxy_request(request, RF_ACQUISITION_URL)
+
+
+@app.get("/api/v1/inference/health")
+async def inference_health_public(request: Request):
+    """Public health check endpoint for Inference service."""
+    logger.debug(f"🧠 Public health check: /api/v1/inference/health")
+    return await proxy_request(request, INFERENCE_URL)
+
+
+@app.get("/api/v1/api-gateway/health")
+async def api_gateway_health_public():
+    """Health check for API Gateway service."""
+    logger.debug(f"🌐 API Gateway health check: /api/v1/api-gateway/health")
+    return HealthResponse(
+        status="healthy",
+        service=SERVICE_NAME,
+        version=SERVICE_VERSION,
+        timestamp=datetime.utcnow()
+    )
+
+
+@app.get("/api/v1/rf-acquisition/health")
+async def rf_acquisition_health_public():
+    """Health check endpoint for RF Acquisition service - maps to backend /health."""
+    logger.debug(f"📡 RF Acquisition health check: /api/v1/rf-acquisition/health")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{RF_ACQUISITION_URL}/health")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return HealthResponse(status="unhealthy", service="rf-acquisition", version="unknown", timestamp=datetime.utcnow())
+        except Exception as e:
+            logger.warning(f"⚠️ Could not reach rf-acquisition health: {str(e)}")
+            return HealthResponse(status="unhealthy", service="rf-acquisition", version="unknown", timestamp=datetime.utcnow())
+
+
+@app.get("/api/v1/inference/health")
+async def inference_health_check():
+    """Health check endpoint for Inference service - maps to backend /health."""
+    logger.debug(f"🧠 Inference health check: /api/v1/inference/health")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{INFERENCE_URL}/health")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return HealthResponse(status="unhealthy", service="inference", version="unknown", timestamp=datetime.utcnow())
+        except Exception as e:
+            logger.warning(f"⚠️ Could not reach inference health: {str(e)}")
+            return HealthResponse(status="unhealthy", service="inference", version="unknown", timestamp=datetime.utcnow())
+
+
+# OLD ENDPOINTS - Kept for backward compatibility but use /api/v1/{service}/health instead
+@app.get("/api/v1/acquisition/health")
+async def acquisition_health_deprecated(request: Request):
+    """DEPRECATED: Use /api/v1/rf-acquisition/health instead."""
+    logger.debug(f"📡 Deprecated: /api/v1/acquisition/health → /api/v1/rf-acquisition/health")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{RF_ACQUISITION_URL}/health")
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return HealthResponse(status="unhealthy", service="rf-acquisition", version="unknown", timestamp=datetime.utcnow())
+        except Exception as e:
+            raise HTTPException(status_code=503, detail="rf-acquisition unavailable")
+
+
+# =============================================================================
+# =============================================================================
+# PROTECTED ACQUISITION ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# =============================================================================
+
+@app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_rf_acquisition(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user)
+):
+    """Proxy requests to RF Acquisition service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"📡 Acquisition route matched: path={path} (user={user.username})")
+    return await proxy_request(request, RF_ACQUISITION_URL)
+
+
+# =============================================================================
+# PROTECTED INFERENCE ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# =============================================================================
+
+@app.api_route("/api/v1/inference/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_inference(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user)
+):
+    """Proxy requests to Inference service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_viewer:
+        raise HTTPException(status_code=403, detail="Viewer access required")
+    logger.debug(f"🧠 Inference route matched: path={path} (user={user.username})")
+    return await proxy_request(request, INFERENCE_URL)
+
+
+# =============================================================================
+# PROTECTED TRAINING ENDPOINTS
+# =============================================================================
+
+# =============================================================================
+# PROTECTED TRAINING ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# =============================================================================
+
+@app.api_route("/api/v1/training/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_training(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user)
+):
+    """Proxy requests to Training service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"📚 Training route matched: path={path} (user={user.username})")
+    return await proxy_request(request, TRAINING_URL)
+
+
+# =============================================================================
+# PROTECTED DATA INGESTION ENDPOINTS
+# =============================================================================
+
+# =============================================================================
+# PROTECTED DATA INGESTION ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# =============================================================================
+
+@app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_data_ingestion(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user)
+):
+    """Proxy requests to Data Ingestion service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"💾 Data Ingestion route matched: path={path} (user={user.username})")
+    return await proxy_request(request, DATA_INGESTION_URL)
+
+
+# =============================================================================
+# PUBLIC ANALYTICS ENDPOINTS
+# =============================================================================
+
+@app.api_route("/api/v1/analytics/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_inference_analytics(request: Request, path: str):
+    """Proxy analytics requests to Inference service (public access for demo)."""
+    logger.debug(f"📊 Analytics route matched: path={path}")
+    return await proxy_request(request, INFERENCE_URL)
+
+
+# =============================================================================
+# ROOT & ROOT ENDPOINTS
+# =============================================================================
+
+@app.get("/")
+async def root():
+    """Root endpoint - returns service info."""
+    return {
+        "service": SERVICE_NAME,
+        "status": "running",
+        "timestamp": datetime.utcnow().isoformat(),
+        "auth_enabled": AUTH_ENABLED
+    }
+
+
+# =============================================================================
+# WEBSOCKET ENDPOINT - Real-time Updates
+# =============================================================================
+
+@app.websocket("/ws/updates")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time dashboard updates.
+    
+    Events broadcasted:
+    - services:health - Service health status updates
+    - websdrs:status - WebSDR receiver status changes
+    - signals:detected - New signal detections
+    - localizations:updated - New localization points
+    """
+    await ws_manager.connect(websocket)
+    
+    # Start heartbeat task
+    heartbeat = asyncio.create_task(heartbeat_task(websocket))
+    
+    try:
+        while True:
+            # Receive messages from client (e.g., ping, subscribe events)
+            data = await websocket.receive_json()
+            
+            event = data.get("event")
+            
+            # Handle ping/pong
+            if event == "ping":
+                await websocket.send_json({
+                    "event": "pong",
+                    "data": {},
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+            
+            # Handle subscription requests (future enhancement)
+            elif event == "subscribe":
+                event_name = data.get("data", {}).get("event_name")
+                if event_name:
+                    ws_manager.subscribe(websocket, event_name)
+                    
+            elif event == "unsubscribe":
+                event_name = data.get("data", {}).get("event_name")
+                if event_name:
+                    ws_manager.unsubscribe(websocket, event_name)
+                    
+    except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected normally")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        heartbeat.cancel()
+        ws_manager.disconnect(websocket)
+
+
+# =============================================================================
+# AUTHENTICATION ENDPOINTS
+# =============================================================================
+
+@app.post("/api/v1/auth/login")
+async def login_proxy(request: Request):
+    """
+    Proxy OAuth2 token request to Keycloak.
+    
+    This endpoint proxies login requests to Keycloak, allowing the frontend
+    to request tokens through the API Gateway (which has CORS enabled).
+    
+    Accepts both:
+    - application/x-www-form-urlencoded (from OAuth2 clients)
+    - application/json (for convenience)
+    """
+    try:
+        # Parse body based on content type
+        content_type = request.headers.get("content-type", "").lower()
+        
+        if "application/json" in content_type:
+            # Parse JSON body
+            body = await request.json()
+            email = body.get("email") or body.get("username")
+            password = body.get("password")
+            logger.debug(f"📋 Parsed JSON body: email={email}")
+        else:
+            # Parse form-urlencoded body (OAuth2 standard)
+            form_data = await request.form()
+            email = form_data.get("username") or form_data.get("email")
+            password = form_data.get("password")
+            logger.debug(f"📋 Parsed form-urlencoded body: email={email}")
+        
+        # Validate required fields
+        if not email or not password:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Missing email/username or password"}
+            )
+        
+        # Keycloak token endpoint
+        keycloak_url = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
+        keycloak_realm = os.getenv("KEYCLOAK_REALM", "heimdall")
+        client_id = os.getenv("VITE_KEYCLOAK_CLIENT_ID", "heimdall-frontend")
+        token_endpoint = f"{keycloak_url}/realms/{keycloak_realm}/protocol/openid-connect/token"
+        
+        logger.info(f"🔐 Proxying login to: {token_endpoint}")
+        
+        # Build form data for Keycloak (it expects form-urlencoded, not JSON)
+        form_data = {
+            "client_id": client_id,
+            "username": email,
+            "password": password,
+            "grant_type": "password"
+        }
+        
+        # Forward to Keycloak
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                token_endpoint,
+                data=form_data,  # Use data= for form-urlencoded
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+        
+        logger.info(f"🔐 Keycloak response: {response.status_code}")
+        
+        # Return Keycloak response with CORS headers (added by middleware)
+        if response.status_code == 200:
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
+        else:
+            error_content = response.json() if response.text else {}
+            logger.warning(f"⚠️ Keycloak error: {error_content}")
+            return JSONResponse(
+                status_code=response.status_code,
+                content=error_content or {"error": "Authentication failed"}
+            )
+    except Exception as e:
+        logger.error(f"❌ Login proxy error: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
+
+
+@app.get("/api/v1/auth/check")
+async def auth_check(user: User = Depends(get_current_user)):
+    """Check authentication status and return user info."""
+    return {
+        "authenticated": AUTH_ENABLED,
+        "auth_enabled": AUTH_ENABLED,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "roles": user.roles,
+            "is_admin": user.is_admin,
+            "is_operator": user.is_operator,
+            "is_viewer": user.is_viewer,
+        } if AUTH_ENABLED else None
+    }
+
+
+# =============================================================================
+# USER PROFILE & PREFERENCES ENDPOINTS (Keycloak-based)
+# =============================================================================
+
+if AUTH_ENABLED:
+    @app.get("/api/v1/auth/me")
+    async def get_current_user_info(user: User = Depends(get_current_user)):
+        """Get current authenticated user information from Keycloak token."""
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "roles": user.roles,
+            "is_admin": user.is_admin,
+            "is_operator": user.is_operator,
+            "is_viewer": user.is_viewer,
+        }
+
+    @app.get("/api/v1/profile")
+    async def get_user_profile(user: User = Depends(get_current_user)):
+        """Get user profile from Keycloak."""
+        # TODO: Extend with additional profile data from database if needed
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "roles": user.roles,
+            "first_name": user.username.split("@")[0] if user.username else "",
+            "last_name": "",
+            "created_at": datetime.utcnow().isoformat(),
+            "last_login": datetime.utcnow().isoformat(),
+        }
+
+
+# =============================================================================
+# SYSTEM STATUS & METRICS ENDPOINTS
+# =============================================================================
+
+@app.get("/api/v1/config")
+async def get_config():
+    """Get application configuration."""
+    return {
+        "websdrs": 7,
+        "supported_bands": ["2m", "70cm"],
+        "max_duration_seconds": 300,
+        "min_frequency_mhz": 144.0,
+        "max_frequency_mhz": 146.0,
+        "keycloak_realm": os.getenv("KEYCLOAK_REALM", "heimdall"),
+        "keycloak_url": os.getenv("KEYCLOAK_URL", "http://keycloak:8080"),
+    }
+
+
+@app.get("/api/v1/stats")
+async def get_dashboard_stats():
+    """Get dashboard statistics from database."""
+    # TODO: Implement real stats aggregation from database
+    return {
+        "total_sessions": 0,
+        "active_sessions": 0,
+        "completed_predictions": 0,
+        "average_accuracy_m": 0.0,
+        "websdrs_online": 7,
+        "uptime_percentage": 100.0,
+    }
+
+
+@app.get("/api/v1/system/status")
+async def get_system_status():
+    """Aggregate health status from all services."""
+    services_health = []
+    service_urls = {
+        "api-gateway": settings.api_gateway_url,
+        "rf-acquisition": RF_ACQUISITION_URL,
+        "data-ingestion-web": DATA_INGESTION_URL,
+        "inference": INFERENCE_URL,
+        "training": TRAINING_URL,
+    }
+    
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for service_name, url in service_urls.items():
+            try:
+                response = await client.get(f"{url}/health")
+                status = "healthy" if response.status_code == 200 else "unhealthy"
+            except Exception:
+                status = "unreachable"
+            
+            services_health.append({
+                "name": service_name,
+                "status": status,
+                "url": url,
+            })
+    
+    overall_healthy = all(s["status"] == "healthy" for s in services_health)
+    
+    result = {
+        "overall_status": "healthy" if overall_healthy else "degraded",
+        "services": services_health,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    
+    # Broadcast to WebSocket clients
+    services_health_dict = {s["name"]: {"status": s["status"]} for s in services_health}
+    asyncio.create_task(ws_manager.broadcast("services:health", services_health_dict))
+    
+    return result
 
 
 if __name__ == "__main__":

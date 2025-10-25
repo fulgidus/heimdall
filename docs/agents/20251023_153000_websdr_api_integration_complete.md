@@ -198,7 +198,7 @@ VITE_API_URL=http://localhost:8000
 
 ### 1. Start del backend (se non già avviato)
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 2. Start del frontend
@@ -235,7 +235,7 @@ http://localhost:3001/websdrs
 
 **Soluzione**:
 ```bash
-docker-compose ps  # Verifica che rf-acquisition sia UP
+docker compose ps  # Verifica che rf-acquisition sia UP
 curl http://localhost:8000/api/v1/acquisition/websdrs  # Test diretto
 ```
 

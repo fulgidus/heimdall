@@ -1,0 +1,256 @@
+{
+    "id": "heimdall",
+    "realm": "heimdall",
+    "displayName": "Heimdall SDR",
+    "displayNameHtml": "<div class=\"kc-logo-text\"><span>Heimdall SDR</span></div>",
+    "enabled": true,
+    "sslRequired": "external",
+    "registrationAllowed": false,
+    "loginWithEmailAllowed": true,
+    "duplicateEmailsAllowed": false,
+    "resetPasswordAllowed": true,
+    "editUsernameAllowed": false,
+    "bruteForceProtected": true,
+    "permanentLockout": false,
+    "maxFailureWaitSeconds": 900,
+    "minimumQuickLoginWaitSeconds": 60,
+    "waitIncrementSeconds": 60,
+    "quickLoginCheckMilliSeconds": 1000,
+    "maxDeltaTimeSeconds": 43200,
+    "failureFactor": 5,
+    "defaultSignatureAlgorithm": "RS256",
+    "accessTokenLifespan": 3600,
+    "accessTokenLifespanForImplicitFlow": 900,
+    "ssoSessionIdleTimeout": 1800,
+    "ssoSessionMaxLifespan": 36000,
+    "offlineSessionIdleTimeout": 2592000,
+    "accessCodeLifespan": 60,
+    "accessCodeLifespanUserAction": 300,
+    "accessCodeLifespanLogin": 1800,
+    "roles": {
+        "realm": [
+            {
+                "name": "admin",
+                "description": "Administrator with full system access"
+            },
+            {
+                "name": "operator",
+                "description": "Operator with read/write access to signals and models"
+            },
+            {
+                "name": "viewer",
+                "description": "Viewer with read-only access"
+            },
+            {
+                "name": "service",
+                "description": "Service account role for inter-service communication"
+            }
+        ]
+    },
+    "clients": [
+        {
+            "clientId": "heimdall-frontend",
+            "name": "Heimdall Frontend",
+            "description": "React frontend application",
+            "enabled": true,
+            "publicClient": true,
+            "protocol": "openid-connect",
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": true,
+            "serviceAccountsEnabled": false,
+            "redirectUris": [
+                "http://localhost:5173/*",
+                "http://localhost:3000/*",
+                "http://localhost:3001/*",
+                "http://127.0.0.1:3001/*"
+            ],
+            "webOrigins": [
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://127.0.0.1:3001",
+                "+"
+            ],
+            "attributes": {
+                "pkce.code.challenge.method": "S256"
+            }
+        },
+        {
+            "clientId": "api-gateway",
+            "name": "API Gateway Service",
+            "description": "Backend API Gateway",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "api-gateway-secret-change-in-production"
+        },
+        {
+            "clientId": "rf-acquisition",
+            "name": "RF Acquisition Service",
+            "description": "WebSDR data collection service",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "rf-acquisition-secret-change-in-production"
+        },
+        {
+            "clientId": "training",
+            "name": "Training Service",
+            "description": "ML model training service",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "training-secret-change-in-production"
+        },
+        {
+            "clientId": "inference",
+            "name": "Inference Service",
+            "description": "Real-time inference service",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "inference-secret-change-in-production"
+        },
+        {
+            "clientId": "data-ingestion-web",
+            "name": "Data Ingestion Web Service",
+            "description": "Data collection UI and API",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "data-ingestion-secret-change-in-production"
+        },
+        {
+            "clientId": "grafana",
+            "name": "Grafana",
+            "description": "Grafana dashboards",
+            "enabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "grafana-secret-change-in-production",
+            "redirectUris": [
+                "http://localhost:3000/*"
+            ],
+            "webOrigins": [
+                "http://localhost:3000"
+            ]
+        }
+    ],
+    "users": [
+        {
+            "username": "admin",
+            "enabled": true,
+            "emailVerified": true,
+            "firstName": "Admin",
+            "lastName": "User",
+            "email": "admin@heimdall.local",
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "admin",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "admin"
+            ],
+            "clientRoles": {}
+        },
+        {
+            "username": "operator",
+            "enabled": true,
+            "emailVerified": true,
+            "firstName": "Operator",
+            "lastName": "User",
+            "email": "operator@heimdall.local",
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "operator",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "operator"
+            ],
+            "clientRoles": {}
+        },
+        {
+            "username": "viewer",
+            "enabled": true,
+            "emailVerified": true,
+            "firstName": "Viewer",
+            "lastName": "User",
+            "email": "viewer@heimdall.local",
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "viewer",
+                    "temporary": false
+                }
+            ],
+            "realmRoles": [
+                "viewer"
+            ],
+            "clientRoles": {}
+        }
+    ],
+    "clientScopes": [
+        {
+            "name": "roles",
+            "description": "OpenID Connect scope for user roles",
+            "protocol": "openid-connect",
+            "attributes": {
+                "include.in.token.scope": "true",
+                "display.on.consent.screen": "true"
+            },
+            "protocolMappers": [
+                {
+                    "name": "realm roles",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-realm-role-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "multivalued": "true",
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "claim.name": "realm_roles",
+                        "jsonType.label": "String"
+                    }
+                }
+            ]
+        }
+    ]
+}

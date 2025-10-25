@@ -91,8 +91,8 @@ heimdall/
 │   └── e2e/                   # End-to-end tests
 │
 ├── helm/                        # Kubernetes Helm charts
-├── docker-compose.yml         # Local development setup
-├── docker-compose.prod.yml    # Production setup
+├── docker compose.yml         # Local development setup
+├── docker compose.prod.yml    # Production setup
 ├── requirements.txt           # Production dependencies
 ├── requirements-dev.txt       # Development dependencies
 └── Makefile                   # Build automation
@@ -217,7 +217,7 @@ Example: Adding GET `/api/v1/results/{task_id}`
 
 4. **Verify**:
    ```bash
-   docker-compose exec postgres \
+   docker compose exec postgres \
      psql -U heimdall_user -d heimdall -c \
      "SELECT * FROM information_schema.columns WHERE table_name='task_results';"
    ```
@@ -314,7 +314,7 @@ def important_function():
         raise
 
 # View logs
-docker-compose logs -f api-gateway | grep important_function
+docker compose logs -f api-gateway | grep important_function
 ```
 
 ## Common Tasks
@@ -326,23 +326,23 @@ docker-compose logs -f api-gateway | grep important_function
 make dev-up
 
 # Start specific service
-docker-compose up -d api-gateway
+docker compose up -d api-gateway
 
 # Stop all services
 make dev-down
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Restart service
-docker-compose restart api-gateway
+docker compose restart api-gateway
 ```
 
 ### Database operations
 
 ```bash
 # Connect to database
-docker-compose exec postgres psql -U heimdall_user -d heimdall
+docker compose exec postgres psql -U heimdall_user -d heimdall
 
 # Run query
 SELECT * FROM signal_measurements LIMIT 10;

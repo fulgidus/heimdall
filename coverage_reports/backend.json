@@ -1,0 +1,17 @@
+{
+    "meta": {
+        "version": "7.0.0",
+        "timestamp": "2025-10-25T10:00:00",
+        "branch_coverage": true,
+        "show_contexts": false
+    },
+    "files": {},
+    "totals": {
+        "covered_lines": 0,
+        "num_statements": 0,
+        "percent_covered": 0.0,
+        "percent_covered_display": "0",
+        "missing_lines": 0,
+        "excluded_lines": 0
+    }
+}

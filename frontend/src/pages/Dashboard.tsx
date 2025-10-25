@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore } from '../store';
+import { ConnectionState } from '../lib/websocket';
+import { ServiceHealthSkeleton, WebSDRCardSkeleton } from '../components';
 
 const Dashboard: React.FC = () => {
     const {
@@ -9,27 +11,60 @@ const Dashboard: React.FC = () => {
         error,
         fetchDashboardData,
         lastUpdate,
+        wsConnectionState,
+        wsEnabled,
+        connectWebSocket,
+        disconnectWebSocket,
     } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
-        // Fetch data on component mount
+        // Fetch initial data
         fetchDashboardData();
 
-        // Setup auto-refresh every 30 seconds
-        const interval = setInterval(() => {
-            fetchDashboardData();
-        }, 30000);
+        // Try to connect WebSocket for real-time updates
+        connectWebSocket();
 
-        return () => clearInterval(interval);
-    }, [fetchDashboardData]);
+        // Setup polling fallback (only if WebSocket disabled)
+        const interval = setInterval(() => {
+            if (!wsEnabled || wsConnectionState !== ConnectionState.CONNECTED) {
+                fetchDashboardData();
+            }
+        }, 30000); // Poll every 30 seconds as fallback
+
+        return () => {
+            clearInterval(interval);
+            disconnectWebSocket();
+        };
+    }, [fetchDashboardData, connectWebSocket, disconnectWebSocket, wsEnabled, wsConnectionState]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
         await fetchDashboardData();
         setIsRefreshing(false);
     };
+
+    const handleReconnect = async () => {
+        await connectWebSocket();
+    };
+
+    // Get connection status display
+    const getConnectionStatus = () => {
+        switch (wsConnectionState) {
+            case ConnectionState.CONNECTED:
+                return { text: 'Connected', color: 'success', icon: 'ph-check-circle' };
+            case ConnectionState.CONNECTING:
+                return { text: 'Connecting...', color: 'warning', icon: 'ph-circle-notch' };
+            case ConnectionState.RECONNECTING:
+                return { text: 'Reconnecting...', color: 'warning', icon: 'ph-arrows-clockwise' };
+            case ConnectionState.DISCONNECTED:
+            default:
+                return { text: wsEnabled ? 'Disconnected' : 'Polling Mode', color: 'danger', icon: 'ph-x-circle' };
+        }
+    };
+
+    const connectionStatus = getConnectionStatus();
 
     // Calculate online WebSDRs from health status
     const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
@@ -64,39 +99,70 @@ const Dashboard: React.FC = () => {
     return (
         <>
             {/* Breadcrumb */}
-            <div className="page-header">
+            <nav className="page-header" aria-label="Breadcrumb">
                 <div className="page-block">
                     <div className="row align-items-center">
                         <div className="col-md-12">
-                            <ul className="breadcrumb">
+                            <ol className="breadcrumb">
                                 <li className="breadcrumb-item"><a href="/">Home</a></li>
                                 <li className="breadcrumb-item" aria-current="page">Dashboard</li>
-                            </ul>
+                            </ol>
                         </div>
                         <div className="col-md-12">
-                            <div className="page-header-title">
-                                <h2 className="mb-0">Dashboard</h2>
+                            <div className="page-header-title d-flex align-items-center justify-content-between">
+                                <h1 className="mb-0">Dashboard</h1>
+                                {/* Connection Status Indicator */}
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className={`badge bg-light-${connectionStatus.color} d-flex align-items-center gap-1`}>
+                                        <i className={`ph ${connectionStatus.icon} ${wsConnectionState === ConnectionState.CONNECTING || wsConnectionState === ConnectionState.RECONNECTING ? 'spin' : ''}`}></i>
+                                        {connectionStatus.text}
+                                    </span>
+                                    {wsConnectionState === ConnectionState.DISCONNECTED && wsEnabled && (
+                                        <button
+                                            className="btn btn-sm btn-outline-primary"
+                                            onClick={handleReconnect}
+                                            title="Reconnect WebSocket"
+                                        >
+                                            <i className="ph ph-arrows-clockwise"></i>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </nav>
 
             {/* Error Display */}
             {error && (
-                <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                <div 
+                    className="alert alert-danger alert-dismissible fade show" 
+                    role="alert"
+                    aria-live="assertive"
+                    aria-atomic="true"
+                >
                     <strong>Error!</strong> {error}
-                    <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close error message"></button>
+                </div>
+            )}
+
+            {/* Connection Status Indicator */}
+            {isLoading && (
+                <div className="alert alert-info d-flex align-items-center" role="status">
+                    <div className="spinner-border spinner-border-sm me-2" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <span>Connecting to services...</span>
                 </div>
             )}
 
             {/* Stats Cards Row */}
-            <div className="row">
+            <section aria-label="System metrics" className="row">
                 {/* Active WebSDR Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
-                            <h6 className="mb-4">Active WebSDR</h6>
+                            <h2 className="mb-4 h6">Active WebSDR</h2>
                             <div className="row d-flex align-items-center">
                                 <div className="col-9">
                                     <h3 className="f-w-300 d-flex align-items-center m-b-0">
@@ -123,14 +189,14 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Signal Detection Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
-                            <h6 className="mb-4">Signal Detections</h6>
+                            <h2 className="mb-4 h6">Signal Detections</h2>
                             <div className="row d-flex align-items-center">
                                 <div className="col-9">
                                     <h3 className="f-w-300 d-flex align-items-center m-b-0">
-                                        <i className="ph ph-chart-line-up text-warning f-30 m-r-10"></i>
+                                        <i className="ph ph-chart-line-up text-warning f-30 m-r-10" aria-hidden="true"></i>
                                         {metrics.signalDetections || 0}
                                     </h3>
                                 </div>
@@ -146,6 +212,7 @@ const Dashboard: React.FC = () => {
                                     aria-valuenow={75}
                                     aria-valuemin={0}
                                     aria-valuemax={100}
+                                    aria-label="Signal detection progress: 75%"
                                 ></div>
                             </div>
                         </div>
@@ -153,14 +220,14 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* System Uptime Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
-                            <h6 className="mb-4">System Uptime</h6>
+                            <h2 className="mb-4 h6">System Uptime</h2>
                             <div className="row d-flex align-items-center">
                                 <div className="col-9">
                                     <h3 className="f-w-300 d-flex align-items-center m-b-0">
-                                        <i className="ph ph-activity text-success f-30 m-r-10"></i>
+                                        <i className="ph ph-activity text-success f-30 m-r-10" aria-hidden="true"></i>
                                         {metrics.systemUptime > 0
                                             ? `${(metrics.systemUptime / 3600).toFixed(1)}h`
                                             : '0h'}
@@ -178,6 +245,7 @@ const Dashboard: React.FC = () => {
                                     aria-valuenow={90}
                                     aria-valuemin={0}
                                     aria-valuemax={100}
+                                    aria-label="System uptime: 90%"
                                 ></div>
                             </div>
                         </div>
@@ -185,14 +253,14 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Model Accuracy Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
-                            <h6 className="mb-4">Model Accuracy</h6>
+                            <h2 className="mb-4 h6">Model Accuracy</h2>
                             <div className="row d-flex align-items-center">
                                 <div className="col-9">
                                     <h3 className="f-w-300 d-flex align-items-center m-b-0">
-                                        <i className="ph ph-target text-primary f-30 m-r-10"></i>
+                                        <i className="ph ph-target text-primary f-30 m-r-10" aria-hidden="true"></i>
                                         {data.modelInfo?.accuracy
                                             ? `${(data.modelInfo.accuracy * 100).toFixed(1)}%`
                                             : 'N/A'}
@@ -210,27 +278,29 @@ const Dashboard: React.FC = () => {
                                     aria-valuenow={data.modelInfo?.accuracy ? data.modelInfo.accuracy * 100 : 0}
                                     aria-valuemin={0}
                                     aria-valuemax={100}
+                                    aria-label={`Model accuracy: ${data.modelInfo?.accuracy ? (data.modelInfo.accuracy * 100).toFixed(1) : 0}%`}
                                 ></div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
             {/* Main Content Row */}
             <div className="row">
                 {/* System Activity */}
-                <div className="col-lg-8">
+                <section className="col-12 col-lg-8 mb-3" aria-labelledby="system-activity-heading">
                     <div className="card table-card">
                         <div className="card-header d-flex align-items-center justify-content-between">
-                            <h5 className="mb-0">System Activity</h5>
+                            <h2 id="system-activity-heading" className="mb-0 h5">System Activity</h2>
                             <button
-                                className="btn btn-sm btn-link-primary"
+                                className="btn btn-sm btn-link-primary touch-target"
                                 onClick={handleRefresh}
                                 disabled={isRefreshing}
+                                aria-label={isRefreshing ? 'Refreshing system activity' : 'Refresh system activity'}
                             >
-                                <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
-                                {isRefreshing ? ' Refreshing...' : ' Refresh'}
+                                <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`} aria-hidden="true"></i>
+                                <span className="d-none d-sm-inline">{isRefreshing ? ' Refreshing...' : ' Refresh'}</span>
                             </button>
                         </div>
                         <div className="card-body">
@@ -238,46 +308,52 @@ const Dashboard: React.FC = () => {
                                 <table className="table table-hover">
                                     <thead>
                                         <tr>
-                                            <th>Status</th>
-                                            <th>Activity</th>
-                                            <th>Details</th>
-                                            <th>Timestamp</th>
+                                            <th scope="col">Status</th>
+                                            <th scope="col">Activity</th>
+                                            <th scope="col" className="d-none d-md-table-cell">Details</th>
+                                            <th scope="col" className="d-none d-lg-table-cell">Timestamp</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                             <td>
-                                                <span className="badge bg-light-success">
-                                                    <i className="ph ph-check-circle"></i>
+                                                <span className="badge bg-light-success" role="img" aria-label="Success">
+                                                    <i className="ph ph-check-circle" aria-hidden="true"></i>
                                                 </span>
                                             </td>
                                             <td>
-                                                <h6 className="mb-0">System Status</h6>
+                                                <h3 className="mb-0 h6">System Status</h3>
                                                 <p className="text-muted f-12 mb-0">WebSDR Network</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {onlineWebSDRs} of {totalWebSDRs} receivers online
                                             </td>
-                                            <td className="text-muted">
-                                                {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'Just now'}
+                                            <td className="text-muted d-none d-lg-table-cell">
+                                                <time dateTime={lastUpdate ? new Date(lastUpdate).toISOString() : ''}>
+                                                    {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'Just now'}
+                                                </time>
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>
-                                                <span className={`badge ${data.modelInfo ? 'bg-light-primary' : 'bg-light-warning'}`}>
-                                                    <i className={`ph ${data.modelInfo ? 'ph-brain' : 'ph-warning-circle'}`}></i>
+                                                <span 
+                                                    className={`badge ${data.modelInfo ? 'bg-light-primary' : 'bg-light-warning'}`}
+                                                    role="img" 
+                                                    aria-label={data.modelInfo ? 'Active' : 'Warning'}
+                                                >
+                                                    <i className={`ph ${data.modelInfo ? 'ph-brain' : 'ph-warning-circle'}`} aria-hidden="true"></i>
                                                 </span>
                                             </td>
                                             <td>
-                                                <h6 className="mb-0">ML Model</h6>
+                                                <h3 className="mb-0 h6">ML Model</h3>
                                                 <p className="text-muted f-12 mb-0">Inference Engine</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {data.modelInfo
                                                     ? `Version ${data.modelInfo.active_version} - ${data.modelInfo.health_status}`
                                                     : 'Initializing...'}
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {data.modelInfo?.loaded_at
                                                     ? new Date(data.modelInfo.loaded_at).toLocaleTimeString()
                                                     : '-'}
@@ -285,38 +361,38 @@ const Dashboard: React.FC = () => {
                                         </tr>
                                         <tr>
                                             <td>
-                                                <span className="badge bg-light-success">
-                                                    <i className="ph ph-cpu"></i>
+                                                <span className="badge bg-light-success" role="img" aria-label="Success">
+                                                    <i className="ph ph-cpu" aria-hidden="true"></i>
                                                 </span>
                                             </td>
                                             <td>
-                                                <h6 className="mb-0">Services Health</h6>
+                                                <h3 className="mb-0 h6">Services Health</h3>
                                                 <p className="text-muted f-12 mb-0">Microservices</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {Object.values(data.servicesHealth).filter(s => s.status === 'healthy').length} of{' '}
                                                 {Object.keys(data.servicesHealth).length} services healthy
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {lastUpdate ? 'Updated' : 'Checking...'}
                                             </td>
                                         </tr>
                                         <tr>
                                             <td>
-                                                <span className="badge bg-light-info">
-                                                    <i className="ph ph-chart-bar"></i>
+                                                <span className="badge bg-light-info" role="img" aria-label="Info">
+                                                    <i className="ph ph-chart-bar" aria-hidden="true"></i>
                                                 </span>
                                             </td>
                                             <td>
-                                                <h6 className="mb-0">Predictions</h6>
+                                                <h3 className="mb-0 h6">Predictions</h3>
                                                 <p className="text-muted f-12 mb-0">Total Count</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {data.modelInfo
                                                     ? `${data.modelInfo.predictions_total} total (${data.modelInfo.predictions_successful} successful)`
                                                     : 'No predictions yet'}
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {data.modelInfo?.last_prediction_at || '-'}
                                             </td>
                                         </tr>
@@ -325,33 +401,41 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
+                </section>
 
                 {/* Services Status */}
-                <div className="col-lg-4">
-                    <div className="card">
+                <section className="col-12 col-lg-4 mb-3" aria-labelledby="services-status-heading">
+                    <div 
+                        className="card"
+                        aria-live="polite"
+                        aria-atomic="true"
+                    >
                         <div className="card-header">
-                            <h5 className="mb-0">Services Status</h5>
+                            <h2 id="services-status-heading" className="mb-0 h5">Services Status</h2>
                         </div>
                         <div className="card-body">
-                            {Object.entries(data.servicesHealth).length > 0 ? (
+                            {isLoading && Object.entries(data.servicesHealth).length === 0 ? (
+                                <ServiceHealthSkeleton />
+                            ) : Object.entries(data.servicesHealth).length > 0 ? (
                                 <ul className="list-group list-group-flush">
                                     {Object.entries(data.servicesHealth).map(([name, health]) => (
-                                        <li key={name} className="list-group-item px-0">
+                                        <li key={name} className="list-group-item px-0" role="listitem">
                                             <div className="d-flex align-items-center justify-content-between">
                                                 <div className="flex-grow-1">
                                                     <h6 className="mb-0 text-capitalize">
-                                                        {name.replace('-', ' ')}
+                                                        {name.replace(/-/g, ' ')}
                                                     </h6>
                                                 </div>
                                                 <div className="flex-shrink-0">
                                                     <span
                                                         className={`badge ${health.status === 'healthy'
-                                                                ? 'bg-light-success'
-                                                                : health.status === 'degraded'
-                                                                    ? 'bg-light-warning'
-                                                                    : 'bg-light-danger'
+                                                            ? 'bg-light-success'
+                                                            : health.status === 'degraded'
+                                                                ? 'bg-light-warning'
+                                                                : 'bg-light-danger'
                                                             }`}
+                                                        role="status"
+                                                        aria-label={`Service ${name} is ${health.status}`}
                                                     >
                                                         {health.status}
                                                     </span>
@@ -361,75 +445,91 @@ const Dashboard: React.FC = () => {
                                     ))}
                                 </ul>
                             ) : (
-                                <div className="text-center py-4">
-                                    <i className="ph ph-warning-circle f-40 text-muted mb-3"></i>
+                                <div className="text-center py-4" role="status">
+                                    <i className="ph ph-warning-circle f-40 text-muted mb-3" aria-hidden="true"></i>
                                     <p className="text-muted mb-0">
-                                        {isLoading ? 'Checking services...' : 'No service data available'}
+                                        {error ? 'Failed to load services' : 'No service data available'}
                                     </p>
+                                    {error && (
+                                        <button
+                                            className="btn btn-sm btn-link-primary mt-2"
+                                            onClick={handleRefresh}
+                                        >
+                                            <i className="ph ph-arrow-clockwise"></i> Retry
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
             {/* WebSDR Network Status */}
-            <div className="row">
+            <section className="row" aria-labelledby="websdr-network-heading">
                 <div className="col-12">
-                    <div className="card">
+                    <div 
+                        className="card"
+                        aria-live="polite"
+                        aria-atomic="false"
+                    >
                         <div className="card-header">
-                            <h5 className="mb-0">WebSDR Network Status</h5>
+                            <h2 id="websdr-network-heading" className="mb-0 h5">WebSDR Network Status</h2>
                         </div>
                         <div className="card-body">
                             <div className="row">
-                                {webSDRStatuses.map((sdr) => (
-                                    <div key={sdr.id} className="col-lg-3 col-md-4 col-sm-6">
-                                        <div className="card bg-light border-0 mb-3">
-                                            <div className="card-body">
-                                                <div className="d-flex align-items-center justify-content-between mb-2">
-                                                    <h6 className="mb-0">{sdr.city}</h6>
-                                                    <div
-                                                        className={`avtar avtar-xs ${sdr.status === 'online'
+                                {isLoading && webSDRStatuses.length === 0 ? (
+                                    <WebSDRCardSkeleton />
+                                ) : (
+                                    webSDRStatuses.map((sdr) => (
+                                        <div key={sdr.id} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-3">
+                                            <div className="card bg-light border-0">
+                                                <div className="card-body">
+                                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                                        <h6 className="mb-0">{sdr.city}</h6>
+                                                        <div
+                                                            className={`avtar avtar-xs ${sdr.status === 'online'
                                                                 ? 'bg-light-success'
                                                                 : 'bg-light-danger'
-                                                            }`}
-                                                    >
-                                                        <i
-                                                            className={`ph ${sdr.status === 'online'
+                                                                }`}
+                                                        >
+                                                            <i
+                                                                className={`ph ${sdr.status === 'online'
                                                                     ? 'ph-radio-button'
                                                                     : 'ph-radio-button'
-                                                                } f-18`}
-                                                        ></i>
-                                                    </div>
-                                                </div>
-                                                <p className="text-muted f-12 mb-2">{sdr.frequency}</p>
-                                                <div className="d-flex align-items-center">
-                                                    <div className="flex-grow-1 me-2">
-                                                        <div className="progress" style={{ height: '5px' }}>
-                                                            <div
-                                                                className={`progress-bar ${sdr.status === 'online'
-                                                                        ? 'bg-success'
-                                                                        : 'bg-danger'
-                                                                    }`}
-                                                                role="progressbar"
-                                                                style={{ width: `${sdr.signal}%` }}
-                                                                aria-valuenow={sdr.signal}
-                                                                aria-valuemin={0}
-                                                                aria-valuemax={100}
-                                                            ></div>
+                                                                    } f-18`}
+                                                            ></i>
                                                         </div>
                                                     </div>
-                                                    <span className="f-12 text-muted">{Math.round(sdr.signal)}%</span>
+                                                    <p className="text-muted f-12 mb-2">{sdr.frequency}</p>
+                                                    <div className="d-flex align-items-center">
+                                                        <div className="flex-grow-1 me-2">
+                                                            <div className="progress" style={{ height: '5px' }}>
+                                                                <div
+                                                                    className={`progress-bar ${sdr.status === 'online'
+                                                                        ? 'bg-success'
+                                                                        : 'bg-danger'
+                                                                        }`}
+                                                                    role="progressbar"
+                                                                    style={{ width: `${sdr.signal}%` }}
+                                                                    aria-valuenow={sdr.signal}
+                                                                    aria-valuemin={0}
+                                                                    aria-valuemax={100}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="f-12 text-muted">{Math.round(sdr.signal)}%</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
         </>
     );
 };

@@ -1,11 +1,23 @@
 import '@testing-library/jest-dom';
 import { beforeEach, beforeAll, vi } from 'vitest';
+import React from 'react';
 import {
     createMockDashboardStore,
     createMockWebSDRStore,
     createMockSessionStore,
     createMockAuthStore,
 } from './mockStoreFactories';
+
+// ============================================
+// MAKE REACT AVAILABLE GLOBALLY FOR JSX IN TESTS
+// ============================================
+// React 19 with new JSX transform doesn't require React import in source files,
+// but test files using JSX syntax need React available globally
+declare global {
+    // Extend globalThis to include React for test JSX
+    var React: typeof React;
+}
+globalThis.React = React;
 
 // ============================================
 // SETUP MOCKS - MUST BE BEFORE COMPONENT IMPORTS

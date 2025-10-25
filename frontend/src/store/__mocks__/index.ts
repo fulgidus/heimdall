@@ -10,17 +10,27 @@ const mockDashboardStore = {
         servicesHealth: {
             'api-gateway': { status: 'healthy', latency_ms: 10 },
             'rf-acquisition': { status: 'healthy', latency_ms: 50 },
-            training: { status: 'healthy', latency_ms: 30 },
-            inference: { status: 'healthy', latency_ms: 45 },
+            'training': { status: 'healthy', latency_ms: 30 },
+            'inference': { status: 'healthy', latency_ms: 45 },
+            'data-ingestion-web': { status: 'healthy', latency_ms: 20 },
         },
     },
     metrics: {
         accuracy_history: [0.25, 0.26, 0.27, 0.28],
         latency_avg_ms: 150,
+        signalDetections: 42,
+        systemUptime: 3600,
+        activeWebSDRs: 7,
+        totalWebSDRs: 7,
     },
     isLoading: false,
     error: null,
+    lastUpdate: new Date().toISOString(),
+    wsConnectionState: 'Disconnected',
+    wsEnabled: false,
     fetchDashboardData: vi.fn(),
+    connectWebSocket: vi.fn(),
+    disconnectWebSocket: vi.fn(),
 };
 
 const mockWebSDRStore = {

@@ -1,0 +1,465 @@
+# 🚀 PHASE 7 - QUICK START GUIDE
+
+## 5 Minuti per Iniziare
+
+### 1️⃣ Avviare il Dev Server
+
+```bash
+cd frontend
+npm run dev
+```
+
+**Output:**
+```
+➜  Local:   http://localhost:3001/
+```
+
+### 2️⃣ Accedere all'App
+
+1. Apri http://localhost:3001
+2. Vai alla pagina di **Login**
+3. Inserisci qualsiasi email e password
+4. Clicca **Sign In**
+
+**Demo Credentials:**
+- Email: `any@email.com`
+- Password: `any`
+
+### 3️⃣ Esplorare l'App
+
+**Dashboard**
+```
+📊 Metriche in tempo reale
+📈 Grafici e statistiche
+📝 Attività recente
+```
+
+**Analytics**
+```
+📊 Growth trends
+🗺️ Geographic distribution
+📈 Performance metrics
+```
+
+**Projects**
+```
+📁 Project management
+⚡ Progress tracking
+🎯 Team management
+```
+
+**Settings**
+```
+👤 Profile management
+🔐 Security options
+🔔 Notifications
+```
+
+---
+
+## 🎨 Palette di Colori
+
+### CSS Variables
+```css
+--oxford-blue: #0b132bff;
+--sea-green: #09814aff;
+--french-gray: #c7cedbff;
+--light-green: #70ee9cff;
+--neon-blue: #446df6ff;
+```
+
+### Tailwind Classes
+```html
+<!-- Background -->
+<div class="bg-oxford-blue">...</div>
+<div class="bg-sea-green">...</div>
+
+<!-- Text -->
+<p class="text-neon-blue">...</p>
+<p class="text-light-green">...</p>
+
+<!-- Borders -->
+<div class="border-neon-blue">...</div>
+
+<!-- Gradients -->
+<div class="bg-gradient-right">...</div>
+```
+
+---
+
+## 🧩 Componenti Quick Reference
+
+### Button
+```tsx
+<Button variant="accent" size="md">
+  Click me
+</Button>
+```
+- **Varianti**: primary, secondary, accent, success, danger
+- **Sizes**: xs, sm, md, lg, xl
+- **Props**: isLoading, disabled, className
+
+### Card
+```tsx
+<Card variant="elevated">
+  <h3>Title</h3>
+  <p>Content</p>
+</Card>
+```
+- **Varianti**: default, bordered, elevated
+
+### Input
+```tsx
+<Input 
+  label="Email"
+  type="email"
+  placeholder="Enter email"
+  error={errorMsg}
+  icon={<MailIcon />}
+/>
+```
+
+### Badge
+```tsx
+<Badge variant="success" size="md">
+  Active
+</Badge>
+```
+- **Varianti**: primary, secondary, success, danger, warning
+- **Sizes**: sm, md, lg
+
+### Alert
+```tsx
+<Alert 
+  variant="success"
+  title="Success"
+  message="Operation completed"
+  closeable
+/>
+```
+- **Varianti**: info, success, warning, error
+
+### Modal
+```tsx
+<Modal 
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Confirm"
+>
+  <p>Are you sure?</p>
+</Modal>
+```
+
+### Tabs
+```tsx
+<Tabs
+  tabs={[
+    { id: '1', label: 'Tab 1', content: <div>...</div> },
+    { id: '2', label: 'Tab 2', content: <div>...</div> },
+  ]}
+  onChange={(tabId) => console.log(tabId)}
+/>
+```
+
+---
+
+## 📂 Aggiungere una Nuova Pagina
+
+### 1. Crea il file pagina
+```bash
+src/pages/NewPage.tsx
+```
+
+### 2. Implementa il componente
+```tsx
+import React from 'react';
+import { MainLayout, Card } from '../components';
+
+const NewPage: React.FC = () => {
+  return (
+    <MainLayout title="New Page">
+      <Card variant="elevated">
+        <h1>Welcome</h1>
+      </Card>
+    </MainLayout>
+  );
+};
+
+export default NewPage;
+```
+
+### 3. Aggiungi all'export in `pages/index.ts`
+```tsx
+export { default as NewPage } from './NewPage';
+```
+
+### 4. Aggiungi la route in `App.tsx`
+```tsx
+<Route
+  path="/new-page"
+  element={
+    <ProtectedRoute>
+      <NewPage />
+    </ProtectedRoute>
+  }
+/>
+```
+
+### 5. Aggiungi alla navigazione in `Sidebar.tsx`
+```tsx
+{ name: 'New Page', path: '/new-page', icon: '📄' }
+```
+
+---
+
+## 🧩 Aggiungere un Nuovo Componente
+
+### 1. Crea il file
+```bash
+src/components/MyComponent.tsx
+```
+
+### 2. Implementa
+```tsx
+import React from 'react';
+import classNames from 'classnames';
+
+interface MyComponentProps {
+  variant?: 'primary' | 'secondary';
+  children: React.ReactNode;
+}
+
+const MyComponent = React.forwardRef<HTMLDivElement, MyComponentProps>(
+  ({ variant = 'primary', children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={classNames(
+          'p-4 rounded-lg',
+          variant === 'primary' ? 'bg-neon-blue' : 'bg-sea-green'
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+export default MyComponent;
+```
+
+### 3. Aggiungi all'export
+```tsx
+// components/index.ts
+export { default as MyComponent } from './MyComponent';
+```
+
+### 4. Importa e usa
+```tsx
+import { MyComponent } from '../components';
+
+<MyComponent variant="primary">
+  Content
+</MyComponent>
+```
+
+---
+
+## 🔌 Integrare API Real
+
+### 1. Crea uno Store
+```tsx
+// store/todoStore.ts
+import { create } from 'zustand';
+import api from '../lib/api';
+
+interface TodoStore {
+  todos: any[];
+  fetchTodos: () => Promise<void>;
+}
+
+export const useTodoStore = create<TodoStore>((set) => ({
+  todos: [],
+  fetchTodos: async () => {
+    try {
+      const response = await api.get('/todos');
+      set({ todos: response.data });
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  },
+}));
+```
+
+### 2. Usa il Store
+```tsx
+import { useTodoStore } from '../store/todoStore';
+
+const MyComponent = () => {
+  const { todos, fetchTodos } = useTodoStore();
+  
+  useEffect(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+  
+  return (
+    <ul>
+      {todos.map(todo => <li key={todo.id}>{todo.title}</li>)}
+    </ul>
+  );
+};
+```
+
+---
+
+## 🚀 Build & Deploy
+
+### Production Build
+```bash
+npm run build
+```
+
+**Output in `dist/`**:
+- `index.html`
+- `assets/index-*.css`
+- `assets/index-*.js`
+
+### Preview
+```bash
+npm run preview
+```
+
+### Docker Build
+```bash
+docker build -t heimdall-frontend .
+docker run -p 3000:3000 heimdall-frontend
+```
+
+---
+
+## 🔧 Customizzare i Colori
+
+### Via CSS Variables
+```css
+/* src/index.css */
+:root {
+  --oxford-blue: #0b132bff;
+  --neon-blue: #446df6ff;
+  /* ... */
+}
+```
+
+### Via Tailwind Config
+```js
+// tailwind.config.js
+colors: {
+  'oxford-blue': '#0b132bff',
+  'neon-blue': '#446df6ff',
+  // ...
+}
+```
+
+---
+
+## 📱 Responsive Design
+
+### Breakpoints
+```
+Mobile: < 768px
+Tablet: 769px - 1024px
+Desktop: > 1025px
+```
+
+### Tailwind Responsive Classes
+```tsx
+<div className="flex flex-col md:flex-row lg:flex-row">
+  {/* Stack on mobile, row on tablet/desktop */}
+</div>
+```
+
+### Custom Hook
+```tsx
+import { useIsMobile } from '../hooks';
+
+const MyComponent = () => {
+  const isMobile = useIsMobile();
+  
+  return (
+    <div>
+      {isMobile ? <MobileView /> : <DesktopView />}
+    </div>
+  );
+};
+```
+
+---
+
+## 🐛 Debugging
+
+### Browser DevTools
+1. Apri `Developer Tools` (F12)
+2. Vai al tab `Components` per React
+3. Ispeziona Zustand store: `console.log(useAuthStore.getState())`
+
+### Console Logging
+```tsx
+console.log('Auth:', useAuthStore.getState());
+console.log('User:', useAuthStore.getState().user);
+```
+
+### Network Requests
+1. Apri `Network` tab
+2. Filtra per `XHR` (axios requests)
+3. Verifica headers e payload
+
+---
+
+## 📚 Utili Links
+
+- **React Docs**: https://react.dev
+- **Tailwind CSS**: https://tailwindcss.com
+- **Zustand**: https://github.com/pmndrs/zustand
+- **React Router**: https://reactrouter.com
+- **Vite**: https://vitejs.dev
+
+---
+
+## ✅ Troubleshooting
+
+### Port Already in Use
+```bash
+# Kill processo su porta 3001
+netstat -ano | findstr :3001
+taskkill /PID <PID> /F
+```
+
+### npm install Fails
+```bash
+rm -r node_modules package-lock.json
+npm install --legacy-peer-deps
+```
+
+### Build Errors
+```bash
+npm run build -- --sourcemap
+# Analizza l'errore nei dettagli
+```
+
+### App doesn't update
+1. Cancella browser cache (CTRL+SHIFT+DEL)
+2. Ricarica pagina (CTRL+F5)
+3. Restart dev server
+
+---
+
+## 📞 Support
+
+Per aiuto:
+1. Leggi `README_FRONTEND.md`
+2. Controlla i componenti in `src/components/`
+3. Esamina le pagine di esempio
+
+---
+
+**Buon Desarrollo! 🎉**

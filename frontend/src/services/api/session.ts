@@ -44,7 +44,7 @@ export interface RecordingSession {
     duration_seconds: number;
     status: 'pending' | 'in_progress' | 'processing' | 'completed' | 'failed';
     celery_task_id?: string | null;
-    result_metadata?: Record<string, any> | null;
+    result_metadata?: Record<string, unknown> | null;
     minio_path?: string | null;
     error_message?: string | null;
     created_at: string;

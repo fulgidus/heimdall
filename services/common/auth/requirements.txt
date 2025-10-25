@@ -1,0 +1,4 @@
+# Authentication dependencies for Heimdall SDR services
+PyJWT[crypto]==2.8.0
+cryptography==41.0.7
+python-jose[cryptography]==3.3.0
