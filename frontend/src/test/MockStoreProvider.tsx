@@ -1,9 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { type ReactNode } from 'react';
 import { create } from 'zustand';
 
 // Create mock stores using Zustand's create() function
 
-export const createMockDashboardStore = () => create(() => ({
+// Constant - not a component
+const createMockDashboardStoreImpl = () => create(() => ({
     data: {
         modelInfo: {
             accuracy: 0.28,
@@ -25,6 +27,8 @@ export const createMockDashboardStore = () => create(() => ({
     error: null,
     fetchDashboardData: () => { },
 }));
+
+export const createMockDashboardStore = createMockDashboardStoreImpl;
 
 export const createMockWebSDRStore = () => create(() => ({
     websdrs: Array(7).fill(null).map((_, i) => ({
@@ -82,7 +86,7 @@ export const createMockSessionStore = () => create(() => ({
     clearError: () => { },
 }));
 
-export const createMockAuthStore = () => create(() => ({
+const createMockAuthStoreImpl = () => create(() => ({
     user: {
         email: 'admin@heimdall.local',
         firstName: 'Admin',
@@ -98,6 +102,8 @@ export const createMockAuthStore = () => create(() => ({
     updateProfile: () => { },
 }));
 
+export { createMockAuthStoreImpl as createMockAuthStore };
+
 interface MockStoreProviderProps {
     children: ReactNode;
 }
@@ -106,7 +112,7 @@ interface MockStoreProviderProps {
 let mockDashboardStore = createMockDashboardStore();
 let mockWebSDRStore = createMockWebSDRStore();
 let mockSessionStore = createMockSessionStore();
-let mockAuthStore = createMockAuthStore();
+let mockAuthStore = createMockAuthStoreImpl();
 
 export const getMockStores = () => ({
     mockDashboardStore,
@@ -119,7 +125,7 @@ export const resetMockStores = () => {
     mockDashboardStore = createMockDashboardStore();
     mockWebSDRStore = createMockWebSDRStore();
     mockSessionStore = createMockSessionStore();
-    mockAuthStore = createMockAuthStore();
+    mockAuthStore = createMockAuthStoreImpl();
 };
 
 export const MockStoreProvider: React.FC<MockStoreProviderProps> = ({ children }) => {

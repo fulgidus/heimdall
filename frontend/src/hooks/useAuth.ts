@@ -1,9 +1,17 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store';
 
+interface User {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    organization?: string;
+}
+
 interface UseAuthReturn {
     isAuthenticated: boolean;
-    user: any | null;
+    user: User | null;
     token: string | null;
     login: (email: string, password: string) => Promise<void>;
     logout: () => void;

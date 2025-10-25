@@ -57,7 +57,7 @@ export interface AcquisitionStatusResponse {
     message: string;
     measurements_collected: number;
     errors?: string[] | null;
-    result?: any;
+    result?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -106,7 +106,7 @@ export interface ServiceHealth {
     service: string;
     version: string;
     timestamp: string;
-    details?: Record<string, any>;
+    details?: Record<string, unknown>;
 }
 
 export interface SystemMetrics {

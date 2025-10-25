@@ -27,7 +27,7 @@ test.describe('Settings Page - Real Backend Integration', () => {
     // Verify settings page loaded
     const pageContent = await page.locator('main').textContent();
     expect(pageContent).toBeTruthy();
-    expect(pageContent).toContain('Settings' || 'Preferences' || 'Configuration');
+    expect(pageContent).toMatch(/Settings|Preferences|Configuration/);
     
     console.log('✅ Settings page loaded');
   });

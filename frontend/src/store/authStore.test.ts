@@ -1,8 +1,14 @@
 ﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAuthStore } from './authStore';
 
+interface JWTPayload {
+    sub?: string;
+    email?: string;
+    [key: string]: unknown;
+}
+
 // Helper to create a mock JWT token
-function createMockJWT(payload: any): string {
+function createMockJWT(payload: JWTPayload): string {
     const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
     const payloadEncoded = btoa(JSON.stringify(payload));
     const signature = 'mock-signature';
@@ -48,13 +54,13 @@ describe('authStore - Authentication Store', () => {
             const store = useAuthStore.getState();
             await store.login('admin@heimdall.local', 'Admin123!@#');
             const state = useAuthStore.getState();
-            
+
             expect(state.isAuthenticated).toBe(true);
             expect(state.token).toBe(mockJWT);
             expect(state.refreshToken).toBe('mock-refresh-token');
             expect(state.user?.email).toBe('admin@heimdall.local');
             expect(state.user?.role).toBe('admin');
-            
+
             // Verify fetch was called with correct API Gateway endpoint (which proxies to Keycloak)
             // The authStore uses API Gateway as proxy to avoid CORS issues with Keycloak
             expect(global.fetch).toHaveBeenCalledWith(
@@ -87,7 +93,7 @@ describe('authStore - Authentication Store', () => {
             } catch (error) {
                 expect((error as Error).message).toContain('Invalid');
             }
-            
+
             const state = useAuthStore.getState();
             expect(state.isAuthenticated).toBe(false);
             expect(state.token).toBeNull();
@@ -116,13 +122,13 @@ describe('authStore - Authentication Store', () => {
 
             const store = useAuthStore.getState();
             await store.login('admin@heimdall.local', 'Admin123!@#');
-            
+
             // Verify login succeeded
             expect(useAuthStore.getState().isAuthenticated).toBe(true);
-            
+
             // Logout
             store.logout();
-            
+
             const state = useAuthStore.getState();
             expect(state.isAuthenticated).toBe(false);
             expect(state.token).toBeNull();

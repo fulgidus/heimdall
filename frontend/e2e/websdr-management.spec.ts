@@ -150,7 +150,11 @@ test.describe('WebSDR Management Page - Real Backend Integration', () => {
     expect(responseBody.length).toBeGreaterThanOrEqual(7);
     
     // Verify Italian receivers (Piemonte & Liguria)
-    const italianReceivers = responseBody.filter((websdr: any) => 
+    interface WebSDREntry {
+      country?: string;
+      region?: string;
+    }
+    const italianReceivers = responseBody.filter((websdr: WebSDREntry) => 
       websdr.country === 'Italy' || 
       websdr.region?.includes('Piemonte') || 
       websdr.region?.includes('Liguria')

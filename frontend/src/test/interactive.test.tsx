@@ -8,12 +8,13 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import '@testing-library/jest-dom';
 
 // Mock stores before importing
 vi.mock('../store');
 
 // Components
-import { Button, Card, Input, Select, Textarea, Badge, Modal, Table } from '../components';
+import { Button, Input, Select, Textarea, Badge, Modal, Table } from '../components';
 import type { SelectOption } from '../components';
 
 // Pages

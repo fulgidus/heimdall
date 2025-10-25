@@ -8,9 +8,8 @@
 import { test, expect } from '@playwright/test';
 import {
     setupRequestLogging,
-    waitForBackendCall,
     verifyBackendReachable,
-    login,
+    waitForBackendCall,
     TEST_BACKEND_ORIGIN
 } from './helpers/test-utils';
 

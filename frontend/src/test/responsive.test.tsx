@@ -18,15 +18,15 @@ import WebSDRManagement from '../pages/WebSDRManagement';
 import DataIngestion from '../pages/DataIngestion';
 
 // Mock matchMedia for responsive tests
-const createMatchMedia = (width: number) => {
+const createMatchMedia = () => {
     return (query: string) => ({
         matches: false,
         media: query,
         onchange: null,
-        addListener: () => {},
-        removeListener: () => {},
-        addEventListener: () => {},
-        removeEventListener: () => {},
+        addListener: () => { },
+        removeListener: () => { },
+        addEventListener: () => { },
+        removeEventListener: () => { },
         dispatchEvent: () => true,
     });
 };
@@ -38,12 +38,12 @@ describe('Phase 7: Responsive Design Validation', () => {
         desktop: { width: 1920, height: 1080, name: 'Desktop (Full HD)' },
     };
 
-    Object.entries(viewports).forEach(([device, viewport]) => {
+    Object.entries(viewports).forEach(([, viewport]) => {
         describe(`${viewport.name} (${viewport.width}x${viewport.height})`, () => {
             beforeEach(() => {
                 // Mock window.matchMedia for responsive tests
-                window.matchMedia = createMatchMedia(viewport.width);
-                
+                window.matchMedia = createMatchMedia();
+
                 // Mock window dimensions
                 Object.defineProperty(window, 'innerWidth', {
                     writable: true,
