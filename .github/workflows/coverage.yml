@@ -75,19 +75,37 @@ jobs:
             mv coverage ../coverage_reports/frontend
           fi
 
-      - name: Generate coverage badge
+      - name: Copy coverage reports to docs
+        continue-on-error: true
+        run: |
+          mkdir -p docs/coverage
+          cp -r coverage_reports/backend docs/coverage/backend_latest
+          cp -r coverage_reports/frontend docs/coverage/frontend_latest 2>/dev/null || true
+          cp coverage_reports/backend.log docs/coverage/backend_latest.log 2>/dev/null || true
+          cp coverage_reports/frontend.log docs/coverage/frontend_latest.log 2>/dev/null || true
+
+      - name: Generate coverage badge in docs
         continue-on-error: true
         run: |
           python scripts/generate_coverage_badge.py
+          # Copy badge to docs
+          mkdir -p docs/coverage
+          cp docs/coverage/badge.svg docs/coverage/badge.svg || true
 
       - name: Generate coverage summary
         continue-on-error: true
         run: |
           python scripts/create_coverage_summary.py coverage_reports/backend.json
+          # Copy summary to docs
+          mkdir -p docs/coverage
+          cp docs/coverage/README.md docs/coverage/README.md || true
 
       - name: Create merged coverage index
         run: |
           python scripts/create_coverage_index.py
+          # Copy index to docs
+          mkdir -p docs/coverage
+          cp coverage_reports/index.html docs/coverage/index.html || true
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
@@ -96,14 +114,14 @@ jobs:
           path: coverage_reports/
           retention-days: 30
 
-      - name: Deploy coverage to GitHub Pages
+      - name: Commit and push docs changes
         if: github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./coverage_reports
-          destination_dir: coverage/${{ github.ref_name }}
-          keep_files: true
+        continue-on-error: true
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/coverage/ -f
+          git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs" && git push origin develop)
 
       - name: Comment PR with coverage summary
         if: github.event_name == 'pull_request'
