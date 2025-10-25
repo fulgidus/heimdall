@@ -144,12 +144,13 @@ See [E2E Testing Guide](docs/agents/20251024_104500_e2e_testing_real_backend.md)
 
 ## 📊 Test Coverage Reports
 
-Live test coverage reports are automatically generated on every push to `main` and `develop` branches:
+Live test coverage reports are automatically generated on every push to `develop` branch:
 
-| Branch      | Coverage                                                                                                                                                           | Report                                                              |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| **Develop** | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop) | [View Report](https://fulgidus.github.io/heimdall/coverage/develop) |
-| **Main**    | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/main/badge.svg)](https://fulgidus.github.io/heimdall/coverage/main)       | [View Report](https://fulgidus.github.io/heimdall/coverage/main)    |
+| Report | Coverage | Link |
+|--------|----------|------|
+| **Backend** | [![Coverage Badge](docs/coverage/badge.svg)](docs/coverage/backend_latest/) | [View Report](docs/coverage/backend_latest/index.html) |
+| **Frontend** | [![Coverage Badge](docs/coverage/badge.svg)](docs/coverage/frontend_latest/) | [View Report](docs/coverage/frontend_latest/index.html) |
+| **Dashboard** | 📊 | [View Dashboard](docs/coverage/index.html) |
 
 **Coverage includes:**
 - ✅ Backend services (Python/FastAPI)
@@ -157,9 +158,9 @@ Live test coverage reports are automatically generated on every push to `main` a
 - ✅ Integration tests
 - ✅ E2E test coverage
 
-Reports are powered by the [GitHub Actions workflow](.github/workflows/coverage.yml) and hosted on [GitHub Pages](https://fulgidus.github.io/heimdall/coverage/).
+Reports are automatically committed to `docs/coverage/` and served via GitHub Pages.
 
-**⚠️ First-time setup:** See [GitHub Pages Setup Guide](docs/GITHUB_PAGES_SETUP.md) to enable GitHub Pages for coverage reports.
+**⚠️ First-time setup:** See [GitHub Pages Setup Guide](docs/GITHUB_PAGES_SETUP.md) to enable GitHub Pages for documentation.
 
 ### Development Credentials
 

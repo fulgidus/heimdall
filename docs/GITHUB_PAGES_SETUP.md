@@ -1,103 +1,100 @@
-# 🚀 Abilitazione GitHub Pages per Coverage Reports
+# 🚀 GitHub Pages Setup for Coverage Reports
 
-## Problema
-Il workflow di coverage pubblica su GitHub Pages, ma il branch `gh-pages` non è ancora configurato come sorgente.
+## Overview
 
-## Soluzione: Abilitare GitHub Pages
+Coverage reports are automatically generated and committed to `docs/coverage/` on every push to the `develop` branch. They are served alongside your official documentation via GitHub Pages.
 
-### Step 1: Vai alle Impostazioni del Repository
+## Quick Setup
 
-1. Apri: https://github.com/fulgidus/heimdall/settings/pages
-2. Oppure: **Settings** → **Pages** (sidebar sinistra)
+### Step 1: Enable GitHub Pages
 
-### Step 2: Configura la Sorgente
+1. Go to: https://github.com/fulgidus/heimdall/settings/pages
+2. Under **"Build and deployment":**
+   - **Branch:** Select `develop`
+   - **Folder:** Select `/docs`
+3. Click **Save**
 
-Nella sezione **"Build and deployment"**:
+**Result:** Your site will be live at https://fulgidus.github.io/heimdall
 
-1. **Branch source:** seleziona `gh-pages`
-2. **Folder:** seleziona `/` (root)
-3. Clicca **Save**
+### Step 2: Access Coverage Reports
 
-**Output atteso:**
-```
-✅ Your site is live at https://fulgidus.github.io/heimdall
-```
-
-### Step 3: Struttura risultante
-
-Dopo l'abilitazione, i tuoi report saranno disponibili a:
+After enabling Pages, coverage reports are available at:
 
 ```
-https://fulgidus.github.io/heimdall/
-├── coverage/
-│   ├── develop/          ← Ultimo report da develop
-│   │   ├── index.html
-│   │   ├── badge.svg
-│   │   ├── backend/
-│   │   └── frontend/
-│   └── main/             ← Ultimo report da main
-│       ├── index.html
-│       ├── badge.svg
-│       ├── backend/
-│       └── frontend/
-└── (altri file di Pages)
+📊 https://fulgidus.github.io/heimdall/coverage/
+├── index.html                    ← Dashboard
+├── badge.svg                     ← Coverage badge
+├── README.md                     ← Summary
+├── backend_latest/               ← Backend coverage HTML
+│   ├── index.html
+│   ├── htmlcov/
+│   └── ...
+└── frontend_latest/              ← Frontend coverage HTML
+    ├── index.html
+    └── ...
 ```
 
-### URL Finali
+## Accessing Reports
 
-- **Coverage Develop:** https://fulgidus.github.io/heimdall/coverage/develop
-- **Coverage Main:** https://fulgidus.github.io/heimdall/coverage/main
-- **Badge Develop:** https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg
+| Report | URL |
+|--------|-----|
+| **Dashboard** | https://fulgidus.github.io/heimdall/coverage/ |
+| **Backend Report** | https://fulgidus.github.io/heimdall/coverage/backend_latest/ |
+| **Frontend Report** | https://fulgidus.github.io/heimdall/coverage/frontend_latest/ |
+| **Badge SVG** | https://fulgidus.github.io/heimdall/coverage/badge.svg |
 
-### Step 4: Verifica nel Workflow
+## Workflow Behavior
 
-Dopo l'abilitazione, il prossimo push a `develop` attiveràil workflow:
+The [coverage.yml workflow](.github/workflows/coverage.yml):
 
-1. ✅ Esegue test (backend + frontend)
-2. ✅ Genera report HTML + badge SVG
-3. ✅ Pubblica a `gh-pages/coverage/develop`
-4. ✅ Disponibile a https://fulgidus.github.io/heimdall/coverage/develop
+1. ✅ Runs pytest and vitest on push to `develop`
+2. ✅ Generates HTML reports and SVG badge
+3. ✅ Copies reports to `docs/coverage/`
+4. ✅ Commits changes to `develop` branch
+5. ✅ GitHub Pages serves from `develop:/docs`
+
+## Using the Badge
+
+Add to your `README.md`:
+
+```markdown
+[![Coverage Badge](docs/coverage/badge.svg)](docs/coverage/index.html)
+```
 
 ## Troubleshooting
 
-### Errore: "gh-pages branch doesn't exist"
-- **Soluzione:** Il workflow crea il branch automaticamente al primo push. Se non esiste ancora:
-  ```bash
-  git push origin --allow-empty-message -m "" develop
-  ```
-  Questo triggerà il workflow, che creerà `gh-pages`.
+### Pages not loading (404 error)
 
-### Errore: "Failed to deploy"
-- **Check:** Vai a https://github.com/fulgidus/heimdall/settings/pages e verifica:
-  1. Branch: `gh-pages` ✓
-  2. Folder: `/` ✓
-  3. Salva se necessario
+**Check:**
+1. Go to https://github.com/fulgidus/heimdall/settings/pages
+2. Verify: **Branch** = `develop`, **Folder** = `/docs`
+3. Wait 1-2 minutes for GitHub to rebuild
 
-### Reports non visibili
-- **Attendi:** I report sono public dopo ~5 minuti dal push
-- **URL:** Usa sempre il formato: `https://fulgidus.github.io/heimdall/coverage/develop`
+### Reports not updating
 
-## Comandi Utili
+**Check:**
+1. Push a commit to `develop`
+2. Go to **Actions** tab → **Test Coverage Report**
+3. Verify workflow ran successfully
+4. Verify `docs/coverage/` files were committed
+
+## Local Testing
+
+To test coverage reports locally:
 
 ```bash
-# Verifica se gh-pages esiste
-git branch -r | grep gh-pages
+# Run backend coverage
+pytest --cov=services --cov-report=html:docs/coverage/backend_latest
 
-# Vedi l'ultimo deploy (se attivato)
-git log --oneline gh-pages | head -5
+# Run frontend coverage
+cd frontend && pnpm run test:coverage
 
-# Visualizza il contenuto di gh-pages
-git show gh-pages:coverage/develop/index.html | head -20
-```
-
-## Badge nel README
-
-Una volta abilitato Pages, il badge nel README si aggiornerà automaticamente:
-
-```markdown
-[![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop)
+# View locally (requires Python)
+cd docs/coverage
+python -m http.server 8000
+# Open http://localhost:8000
 ```
 
 ---
 
-**Dopo l'abilitazione:** Il workflow funzionerà perfettamente e i tuoi report saranno visibili a chiunque! 🎉
+**All set!** Coverage reports are automatically generated and published on every push. 🎉
