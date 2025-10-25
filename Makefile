@@ -1,7 +1,7 @@
 # Heimdall SDR - Development Makefile
 # Windows PowerShell compatible commands
 
-.PHONY: help dev-up dev-down test lint format build-docker db-migrate clean
+.PHONY: help dev-up dev-down test lint format build-docker db-migrate clean lock-deps audit-deps deps-check
 
 # Default target
 help:
@@ -30,6 +30,11 @@ help:
 	@echo "  MAINTENANCE:"
 	@echo "    clean                 Clean all generated files"
 	@echo "    setup                 Initial setup"
+	@echo ""
+	@echo "  DEPENDENCY MANAGEMENT:"
+	@echo "    lock-deps             Generate lock files from requirements"
+	@echo "    audit-deps            Audit dependencies for conflicts and vulnerabilities"
+	@echo "    deps-check            Run lock-deps and audit-deps"
 	@echo ""
 
 # Development Environment
@@ -154,3 +159,16 @@ setup:
 	@if not exist ".env" copy .env.example .env
 	@echo "Please edit .env file with your configuration"
 	@echo "Then run: make dev-up"
+
+# Dependency Management
+lock-deps:
+	@echo "Generating lock files from requirements..."
+	python scripts/lock_requirements.py --verbose
+
+audit-deps:
+	@echo "Auditing dependencies across all services..."
+	python scripts/audit_dependencies.py --format=all
+
+deps-check: lock-deps audit-deps
+	@echo "✅ Dependency audit complete"
+	@echo "Check audit-results/ for detailed reports"

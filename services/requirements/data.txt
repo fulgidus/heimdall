@@ -1,0 +1,11 @@
+# Data processing and storage
+# Include base dependencies
+-r base.txt
+
+# Database (included here for explicit reference)
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Caching and message queue
+redis==5.0.1
+celery==5.3.4
