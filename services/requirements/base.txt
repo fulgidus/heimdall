@@ -1,0 +1,19 @@
+# Core dependencies shared by all services
+# These are the foundation packages used across all Heimdall microservices
+
+# Configuration and settings
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# Logging
+structlog==24.1.0
+
+# HTTP clients
+httpx==0.25.0
+aiohttp==3.9.0
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+alembic==1.12.1

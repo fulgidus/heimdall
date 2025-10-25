@@ -163,8 +163,10 @@ services:
   # RF Acquisition Service - WebSDR data collection and processing
   rf-acquisition:
     build:
-      context: ./services/rf-acquisition
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/rf-acquisition/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-rf-acquisition
     environment:
       SERVICE_NAME: rf-acquisition
@@ -206,8 +208,10 @@ services:
   # API Gateway - Main REST API entry point
   api-gateway:
     build:
-      context: ./services
-      dockerfile: api-gateway/Dockerfile
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-api-gateway
     environment:
       SERVICE_NAME: api-gateway
@@ -247,8 +251,10 @@ services:
   # Training Service - ML model training pipeline
   training:
     build:
-      context: ./services/training
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/training/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-training
     environment:
       SERVICE_NAME: training
@@ -289,8 +295,10 @@ services:
   # Inference Service - ML model inference
   inference:
     build:
-      context: ./services/inference
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/inference/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-inference
     environment:
       SERVICE_NAME: inference
@@ -328,8 +336,10 @@ services:
   # Data Ingestion Web - Data collection UI and API
   data-ingestion-web:
     build:
-      context: ./services/data-ingestion-web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/data-ingestion-web/Dockerfile
+      args:
+        PIP_NO_CACHE_DIR: 1
     container_name: heimdall-data-ingestion-web
     environment:
       SERVICE_NAME: data-ingestion-web

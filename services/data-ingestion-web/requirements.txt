@@ -1,17 +1,9 @@
-fastapi==0.119.1
-uvicorn[standard]==0.38.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-structlog==25.4.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
+# Data Ingestion Web Service Requirements
+# References centralized requirements
+-r ../requirements/base.txt
+-r ../requirements/api.txt
+-r ../requirements/data.txt
+
+# Service-specific dependencies
 asyncpg==0.30.0
-redis==6.4.0
-aiohttp==3.13.1
-celery==5.3.4
-pytest==8.4.2
-pytest-asyncio==1.2.0
-httpx==0.28.1
-alembic==1.13.0
 fastapi-sqlalchemy==0.2.1

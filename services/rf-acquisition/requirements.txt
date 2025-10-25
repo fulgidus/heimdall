@@ -1,19 +1,12 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
-structlog==24.1.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-redis==5.0.1
-aiohttp==3.9.1
-celery==5.3.4
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.1
+# RF Acquisition Service Requirements
+# References centralized requirements
+-r ../requirements/base.txt
+-r ../requirements/api.txt
+-r ../requirements/data.txt
+
+# Service-specific dependencies
+websockets==12.0
 numpy==1.24.3
 scipy==1.11.4
 h5py==3.10.0
-boto3==1.29.7
-
+boto3>=1.29.0

@@ -30,3 +30,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Dependency audit results (generated, can be ignored)
+audit-results/
+services/requirements/*.audit.json
