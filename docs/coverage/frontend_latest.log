@@ -32,8 +32,8 @@
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
 
- [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 25[2mms[22m[39m
- [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 33[2mms[22m[39m
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mConnection Management[2m > [22m[2mshould create a WebSocket manager instance
 [22m[39m[WebSocket] Disconnecting
 
@@ -181,7 +181,7 @@
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mFactory Function[2m > [22m[2mshould create WebSocket manager with factory
 [22m[39m[WebSocket] Disconnecting
 
- [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 135[2mms[22m[39m
+ [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 167[2mms[22m[39m
 [90mstderr[2m | src/pages/Dashboard.integration.test.tsx[2m > [22m[2mDashboard - Real API Integration[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould show refreshing state during manual refresh
 [22m[39mAn update to Dashboard inside a test was not wrapped in act(...).
 
@@ -194,39 +194,37 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 861[2mms[22m[39m
- [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 2025[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mLoading States[2m > [22mshould display skeleton loaders when loading with no data [33m 496[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mService Health Display[2m > [22mshould show error state with retry button when services fail to load [33m 307[2mms[22m[39m
- [31m❯[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[33m 899[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mModal should have proper dialog attributes[32m 185[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mButton should have aria-busy when loading[32m 48[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mAlert should have appropriate role and aria-live[32m 45[2mms[22m[39m
+ [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1602[2mms[22m[39m
+ [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 893[2mms[22m[39m
+ [32m✓[39m src/utils/ellipse.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+ [31m❯[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m | [22m[31m8 failed[39m[2m)[22m[33m 905[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mModal should have proper dialog attributes[32m 163[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mButton should have aria-busy when loading[32m 50[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mAlert should have appropriate role and aria-live[32m 38[2mms[22m[39m
    [32m✓[39m Accessibility Compliance Tests[2m > [22mARIA Attributes[2m > [22mInput should associate label with input field[32m 10[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mKeyboard Navigation[2m > [22mInteractive elements should be keyboard accessible[32m 52[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mKeyboard Navigation[2m > [22mDisabled buttons should have aria-disabled[32m 36[2mms[22m[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should use semantic nav for breadcrumb[39m[32m 82[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mKeyboard Navigation[2m > [22mInteractive elements should be keyboard accessible[32m 40[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mKeyboard Navigation[2m > [22mDisabled buttons should have aria-disabled[32m 46[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should use semantic nav for breadcrumb[39m[32m 85[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy[39m[32m 54[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy[39m[32m 67[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard sections should have aria-labelledby[39m[32m 33[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard sections should have aria-labelledby[39m[32m 59[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mIcons should be hidden from screen readers[39m[32m 49[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mIcons should be hidden from screen readers[39m[32m 51[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels[39m[32m 58[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels[39m[32m 85[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mLive regions should announce updates[39m[32m 58[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mLive regions should announce updates[39m[32m 62[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
    [32m✓[39m Accessibility Compliance Tests[2m > [22mForm Accessibility[2m > [22mRequired fields should be marked with aria-required[32m 6[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mForm Accessibility[2m > [22mError messages should be associated with inputs[32m 7[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mFocus Management[2m > [22mModal close button should have aria-label[32m 9[2mms[22m[39m
-   [32m✓[39m Accessibility Compliance Tests[2m > [22mFocus Management[2m > [22mButtons should have accessible names[32m 45[2mms[22m[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mLink Accessibility[2m > [22mDashboard breadcrumb links should be accessible[39m[32m 75[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mForm Accessibility[2m > [22mError messages should be associated with inputs[32m 4[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mFocus Management[2m > [22mModal close button should have aria-label[32m 5[2mms[22m[39m
+   [32m✓[39m Accessibility Compliance Tests[2m > [22mFocus Management[2m > [22mButtons should have accessible names[32m 43[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mLink Accessibility[2m > [22mDashboard breadcrumb links should be accessible[39m[32m 54[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mLink Accessibility[2m > [22mCurrent page should be marked with aria-current[39m[32m 45[2mms[22m[39m
+[31m   [31m×[31m Accessibility Compliance Tests[2m > [22mLink Accessibility[2m > [22mCurrent page should be marked with aria-current[39m[32m 34[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
- [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 123[2mms[22m[39m
- [32m✓[39m src/utils/ellipse.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 15[2mms[22m[39m
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mrenders Analytics page with title
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
@@ -323,6 +321,7 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
+ [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 811[2mms[22m[39m
 [90mstderr[2m | src/pages/Localization.test.tsx[2m > [22m[2mLocalization Page[2m > [22m[2mhandles result selection
 [22m[39mAn update to Localization inside a test was not wrapped in act(...).
 
@@ -335,9 +334,7 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1142[2mms[22m[39m
-   [33m[2m✓[22m[39m Analytics Page[2m > [22mhandles refresh button interaction [33m 371[2mms[22m[39m
- [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1177[2mms[22m[39m
+ [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1130[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useLocalStorage.test.ts[2m > [22m[2museLocalStorage Hook[2m > [22m[2mreturns initial value when localStorage contains invalid JSON
 [22m[39mError reading localStorage key "test-key": SyntaxError: Unexpected token 'i', "invalid-json-{" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -377,9 +374,8 @@ This ensures that you're testing the behavior the user would see in the browser.
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
 
- [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 122[2mms[22m[39m
- [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 840[2mms[22m[39m
-   [33m[2m✓[22m[39m Login Component[2m > [22mRendering[2m > [22mshould render login form with all required fields [33m 352[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 667[2mms[22m[39m
 [90mstderr[2m | src/store/authStore.test.ts[2m > [22m[2mauthStore - Authentication Store[2m > [22m[2mlogin()[2m > [22m[2mshould reject invalid credentials
 [22m[39mLogin failed: Error: Invalid user credentials
     at Object.login [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.ts:64:31[90m)[39m
@@ -387,21 +383,21 @@ This ensures that you're testing the behavior the user would see in the browser.
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.test.ts:91:17
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
 
- [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 67[2mms[22m[39m
- [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 618[2mms[22m[39m
- [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1290[2mms[22m[39m
- [31m❯[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 7956[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 527[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display the sidebar with Heimdall branding [33m 309[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display sidebar navigation items[32m 73[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 539[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display stat values[32m 201[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display recent activity section[32m 111[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display system health section[32m 198[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display WebSDR network status[32m 94[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display user email in sidebar[32m 176[2mms[22m[39m
-   [32m✓[39m Dashboard[2m > [22mshould display logout button[32m 152[2mms[22m[39m
-[31m   [31m×[31m Dashboard[2m > [22mshould display welcome message with user name[39m[33m 5573[2mms[22m[39m
+ [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 589[2mms[22m[39m
+ [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1160[2mms[22m[39m
+ [31m❯[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 7496[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 503[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display the sidebar with Heimdall branding [33m 355[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display sidebar navigation items[32m 62[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 476[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display stat values[32m 186[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display recent activity section[32m 81[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display system health section[32m 169[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display WebSDR network status[32m 51[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display user email in sidebar[32m 186[2mms[22m[39m
+   [32m✓[39m Dashboard[2m > [22mshould display logout button[32m 160[2mms[22m[39m
+[31m   [31m×[31m Dashboard[2m > [22mshould display welcome message with user name[39m[33m 5264[2mms[22m[39m
 [31m     → Unable to find an accessible element with the role "heading" and name "Dashboard"
 
 Here are the accessible roles:
@@ -867,7 +863,7 @@ Here are the accessible roles:
   Name "Status Activity Details Timestamp":
   [36m<tr />[31m
 
-  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:18:31 PM":
+  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:34:44 PM":
   [36m<tr />[31m
 
   Name "Warning ML Model Inference Engine Initializing... -":
@@ -914,7 +910,7 @@ Here are the accessible roles:
   Name "7 of 7 receivers online":
   [36m<td />[31m
 
-  Name "4:18:31 PM":
+  Name "4:34:44 PM":
   [36m<td[31m
     [33mclass[31m=[32m"text-muted"[31m
   [36m/>[31m
@@ -997,7 +993,7 @@ Here are the accessible roles:
 
   Name "":
   [36m<time[31m
-    [33mdatetime[31m=[32m"2025-10-25T16:18:31.003Z"[31m
+    [33mdatetime[31m=[32m"2025-10-25T16:34:44.390Z"[31m
   [36m/>[31m
 
   --------------------------------------------------
@@ -1213,11 +1209,11 @@ Ignored nodes: comments, script, style
                   [33maria-valuemin[31m=[32m"0"[31m
                   [33maria-valuenow[31m=[32m"75"[31m
   ...[39m
- [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 120[2mms[22m[39m
- [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1648[2mms[22m[39m
-   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 470[2mms[22m[39m
- [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1033[2mms[22m[39m
- [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 948[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1537[2mms[22m[39m
+   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 451[2mms[22m[39m
+ [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 1034[2mms[22m[39m
+ [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 966[2mms[22m[39m
 [90mstderr[2m | src/pages/SystemStatus.test.tsx[2m > [22m[2mSystemStatus Page[2m > [22m[2mhandles refresh button click
 [22m[39mAn update to SystemStatus inside a test was not wrapped in act(...).
 
@@ -1230,7 +1226,7 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 1073[2mms[22m[39m
+ [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 1354[2mms[22m[39m
 [90mstderr[2m | src/pages/WebSDRManagement.test.tsx[2m > [22m[2mWebSDRManagement Page[2m > [22m[2mhandles WebSDR selection
 [22m[39mAn update to WebSDRManagement inside a test was not wrapped in act(...).
 
@@ -1243,33 +1239,12 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2190[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 622[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 430[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 306[2mms[22m[39m
- [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1367[2mms[22m[39m
-   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 336[2mms[22m[39m
- [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1730[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 357[2mms[22m[39m
- [31m❯[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[33m 684[2mms[22m[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mDashboard should render without errors[39m[32m 118[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mWebSDR Management page should render without errors[32m 60[2mms[22m[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mData Ingestion page should render without errors[32m 41[2mms[22m[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mDashboard should render without errors[39m[32m 63[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mWebSDR Management page should render without errors[32m 48[2mms[22m[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mData Ingestion page should render without errors[32m 35[2mms[22m[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mDashboard should render without errors[39m[32m 82[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mWebSDR Management page should render without errors[32m 51[2mms[22m[39m
-   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mData Ingestion page should render without errors[32m 17[2mms[22m[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mBootstrap Responsive Classes[2m > [22mshould use Bootstrap grid classes correctly[39m[32m 33[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mBootstrap Responsive Classes[2m > [22mshould have responsive cards[39m[32m 60[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mMobile-Specific Features[2m > [22mshould handle touch interactions[39m[32m 74[2mms[22m[39m
-[31m     → connectWebSocket is not a function[39m
+ [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2381[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 603[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 412[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 346[2mms[22m[39m
+ [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1629[2mms[22m[39m
+   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 422[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useAuth.test.ts[2m > [22m[2museAuth Hook[2m > [22m[2mhandles invalid localStorage data gracefully
 [22m[39mFailed to parse auth data: SyntaxError: Unexpected token 'i', "invalid-json-data" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -1283,7 +1258,28 @@ This ensures that you're testing the behavior the user would see in the browser.
     at commitPassiveMountOnFiber [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:15519:11[90m)[39m
     at flushPassiveEffects [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18432:9[90m)[39m
 
- [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 79[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [31m❯[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m | [22m[31m6 failed[39m[2m)[22m[33m 581[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mDashboard should render without errors[39m[32m 149[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mWebSDR Management page should render without errors[32m 68[2mms[22m[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mMobile (iPhone SE) (375x667)[2m > [22mData Ingestion page should render without errors[32m 20[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mDashboard should render without errors[39m[32m 47[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mWebSDR Management page should render without errors[32m 47[2mms[22m[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mTablet (iPad) (768x1024)[2m > [22mData Ingestion page should render without errors[32m 26[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mDashboard should render without errors[39m[32m 50[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mWebSDR Management page should render without errors[32m 54[2mms[22m[39m
+   [32m✓[39m Phase 7: Responsive Design Validation[2m > [22mDesktop (Full HD) (1920x1080)[2m > [22mData Ingestion page should render without errors[32m 16[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mBootstrap Responsive Classes[2m > [22mshould use Bootstrap grid classes correctly[39m[32m 28[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mBootstrap Responsive Classes[2m > [22mshould have responsive cards[39m[32m 39[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+[31m   [31m×[31m Phase 7: Responsive Design Validation[2m > [22mMobile-Specific Features[2m > [22mshould handle touch interactions[39m[32m 32[2mms[22m[39m
+[31m     → connectWebSocket is not a function[39m
+ [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1852[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 425[2mms[22m[39m
 [90mstdout[2m | src/services/api/integration.test.ts[2m > [22m[2mPhase 6: API Integration Verification[2m > [22m[2mshould import all API services without errors
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -1292,25 +1288,25 @@ This ensures that you're testing the behavior the user would see in the browser.
   isDev: [33mtrue[39m
 }
 
- [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 140[2mms[22m[39m
- [31m❯[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 256[2mms[22m[39m
-[31m   [31m×[31m Phase 7: Real-Time Data Updates Validation[2m > [22mDashboard Real-Time Updates[2m > [22mshould render dashboard component[39m[32m 126[2mms[22m[39m
+ [31m❯[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 322[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Real-Time Data Updates Validation[2m > [22mDashboard Real-Time Updates[2m > [22mshould render dashboard component[39m[32m 146[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-[31m   [31m×[31m Phase 7: Real-Time Data Updates Validation[2m > [22mDashboard Real-Time Updates[2m > [22mshould clean up intervals on unmount[39m[32m 51[2mms[22m[39m
+[31m   [31m×[31m Phase 7: Real-Time Data Updates Validation[2m > [22mDashboard Real-Time Updates[2m > [22mshould clean up intervals on unmount[39m[32m 88[2mms[22m[39m
 [31m     → connectWebSocket is not a function[39m
-   [32m✓[39m Phase 7: Real-Time Data Updates Validation[2m > [22mWebSDR Health Real-Time Updates[2m > [22mshould render WebSDR management page[32m 76[2mms[22m[39m
+   [32m✓[39m Phase 7: Real-Time Data Updates Validation[2m > [22mWebSDR Health Real-Time Updates[2m > [22mshould render WebSDR management page[32m 82[2mms[22m[39m
    [32m✓[39m Phase 7: Real-Time Data Updates Validation[2m > [22mStore State Updates[2m > [22mshould handle store state properly[32m 1[2mms[22m[39m
    [32m✓[39m Phase 7: Real-Time Data Updates Validation[2m > [22mError Handling in Real-Time Updates[2m > [22mshould handle errors gracefully[32m 1[2mms[22m[39m
- [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1028[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 339[2mms[22m[39m
-[2m4:18:48 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
+ [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1317[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 518[2mms[22m[39m
+[2m4:35:01 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
 Error: An error occurred while trying to read the map file at popper.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.map'
     at async open (node:internal/fs/promises:639:25)
     at async Object.readFile (node:internal/fs/promises:1246:14)
     at async extractSourcemapFromFile (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:8061:65)
     at async loadAndTransform (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:26014:22)
-[2m4:18:48 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
+[2m4:35:01 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
 Error: An error occurred while trying to read the map file at bootstrap.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.map'
     at async open (node:internal/fs/promises:639:25)
@@ -1786,7 +1782,7 @@ Here are the accessible roles:
   Name "Status Activity Details Timestamp":
   [36m<tr />[39m
 
-  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:18:31 PM":
+  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:34:44 PM":
   [36m<tr />[39m
 
   Name "Warning ML Model Inference Engine Initializing... -":
@@ -1833,7 +1829,7 @@ Here are the accessible roles:
   Name "7 of 7 receivers online":
   [36m<td />[39m
 
-  Name "4:18:31 PM":
+  Name "4:34:44 PM":
   [36m<td[39m
     [33mclass[39m=[32m"text-muted"[39m
   [36m/>[39m
@@ -1916,7 +1912,7 @@ Here are the accessible roles:
 
   Name "":
   [36m<time[39m
-    [33mdatetime[39m=[32m"2025-10-25T16:18:31.003Z"[39m
+    [33mdatetime[39m=[32m"2025-10-25T16:34:44.390Z"[39m
   [36m/>[39m
 
   --------------------------------------------------
@@ -2185,11 +2181,11 @@ Ignored nodes: comments, script, style
 
 [2m Test Files [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m25 passed[39m[22m[90m (29)[39m
 [2m      Tests [22m [1m[31m17 failed[39m[22m[2m | [22m[1m[32m409 passed[39m[22m[90m (426)[39m
-[2m   Start at [22m 16:18:20
-[2m   Duration [22m 28.18s[2m (transform 1.69s, setup 4.10s, collect 9.12s, tests 29.61s, environment 25.01s, prepare 3.55s)[22m
+[2m   Start at [22m 16:34:34
+[2m   Duration [22m 27.47s[2m (transform 1.83s, setup 3.67s, collect 9.22s, tests 29.05s, environment 24.14s, prepare 3.69s)[22m
 
 
-::error file=/home/runner/work/heimdall/heimdall/frontend/src/pages/Dashboard.test.tsx,title=src/pages/Dashboard.test.tsx > Dashboard > should display welcome message with user name,line=158,column=23::TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "Dashboard"%0A%0AHere are the accessible roles:%0A%0A  navigation:%0A%0A  Name "Breadcrumb":%0A  <nav%0A    aria-label="Breadcrumb"%0A    class="page-header"%0A  />%0A%0A  --------------------------------------------------%0A  list:%0A%0A  Name "":%0A  <ol%0A    class="breadcrumb"%0A  />%0A%0A  Name "":%0A  <ul%0A    class="list-group list-group-flush"%0A  />%0A%0A  --------------------------------------------------%0A  listitem:%0A%0A  Name "":%0A  <li%0A    class="breadcrumb-item"%0A  />%0A%0A  Name "":%0A  <li%0A    aria-current="page"%0A    class="breadcrumb-item"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  --------------------------------------------------%0A  link:%0A%0A  Name "Home":%0A  <a%0A    href="/"%0A  />%0A%0A  --------------------------------------------------%0A  heading:%0A%0A  Name "Dashboard":%0A  <h2%0A    class="mb-0"%0A  />%0A%0A  Name "Active WebSDR":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "7/7":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "Signal Detections":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "0":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "System Uptime":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "0h":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "Model Accuracy":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "N/A":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "System Activity":%0A  <h2%0A    class="mb-0 h5"%0A    id="system-activity-heading"%0A  />%0A%0A  Name "System Status":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "ML Model":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Services Health":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Predictions":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Services Status":%0A  <h2%0A    class="mb-0 h5"%0A    id="services-status-heading"%0A  />%0A%0A  Name "api gateway":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "rf acquisition":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "training":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "inference":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "WebSDR Network Status":%0A  <h2%0A    class="mb-0 h5"%0A    id="websdr-network-heading"%0A  />%0A%0A  Name "Turin":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Milan":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Genoa":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Alessandria":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Asti":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "La Spezia":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Piacenza":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  --------------------------------------------------%0A  region:%0A%0A  Name "System metrics":%0A  <section%0A    aria-label="System metrics"%0A    class="row"%0A  />%0A%0A  Name "System Activity":%0A  <section%0A    aria-labelledby="system-activity-heading"%0A    class="col-lg-8"%0A  />%0A%0A  Name "Services Status":%0A  <section%0A    aria-labelledby="services-status-heading"%0A    class="col-lg-4"%0A  />%0A%0A  Name "WebSDR Network Status":%0A  <section%0A    aria-labelledby="websdr-network-heading"%0A    class="row"%0A  />%0A%0A  --------------------------------------------------%0A  paragraph:%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  --------------------------------------------------%0A  progressbar:%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="100"%0A    class="progress-bar bg-brand-color-1"%0A    role="progressbar"%0A    style="width: 100%25;"%0A  />%0A%0A  Name "Signal detection progress: 75%25":%0A  <div%0A    aria-label="Signal detection progress: 75%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="75"%0A    class="progress-bar bg-brand-color-2"%0A    role="progressbar"%0A    style="width: 75%25;"%0A  />%0A%0A  Name "System uptime: 90%25":%0A  <div%0A    aria-label="System uptime: 90%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="90"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 90%25;"%0A  />%0A%0A  Name "Model accuracy: 0%25":%0A  <div%0A    aria-label="Model accuracy: 0%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="0"%0A    class="progress-bar bg-primary"%0A    role="progressbar"%0A    style="width: 0%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="86"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 86%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="84"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 84%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="84.5"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 84.5%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85.5"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85.5%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="86"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 86%25;"%0A  />%0A%0A  --------------------------------------------------%0A  button:%0A%0A  Name "Refresh system activity":%0A  <button%0A    aria-label="Refresh system activity"%0A    class="btn btn-sm btn-link-primary"%0A  />%0A%0A  --------------------------------------------------%0A  table:%0A%0A  Name "":%0A  <table%0A    class="table table-hover"%0A  />%0A%0A  --------------------------------------------------%0A  rowgroup:%0A%0A  Name "":%0A  <thead />%0A%0A  Name "":%0A  <tbody />%0A%0A  --------------------------------------------------%0A  row:%0A%0A  Name "Status Activity Details Timestamp":%0A  <tr />%0A%0A  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:18:31 PM":%0A  <tr />%0A%0A  Name "Warning ML Model Inference Engine Initializing... -":%0A  <tr />%0A%0A  Name "Success Services Health Microservices 4 of 4 services healthy Updated":%0A  <tr />%0A%0A  Name "Info Predictions Total Count No predictions yet -":%0A  <tr />%0A%0A  --------------------------------------------------%0A  columnheader:%0A%0A  Name "Status":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Activity":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Details":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Timestamp":%0A  <th%0A    scope="col"%0A  />%0A%0A  --------------------------------------------------%0A  cell:%0A%0A  Name "Success":%0A  <td />%0A%0A  Name "System Status WebSDR Network":%0A  <td />%0A%0A  Name "7 of 7 receivers online":%0A  <td />%0A%0A  Name "4:18:31 PM":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Warning":%0A  <td />%0A%0A  Name "ML Model Inference Engine":%0A  <td />%0A%0A  Name "Initializing...":%0A  <td />%0A%0A  Name "-":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Success":%0A  <td />%0A%0A  Name "Services Health Microservices":%0A  <td />%0A%0A  Name "4 of 4 services healthy":%0A  <td />%0A%0A  Name "Updated":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Info":%0A  <td />%0A%0A  Name "Predictions Total Count":%0A  <td />%0A%0A  Name "No predictions yet":%0A  <td />%0A%0A  Name "-":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  --------------------------------------------------%0A  img:%0A%0A  Name "Success":%0A  <span%0A    aria-label="Success"%0A    class="badge bg-light-success"%0A    role="img"%0A  />%0A%0A  Name "Warning":%0A  <span%0A    aria-label="Warning"%0A    class="badge bg-light-warning"%0A    role="img"%0A  />%0A%0A  Name "Success":%0A  <span%0A    aria-label="Success"%0A    class="badge bg-light-success"%0A    role="img"%0A  />%0A%0A  Name "Info":%0A  <span%0A    aria-label="Info"%0A    class="badge bg-light-info"%0A    role="img"%0A  />%0A%0A  --------------------------------------------------%0A  time:%0A%0A  Name "":%0A  <time%0A    datetime="2025-10-25T16:18:31.003Z"%0A  />%0A%0A  --------------------------------------------------%0A  status:%0A%0A  Name "Service api-gateway is healthy":%0A  <span%0A    aria-label="Service api-gateway is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service rf-acquisition is healthy":%0A  <span%0A    aria-label="Service rf-acquisition is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service training is healthy":%0A  <span%0A    aria-label="Service training is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service inference is healthy":%0A  <span%0A    aria-label="Service inference is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  --------------------------------------------------%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <div%0A      class="group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar"%0A      style="--sidebar-width: 16rem; --sidebar-width-icon: 3rem;"%0A    >%0A      <nav%0A        aria-label="Breadcrumb"%0A        class="page-header"%0A      >%0A        <div%0A          class="page-block"%0A        >%0A          <div%0A            class="row align-items-center"%0A          >%0A            <div%0A              class="col-md-12"%0A            >%0A              <ol%0A                class="breadcrumb"%0A              >%0A                <li%0A                  class="breadcrumb-item"%0A                >%0A                  <a%0A                    href="/"%0A                  >%0A                    Home%0A                  </a>%0A                </li>%0A                <li%0A                  aria-current="page"%0A                  class="breadcrumb-item"%0A                >%0A                  Dashboard%0A                </li>%0A              </ol>%0A            </div>%0A            <div%0A              class="col-md-12"%0A            >%0A              <div%0A                class="page-header-title d-flex align-items-center justify-content-between"%0A              >%0A                <h2%0A                  class="mb-0"%0A                >%0A                  Dashboard%0A                </h2>%0A                <div%0A                  class="d-flex align-items-center gap-2"%0A                >%0A                  <span%0A                    class="badge bg-light-danger d-flex align-items-center gap-1"%0A                  >%0A                    <i%0A                      class="ph ph-x-circle "%0A                    />%0A                    Polling Mode%0A                  </span>%0A                </div>%0A              </div>%0A            </div>%0A          </div>%0A        </div>%0A      </nav>%0A      <section%0A        aria-label="System metrics"%0A        class="row"%0A      >%0A        <div%0A          class="col-md-6 col-xl-3"%0A        >%0A          <div%0A            class="card"%0A          >%0A            <div%0A              class="card-body"%0A            >%0A              <h2%0A                class="mb-4 h6"%0A              >%0A                Active WebSDR%0A              </h2>%0A              <div%0A                class="row d-flex align-items-center"%0A              >%0A                <div%0A                  class="col-9"%0A                >%0A                  <h3%0A                    class="f-w-300 d-flex align-items-center m-b-0"%0A                  >%0A                    <i%0A                      class="ph ph-arrow-up text-success f-30 m-r-10"%0A                    />%0A                    7%0A                    /%0A                    7%0A                  </h3>%0A                </div>%0A                <div%0A                  class="col-3 text-end"%0A                >%0A                  <p%0A                    class="m-b-0"%0A                  >%0A                    100%0A                    %25%0A                  </p>%0A                </div>%0A              </div>%0A              <div%0A                class="progress m-t-30"%0A                style="height: 7px;"%0A              >%0A                <div%0A                  aria-valuemax="100"%0A                  aria-valuemin="0"%0A                  aria-valuenow="100"%0A                  class="progress-bar bg-brand-color-1"%0A                  role="progressbar"%0A                  style="width: 100%25;"%0A                />%0A              </div>%0A            </div>%0A          </div>%0A        </div>%0A        <div%0A          class="col-md-6 col-xl-3"%0A        >%0A          <div%0A            class="card"%0A          >%0A            <div%0A              class="card-body"%0A            >%0A              <h2%0A                class="mb-4 h6"%0A              >%0A                Signal Detections%0A              </h2>%0A              <div%0A                class="row d-flex align-items-center"%0A              >%0A                <div%0A                  class="col-9"%0A                >%0A                  <h3%0A                    class="f-w-300 d-flex align-items-center m-b-0"%0A                  >%0A                    <i%0A                      aria-hidden="true"%0A                      class="ph ph-chart-line-up text-warning f-30 m-r-10"%0A                    />%0A                    0%0A                  </h3>%0A                </div>%0A                <div%0A                  class="col-3 text-end"%0A                >%0A                  <p%0A                    class="m-b-0"%0A                  >%0A                    24h%0A                  </p>%0A                </div>%0A              </div>%0A              <div%0A                class="progress m-t-30"%0A                style="height: 7px;"%0A              >%0A                <div%0A                  aria-label="Signal detection progress: 75%25"%0A                  aria-valuemax="100"%0A                  aria-valuemin="0"%0A                  aria-valuenow="75"%0A  ...%0A ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19%0A ❯ src/pages/Dashboard.test.tsx:158:23%0A%0A
+::error file=/home/runner/work/heimdall/heimdall/frontend/src/pages/Dashboard.test.tsx,title=src/pages/Dashboard.test.tsx > Dashboard > should display welcome message with user name,line=158,column=23::TestingLibraryElementError: Unable to find an accessible element with the role "heading" and name "Dashboard"%0A%0AHere are the accessible roles:%0A%0A  navigation:%0A%0A  Name "Breadcrumb":%0A  <nav%0A    aria-label="Breadcrumb"%0A    class="page-header"%0A  />%0A%0A  --------------------------------------------------%0A  list:%0A%0A  Name "":%0A  <ol%0A    class="breadcrumb"%0A  />%0A%0A  Name "":%0A  <ul%0A    class="list-group list-group-flush"%0A  />%0A%0A  --------------------------------------------------%0A  listitem:%0A%0A  Name "":%0A  <li%0A    class="breadcrumb-item"%0A  />%0A%0A  Name "":%0A  <li%0A    aria-current="page"%0A    class="breadcrumb-item"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  Name "":%0A  <li%0A    class="list-group-item px-0"%0A    role="listitem"%0A  />%0A%0A  --------------------------------------------------%0A  link:%0A%0A  Name "Home":%0A  <a%0A    href="/"%0A  />%0A%0A  --------------------------------------------------%0A  heading:%0A%0A  Name "Dashboard":%0A  <h2%0A    class="mb-0"%0A  />%0A%0A  Name "Active WebSDR":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "7/7":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "Signal Detections":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "0":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "System Uptime":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "0h":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "Model Accuracy":%0A  <h2%0A    class="mb-4 h6"%0A  />%0A%0A  Name "N/A":%0A  <h3%0A    class="f-w-300 d-flex align-items-center m-b-0"%0A  />%0A%0A  Name "System Activity":%0A  <h2%0A    class="mb-0 h5"%0A    id="system-activity-heading"%0A  />%0A%0A  Name "System Status":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "ML Model":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Services Health":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Predictions":%0A  <h3%0A    class="mb-0 h6"%0A  />%0A%0A  Name "Services Status":%0A  <h2%0A    class="mb-0 h5"%0A    id="services-status-heading"%0A  />%0A%0A  Name "api gateway":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "rf acquisition":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "training":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "inference":%0A  <h6%0A    class="mb-0 text-capitalize"%0A  />%0A%0A  Name "WebSDR Network Status":%0A  <h2%0A    class="mb-0 h5"%0A    id="websdr-network-heading"%0A  />%0A%0A  Name "Turin":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Milan":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Genoa":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Alessandria":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Asti":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "La Spezia":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  Name "Piacenza":%0A  <h6%0A    class="mb-0"%0A  />%0A%0A  --------------------------------------------------%0A  region:%0A%0A  Name "System metrics":%0A  <section%0A    aria-label="System metrics"%0A    class="row"%0A  />%0A%0A  Name "System Activity":%0A  <section%0A    aria-labelledby="system-activity-heading"%0A    class="col-lg-8"%0A  />%0A%0A  Name "Services Status":%0A  <section%0A    aria-labelledby="services-status-heading"%0A    class="col-lg-4"%0A  />%0A%0A  Name "WebSDR Network Status":%0A  <section%0A    aria-labelledby="websdr-network-heading"%0A    class="row"%0A  />%0A%0A  --------------------------------------------------%0A  paragraph:%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="m-b-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-0"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  Name "":%0A  <p%0A    class="text-muted f-12 mb-2"%0A  />%0A%0A  --------------------------------------------------%0A  progressbar:%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="100"%0A    class="progress-bar bg-brand-color-1"%0A    role="progressbar"%0A    style="width: 100%25;"%0A  />%0A%0A  Name "Signal detection progress: 75%25":%0A  <div%0A    aria-label="Signal detection progress: 75%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="75"%0A    class="progress-bar bg-brand-color-2"%0A    role="progressbar"%0A    style="width: 75%25;"%0A  />%0A%0A  Name "System uptime: 90%25":%0A  <div%0A    aria-label="System uptime: 90%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="90"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 90%25;"%0A  />%0A%0A  Name "Model accuracy: 0%25":%0A  <div%0A    aria-label="Model accuracy: 0%25"%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="0"%0A    class="progress-bar bg-primary"%0A    role="progressbar"%0A    style="width: 0%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="86"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 86%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="84"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 84%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="84.5"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 84.5%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85.5"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85.5%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="85"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 85%25;"%0A  />%0A%0A  Name "":%0A  <div%0A    aria-valuemax="100"%0A    aria-valuemin="0"%0A    aria-valuenow="86"%0A    class="progress-bar bg-success"%0A    role="progressbar"%0A    style="width: 86%25;"%0A  />%0A%0A  --------------------------------------------------%0A  button:%0A%0A  Name "Refresh system activity":%0A  <button%0A    aria-label="Refresh system activity"%0A    class="btn btn-sm btn-link-primary"%0A  />%0A%0A  --------------------------------------------------%0A  table:%0A%0A  Name "":%0A  <table%0A    class="table table-hover"%0A  />%0A%0A  --------------------------------------------------%0A  rowgroup:%0A%0A  Name "":%0A  <thead />%0A%0A  Name "":%0A  <tbody />%0A%0A  --------------------------------------------------%0A  row:%0A%0A  Name "Status Activity Details Timestamp":%0A  <tr />%0A%0A  Name "Success System Status WebSDR Network 7 of 7 receivers online 4:34:44 PM":%0A  <tr />%0A%0A  Name "Warning ML Model Inference Engine Initializing... -":%0A  <tr />%0A%0A  Name "Success Services Health Microservices 4 of 4 services healthy Updated":%0A  <tr />%0A%0A  Name "Info Predictions Total Count No predictions yet -":%0A  <tr />%0A%0A  --------------------------------------------------%0A  columnheader:%0A%0A  Name "Status":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Activity":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Details":%0A  <th%0A    scope="col"%0A  />%0A%0A  Name "Timestamp":%0A  <th%0A    scope="col"%0A  />%0A%0A  --------------------------------------------------%0A  cell:%0A%0A  Name "Success":%0A  <td />%0A%0A  Name "System Status WebSDR Network":%0A  <td />%0A%0A  Name "7 of 7 receivers online":%0A  <td />%0A%0A  Name "4:34:44 PM":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Warning":%0A  <td />%0A%0A  Name "ML Model Inference Engine":%0A  <td />%0A%0A  Name "Initializing...":%0A  <td />%0A%0A  Name "-":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Success":%0A  <td />%0A%0A  Name "Services Health Microservices":%0A  <td />%0A%0A  Name "4 of 4 services healthy":%0A  <td />%0A%0A  Name "Updated":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  Name "Info":%0A  <td />%0A%0A  Name "Predictions Total Count":%0A  <td />%0A%0A  Name "No predictions yet":%0A  <td />%0A%0A  Name "-":%0A  <td%0A    class="text-muted"%0A  />%0A%0A  --------------------------------------------------%0A  img:%0A%0A  Name "Success":%0A  <span%0A    aria-label="Success"%0A    class="badge bg-light-success"%0A    role="img"%0A  />%0A%0A  Name "Warning":%0A  <span%0A    aria-label="Warning"%0A    class="badge bg-light-warning"%0A    role="img"%0A  />%0A%0A  Name "Success":%0A  <span%0A    aria-label="Success"%0A    class="badge bg-light-success"%0A    role="img"%0A  />%0A%0A  Name "Info":%0A  <span%0A    aria-label="Info"%0A    class="badge bg-light-info"%0A    role="img"%0A  />%0A%0A  --------------------------------------------------%0A  time:%0A%0A  Name "":%0A  <time%0A    datetime="2025-10-25T16:34:44.390Z"%0A  />%0A%0A  --------------------------------------------------%0A  status:%0A%0A  Name "Service api-gateway is healthy":%0A  <span%0A    aria-label="Service api-gateway is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service rf-acquisition is healthy":%0A  <span%0A    aria-label="Service rf-acquisition is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service training is healthy":%0A  <span%0A    aria-label="Service training is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  Name "Service inference is healthy":%0A  <span%0A    aria-label="Service inference is healthy"%0A    class="badge bg-light-success"%0A    role="status"%0A  />%0A%0A  --------------------------------------------------%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <div%0A      class="group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar"%0A      style="--sidebar-width: 16rem; --sidebar-width-icon: 3rem;"%0A    >%0A      <nav%0A        aria-label="Breadcrumb"%0A        class="page-header"%0A      >%0A        <div%0A          class="page-block"%0A        >%0A          <div%0A            class="row align-items-center"%0A          >%0A            <div%0A              class="col-md-12"%0A            >%0A              <ol%0A                class="breadcrumb"%0A              >%0A                <li%0A                  class="breadcrumb-item"%0A                >%0A                  <a%0A                    href="/"%0A                  >%0A                    Home%0A                  </a>%0A                </li>%0A                <li%0A                  aria-current="page"%0A                  class="breadcrumb-item"%0A                >%0A                  Dashboard%0A                </li>%0A              </ol>%0A            </div>%0A            <div%0A              class="col-md-12"%0A            >%0A              <div%0A                class="page-header-title d-flex align-items-center justify-content-between"%0A              >%0A                <h2%0A                  class="mb-0"%0A                >%0A                  Dashboard%0A                </h2>%0A                <div%0A                  class="d-flex align-items-center gap-2"%0A                >%0A                  <span%0A                    class="badge bg-light-danger d-flex align-items-center gap-1"%0A                  >%0A                    <i%0A                      class="ph ph-x-circle "%0A                    />%0A                    Polling Mode%0A                  </span>%0A                </div>%0A              </div>%0A            </div>%0A          </div>%0A        </div>%0A      </nav>%0A      <section%0A        aria-label="System metrics"%0A        class="row"%0A      >%0A        <div%0A          class="col-md-6 col-xl-3"%0A        >%0A          <div%0A            class="card"%0A          >%0A            <div%0A              class="card-body"%0A            >%0A              <h2%0A                class="mb-4 h6"%0A              >%0A                Active WebSDR%0A              </h2>%0A              <div%0A                class="row d-flex align-items-center"%0A              >%0A                <div%0A                  class="col-9"%0A                >%0A                  <h3%0A                    class="f-w-300 d-flex align-items-center m-b-0"%0A                  >%0A                    <i%0A                      class="ph ph-arrow-up text-success f-30 m-r-10"%0A                    />%0A                    7%0A                    /%0A                    7%0A                  </h3>%0A                </div>%0A                <div%0A                  class="col-3 text-end"%0A                >%0A                  <p%0A                    class="m-b-0"%0A                  >%0A                    100%0A                    %25%0A                  </p>%0A                </div>%0A              </div>%0A              <div%0A                class="progress m-t-30"%0A                style="height: 7px;"%0A              >%0A                <div%0A                  aria-valuemax="100"%0A                  aria-valuemin="0"%0A                  aria-valuenow="100"%0A                  class="progress-bar bg-brand-color-1"%0A                  role="progressbar"%0A                  style="width: 100%25;"%0A                />%0A              </div>%0A            </div>%0A          </div>%0A        </div>%0A        <div%0A          class="col-md-6 col-xl-3"%0A        >%0A          <div%0A            class="card"%0A          >%0A            <div%0A              class="card-body"%0A            >%0A              <h2%0A                class="mb-4 h6"%0A              >%0A                Signal Detections%0A              </h2>%0A              <div%0A                class="row d-flex align-items-center"%0A              >%0A                <div%0A                  class="col-9"%0A                >%0A                  <h3%0A                    class="f-w-300 d-flex align-items-center m-b-0"%0A                  >%0A                    <i%0A                      aria-hidden="true"%0A                      class="ph ph-chart-line-up text-warning f-30 m-r-10"%0A                    />%0A                    0%0A                  </h3>%0A                </div>%0A                <div%0A                  class="col-3 text-end"%0A                >%0A                  <p%0A                    class="m-b-0"%0A                  >%0A                    24h%0A                  </p>%0A                </div>%0A              </div>%0A              <div%0A                class="progress m-t-30"%0A                style="height: 7px;"%0A              >%0A                <div%0A                  aria-label="Signal detection progress: 75%25"%0A                  aria-valuemax="100"%0A                  aria-valuemin="0"%0A                  aria-valuenow="75"%0A  ...%0A ❯ Object.getElementError node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17%0A ❯ node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19%0A ❯ src/pages/Dashboard.test.tsx:158:23%0A%0A
 
 ::error file=/home/runner/work/heimdall/heimdall/frontend/src/pages/Dashboard.tsx,title=src/test/accessibility.test.tsx > Accessibility Compliance Tests > Semantic HTML > Dashboard should use semantic nav for breadcrumb,line=27,column=9::TypeError: connectWebSocket is not a function%0A ❯ src/pages/Dashboard.tsx:27:9%0A ❯ Object.react_stack_bottom_frame node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:25989:20%0A ❯ runWithFiberInDEV node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ commitHookEffectListMount node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:13249:29%0A ❯ commitHookPassiveMountEffects node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:13336:11%0A ❯ commitPassiveMountOnFiber node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:15484:13%0A ❯ recursivelyTraversePassiveMountEffects node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:15439:11%0A ❯ commitPassiveMountOnFiber node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:15718:11%0A ❯ recursivelyTraversePassiveMountEffects node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:15439:11%0A ❯ commitPassiveMountOnFiber node_modules/.pnpm/react-dom@19.2.0_react@19.2.0/node_modules/react-dom/cjs/react-dom-client.development.js:15718:11%0A%0A
 
