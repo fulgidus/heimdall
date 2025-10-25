@@ -33,6 +33,12 @@ async def health_check():
     return HealthResponse(status="healthy", service=SERVICE_NAME, version=SERVICE_VERSION, timestamp=datetime.utcnow())
 
 
+@app.get("/api/v1/inference/health")
+async def inference_health_check_public():
+    """Public health check endpoint - used by API Gateway and dashboard monitoring."""
+    return HealthResponse(status="healthy", service=SERVICE_NAME, version=SERVICE_VERSION, timestamp=datetime.utcnow())
+
+
 @app.get("/ready")
 async def readiness_check():
     return {"ready": True}

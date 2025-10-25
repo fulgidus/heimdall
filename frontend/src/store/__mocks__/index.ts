@@ -10,8 +10,9 @@ const mockDashboardStore = {
         servicesHealth: {
             'api-gateway': { status: 'healthy', latency_ms: 10 },
             'rf-acquisition': { status: 'healthy', latency_ms: 50 },
-            training: { status: 'healthy', latency_ms: 30 },
-            inference: { status: 'healthy', latency_ms: 45 },
+            'training': { status: 'healthy', latency_ms: 30 },
+            'inference': { status: 'healthy', latency_ms: 45 },
+            'data-ingestion-web': { status: 'healthy', latency_ms: 20 },
         },
     },
     metrics: {

@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Health Check Endpoints**: Fixed all service health check paths (2025-10-25)
+  - Issue: Frontend dashboard calls `/api/v1/{service}/health` but backend services only had `/health` at root
+  - Root cause: API Gateway's `proxy_request()` preserved full paths, but backends didn't have nested `/api/v1/*` paths
+  - Solution:
+    - API Gateway: Added path-stripping handlers for `/api/v1/api-gateway/health`, `/api/v1/rf-acquisition/health`, `/api/v1/inference/health`
+    - Inference service: Added `/api/v1/inference/health` endpoint to match frontend expectations
+    - All health endpoints now return proper HealthResponse JSON with status, service name, version, and timestamp
+  - **Verification**: ✅ All 3 health check endpoints return HTTP 200
+  - Changes: services/api-gateway/src/main.py (lines 175-230), services/inference/src/main.py (lines 38-41)
+
 - **Frontend Tests**: Fixed all 283 frontend test failures (2025-10-25)
   - Added React to global scope in vitest test setup to resolve "React is not defined" errors
   - Fixed authStore test expectations to match API Gateway endpoint instead of Keycloak

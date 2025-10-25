@@ -24,6 +24,7 @@ export const createDashboardStoreMock = () => ({
             'rf-acquisition': { status: 'healthy', latency_ms: 50 },
             'training': { status: 'healthy', latency_ms: 100 },
             'inference': { status: 'healthy', latency_ms: 30 },
+            'data-ingestion-web': { status: 'healthy', latency_ms: 20 },
         },
     },
     metrics: {
