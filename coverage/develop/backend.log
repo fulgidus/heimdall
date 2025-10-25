@@ -154,4 +154,4 @@ ERROR services/inference/tests - _pytest.pathlib.ImportPathMismatchError: ('test
 ERROR services/rf-acquisition/tests - _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/runner/work/heimdall/heimdall/services/api-gateway/tests/conftest.py', PosixPath('/home/runner/work/heimdall/heimdall/services/rf-acquisition/tests/conftest.py'))
 ERROR services/training/tests - _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/runner/work/heimdall/heimdall/services/api-gateway/tests/conftest.py', PosixPath('/home/runner/work/heimdall/heimdall/services/training/tests/conftest.py'))
 !!!!!!!!!!!!!!!!!!! Interrupted: 15 errors during collection !!!!!!!!!!!!!!!!!!!
-============================== 15 errors in 1.12s ==============================
+============================== 15 errors in 0.89s ==============================
