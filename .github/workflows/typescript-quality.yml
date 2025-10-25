@@ -1,0 +1,233 @@
+name: TypeScript Code Quality
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**/*.ts'
+      - 'frontend/**/*.tsx'
+      - 'frontend/package.json'
+      - 'frontend/tsconfig.json'
+      - '.github/workflows/typescript-quality.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend/**/*.ts'
+      - 'frontend/**/*.tsx'
+      - 'frontend/package.json'
+      - 'frontend/tsconfig.json'
+
+jobs:
+  typescript-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    # Allow skipping with label
+    if: |
+      !contains(github.event.pull_request.labels.*.name, 'skip-quality-checks')
+    
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: ESLint check
+        id: eslint
+        continue-on-error: true
+        run: |
+          echo "## ESLint Check" >> $GITHUB_STEP_SUMMARY
+          npm run lint 2>&1 | tee eslint-output.txt
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **ESLint: PASS**" >> $GITHUB_STEP_SUMMARY
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "errors=0" >> $GITHUB_OUTPUT
+          else
+            error_count=$(grep -c "error" eslint-output.txt || echo "0")
+            warning_count=$(grep -c "warning" eslint-output.txt || echo "0")
+            echo "❌ **ESLint: FAIL**" >> $GITHUB_STEP_SUMMARY
+            echo "- Errors: $error_count" >> $GITHUB_STEP_SUMMARY
+            echo "- Warnings: $warning_count" >> $GITHUB_STEP_SUMMARY
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "errors=$error_count" >> $GITHUB_OUTPUT
+          fi
+          exit $exit_code
+      
+      - name: TypeScript compile check
+        id: typescript
+        continue-on-error: true
+        run: |
+          echo "## TypeScript Compile Check" >> $GITHUB_STEP_SUMMARY
+          npm run type-check 2>&1 | tee typescript-output.txt
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **TypeScript: PASS**" >> $GITHUB_STEP_SUMMARY
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "errors=0" >> $GITHUB_OUTPUT
+          else
+            error_count=$(grep -c "error TS" typescript-output.txt || echo "0")
+            echo "❌ **TypeScript: FAIL** ($error_count errors)" >> $GITHUB_STEP_SUMMARY
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "errors=$error_count" >> $GITHUB_OUTPUT
+          fi
+          exit $exit_code
+      
+      - name: Prettier format check
+        id: prettier
+        continue-on-error: true
+        run: |
+          echo "## Prettier Format Check" >> $GITHUB_STEP_SUMMARY
+          npm run format:check 2>&1 | tee prettier-output.txt
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **Prettier: PASS**" >> $GITHUB_STEP_SUMMARY
+            echo "status=PASS" >> $GITHUB_OUTPUT
+            echo "errors=0" >> $GITHUB_OUTPUT
+          else
+            error_count=$(grep -c "Code style issues" prettier-output.txt || echo "0")
+            echo "❌ **Prettier: FAIL**" >> $GITHUB_STEP_SUMMARY
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            echo "errors=$error_count" >> $GITHUB_OUTPUT
+          fi
+          exit $exit_code
+      
+      - name: Run tests with coverage
+        id: jest
+        run: |
+          echo "## Jest Coverage" >> $GITHUB_STEP_SUMMARY
+          npm run test:coverage 2>&1 | tee jest-output.txt
+          
+          # Extract coverage percentage from coverage-summary.json
+          if [ -f coverage/coverage-summary.json ]; then
+            coverage_pct=$(cat coverage/coverage-summary.json | grep -oP '"lines":\s*{\s*"pct":\s*\K[0-9.]+' | head -1 || echo "0")
+          else
+            coverage_pct=$(grep -oP "All files.*\|\s*\K[0-9.]+" jest-output.txt | head -1 || echo "0")
+          fi
+          
+          echo "coverage_pct=$coverage_pct" >> $GITHUB_OUTPUT
+          
+          # Convert to integer for comparison
+          coverage_int=$(echo "$coverage_pct" | cut -d. -f1)
+          
+          if [ "$coverage_int" -ge 80 ]; then
+            echo "✅ **Coverage: ${coverage_pct}%** (meets 80% threshold)" >> $GITHUB_STEP_SUMMARY
+            echo "status=PASS" >> $GITHUB_OUTPUT
+          else
+            echo "❌ **Coverage: ${coverage_pct}%** (below 80% threshold)" >> $GITHUB_STEP_SUMMARY
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Bundle size analysis
+        id: bundle
+        continue-on-error: true
+        run: |
+          echo "## Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
+          npm run build 2>&1 | tee build-output.txt
+          
+          # Calculate bundle size
+          if [ -d dist ]; then
+            bundle_size=$(du -sh dist | cut -f1)
+            echo "📦 **Bundle size**: $bundle_size" >> $GITHUB_STEP_SUMMARY
+            echo "size=$bundle_size" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  **Bundle size**: Unable to determine" >> $GITHUB_STEP_SUMMARY
+            echo "size=unknown" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: typescript-quality
+          name: typescript-quality-coverage
+          fail_ci_if_error: false
+      
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: typescript-coverage-reports
+          path: |
+            frontend/coverage/
+            frontend/eslint-output.txt
+            frontend/typescript-output.txt
+            frontend/prettier-output.txt
+            frontend/jest-output.txt
+      
+      - name: Post PR comment with results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const eslint_status = '${{ steps.eslint.outputs.status }}' || 'FAIL';
+            const eslint_errors = '${{ steps.eslint.outputs.errors }}' || '0';
+            const typescript_status = '${{ steps.typescript.outputs.status }}' || 'FAIL';
+            const typescript_errors = '${{ steps.typescript.outputs.errors }}' || '0';
+            const prettier_status = '${{ steps.prettier.outputs.status }}' || 'FAIL';
+            const coverage_pct = '${{ steps.jest.outputs.coverage_pct }}' || '0';
+            const coverage_status = '${{ steps.jest.outputs.status }}' || 'FAIL';
+            const bundle_size = '${{ steps.bundle.outputs.size }}' || 'unknown';
+            
+            const eslint_icon = eslint_status === 'PASS' ? '✅' : '❌';
+            const typescript_icon = typescript_status === 'PASS' ? '✅' : '❌';
+            const prettier_icon = prettier_status === 'PASS' ? '✅' : '❌';
+            const coverage_icon = coverage_status === 'PASS' ? '✅' : '❌';
+            
+            const comment = `## 🎨 TypeScript/Frontend Code Quality Results
+            
+            ${eslint_icon} **ESLint**: ${eslint_status}${eslint_status === 'FAIL' ? ` (${eslint_errors} errors)` : ''}
+            ${typescript_icon} **TypeScript**: ${typescript_status}${typescript_status === 'FAIL' ? ` (${typescript_errors} errors)` : ''}
+            ${prettier_icon} **Prettier**: ${prettier_status}
+            ${coverage_icon} **Coverage**: ${coverage_pct}%${coverage_status === 'FAIL' ? ' (below 80% threshold)' : ' (meets threshold)'}
+            📦 **Bundle size**: ${bundle_size}
+            
+            📋 [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ${eslint_status === 'FAIL' || typescript_status === 'FAIL' || prettier_status === 'FAIL' || coverage_status === 'FAIL' ? '⚠️ **Action required**: Please address the failing checks above.' : '✅ **All quality checks passed!**'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Fail workflow if any check failed
+        if: always()
+        run: |
+          eslint_status="${{ steps.eslint.outcome }}"
+          typescript_status="${{ steps.typescript.outcome }}"
+          prettier_status="${{ steps.prettier.outcome }}"
+          jest_status="${{ steps.jest.outcome }}"
+          
+          if [ "$eslint_status" != "success" ] || [ "$typescript_status" != "success" ] || \
+             [ "$prettier_status" != "success" ] || [ "$jest_status" != "success" ]; then
+            echo "❌ One or more quality checks failed"
+            echo "ESLint: $eslint_status"
+            echo "TypeScript: $typescript_status"
+            echo "Prettier: $prettier_status"
+            echo "Jest: $jest_status"
+            exit 1
+          else
+            echo "✅ All quality checks passed"
+            exit 0
+          fi

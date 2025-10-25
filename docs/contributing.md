@@ -117,6 +117,142 @@ Fixes #123
 
 Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `chore`
 
+## Quality Standards
+
+All code contributions must meet strict quality standards enforced by automated CI/CD checks:
+
+### Code Quality Requirements
+
+#### Minimum Coverage Threshold
+- **Backend (Python)**: 80% code coverage minimum
+- **Frontend (TypeScript)**: 80% code coverage minimum
+- Coverage must not drop below threshold when adding new features
+
+#### Python Quality Standards
+- **Black**: All Python code must be formatted with Black (line length: 100)
+- **Ruff**: Zero linting errors allowed (warnings acceptable with justification)
+- **mypy**: Type checking must pass with project configuration
+- **Testing**: All pytest tests must pass
+
+#### TypeScript Quality Standards
+- **ESLint**: Zero errors allowed (configured rules must pass)
+- **TypeScript**: Strict mode enabled, no compilation errors
+- **Prettier**: Code must be formatted according to project style
+- **Testing**: All Vitest tests must pass
+
+### Pre-commit Hooks Setup
+
+Install pre-commit hooks to catch issues before pushing:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+Pre-commit hooks will automatically:
+- Format code with Black and Prettier
+- Run Ruff linting with auto-fix
+- Check for trailing whitespace
+- Validate YAML, JSON, and TOML files
+- Check for large files and merge conflicts
+
+### Local Testing Before Push
+
+**Always run local CI checks before pushing:**
+
+```bash
+# Run all quality checks (Python + TypeScript)
+make quality-check
+
+# Run security scans
+make security-scan
+
+# Run complete local CI simulation
+make ci-local
+```
+
+Individual quality checks:
+
+```bash
+# Python quality checks
+make lint-python           # Run Black and Ruff
+make format-python         # Auto-format code
+make type-check-python     # Run mypy
+make test-python          # Run pytest with coverage
+
+# TypeScript quality checks
+make lint-typescript       # Run ESLint
+make format-typescript     # Run Prettier
+make type-check-typescript # Run tsc --noEmit
+make test-typescript      # Run Vitest with coverage
+```
+
+### Pull Request Requirements
+
+All PRs must meet these requirements to be merged:
+
+1. ✅ **All CI checks pass**
+   - Python quality workflow passes
+   - TypeScript quality workflow passes
+   - Security scan passes (or findings explained)
+   
+2. ✅ **Code coverage maintained**
+   - Coverage reports show ≥80% coverage
+   - No significant coverage drops
+   
+3. ✅ **No linting/formatting errors**
+   - Black formatting check passes
+   - Ruff linting passes
+   - ESLint passes
+   - Prettier check passes
+   
+4. ✅ **Type checking passes**
+   - mypy reports no errors
+   - TypeScript compilation successful
+   
+5. ✅ **All tests pass**
+   - pytest suite passes
+   - Vitest suite passes
+   - No test skips without justification
+
+6. ✅ **Code review approved**
+   - At least one maintainer approval
+   - All comments addressed or discussed
+
+### Exception Process
+
+In rare cases, quality checks may be skipped:
+
+**When to skip:**
+- Documentation-only changes (may skip some tests)
+- Emergency hotfixes (with maintainer approval)
+- Known false positives in security scans
+
+**How to skip:**
+1. Add label `skip-quality-checks` to PR (requires maintainer)
+2. For security findings: Comment `@github-actions ignore-security-findings`
+3. Document reason in PR description
+4. Commit to fix in follow-up PR if appropriate
+
+**Note:** Coverage threshold cannot be skipped. If coverage drops, either:
+- Add tests to maintain coverage
+- Justify why coverage drop is acceptable (rare)
+
+### Security Standards
+
+- **No hardcoded secrets**: Use environment variables
+- **Dependency scanning**: All dependencies scanned for vulnerabilities
+- **Container scanning**: All Docker images scanned with Trivy
+- **Code scanning**: Bandit scans Python for security issues
+
+Security findings are reported in PR comments. Address all HIGH and CRITICAL findings before merge.
+
 ### Pull Request Process
 
 1. **Create descriptive PR**
