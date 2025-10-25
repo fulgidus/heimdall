@@ -7,6 +7,14 @@
 [![License: CC Non-Commercial](https://img.shields.io/badge/License-CC%20Non--Commercial-orange.svg)](LICENSE)
 [![Status: In Development](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](AGENTS.md)
 [![Community: Amateur Radio](https://img.shields.io/badge/Community-Amateur%20Radio-blue.svg)](https://www.iaru.org/)
+
+[![CI Tests](https://github.com/fulgidus/heimdall/workflows/CI%20Tests/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/ci-test.yml)
+[![Python Quality](https://github.com/fulgidus/heimdall/workflows/Python%20Code%20Quality/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/python-quality.yml)
+[![TypeScript Quality](https://github.com/fulgidus/heimdall/workflows/TypeScript%20Code%20Quality/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/typescript-quality.yml)
+[![Security Scan](https://github.com/fulgidus/heimdall/workflows/Security%20Scanning/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/security-scan.yml)
+[![E2E Tests](https://github.com/fulgidus/heimdall/workflows/E2E%20Tests/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/e2e-tests.yml)
+[![Integration Tests](https://github.com/fulgidus/heimdall/workflows/Integration%20Tests/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/integration-tests.yml)
+
 [![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/develop/docs/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/)
 
 ---
