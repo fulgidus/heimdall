@@ -404,7 +404,7 @@ const Dashboard: React.FC = () => {
                                             <div className="d-flex align-items-center justify-content-between">
                                                 <div className="flex-grow-1">
                                                     <h6 className="mb-0 text-capitalize">
-                                                        {name.replace('-', ' ')}
+                                                        {name.replace(/-/g, ' ')}
                                                     </h6>
                                                 </div>
                                                 <div className="flex-shrink-0">

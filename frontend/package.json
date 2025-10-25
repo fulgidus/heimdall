@@ -1,3 +1,4 @@
+
 {
     "name": "frontend",
     "private": true,
@@ -12,6 +13,9 @@
         "test": "vitest run",
         "test:ui": "vitest --ui",
         "test:run": "vitest run",
+        "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.reporter=html",
+        "coverage:full": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=html --coverage.reportsDirectory=./coverage",
+        "coverage:report": "open ./coverage/index.html || xdg-open ./coverage/index.html",
         "test:e2e": "playwright test",
         "test:e2e:ui": "playwright test --ui",
         "test:e2e:headed": "playwright test --headed",
@@ -54,6 +58,7 @@
         "@types/react": "^19.1.16",
         "@types/react-dom": "^19.1.9",
         "@vitejs/plugin-react": "^5.0.4",
+        "@vitest/coverage-v8": "^3.2.4",
         "eslint": "^9.36.0",
         "eslint-plugin-react-hooks": "^5.2.0",
         "eslint-plugin-react-refresh": "^0.4.22",
