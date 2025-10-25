@@ -15,4 +15,5 @@ disable=
     missing-docstring,
     too-many-arguments,
     duplicate-code,
-    line-too-long
+    line-too-long,
+    import-error

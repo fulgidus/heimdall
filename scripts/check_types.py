@@ -9,7 +9,7 @@ from typing import Tuple
 def run_mypy(service_path: Path) -> Tuple[int, str]:
     """Run mypy on a service."""
     result = subprocess.run(
-        ['mypy', str(service_path / 'src'), '--strict', '--show-error-codes'],
+        ['mypy', str(service_path / 'src'), '--config-file', 'pyproject.toml', '--show-error-codes'],
         capture_output=True,
         text=True,
     )

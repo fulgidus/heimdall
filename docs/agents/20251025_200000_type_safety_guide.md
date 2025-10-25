@@ -6,22 +6,36 @@
 
 ## Overview
 
-This guide covers type checking and static analysis practices for the Heimdall SDR project. All Python code should follow strict type safety standards to catch bugs early and improve code reliability.
+This guide covers type checking and static analysis practices for the Heimdall SDR project. The project uses a **gradual adoption** approach where:
+
+- **New shared code** in `services/common/` must pass strict type checking
+- **Existing services** use relaxed type checking with warnings enabled
+- **All code** benefits from static analysis (pylint, flake8)
+
+This pragmatic approach allows us to improve type safety incrementally without requiring massive changes to existing code.
 
 ## Type Checking with mypy
 
 ### Configuration
 
-The project uses strict mypy configuration defined in `pyproject.toml`:
+The project uses gradual type checking defined in `pyproject.toml`:
 
 ```toml
 [tool.mypy]
 python_version = "3.11"
-strict = true
+# Warnings enabled, strict checks disabled for existing code
+check_untyped_defs = true
 warn_return_any = true
+warn_no_return = true
+
+# Strict mode for new shared code
+[[tool.mypy.overrides]]
+module = "services.common.*"
 disallow_untyped_defs = true
-disallow_untyped_calls = true
+disallow_incomplete_defs = true
 ```
+
+This allows existing services to continue working while ensuring new shared code is fully typed.
 
 ### Running Type Checks
 

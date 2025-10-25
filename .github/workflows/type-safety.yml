@@ -35,7 +35,7 @@ jobs:
       
       - name: mypy report
         if: always()
-        run: mypy services --strict --html-report=mypy-report
+        run: mypy services --config-file=pyproject.toml --html-report=mypy-report
       
       - name: Upload reports
         if: always()

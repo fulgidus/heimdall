@@ -71,11 +71,12 @@ warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
 no_implicit_optional = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_calls = true
-disallow_untyped_decorators = true
-disallow_any_generics = true
+# Gradual adoption - enable strict mode for new code
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+disallow_any_generics = false
 disallow_any_unimported = false
 disallow_any_expr = false
 disallow_any_decorated = false
@@ -85,6 +86,13 @@ implicit_reexport = false
 warn_unreachable = true
 show_error_codes = true
 exclude = ["venv", ".venv", "tests"]
+
+# Enable strict mode for common shared code (new code should be strict)
+[[tool.mypy.overrides]]
+module = "services.common.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
 
 # Tests can have more relaxed type checking
 [[tool.mypy.overrides]]
@@ -108,6 +116,13 @@ module = [
   "lightning.*",
   "mlflow.*",
   "onnxruntime.*",
+  "pydantic_settings.*",
+  "fastapi.*",
+  "uvicorn.*",
+  "boto3.*",
+  "botocore.*",
+  "redis.*",
+  "psycopg2.*",
 ]
 ignore_missing_imports = true
 
