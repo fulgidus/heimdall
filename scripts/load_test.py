@@ -399,7 +399,7 @@ System is ready for:
 - **AGENTS.md**: Phase 4 task definitions (A1-B1)
 - **PHASE4_PROGRESS_DASHBOARD.md**: Overall phase tracking
 - **PHASE4_TASK_A3_PERFORMANCE_REPORT.md**: API/Celery benchmarks
-- **docker-compose.yml**: Service configuration
+- **docker compose.yml**: Service configuration
 - **services/rf-acquisition/**: Task submission and processing
 
 **Report Status**: ✅ COMPLETE  

@@ -83,7 +83,7 @@ jobs:
         run: |
           echo "🚀 Starting essential backend services for E2E tests..."
           # Start infrastructure first
-          docker compose -f docker-compose.yml up -d postgres redis
+          docker compose -f docker compose.yml up -d postgres redis
 
           # Build and start only essential microservices to save disk space
           # Skip training service as it's not needed for E2E tests

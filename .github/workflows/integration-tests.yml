@@ -18,7 +18,7 @@ jobs:
 
     # Define credentials once for the entire job
     env:
-      # PostgreSQL credentials (must match docker-compose and .env.example)
+      # PostgreSQL credentials (must match docker compose and .env.example)
       POSTGRES_DB: heimdall
       POSTGRES_USER: heimdall_user
       POSTGRES_PASSWORD: changeme

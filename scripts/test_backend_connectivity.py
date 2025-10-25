@@ -123,12 +123,12 @@ def main():
    
    2. Verify API Gateway is running:
       - Should be at http://localhost:8000/health
-      - If 404, restart: docker-compose up -d api-gateway
+      - If 404, restart: docker compose up -d api-gateway
    
    3. Check Docker if using containers:
       - docker ps | grep api-gateway
       - docker logs api-gateway
-      - docker-compose up -d  (to restart all services)
+      - docker compose up -d  (to restart all services)
         """)
         return 1
     
