@@ -29,8 +29,8 @@ services:
   # RF Acquisition Service
   rf-acquisition:
     build:
-      context: ./services
-      dockerfile: rf-acquisition/Dockerfile
+      context: ./services/rf-acquisition
+      dockerfile: Dockerfile
     container_name: heimdall-rf-acquisition
     ports:
       - "8001:8001"
@@ -79,8 +79,8 @@ services:
   # Inference Service
   inference:
     build:
-      context: ./services
-      dockerfile: inference/Dockerfile
+      context: ./services/inference
+      dockerfile: Dockerfile
     container_name: heimdall-inference
     ports:
       - "8003:8003"
@@ -104,8 +104,8 @@ services:
   # Data Ingestion Web Service
   data-ingestion-web:
     build:
-      context: ./services
-      dockerfile: data-ingestion-web/Dockerfile
+      context: ./services/data-ingestion-web
+      dockerfile: Dockerfile
     container_name: heimdall-data-ingestion-web
     ports:
       - "8004:8004"
