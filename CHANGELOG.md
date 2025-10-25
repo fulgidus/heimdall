@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Frontend Tests**: Fixed all 283 frontend test failures (2025-10-25)
+  - Added React to global scope in vitest test setup to resolve "React is not defined" errors
+  - Fixed authStore test expectations to match API Gateway endpoint instead of Keycloak
+  - All test files now properly support JSX syntax in React 19 with new JSX transform
+  - 100% test success rate: 283 tests passing across 19 test files
+  - Test execution time: ~14 seconds
+  - Changes: frontend/src/test/setup.ts (added global React), frontend/src/store/authStore.test.ts (fixed endpoint)
+
 ### Added
 - **Frontend Rebuild Phase 8**: Docker Integration (In Progress)
   - Updated Dockerfile to use Node 20 (required for rolldown-vite)
