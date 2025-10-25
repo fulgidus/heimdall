@@ -24,7 +24,7 @@ def create_coverage_index():
                 branches.append({
                     'name': 'Backend',
                     'coverage': percent,
-                    'path': 'backend/index.html',
+                    'path': 'backend_latest/index.html',
                     'type': 'Backend (Python)'
                 })
         except:
@@ -35,7 +35,7 @@ def create_coverage_index():
         branches.append({
             'name': 'Frontend',
             'coverage': 0,  # Sarà aggiornato dal report
-            'path': 'frontend/index.html',
+            'path': 'frontend_latest/index.html',
             'type': 'Frontend (TypeScript/React)'
         })
     
