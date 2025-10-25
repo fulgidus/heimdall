@@ -10,6 +10,13 @@ import asyncio
 from datetime import datetime
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
+import sys
+from pathlib import Path
+
+# Add rf-acquisition tests to path for importing mocks
+rf_acq_tests = Path(__file__).parent.parent / "rf-acquisition" / "tests"
+if str(rf_acq_tests) not in sys.path:
+    sys.path.insert(0, str(rf_acq_tests))
 
 
 pytestmark = pytest.mark.e2e
@@ -18,7 +25,7 @@ pytestmark = pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_e2e_acquire_and_store(test_config):
     """Test complete acquisition -> processing -> storage workflow."""
-    from services.rf_acquisition.tests.mock_websdrs import create_mock_fetcher
+    from mock_websdrs import create_mock_fetcher
     
     # Setup mock fetcher
     mock_fetcher = create_mock_fetcher(receiver_count=7)
@@ -48,7 +55,7 @@ async def test_e2e_acquire_and_store(test_config):
 @pytest.mark.asyncio
 async def test_e2e_partial_failure_handling():
     """Test behavior when some receivers fail."""
-    from services.rf_acquisition.tests.mock_websdrs import create_mock_fetcher
+    from mock_websdrs import create_mock_fetcher
     
     # Simulate 2 receivers failing
     mock_fetcher = create_mock_fetcher(
@@ -77,7 +84,7 @@ async def test_e2e_partial_failure_handling():
 @pytest.mark.asyncio
 async def test_e2e_concurrent_acquisitions():
     """Test multiple concurrent acquisitions."""
-    from services.rf_acquisition.tests.mock_websdrs import create_mock_fetcher
+    from mock_websdrs import create_mock_fetcher
     
     num_concurrent = 5
     mock_fetcher = create_mock_fetcher(receiver_count=7)
@@ -108,7 +115,7 @@ async def test_e2e_concurrent_acquisitions():
 @pytest.mark.asyncio
 async def test_e2e_signal_quality_metrics():
     """Test that signal quality metrics are computed correctly."""
-    from services.rf_acquisition.tests.mock_websdrs import MockWebSDRReceiver
+    from mock_websdrs import MockWebSDRReceiver
     import numpy as np
     
     receiver = MockWebSDRReceiver("test-receiver", 145.0)
@@ -141,7 +148,7 @@ async def test_e2e_signal_quality_metrics():
 @pytest.mark.asyncio
 async def test_e2e_receiver_reconnection():
     """Test receiver reconnection after failure."""
-    from services.rf_acquisition.tests.mock_websdrs import MockWebSDRReceiver
+    from mock_websdrs import MockWebSDRReceiver
     
     receiver = MockWebSDRReceiver("test-receiver", 145.0)
     
@@ -167,7 +174,7 @@ async def test_e2e_receiver_reconnection():
 @pytest.mark.asyncio
 async def test_e2e_data_validation():
     """Test IQ data validation."""
-    from services.rf_acquisition.tests.mock_websdrs import create_mock_websdrs
+    from mock_websdrs import create_mock_websdrs
     import numpy as np
     
     receivers = create_mock_websdrs(count=3)
@@ -196,7 +203,7 @@ async def test_e2e_data_validation():
 @pytest.mark.asyncio
 async def test_e2e_fetch_count_tracking():
     """Test that fetch count is tracked correctly."""
-    from services.rf_acquisition.tests.mock_websdrs import create_mock_fetcher
+    from mock_websdrs import create_mock_fetcher
     
     mock_fetcher = create_mock_fetcher(receiver_count=7)
     

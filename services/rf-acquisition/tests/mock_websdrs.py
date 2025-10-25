@@ -42,7 +42,7 @@ class MockWebSDRReceiver:
         return {
             'iq_data': iq_data,
             'sample_rate': sample_rate,
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(datetime.UTC).isoformat() if hasattr(datetime, 'UTC') else datetime.utcnow().isoformat(),
             'receiver_id': self.receiver_id,
             'frequency_mhz': frequency_mhz,
             'duration_seconds': duration_seconds,

@@ -9,11 +9,6 @@ import pytest
 import os
 import asyncio
 from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-import redis
-import pika
 
 # Test database configuration
 TEST_DB_URL = "sqlite:///:memory:"
@@ -30,35 +25,45 @@ def event_loop():
 @pytest.fixture(scope="session")
 def test_db_engine():
     """Create in-memory test database."""
-    engine = create_engine(
-        TEST_DB_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    # Create all tables
-    # Base.metadata.create_all(engine)
-    yield engine
-    engine.dispose()
+    try:
+        from sqlalchemy import create_engine
+        from sqlalchemy.pool import StaticPool
+        
+        engine = create_engine(
+            TEST_DB_URL,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        yield engine
+        engine.dispose()
+    except ImportError:
+        pytest.skip("SQLAlchemy not installed")
 
 
 @pytest.fixture
-def test_db_session(test_db_engine) -> Generator[Session, None, None]:
+def test_db_session(test_db_engine):
     """Provide isolated database session per test."""
-    connection = test_db_engine.connect()
-    transaction = connection.begin()
-    session = sessionmaker(bind=connection)()
-    
-    yield session
-    
-    session.close()
-    transaction.rollback()
-    connection.close()
+    try:
+        from sqlalchemy.orm import sessionmaker, Session
+        
+        connection = test_db_engine.connect()
+        transaction = connection.begin()
+        session = sessionmaker(bind=connection)()
+        
+        yield session
+        
+        session.close()
+        transaction.rollback()
+        connection.close()
+    except ImportError:
+        pytest.skip("SQLAlchemy not installed")
 
 
 @pytest.fixture
 def mock_redis():
     """Mock Redis for testing."""
     try:
+        import redis
         with redis.Redis(
             host=os.getenv('REDIS_HOST', 'localhost'),
             port=int(os.getenv('REDIS_PORT', 6379)),
@@ -68,8 +73,7 @@ def mock_redis():
             r.flushdb()  # Clean test database
             yield r
             r.flushdb()
-    except redis.ConnectionError:
-        # If Redis is not available, skip tests that need it
+    except (ImportError, Exception):
         pytest.skip("Redis not available for testing")
 
 
@@ -77,6 +81,7 @@ def mock_redis():
 def mock_rabbitmq():
     """Mock RabbitMQ connection."""
     try:
+        import pika
         credentials = pika.PlainCredentials(
             os.getenv('RABBITMQ_USER', 'guest'),
             os.getenv('RABBITMQ_PASS', 'guest')
@@ -92,8 +97,7 @@ def mock_rabbitmq():
         channel = connection.channel()
         yield channel
         connection.close()
-    except pika.exceptions.AMQPConnectionError:
-        # If RabbitMQ is not available, skip tests that need it
+    except (ImportError, Exception):
         pytest.skip("RabbitMQ not available for testing")
 
 
@@ -109,8 +113,7 @@ def mock_s3_client():
             secure=False
         )
         yield client
-    except Exception:
-        # If MinIO is not available, skip tests that need it
+    except (ImportError, Exception):
         pytest.skip("MinIO not available for testing")
 
 
@@ -131,9 +134,13 @@ def test_config():
 @pytest.fixture
 def test_client_factory(test_config):
     """Factory for creating test FastAPI clients."""
-    from fastapi.testclient import TestClient
-    
-    def create_client(app):
-        return TestClient(app)
-    
-    return create_client
+    try:
+        from fastapi.testclient import TestClient
+        
+        def create_client(app):
+            return TestClient(app)
+        
+        return create_client
+    except ImportError:
+        pytest.skip("FastAPI not installed")
+
