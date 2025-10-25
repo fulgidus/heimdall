@@ -34,6 +34,8 @@ interface DashboardStore {
     isLoading: boolean;
     error: string | null;
     lastUpdate: Date | null;
+    retryCount: number;
+    retryDelay: number;
     // WebSocket state
     wsManager: WebSocketManager | null;
     wsConnectionState: ConnectionState;
@@ -75,6 +77,8 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     isLoading: false,
     error: null,
     lastUpdate: null,
+    retryCount: 0,
+    retryDelay: 1000,
     // WebSocket state
     wsManager: null,
     wsConnectionState: ConnectionState.DISCONNECTED,
