@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">20.96% </span>
+                <span class="strong">19.4% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>13/62</span>
+                <span class='fraction'>13/67</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">20.96% </span>
+                <span class="strong">19.4% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>13/62</span>
+                <span class='fraction'>13/67</span>
             </div>
         
             
@@ -154,7 +154,12 @@
 <a name='L89'></a><a href='#L89'>89</a>
 <a name='L90'></a><a href='#L90'>90</a>
 <a name='L91'></a><a href='#L91'>91</a>
-<a name='L92'></a><a href='#L92'>92</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -183,17 +188,11 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -201,6 +200,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -224,14 +232,16 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -273,6 +283,7 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >                &lt;div</span>
 <span class="cstat-no" title="statement not covered" >                    className="fixed inset-0 bg-oxford-blue bg-opacity-50 lg:hidden z-30"</span>
 <span class="cstat-no" title="statement not covered" >                    onClick={onClose}</span>
+<span class="cstat-no" title="statement not covered" >                    aria-hidden="true"</span>
 <span class="cstat-no" title="statement not covered" >                /&gt;</span>
             )}
 &nbsp;
@@ -280,6 +291,7 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >            &lt;aside</span>
 <span class="cstat-no" title="statement not covered" >                className={`fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-oxford-blue to-sea-green border-r border-neon-blue border-opacity-20 transform transition-transform duration-300 ease-in-out z-40 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'</span>
 <span class="cstat-no" title="statement not covered" >                    }`}</span>
+<span class="cstat-no" title="statement not covered" >                aria-label="Main navigation"</span>
             &gt;
                 {/* Logo */}
 <span class="cstat-no" title="statement not covered" >                &lt;div className="p-6 border-b border-neon-blue border-opacity-20"&gt;</span>
@@ -290,7 +302,7 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >                &lt;/div&gt;</span>
 &nbsp;
                 {/* Navigation */}
-<span class="cstat-no" title="statement not covered" >                &lt;nav className="p-4 flex-1"&gt;</span>
+<span class="cstat-no" title="statement not covered" >                &lt;nav className="p-4 flex-1" aria-label="Primary navigation"&gt;</span>
 <span class="cstat-no" title="statement not covered" >                    {navigation.map((item) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >                        const isActive = location.pathname === item.path;</span>
 <span class="cstat-no" title="statement not covered" >                        return (</span>
@@ -301,8 +313,9 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >                                        ? 'bg-neon-blue bg-opacity-20 text-light-green border border-light-green border-opacity-50'</span>
 <span class="cstat-no" title="statement not covered" >                                        : 'text-french-gray hover:bg-sea-green hover:bg-opacity-10 hover:text-light-green'</span>
 <span class="cstat-no" title="statement not covered" >                                    }`}</span>
+<span class="cstat-no" title="statement not covered" >                                aria-current={isActive ? 'page' : undefined}</span>
                             &gt;
-<span class="cstat-no" title="statement not covered" >                                &lt;span className="text-lg"&gt;{item.icon}&lt;/span&gt;</span>
+<span class="cstat-no" title="statement not covered" >                                &lt;span className="text-lg" aria-hidden="true"&gt;{item.icon}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                                &lt;span className="font-medium"&gt;{item.name}&lt;/span&gt;</span>
 <span class="cstat-no" title="statement not covered" >                            &lt;/Link&gt;</span>
                         );
@@ -315,8 +328,9 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >                        variant="danger"</span>
 <span class="cstat-no" title="statement not covered" >                        size="sm"</span>
 <span class="cstat-no" title="statement not covered" >                        className="w-full flex items-center justify-center gap-2"</span>
+<span class="cstat-no" title="statement not covered" >                        aria-label="Logout from application"</span>
                     &gt;
-<span class="cstat-no" title="statement not covered" >                        &lt;LogOut size={16} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >                        &lt;LogOut size={16} aria-hidden="true" /&gt;</span>
                         Logout
 <span class="cstat-no" title="statement not covered" >                    &lt;/Button&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;/div&gt;</span>
@@ -327,8 +341,9 @@ const Sidebar: React.FC&lt;SidebarProps&gt; = <span class="fstat-no" title="func
 <span class="cstat-no" title="statement not covered" >                &lt;button</span>
 <span class="cstat-no" title="statement not covered" >                    onClick={onClose}</span>
 <span class="cstat-no" title="statement not covered" >                    className="fixed top-4 right-4 lg:hidden z-50 p-2 bg-neon-blue rounded-lg"</span>
+<span class="cstat-no" title="statement not covered" >                    aria-label="Close navigation menu"</span>
                 &gt;
-<span class="cstat-no" title="statement not covered" >                    &lt;X size={24} /&gt;</span>
+<span class="cstat-no" title="statement not covered" >                    &lt;X size={24} aria-hidden="true" /&gt;</span>
 <span class="cstat-no" title="statement not covered" >                &lt;/button&gt;</span>
             )}
 <span class="cstat-no" title="statement not covered" >        &lt;/&gt;</span>
@@ -343,7 +358,7 @@ export default Sidebar;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-25T09:49:00.681Z
+                at 2025-10-25T17:15:56.103Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

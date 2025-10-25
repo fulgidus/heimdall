@@ -970,7 +970,7 @@ const DataIngestion: React.FC = () =&gt; {
 &nbsp;
             {/* Statistics Cards */}
             &lt;div className="row"&gt;
-                &lt;div className="col-md-6 col-xl-3"&gt;
+                &lt;div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3"&gt;
                     &lt;div className="card"&gt;
                         &lt;div className="card-body"&gt;
                             &lt;div className="d-flex align-items-center"&gt;
@@ -994,7 +994,7 @@ const DataIngestion: React.FC = () =&gt; {
                     &lt;/div&gt;
                 &lt;/div&gt;
 &nbsp;
-                &lt;div className="col-md-6 col-xl-3"&gt;
+                &lt;div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3"&gt;
                     &lt;div className="card"&gt;
                         &lt;div className="card-body"&gt;
                             &lt;div className="d-flex align-items-center"&gt;
@@ -1018,7 +1018,7 @@ const DataIngestion: React.FC = () =&gt; {
                     &lt;/div&gt;
                 &lt;/div&gt;
 &nbsp;
-                &lt;div className="col-md-6 col-xl-3"&gt;
+                &lt;div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3"&gt;
                     &lt;div className="card"&gt;
                         &lt;div className="card-body"&gt;
                             &lt;div className="d-flex align-items-center"&gt;
@@ -1042,7 +1042,7 @@ const DataIngestion: React.FC = () =&gt; {
                     &lt;/div&gt;
                 &lt;/div&gt;
 &nbsp;
-                &lt;div className="col-md-6 col-xl-3"&gt;
+                &lt;div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3"&gt;
                     &lt;div className="card"&gt;
                         &lt;div className="card-body"&gt;
                             &lt;div className="d-flex align-items-center"&gt;
@@ -1133,9 +1133,9 @@ const DataIngestion: React.FC = () =&gt; {
                                                     &lt;tr&gt;
                                                         &lt;th&gt;Name&lt;/th&gt;
                                                         &lt;th&gt;Frequency&lt;/th&gt;
-                                                        &lt;th&gt;Location&lt;/th&gt;
-                                                        &lt;th&gt;Coordinates&lt;/th&gt;
-                                                        &lt;th&gt;Power&lt;/th&gt;
+                                                        &lt;th className="d-none d-md-table-cell"&gt;Location&lt;/th&gt;
+                                                        &lt;th className="d-none d-lg-table-cell"&gt;Coordinates&lt;/th&gt;
+                                                        &lt;th className="d-none d-lg-table-cell"&gt;Power&lt;/th&gt;
                                                         &lt;th&gt;Validated&lt;/th&gt;
                                                         &lt;th&gt;Actions&lt;/th&gt;
                                                     &lt;/tr&gt;
@@ -1157,11 +1157,11 @@ const DataIngestion: React.FC = () =&gt; {
                                                                 &lt;/div&gt;
                                                             &lt;/td&gt;
                                                             &lt;td&gt;{(source.frequency_hz / 1e6).toFixed(3)} MHz&lt;/td&gt;
-                                                            &lt;td&gt;{source.source_type || '-'}&lt;/td&gt;
-                                                            &lt;td className="f-12"&gt;
+                                                            &lt;td className="d-none d-md-table-cell"&gt;{source.source_type || '-'}&lt;/td&gt;
+                                                            &lt;td className="f-12 d-none d-lg-table-cell"&gt;
                                                                 {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
                                                             &lt;/td&gt;
-                                                            &lt;td&gt;{source.<span class="branch-0 cbranch-no" title="branch not covered" >power_dbm ? `${source.power_dbm} dBm` : '</span>-'}&lt;/td&gt;
+                                                            &lt;td className="d-none d-lg-table-cell"&gt;{source.<span class="branch-0 cbranch-no" title="branch not covered" >power_dbm ? `${source.power_dbm} dBm` : '</span>-'}&lt;/td&gt;
                                                             &lt;td&gt;
                                                                 &lt;span className={`badge ${source.is_validated ? 'bg-light-success' : 'bg-light-warning'}`}&gt;
                                                                     {source.is_validated ? 'Yes' : 'Pending'}
@@ -1169,10 +1169,10 @@ const DataIngestion: React.FC = () =&gt; {
                                                             &lt;/td&gt;
                                                             &lt;td&gt;
                                                                 &lt;div className="btn-group"&gt;
-                                                                    &lt;button className="btn btn-sm btn-link-primary" title="View"&gt;
+                                                                    &lt;button className="btn btn-sm btn-link-primary touch-target" title="View"&gt;
                                                                         &lt;i className="ph ph-eye"&gt;&lt;/i&gt;
                                                                     &lt;/button&gt;
-                                                                    &lt;button className="btn btn-sm btn-link-secondary" title="Edit"&gt;
+                                                                    &lt;button className="btn btn-sm btn-link-secondary touch-target" title="Edit"&gt;
                                                                         &lt;i className="ph ph-pencil-simple"&gt;&lt;/i&gt;
                                                                     &lt;/button&gt;
                                                                 &lt;/div&gt;
@@ -1214,12 +1214,12 @@ const DataIngestion: React.FC = () =&gt; {
                                                 &lt;thead&gt;
                                                     &lt;tr&gt;
                                                         &lt;th&gt;Session&lt;/th&gt;
-                                                        &lt;th&gt;Source&lt;/th&gt;
-                                                        &lt;th&gt;Started&lt;/th&gt;
-                                                        &lt;th&gt;Duration&lt;/th&gt;
+                                                        &lt;th className="d-none d-sm-table-cell"&gt;Source&lt;/th&gt;
+                                                        &lt;th className="d-none d-md-table-cell"&gt;Started&lt;/th&gt;
+                                                        &lt;th className="d-none d-lg-table-cell"&gt;Duration&lt;/th&gt;
                                                         &lt;th&gt;Status&lt;/th&gt;
-                                                        &lt;th&gt;Approval&lt;/th&gt;
-                                                        &lt;th&gt;Measurements&lt;/th&gt;
+                                                        &lt;th className="d-none d-md-table-cell"&gt;Approval&lt;/th&gt;
+                                                        &lt;th className="d-none d-lg-table-cell"&gt;Measurements&lt;/th&gt;
                                                     &lt;/tr&gt;
                                                 &lt;/thead&gt;
                                                 &lt;tbody&gt;
@@ -1231,7 +1231,7 @@ const DataIngestion: React.FC = () =&gt; {
 <span class="cstat-no" title="statement not covered" >                                                                    &lt;p className="text-muted f-12 mb-0"&gt;{session.notes}&lt;/p&gt;</span>
                                                                 )}
                                                             &lt;/td&gt;
-                                                            &lt;td&gt;
+                                                            &lt;td className="d-none d-sm-table-cell"&gt;
                                                                 &lt;div&gt;
                                                                     &lt;div className="mb-1"&gt;{session.source_name}&lt;/div&gt;
                                                                     &lt;span className="f-12 text-muted"&gt;
@@ -1239,10 +1239,10 @@ const DataIngestion: React.FC = () =&gt; {
                                                                     &lt;/span&gt;
                                                                 &lt;/div&gt;
                                                             &lt;/td&gt;
-                                                            &lt;td className="f-12"&gt;
+                                                            &lt;td className="f-12 d-none d-md-table-cell"&gt;
                                                                 {session.<span class="branch-0 cbranch-no" title="branch not covered" >started_at ? new Date(session.started_at).toLocaleString() : '</span>Not started'}
                                                             &lt;/td&gt;
-                                                            &lt;td&gt;
+                                                            &lt;td className="d-none d-lg-table-cell"&gt;
                                                                 {session.duration_seconds
                                                                     ? `${Math.round(session.duration_seconds / 60)<span class="branch-0 cbranch-no" title="branch not covered" >}min`</span>
 <span class="cstat-no" title="statement not covered" >                                                                    : '-'}</span>
@@ -1261,7 +1261,7 @@ const DataIngestion: React.FC = () =&gt; {
                                                                     {session.status}
                                                                 &lt;/span&gt;
                                                             &lt;/td&gt;
-                                                            &lt;td&gt;
+                                                            &lt;td className="d-none d-md-table-cell"&gt;
                                                                 &lt;span
                                                                     className={`badge ${session.approval_status === <span class="branch-0 cbranch-no" title="branch not covered" >'approved'</span>
 <span class="cstat-no" title="statement not covered" >                                                                        ? 'bg-light-success'</span>
@@ -1273,7 +1273,7 @@ const DataIngestion: React.FC = () =&gt; {
                                                                     {session.approval_status}
                                                                 &lt;/span&gt;
                                                             &lt;/td&gt;
-                                                            &lt;td&gt;{session.measurements_count}&lt;/td&gt;
+                                                            &lt;td className="d-none d-lg-table-cell"&gt;{session.measurements_count}&lt;/td&gt;
                                                         &lt;/tr&gt;
                                                     ))}
                                                 &lt;/tbody&gt;
@@ -1303,7 +1303,7 @@ export default DataIngestion;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-25T09:49:00.681Z
+                at 2025-10-25T17:15:56.103Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
