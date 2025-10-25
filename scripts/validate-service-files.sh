@@ -1,8 +1,6 @@
 #!/bin/bash
 # Validate that all required service files exist before building Docker images
 
-set -e
-
 echo "🔍 Validating service files for Docker build..."
 
 # Colors for output
