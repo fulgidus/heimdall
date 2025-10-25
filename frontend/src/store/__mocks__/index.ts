@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { ConnectionState } from '@/lib/websocket';
 
 const mockDashboardStore = {
     data: {
@@ -22,6 +23,13 @@ const mockDashboardStore = {
     isLoading: false,
     error: null,
     fetchDashboardData: vi.fn(),
+    // WebSocket state and methods
+    wsManager: null,
+    wsConnectionState: ConnectionState.DISCONNECTED,
+    wsEnabled: false, // Disabled in tests by default
+    connectWebSocket: vi.fn(),
+    disconnectWebSocket: vi.fn(),
+    setWebSocketState: vi.fn(),
 };
 
 const mockWebSDRStore = {
