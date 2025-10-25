@@ -83,7 +83,7 @@ const DataIngestion: React.FC = () => {
 
             {/* Statistics Cards */}
             <div className="row">
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
@@ -107,7 +107,7 @@ const DataIngestion: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
@@ -131,7 +131,7 @@ const DataIngestion: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
@@ -155,7 +155,7 @@ const DataIngestion: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <div className="d-flex align-items-center">
@@ -246,9 +246,9 @@ const DataIngestion: React.FC = () => {
                                                     <tr>
                                                         <th>Name</th>
                                                         <th>Frequency</th>
-                                                        <th>Location</th>
-                                                        <th>Coordinates</th>
-                                                        <th>Power</th>
+                                                        <th className="d-none d-md-table-cell">Location</th>
+                                                        <th className="d-none d-lg-table-cell">Coordinates</th>
+                                                        <th className="d-none d-lg-table-cell">Power</th>
                                                         <th>Validated</th>
                                                         <th>Actions</th>
                                                     </tr>
@@ -270,11 +270,11 @@ const DataIngestion: React.FC = () => {
                                                                 </div>
                                                             </td>
                                                             <td>{(source.frequency_hz / 1e6).toFixed(3)} MHz</td>
-                                                            <td>{source.source_type || '-'}</td>
-                                                            <td className="f-12">
+                                                            <td className="d-none d-md-table-cell">{source.source_type || '-'}</td>
+                                                            <td className="f-12 d-none d-lg-table-cell">
                                                                 {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
                                                             </td>
-                                                            <td>{source.power_dbm ? `${source.power_dbm} dBm` : '-'}</td>
+                                                            <td className="d-none d-lg-table-cell">{source.power_dbm ? `${source.power_dbm} dBm` : '-'}</td>
                                                             <td>
                                                                 <span className={`badge ${source.is_validated ? 'bg-light-success' : 'bg-light-warning'}`}>
                                                                     {source.is_validated ? 'Yes' : 'Pending'}
@@ -282,10 +282,10 @@ const DataIngestion: React.FC = () => {
                                                             </td>
                                                             <td>
                                                                 <div className="btn-group">
-                                                                    <button className="btn btn-sm btn-link-primary" title="View">
+                                                                    <button className="btn btn-sm btn-link-primary touch-target" title="View">
                                                                         <i className="ph ph-eye"></i>
                                                                     </button>
-                                                                    <button className="btn btn-sm btn-link-secondary" title="Edit">
+                                                                    <button className="btn btn-sm btn-link-secondary touch-target" title="Edit">
                                                                         <i className="ph ph-pencil-simple"></i>
                                                                     </button>
                                                                 </div>
@@ -327,12 +327,12 @@ const DataIngestion: React.FC = () => {
                                                 <thead>
                                                     <tr>
                                                         <th>Session</th>
-                                                        <th>Source</th>
-                                                        <th>Started</th>
-                                                        <th>Duration</th>
+                                                        <th className="d-none d-sm-table-cell">Source</th>
+                                                        <th className="d-none d-md-table-cell">Started</th>
+                                                        <th className="d-none d-lg-table-cell">Duration</th>
                                                         <th>Status</th>
-                                                        <th>Approval</th>
-                                                        <th>Measurements</th>
+                                                        <th className="d-none d-md-table-cell">Approval</th>
+                                                        <th className="d-none d-lg-table-cell">Measurements</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -344,7 +344,7 @@ const DataIngestion: React.FC = () => {
                                                                     <p className="text-muted f-12 mb-0">{session.notes}</p>
                                                                 )}
                                                             </td>
-                                                            <td>
+                                                            <td className="d-none d-sm-table-cell">
                                                                 <div>
                                                                     <div className="mb-1">{session.source_name}</div>
                                                                     <span className="f-12 text-muted">
@@ -352,10 +352,10 @@ const DataIngestion: React.FC = () => {
                                                                     </span>
                                                                 </div>
                                                             </td>
-                                                            <td className="f-12">
+                                                            <td className="f-12 d-none d-md-table-cell">
                                                                 {session.started_at ? new Date(session.started_at).toLocaleString() : 'Not started'}
                                                             </td>
-                                                            <td>
+                                                            <td className="d-none d-lg-table-cell">
                                                                 {session.duration_seconds
                                                                     ? `${Math.round(session.duration_seconds / 60)}min`
                                                                     : '-'}
@@ -374,7 +374,7 @@ const DataIngestion: React.FC = () => {
                                                                     {session.status}
                                                                 </span>
                                                             </td>
-                                                            <td>
+                                                            <td className="d-none d-md-table-cell">
                                                                 <span
                                                                     className={`badge ${session.approval_status === 'approved'
                                                                         ? 'bg-light-success'
@@ -386,7 +386,7 @@ const DataIngestion: React.FC = () => {
                                                                     {session.approval_status}
                                                                 </span>
                                                             </td>
-                                                            <td>{session.measurements_count}</td>
+                                                            <td className="d-none d-lg-table-cell">{session.measurements_count}</td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
