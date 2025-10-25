@@ -146,10 +146,10 @@ See [E2E Testing Guide](docs/agents/20251024_104500_e2e_testing_real_backend.md)
 
 Live test coverage reports are automatically generated on every push to `main` and `develop` branches:
 
-| Branch | Coverage | Report |
-|--------|----------|--------|
+| Branch      | Coverage                                                                                                                                                           | Report                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
 | **Develop** | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop) | [View Report](https://fulgidus.github.io/heimdall/coverage/develop) |
-| **Main** | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/main/badge.svg)](https://fulgidus.github.io/heimdall/coverage/main) | [View Report](https://fulgidus.github.io/heimdall/coverage/main) |
+| **Main**    | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/main/badge.svg)](https://fulgidus.github.io/heimdall/coverage/main)       | [View Report](https://fulgidus.github.io/heimdall/coverage/main)    |
 
 **Coverage includes:**
 - ✅ Backend services (Python/FastAPI)

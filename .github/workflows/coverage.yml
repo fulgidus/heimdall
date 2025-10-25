@@ -30,15 +30,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: 'frontend/pnpm-lock.yaml'
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "frontend/pnpm-lock.yaml"
 
       - name: Install backend dependencies
         run: |
@@ -109,7 +109,7 @@ jobs:
           script: |
             const fs = require('fs');
             let coverage_text = '## 📊 Coverage Report\n\n';
-            
+
             try {
               const backend_coverage = JSON.parse(fs.readFileSync('coverage_reports/backend.json', 'utf8'));
               const percent = backend_coverage.totals.percent_covered.toFixed(2);
@@ -117,9 +117,9 @@ jobs:
             } catch(e) {
               coverage_text += '**Backend Coverage:** ⚠️ Failed to generate\n';
             }
-            
+
             coverage_text += `\n[📄 View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -162,7 +162,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'coverage'
+          path: "coverage"
 
       - name: Deploy to Pages
         id: deployment
