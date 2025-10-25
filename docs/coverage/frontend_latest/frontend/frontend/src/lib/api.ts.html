@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">42.59% </span>
+                <span class="strong">87.03% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>23/54</span>
+                <span class='fraction'>47/54</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">75% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>6/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">42.59% </span>
+                <span class="strong">87.03% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>23/54</span>
+                <span class='fraction'>47/54</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -149,16 +149,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">130x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">130x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -166,26 +166,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">85x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -212,43 +212,43 @@ const api = axios.create({
 &nbsp;
 // Request interceptor
 api.interceptors.request.use((config) =&gt; {
-<span class="cstat-no" title="statement not covered" >    console.log('📤 API Request:', {</span>
-<span class="cstat-no" title="statement not covered" >        method: config.method?.toUpperCase(),</span>
-<span class="cstat-no" title="statement not covered" >        url: config.url,</span>
-<span class="cstat-no" title="statement not covered" >        fullURL: `${config.baseURL}${config.url}`,</span>
-<span class="cstat-no" title="statement not covered" >    });</span>
-<span class="cstat-no" title="statement not covered" >    const { token } = useAuthStore.getState();</span>
-<span class="cstat-no" title="statement not covered" >    if (token) {</span>
+    console.log('📤 API Request:', {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        fullURL: `${config.baseURL}${config.url}`,
+    });
+    const { token } = useAuthStore.getState();
+    if (token) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
 <span class="cstat-no" title="statement not covered" >        config.headers.Authorization = `Bearer ${token}`;</span>
 <span class="cstat-no" title="statement not covered" >    }</span>
-<span class="cstat-no" title="statement not covered" >    return config;</span>
+    return config;
 }, (error) =&gt; {
 <span class="cstat-no" title="statement not covered" >    return Promise.reject(error);</span>
 <span class="cstat-no" title="statement not covered" >});</span>
 &nbsp;
 // Response interceptor
 api.interceptors.response.use(
-<span class="fstat-no" title="function not covered" >    (response) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        console.log('📥 API Response:', {</span>
-<span class="cstat-no" title="statement not covered" >            status: response.status,</span>
-<span class="cstat-no" title="statement not covered" >            url: response.config.url,</span>
-<span class="cstat-no" title="statement not covered" >            dataSize: JSON.stringify(response.data).length,</span>
-<span class="cstat-no" title="statement not covered" >        });</span>
-<span class="cstat-no" title="statement not covered" >        return response;</span>
-<span class="cstat-no" title="statement not covered" >    },</span>
+    (response) =&gt; {
+        console.log('📥 API Response:', {
+            status: response.status,
+            url: response.config.url,
+            dataSize: JSON.stringify(response.data).length,
+        });
+        return response;
+    },
     (error) =&gt; {
-<span class="cstat-no" title="statement not covered" >        console.error('❌ API Error:', {</span>
-<span class="cstat-no" title="statement not covered" >            status: error.response?.status,</span>
-<span class="cstat-no" title="statement not covered" >            url: error.config?.url,</span>
-<span class="cstat-no" title="statement not covered" >            message: error.message,</span>
-<span class="cstat-no" title="statement not covered" >            data: error.response?.data,</span>
-<span class="cstat-no" title="statement not covered" >        });</span>
-<span class="cstat-no" title="statement not covered" >        if (error.response?.status === 401) {</span>
+        console.error('❌ API Error:', {
+            status: error.response?.status,
+            url: error.config?.url,
+            message: error.message,
+            data: error.response?.data,
+        });
+        if (error.response?.status === 401) <span class="branch-0 cbranch-no" title="branch not covered" >{</span>
 <span class="cstat-no" title="statement not covered" >            useAuthStore.getState().logout();</span>
 <span class="cstat-no" title="statement not covered" >            window.location.href = '/login';</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
-<span class="cstat-no" title="statement not covered" >        return Promise.reject(error);</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
+        return Promise.reject(error);
+    }
 );
 &nbsp;
 export default api;
@@ -259,7 +259,7 @@ export default api;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-25T20:06:35.567Z
+                at 2025-10-25T20:34:37.514Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
