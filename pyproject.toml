@@ -52,7 +52,6 @@ select = [
 ]
 ignore = [
   "E501",   # line too long (handled by black)
-  "W503",   # line break before binary operator (deprecated)
   "S101",   # use of assert (common in tests)
   "S104",   # possible binding to all interfaces
   "S105",   # possible hardcoded password
