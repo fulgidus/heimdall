@@ -13,7 +13,11 @@ import {
 // ============================================
 // React 19 with new JSX transform doesn't require React import in source files,
 // but test files using JSX syntax need React available globally
-(globalThis as any).React = React;
+declare global {
+    // Extend globalThis to include React for test JSX
+    var React: typeof React;
+}
+globalThis.React = React;
 
 // ============================================
 // SETUP MOCKS - MUST BE BEFORE COMPONENT IMPORTS
