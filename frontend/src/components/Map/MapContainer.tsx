@@ -6,6 +6,7 @@
 
 import React, { useRef } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './Map.css';
 import { useMapbox } from '@/hooks/useMapbox';
 import WebSDRMarkers from './WebSDRMarkers';
 import LocalizationLayer from './LocalizationLayer';
