@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **WebSocket Real-Time Dashboard Updates** (2025-10-25)
+  - Implemented WebSocket support for real-time updates to Dashboard without polling overhead
+  - Frontend WebSocket manager with auto-reconnection and exponential backoff (1s → 30s max)
+  - Connection state tracking (Connected, Connecting, Reconnecting, Disconnected)
+  - Event subscription/unsubscription system for targeted updates
+  - Heartbeat/ping-pong for connection keep-alive (30s interval)
+  - Backend WebSocket endpoint at `/ws/updates` in API Gateway
+  - Connection manager for broadcasting to multiple clients
+  - Dashboard integration with connection status indicator (badge with color-coded states)
+  - Reconnection button for manual reconnect attempts
+  - Graceful fallback to 30s polling when WebSocket unavailable
+  - Event types: `services:health`, `websdrs:status`, `signals:detected`, `localizations:updated`
+  - Test coverage: 16/16 frontend WebSocket tests, 5/5 backend WebSocket tests, 11/11 Dashboard integration tests
+  - Files: frontend/src/lib/websocket.ts, services/api-gateway/src/websocket_manager.py, services/api-gateway/src/main.py (WebSocket route)
+
 ### Fixed
 - **Health Check Endpoints**: Fixed all service health check paths (2025-10-25)
   - Issue: Frontend dashboard calls `/api/v1/{service}/health` but backend services only had `/health` at root

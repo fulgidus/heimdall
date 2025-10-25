@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore, useLocalizationStore } from '../store';
+import { MapContainer } from '../components/Map';
 
 const Localization: React.FC = () => {
     const { data, fetchDashboardData } = useDashboardStore();
@@ -139,70 +140,14 @@ const Localization: React.FC = () => {
                             </div>
                         </div>
                         <div className="card-body p-0">
-                            {/* Map Placeholder - TODO: Integrate Mapbox */}
-                            <div
-                                className="bg-body-secondary d-flex align-items-center justify-content-center position-relative"
+                            {/* Mapbox GL JS Map */}
+                            <MapContainer
+                                websdrs={websdrs}
+                                healthStatus={healthStatus}
+                                localizations={recentLocalizations}
+                                onLocalizationClick={(loc) => setSelectedResultState(loc.id)}
                                 style={{ height: '500px' }}
-                            >
-                                {/* Grid background */}
-                                <div
-                                    className="position-absolute w-100 h-100"
-                                    style={{
-                                        backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-                                        backgroundSize: '50px 50px'
-                                    }}
-                                ></div>
-
-                                {/* WebSDR Markers */}
-                                {websdrs.slice(0, 7).map((sdr, index) => (
-                                    <div
-                                        key={sdr.id}
-                                        className="position-absolute"
-                                        style={{
-                                            left: `${20 + index * 10}%`,
-                                            top: `${30 + (index % 3) * 20}%`,
-                                        }}
-                                        title={sdr.name}
-                                    >
-                                        <div className="avtar avtar-s bg-primary">
-                                            <i className="ph ph-radio-button"></i>
-                                        </div>
-                                        <span className="badge bg-primary f-10 mt-1">{sdr.location_name.split(',')[0]}</span>
-                                    </div>
-                                ))}
-
-                                {/* Localization Result Marker */}
-                                {recentLocalizations.length > 0 && (
-                                    <div
-                                        className="position-absolute"
-                                        style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                                    >
-                                        <div className="avtar avtar-m bg-success pulse">
-                                            <i className="ph ph-crosshair-simple f-24"></i>
-                                        </div>
-                                        <div className="position-absolute rounded-circle bg-success"
-                                            style={{
-                                                width: '120px',
-                                                height: '120px',
-                                                opacity: 0.2,
-                                                left: '50%',
-                                                top: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                zIndex: -1
-                                            }}
-                                        ></div>
-                                    </div>
-                                )}
-
-                                {/* Placeholder Text */}
-                                <div className="position-absolute bottom-0 start-0 p-3">
-                                    <div className="alert alert-info mb-0">
-                                        <i className="ph ph-info me-2"></i>
-                                        <strong>Map Integration:</strong> Mapbox/Leaflet integration pending.
-                                        Displaying WebSDR positions and localization results.
-                                    </div>
-                                </div>
-                            </div>
+                            />
                         </div>
                     </div>
                 </div>

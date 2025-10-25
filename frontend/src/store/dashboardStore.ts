@@ -11,6 +11,7 @@ import {
     systemService,
     analyticsService
 } from '@/services/api';
+import { WebSocketManager, ConnectionState, createWebSocketManager } from '@/lib/websocket';
 
 interface DashboardMetrics {
     activeWebSDRs: number;
@@ -33,10 +34,16 @@ interface DashboardStore {
     isLoading: boolean;
     error: string | null;
     lastUpdate: Date | null;
+    // WebSocket state
+    wsManager: WebSocketManager | null;
+    wsConnectionState: ConnectionState;
+    wsEnabled: boolean;
 
     setMetrics: (metrics: DashboardMetrics) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
+    resetRetry: () => void;
+    incrementRetry: () => void;
 
     fetchDashboardData: () => Promise<void>;
     fetchWebSDRs: () => Promise<void>;
@@ -44,6 +51,11 @@ interface DashboardStore {
     fetchServicesHealth: () => Promise<void>;
 
     refreshAll: () => Promise<void>;
+    
+    // WebSocket methods
+    connectWebSocket: () => Promise<void>;
+    disconnectWebSocket: () => void;
+    setWebSocketState: (state: ConnectionState) => void;
 }
 
 export const useDashboardStore = create<DashboardStore>((set, get) => ({
@@ -63,10 +75,21 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     isLoading: false,
     error: null,
     lastUpdate: null,
+    // WebSocket state
+    wsManager: null,
+    wsConnectionState: ConnectionState.DISCONNECTED,
+    wsEnabled: true, // Enable WebSocket by default, fallback to polling if unavailable
 
     setMetrics: (metrics) => set({ metrics }),
     setLoading: (loading) => set({ isLoading: loading }),
     setError: (error) => set({ error }),
+    
+    resetRetry: () => set({ retryCount: 0, retryDelay: 1000 }),
+    
+    incrementRetry: () => set((state) => ({
+        retryCount: state.retryCount + 1,
+        retryDelay: Math.min(state.retryDelay * 2, 30000), // Max 30 seconds
+    })),
 
     fetchWebSDRs: async () => {
         try {
@@ -173,10 +196,16 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
                 lastUpdate: new Date(),
                 error: null,
             });
+            
+            // Reset retry count on success
+            get().resetRetry();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch dashboard data';
             set({ error: errorMessage });
             console.error('Dashboard data fetch error:', error);
+            
+            // Increment retry count for exponential backoff
+            get().incrementRetry();
         } finally {
             set({ isLoading: false });
         }
@@ -184,5 +213,100 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
     refreshAll: async () => {
         await get().fetchDashboardData();
+    },
+    
+    // WebSocket methods
+    setWebSocketState: (state: ConnectionState) => {
+        set({ wsConnectionState: state });
+    },
+    
+    connectWebSocket: async () => {
+        const { wsManager, wsEnabled } = get();
+        
+        if (!wsEnabled) {
+            console.log('[Dashboard] WebSocket disabled, using polling');
+            return;
+        }
+        
+        if (wsManager) {
+            console.log('[Dashboard] WebSocket already initialized');
+            return;
+        }
+        
+        try {
+            // Determine WebSocket URL based on current location
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname;
+            const port = import.meta.env.VITE_API_PORT || '8000';
+            const wsUrl = `${protocol}//${host}:${port}/ws/updates`;
+            
+            console.log('[Dashboard] Connecting to WebSocket:', wsUrl);
+            
+            const manager = createWebSocketManager(wsUrl);
+            
+            // Subscribe to connection state changes
+            manager.onStateChange((state) => {
+                get().setWebSocketState(state);
+            });
+            
+            // Subscribe to real-time events
+            manager.subscribe('services:health', (data) => {
+                console.log('[Dashboard] Received services health update:', data);
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        servicesHealth: data,
+                    },
+                    lastUpdate: new Date(),
+                }));
+            });
+            
+            manager.subscribe('websdrs:status', (data) => {
+                console.log('[Dashboard] Received WebSDR status update:', data);
+                set((state) => ({
+                    data: {
+                        ...state.data,
+                        websdrsHealth: data,
+                    },
+                    lastUpdate: new Date(),
+                }));
+            });
+            
+            manager.subscribe('signals:detected', (data) => {
+                console.log('[Dashboard] Received signal detection:', data);
+                set((state) => ({
+                    metrics: {
+                        ...state.metrics,
+                        signalDetections: (state.metrics.signalDetections || 0) + 1,
+                    },
+                    lastUpdate: new Date(),
+                }));
+            });
+            
+            manager.subscribe('localizations:updated', (data) => {
+                console.log('[Dashboard] Received localization update:', data);
+                // Handle localization updates (could update a separate store)
+                set({ lastUpdate: new Date() });
+            });
+            
+            // Store manager and attempt connection
+            set({ wsManager: manager });
+            
+            await manager.connect();
+            console.log('[Dashboard] WebSocket connected successfully');
+        } catch (error) {
+            console.error('[Dashboard] WebSocket connection failed:', error);
+            // Disable WebSocket and fallback to polling
+            set({ wsEnabled: false, wsManager: null });
+        }
+    },
+    
+    disconnectWebSocket: () => {
+        const { wsManager } = get();
+        if (wsManager) {
+            console.log('[Dashboard] Disconnecting WebSocket');
+            wsManager.disconnect();
+            set({ wsManager: null, wsConnectionState: ConnectionState.DISCONNECTED });
+        }
     },
 }));
