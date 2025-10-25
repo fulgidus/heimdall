@@ -18,15 +18,19 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
         const variantConfig = {
             info: {
                 icon: Info,
+                role: 'status',
             },
             success: {
                 icon: CheckCircle,
+                role: 'status',
             },
             warning: {
                 icon: AlertTriangle,
+                role: 'alert',
             },
             error: {
                 icon: AlertCircle,
+                role: 'alert',
             },
         };
 
@@ -48,9 +52,12 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
                     `alert-${variant}`,
                     className
                 )}
+                role={config.role}
+                aria-live={variant === 'error' || variant === 'warning' ? 'assertive' : 'polite'}
+                aria-atomic="true"
                 {...props}
             >
-                <Icon className="alert-icon" size={20} />
+                <Icon className="alert-icon" size={20} aria-hidden="true" />
                 <div className="alert-content">
                     {title && <h3 className="alert-title">{title}</h3>}
                     <p className="alert-message">{message}</p>
@@ -59,8 +66,9 @@ const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
                     <button
                         onClick={handleClose}
                         className="alert-close-button"
+                        aria-label={`Close ${variant} alert: ${title || message}`}
                     >
-                        <X size={18} />
+                        <X size={18} aria-hidden="true" />
                     </button>
                 )}
             </div>
