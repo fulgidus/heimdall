@@ -3,8 +3,11 @@ FROM node:20 AS builder
 
 WORKDIR /app
 
-# Copy everything first (simpler approach for now)
-COPY . .
+# Install pnpm globally
+RUN npm install -g pnpm@latest
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
 
 # Build arguments for environment variables (can be overridden at build time)
 ARG VITE_API_URL=http://localhost:8000
@@ -18,8 +21,14 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_ENABLE_ANALYTICS=$VITE_ENABLE_ANALYTICS \
     VITE_ENABLE_DEBUG=$VITE_ENABLE_DEBUG
 
-# Install dependencies and build
-RUN npm ci --legacy-peer-deps && npm run build
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy rest of the application
+COPY . .
+
+# Build the application
+RUN pnpm run build
 
 # Runtime stage - Using nginx for better performance
 FROM nginx:alpine
