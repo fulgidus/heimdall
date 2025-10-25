@@ -277,6 +277,10 @@ jobs:
     needs: [discover, test, frontend-test]
     if: always()
 
+    permissions:
+      contents: read
+      pull-requests: write
+
     steps:
       - name: Calculate test results
         id: results
@@ -315,6 +319,58 @@ jobs:
             echo "  - Frontend tests: PASSED"
             exit 0
           fi
+
+      - name: Comment PR with CI results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let resultsContent = '## 🔬 CI Test Results\n\n';
+
+            const servicesCount = '${{ needs.discover.outputs.services_count }}';
+            const backendResult = '${{ needs.test.result }}';
+            const frontendResult = '${{ needs.frontend-test.result }}';
+
+            // Backend Tests Section
+            resultsContent += '### 🔧 Backend Tests\n';
+            if (servicesCount === '0') {
+              resultsContent += '⚠️  **No testable services found**\n\n';
+            } else {
+              resultsContent += `- 📦 **Services tested**: ${servicesCount}\n`;
+              if (backendResult === 'success') {
+                resultsContent += '- ✅ **Status**: All backend tests passed\n\n';
+              } else {
+                resultsContent += '- ❌ **Status**: Some backend tests failed\n\n';
+              }
+            }
+
+            // Frontend Tests Section
+            resultsContent += '### 🎨 Frontend Tests\n';
+            if (frontendResult === 'success') {
+              resultsContent += '- ✅ **Status**: All frontend tests passed\n';
+              resultsContent += '- 🔍 **Linting**: Completed\n';
+              resultsContent += '- 🏗️  **Build**: Successful\n\n';
+            } else {
+              resultsContent += '- ❌ **Status**: Frontend tests failed\n';
+              resultsContent += '- ⚠️  **Issues**: Check build, lint, or test failures\n\n';
+            }
+
+            // Overall Status
+            const overallStatus = '${{ steps.results.outputs.status }}';
+            if (overallStatus === 'FAILED') {
+              resultsContent += '❌ **Overall Result**: CI tests failed - Please review the failures above.\n\n';
+            } else {
+              resultsContent += '✅ **Overall Result**: All CI tests passed successfully!\n\n';
+            }
+
+            resultsContent += `📋 [View detailed test report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: resultsContent
+            });
 
       - name: Final status
         if: always()
