@@ -22,10 +22,10 @@ else
 fi
 
 # Test 2: Verify docker-compose configuration
-echo "Test 2: Verifying docker-compose.services.yml build contexts..."
+echo "Test 2: Verifying docker-compose.yml build contexts..."
 
 # Check rf-acquisition
-context=$(docker compose -f docker-compose.services.yml config | grep -A 2 "rf-acquisition:" | grep "context:" | awk '{print $2}')
+context=$(docker compose config | grep -A 2 "rf-acquisition:" | grep "context:" | awk '{print $2}')
 if [[ "$context" == *"services/rf-acquisition"* ]]; then
     echo -e "  ${GREEN}✓${NC} rf-acquisition has correct context: $context"
 else
@@ -34,7 +34,7 @@ else
 fi
 
 # Check data-ingestion-web
-context=$(docker compose -f docker-compose.services.yml config | grep -A 2 "data-ingestion-web:" | grep "context:" | awk '{print $2}')
+context=$(docker compose config | grep -A 2 "data-ingestion-web:" | grep "context:" | awk '{print $2}')
 if [[ "$context" == *"services/data-ingestion-web"* ]]; then
     echo -e "  ${GREEN}✓${NC} data-ingestion-web has correct context: $context"
 else
@@ -43,7 +43,7 @@ else
 fi
 
 # Check inference
-context=$(docker compose -f docker-compose.services.yml config | grep -A 2 "inference:" | grep "context:" | awk '{print $2}')
+context=$(docker compose config | grep -A 2 "inference:" | grep "context:" | awk '{print $2}')
 if [[ "$context" == *"services/inference"* ]]; then
     echo -e "  ${GREEN}✓${NC} inference has correct context: $context"
 else
@@ -52,7 +52,7 @@ else
 fi
 
 # Check api-gateway (should be ./services for common/auth access)
-context=$(docker compose -f docker-compose.services.yml config | grep -A 2 "api-gateway:" | grep "context:" | awk '{print $2}')
+context=$(docker compose config | grep -A 2 "api-gateway:" | grep "context:" | awk '{print $2}')
 if [[ "$context" == *"services"* ]] && [[ "$context" != *"services/api-gateway"* ]]; then
     echo -e "  ${GREEN}✓${NC} api-gateway has correct context: $context (needs common/auth)"
 else
@@ -61,7 +61,7 @@ else
 fi
 
 # Check training
-context=$(docker compose -f docker-compose.services.yml config | grep -A 2 "training:" | grep "context:" | awk '{print $2}')
+context=$(docker compose config | grep -A 2 "training:" | grep "context:" | awk '{print $2}')
 if [[ "$context" == *"services/training"* ]]; then
     echo -e "  ${GREEN}✓${NC} training has correct context: $context"
 else

@@ -97,7 +97,7 @@ cleanup() {
   if [ "$KEEP_RUNNING" = false ]; then
     echo ""
     echo -e "${YELLOW}Cleaning up services...${NC}"
-    docker-compose -f ../docker-compose.yml -f ../docker-compose.services.yml down
+    docker-compose down
     echo -e "${GREEN}Services stopped${NC}"
   else
     echo ""
@@ -118,11 +118,11 @@ cd "$(dirname "$0")/.."
 
 if [ "$BUILD_SERVICES" = true ]; then
   echo "Building services..."
-  docker-compose -f docker-compose.yml -f docker-compose.services.yml build
+    docker-compose build
 fi
 
 echo "Starting services..."
-docker-compose -f docker-compose.yml -f docker-compose.services.yml up -d
+docker-compose up -d
 
 echo ""
 echo -e "${GREEN}Services started, waiting for health checks...${NC}"
@@ -212,7 +212,7 @@ fi
 
 # Collect backend logs
 echo "Collecting backend service logs..."
-docker-compose -f ../docker-compose.yml -f ../docker-compose.services.yml logs --no-color > "../$ARTIFACTS_DIR/backend-logs.txt"
+docker compose logs --no-color > "../$ARTIFACTS_DIR/backend-logs.txt"
 
 echo ""
 echo -e "${GREEN}Artifacts collected in: ../$ARTIFACTS_DIR${NC}"
@@ -254,7 +254,7 @@ See \`playwright-report/index.html\` for detailed results.
 
 \`\`\`bash
 # Start backend
-docker-compose -f docker-compose.yml -f docker-compose.services.yml up -d
+docker-compose up -d
 
 # Wait for health
 curl http://localhost:8000/health

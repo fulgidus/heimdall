@@ -88,14 +88,14 @@ jobs:
           # Build and start only essential microservices to save disk space
           # Skip training service as it's not needed for E2E tests
           echo "🔨 Building services..."
-          docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference || {
+          docker compose build api-gateway rf-acquisition data-ingestion-web inference || {
             echo "❌ Build failed! Showing docker compose config..."
-            docker compose -f docker-compose.services.yml config
+            docker compose config
             exit 1
           }
 
           echo "🚀 Starting services..."
-          docker compose -f docker-compose.services.yml up -d api-gateway rf-acquisition data-ingestion-web inference
+          docker compose up -d api-gateway rf-acquisition data-ingestion-web inference
 
           echo "📋 Service status:"
           docker compose ps
@@ -289,8 +289,7 @@ jobs:
         if: always()
         run: |
           echo "🛑 Stopping services..."
-          docker compose -f docker-compose.yml down -v
-          docker compose -f docker-compose.services.yml down -v
+          docker compose down -v
           echo "✅ Services stopped"
 
       - name: Final status
