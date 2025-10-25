@@ -149,7 +149,6 @@ Failed to fetch services health: Error: Health error
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
 
- [32m✓[39m src/store/dashboardStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 38[2mms[22m[39m
 [90mstdout[2m | src/services/api/session.test.ts
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -158,6 +157,7 @@ Failed to fetch services health: Error: Health error
   isDev: [33mtrue[39m
 }
 
+ [32m✓[39m src/store/dashboardStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 38[2mms[22m[39m
 [90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould list sessions with default pagination
 [22m[39m📤 API Request: {
   method: [32m'GET'[39m,
@@ -233,7 +233,6 @@ Failed to fetch services health: Error: Health error
   data: { detail: [32m'Database connection failed'[39m }
 }
 
- [32m✓[39m src/store/acquisitionStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 86[2mms[22m[39m
 [90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle network errors
 [22m[39m📤 API Request: {
   method: [32m'GET'[39m,
@@ -316,6 +315,7 @@ Failed to fetch services health: Error: Health error
   fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
 }
 
+ [32m✓[39m src/store/acquisitionStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 91[2mms[22m[39m
 [90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould handle duplicate session name conflicts (409)
 [22m[39m❌ API Error: {
   status: [33m409[39m,
@@ -603,7 +603,7 @@ Failed to fetch services health: Error: Health error
   data: [90mundefined[39m
 }
 
- [32m✓[39m src/services/api/session.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m src/services/api/session.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 110[2mms[22m[39m
 [90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mfetchSessions Action[2m > [22m[2mshould handle fetch error gracefully
 [22m[39mSession fetch error: Error: Failed to fetch sessions
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.test.ts:189:70
@@ -659,7 +659,6 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
     at Object.fetchSessions [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.ts:95:36[90m)[39m
 [90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
 
- [32m✓[39m src/store/sessionStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 54[2mms[22m[39m
 [90mstdout[2m | src/services/api/inference.test.ts
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -685,6 +684,7 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
   fullURL: [32m'http://localhost:8000/api/v1/analytics/model/info'[39m
 }
 
+ [32m✓[39m src/store/sessionStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 47[2mms[22m[39m
 [90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould handle 500 error when model info not available
 [22m[39m❌ API Error: {
   status: [33m500[39m,
@@ -982,8 +982,8 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
 [90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould validate position coordinates are valid
 [22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m273[39m }
 
- [32m✓[39m src/services/api/inference.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 113[2mms[22m[39m
- [32m✓[39m src/components/Map/WebSDRMarkers.test.tsx [2m([22m[2m26 tests[22m[2m)[22m[33m 362[2mms[22m[39m
+ [32m✓[39m src/services/api/inference.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m src/components/Map/WebSDRMarkers.test.tsx [2m([22m[2m26 tests[22m[2m)[22m[33m 332[2mms[22m[39m
 [90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mfetchRecentLocalizations Action[2m > [22m[2mshould handle fetch error gracefully
 [22m[39mFailed to fetch recent localizations: Error: Failed to fetch localizations
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/localizationStore.test.ts:161:82
@@ -997,26 +997,6 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
 
-[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mpredictLocalization Action[2m > [22m[2mshould handle prediction error
-[22m[39mPrediction failed: Error: Prediction failed
-    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/localizationStore.test.ts:243:79
-    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
-    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
-    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
-    at new Promise (<anonymous>)
-    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
-    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
-    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
-    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
-    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
-
-[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in fetch
-[22m[39mFailed to fetch recent localizations: String error
-
-[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in prediction
-[22m[39mPrediction failed: String error
-
- [32m✓[39m src/store/localizationStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 138[2mms[22m[39m
 [90mstdout[2m | src/services/api/acquisition.test.ts
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -1059,6 +1039,25 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
   message: [32m'Request failed with status code 400'[39m,
   data: { detail: [32m'Invalid frequency range'[39m }
 }
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mpredictLocalization Action[2m > [22m[2mshould handle prediction error
+[22m[39mPrediction failed: Error: Prediction failed
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/localizationStore.test.ts:243:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in fetch
+[22m[39mFailed to fetch recent localizations: String error
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in prediction
+[22m[39mPrediction failed: String error
 
 [90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle 500 server error
 [22m[39m📤 API Request: {
@@ -1389,7 +1388,8 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
   data: [90mundefined[39m
 }
 
- [32m✓[39m src/services/api/acquisition.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 144[2mms[22m[39m
+ [32m✓[39m src/store/localizationStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 146[2mms[22m[39m
+ [32m✓[39m src/services/api/acquisition.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 125[2mms[22m[39m
 [90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mcheckAllServices Action[2m > [22m[2mshould handle check error gracefully
 [22m[39mService health check error: Error: Services unavailable
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/systemStore.test.ts:114:79
@@ -1445,7 +1445,7 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
 [90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions
 [22m[39mService health check error: String error
 
- [32m✓[39m src/store/systemStore.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m src/store/systemStore.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 88[2mms[22m[39m
 [90mstderr[2m | src/store/analyticsStore.test.ts[2m > [22m[2mAnalytics Store (Zustand)[2m > [22m[2mfetchAnalytics Action[2m > [22m[2mshould handle errors from prediction metrics API
 [22m[39mFailed to fetch prediction metrics: Error: Network error
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/analyticsStore.test.ts:178:31
@@ -1472,7 +1472,7 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
 
- [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 51[2mms[22m[39m
 [90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mfetchWebSDRs Action[2m > [22m[2mshould handle fetch error gracefully
 [22m[39mWebSDR fetch error: Error: Network error
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/websdrStore.test.ts:122:67
@@ -1515,8 +1515,8 @@ Session fetch error: TypeError: Cannot read properties of undefined (reading 'se
 [90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions
 [22m[39mWebSDR fetch error: String error
 
- [32m✓[39m src/store/websdrStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 83[2mms[22m[39m
- [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/store/websdrStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 20[2mms[22m[39m
 [90mstderr[2m | src/pages/Dashboard.integration.test.tsx[2m > [22m[2mDashboard - Real API Integration[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould show refreshing state during manual refresh
 [22m[39mAn update to Dashboard inside a test was not wrapped in act(...).
 
@@ -1529,9 +1529,9 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/components/Modal.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 644[2mms[22m[39m
- [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1702[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mService Health Display[2m > [22mshould show error state with retry button when services fail to load [33m 325[2mms[22m[39m
+ [32m✓[39m src/components/Modal.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 679[2mms[22m[39m
+ [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1771[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mLoading States[2m > [22mshould display skeleton loaders when loading with no data [33m 395[2mms[22m[39m
 [90mstdout[2m | src/services/api/websdr.test.ts
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -1822,7 +1822,7 @@ This ensures that you're testing the behavior the user would see in the browser.
   data: [90mundefined[39m
 }
 
- [32m✓[39m src/services/api/websdr.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m src/services/api/websdr.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 93[2mms[22m[39m
 [90mstderr[2m | src/components/RecordingSessionCreator.test.tsx[2m > [22m[2mRecordingSessionCreator[2m > [22m[2mshould clear error when submitting form
 [22m[39mAn update to RecordingSessionCreator inside a test was not wrapped in act(...).
 
@@ -1865,9 +1865,9 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 845[2mms[22m[39m
- [32m✓[39m src/components/RecordingSessionCreator.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1091[2mms[22m[39m
- [32m✓[39m src/components/SessionsList.test.tsx [2m([22m[2m16 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 586[2mms[22m[39m
+ [32m✓[39m src/components/RecordingSessionCreator.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1033[2mms[22m[39m
+ [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 781[2mms[22m[39m
+ [32m✓[39m src/components/SessionsList.test.tsx [2m([22m[2m16 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 564[2mms[22m[39m
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mConnection Management[2m > [22m[2mshould create a WebSocket manager instance
 [22m[39m[WebSocket] Disconnecting
 
@@ -2015,7 +2015,7 @@ This ensures that you're testing the behavior the user would see in the browser.
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mFactory Function[2m > [22m[2mshould create WebSocket manager with factory
 [22m[39m[WebSocket] Disconnecting
 
- [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 156[2mms[22m[39m
+ [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 154[2mms[22m[39m
 [90mstdout[2m | src/services/api/system.test.ts
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -2231,17 +2231,29 @@ This ensures that you're testing the behavior the user would see in the browser.
   data: { detail: [32m'Service temporarily unavailable'[39m }
 }
 
- [32m✓[39m src/services/api/system.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 68[2mms[22m[39m
- [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 80[2mms[22m[39m
- [32m✓[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1534[2mms[22m[39m
-   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy [33m 316[2mms[22m[39m
-   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels [33m 405[2mms[22m[39m
+ [32m✓[39m src/services/api/system.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1593[2mms[22m[39m
+   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy [33m 306[2mms[22m[39m
+   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels [33m 412[2mms[22m[39m
  [32m✓[39m src/utils/ellipse.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 14[2mms[22m[39m
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mrenders Analytics page with title
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
+
+[90mstderr[2m | src/pages/Localization.test.tsx[2m > [22m[2mLocalization Page[2m > [22m[2mhandles result selection
+[22m[39mAn update to Localization inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mdisplays breadcrumb navigation
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -2273,18 +2285,7 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
-[90mstderr[2m | src/pages/Localization.test.tsx[2m > [22m[2mLocalization Page[2m > [22m[2mhandles result selection
-[22m[39mAn update to Localization inside a test was not wrapped in act(...).
-
-When testing, code that causes React state updates should be wrapped into act(...):
-
-act(() => {
-  /* fire events that update state */
-});
-/* assert on the output */
-
-This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
-
+ [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1130[2mms[22m[39m
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mhandles refresh button interaction
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
@@ -2327,7 +2328,6 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
- [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 943[2mms[22m[39m
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mdisplays accuracy metric if available
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
@@ -2346,11 +2346,10 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
- [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1035[2mms[22m[39m
-   [33m[2m✓[22m[39m Analytics Page[2m > [22mhandles refresh button interaction [33m 338[2mms[22m[39m
- [32m✓[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 1849[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 363[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 538[2mms[22m[39m
+ [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1025[2mms[22m[39m
+ [32m✓[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 2186[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 485[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 555[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useLocalStorage.test.ts[2m > [22m[2museLocalStorage Hook[2m > [22m[2mreturns initial value when localStorage contains invalid JSON
 [22m[39mError reading localStorage key "test-key": SyntaxError: Unexpected token 'i', "invalid-json-{" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -2390,7 +2389,7 @@ Failed to create chart: can't acquire context from the given item
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
 
- [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 86[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 123[2mms[22m[39m
 [90mstderr[2m | src/store/authStore.test.ts[2m > [22m[2mauthStore - Authentication Store[2m > [22m[2mlogin()[2m > [22m[2mshould reject invalid credentials
 [22m[39mLogin failed: Error: Invalid user credentials
     at Object.login [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.ts:64:31[90m)[39m
@@ -2398,15 +2397,16 @@ Failed to create chart: can't acquire context from the given item
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.test.ts:91:17
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
 
- [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 50[2mms[22m[39m
- [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 641[2mms[22m[39m
- [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 504[2mms[22m[39m
- [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1200[2mms[22m[39m
- [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 126[2mms[22m[39m
- [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1528[2mms[22m[39m
-   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 466[2mms[22m[39m
- [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 929[2mms[22m[39m
- [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 960[2mms[22m[39m
+ [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 736[2mms[22m[39m
+   [33m[2m✓[22m[39m Login Component[2m > [22mRendering[2m > [22mshould render login form with all required fields [33m 308[2mms[22m[39m
+ [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 605[2mms[22m[39m
+ [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1362[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1659[2mms[22m[39m
+   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 591[2mms[22m[39m
+ [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+ [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1044[2mms[22m[39m
 [90mstderr[2m | src/pages/WebSDRManagement.test.tsx[2m > [22m[2mWebSDRManagement Page[2m > [22m[2mhandles WebSDR selection
 [22m[39mAn update to WebSDRManagement inside a test was not wrapped in act(...).
 
@@ -2431,14 +2431,13 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2205[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 595[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 391[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 340[2mms[22m[39m
- [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 963[2mms[22m[39m
- [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1466[2mms[22m[39m
-   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 360[2mms[22m[39m
- [32m✓[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 626[2mms[22m[39m
+ [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2137[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 613[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 366[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 304[2mms[22m[39m
+ [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 1111[2mms[22m[39m
+ [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1471[2mms[22m[39m
+   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 348[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useAuth.test.ts[2m > [22m[2museAuth Hook[2m > [22m[2mhandles invalid localStorage data gracefully
 [22m[39mFailed to parse auth data: SyntaxError: Unexpected token 'i', "invalid-json-data" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -2452,15 +2451,15 @@ This ensures that you're testing the behavior the user would see in the browser.
     at commitPassiveMountOnFiber [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:15519:11[90m)[39m
     at flushPassiveEffects [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18432:9[90m)[39m
 
- [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 67[2mms[22m[39m
- [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1691[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 361[2mms[22m[39m
- [32m✓[39m src/components/Navigation/BottomSheet.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 287[2mms[22m[39m
- [32m✓[39m src/components/Navigation/MobileMenu.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 200[2mms[22m[39m
- [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1419[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 536[2mms[22m[39m
- [32m✓[39m src/components/Navigation/BottomNav.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 131[2mms[22m[39m
- [32m✓[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 618[2mms[22m[39m
+ [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1653[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 378[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/BottomSheet.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 265[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/MobileMenu.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1318[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 489[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/BottomNav.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 91[2mms[22m[39m
 [90mstdout[2m | src/services/api/integration.test.ts[2m > [22m[2mPhase 6: API Integration Verification[2m > [22m[2mshould import all API services without errors
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -2469,15 +2468,16 @@ This ensures that you're testing the behavior the user would see in the browser.
   isDev: [33mtrue[39m
 }
 
- [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 81[2mms[22m[39m
-[2m9:04:38 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
+ [32m✓[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+ [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+[2m9:14:47 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
 Error: An error occurred while trying to read the map file at popper.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.map'
     at async open (node:internal/fs/promises:639:25)
     at async Object.readFile (node:internal/fs/promises:1246:14)
     at async extractSourcemapFromFile (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:8061:65)
     at async loadAndTransform (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:26014:22)
-[2m9:04:38 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
+[2m9:14:47 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
 Error: An error occurred while trying to read the map file at bootstrap.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.map'
     at async open (node:internal/fs/promises:639:25)
@@ -2487,6 +2487,6 @@ Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimd
 
 [2m Test Files [22m [1m[32m47 passed[39m[22m[90m (47)[39m
 [2m      Tests [22m [1m[32m763 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (764)[39m
-[2m   Start at [22m 21:04:03
-[2m   Duration [22m 35.34s[2m (transform 2.30s, setup 5.52s, collect 12.50s, tests 27.26s, environment 38.24s, prepare 5.69s)[22m
+[2m   Start at [22m 21:14:11
+[2m   Duration [22m 36.63s[2m (transform 2.31s, setup 6.05s, collect 13.18s, tests 28.43s, environment 39.25s, prepare 5.85s)[22m
 
