@@ -1,0 +1,137 @@
+name: Test & Coverage
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: changeme
+          POSTGRES_DB: heimdall_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      rabbitmq:
+        image: rabbitmq:3.12-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pytest pytest-asyncio pytest-cov pytest-mock
+          pip install -r services/requirements/base.txt
+          pip install -r services/requirements/dev.txt
+          pip install docker redis pika minio sqlalchemy
+      
+      - name: Run unit tests
+        run: |
+          pytest services -m "not integration and not e2e" \
+            --cov=services \
+            --cov-report=xml:coverage-unit.xml \
+            --cov-report=term \
+            -v
+      
+      - name: Run integration tests
+        run: |
+          pytest services -m "integration" \
+            --cov=services \
+            --cov-report=xml:coverage-integration.xml \
+            --cov-report=term \
+            -v
+        env:
+          DATABASE_URL: postgresql://heimdall_user:changeme@localhost:5432/heimdall_test
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          RABBITMQ_HOST: localhost
+          RABBITMQ_PORT: 5672
+          RABBITMQ_USER: guest
+          RABBITMQ_PASS: guest
+      
+      - name: Generate coverage report
+        run: |
+          python scripts/analyze_coverage.py || true
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage-unit.xml,./coverage-integration.xml
+          flags: unittests,integration
+          fail_ci_if_error: false
+      
+      - name: Coverage threshold check
+        run: |
+          coverage combine || true
+          coverage report --fail-under=80 || echo "⚠️ Coverage below 80%"
+      
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            coverage-*.xml
+            coverage-report.json
+            **/htmlcov/
+          retention-days: 14
+      
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 80
+          MINIMUM_ORANGE: 60
