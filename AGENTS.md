@@ -1416,13 +1416,15 @@ Create React + Mapbox frontend for real-time RF source localization with uncerta
 - **T7.6**: Add spectrogram visualization for signal validation (one for each WebSDR)
 - **T7.7**: Implement user authentication and role management
 - **T7.8**: Create responsive design for mobile/tablet operators
-- **T7.9**: Add WebSocket integration for real-time updates
+- **T7.9**: Add WebSocket integration for real-time updates ✅ COMPLETE (2025-10-25)
 - **T7.10**: Create comprehensive E2E tests with Playwright
 
 ### Checkpoints
 
 ✅ CP7.1: Map displays 7 WebSDR locations correctly
 ✅ CP7.2: Recording session workflow complete
+✅ CP7.3: Real-time localization updates functional (WebSocket implemented)
+✅ CP7.4: Mobile responsive design verified
 ✅ CP7.3: Real-time localization updates functional
 ✅ CP7.4: Mobile responsive design verified
 ✅ CP7.5: All E2E tests pass
