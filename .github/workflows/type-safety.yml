@@ -1,0 +1,46 @@
+name: Type Safety & Static Analysis
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  type-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install mypy pylint flake8 pydantic numpy
+          if [ -f services/requirements/base.txt ]; then
+            pip install -r services/requirements/base.txt
+          fi
+          if [ -f services/common/requirements-base.txt ]; then
+            pip install -r services/common/requirements-base.txt
+          fi
+      
+      - name: Run type checking
+        run: python scripts/check_types.py
+      
+      - name: mypy report
+        if: always()
+        run: mypy services --strict --html-report=mypy-report
+      
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: type-check-reports
+          path: mypy-report/
+          retention-days: 7
