@@ -106,7 +106,7 @@ describe('Dashboard - Real API Integration', () => {
 
             // Check for connection status indicator with correct text
             expect(screen.getByText(/connecting to services\.\.\./i)).toBeInTheDocument();
-            
+
             // Skeleton loaders should be present (they don't have accessible text, so we check the component rendered)
             const serviceSection = screen.getByText('Services Status').closest('.card');
             expect(serviceSection).toBeInTheDocument();
@@ -152,16 +152,16 @@ describe('Dashboard - Real API Integration', () => {
             // The getAllByText captures both the service name and any other text that matches
             const apiGatewayElements = screen.getAllByText(/api gateway/i);
             expect(apiGatewayElements.length).toBeGreaterThan(0);
-            
+
             const rfAcquisitionElements = screen.getAllByText(/rf acquisition/i);
             expect(rfAcquisitionElements.length).toBeGreaterThan(0);
-            
+
             const trainingElements = screen.getAllByText(/training/i);
             expect(trainingElements.length).toBeGreaterThan(0);
-            
+
             const inferenceElements = screen.getAllByText(/inference/i);
             expect(inferenceElements.length).toBeGreaterThan(0);
-            
+
             // data-ingestion-web is transformed to "data ingestion web"
             const dataIngestionElements = screen.getAllByText(/data ingestion web/i);
             expect(dataIngestionElements.length).toBeGreaterThan(0);
@@ -212,7 +212,7 @@ describe('Dashboard - Real API Integration', () => {
             // Find the refresh button by role and name - it should be in the System Activity card
             const refreshButtons = screen.getAllByRole('button', { name: /refresh/i });
             expect(refreshButtons.length).toBeGreaterThan(0);
-            
+
             fireEvent.click(refreshButtons[0]);
 
             await waitFor(() => {
@@ -235,7 +235,7 @@ describe('Dashboard - Real API Integration', () => {
         it('should call fetchDashboardData on mount', () => {
             vi.clearAllMocks();
             renderDashboard();
-            
+
             // The component should call fetchDashboardData on mount
             expect(mockFetchDashboardData).toHaveBeenCalledTimes(1);
         });
@@ -243,7 +243,7 @@ describe('Dashboard - Real API Integration', () => {
         it('should setup interval for polling', () => {
             vi.useFakeTimers();
             vi.clearAllMocks();
-            
+
             renderDashboard({ wsEnabled: true, wsConnectionState: 'Disconnected' });
 
             // Initial call
@@ -276,7 +276,7 @@ describe('Dashboard - Real API Integration', () => {
         it('should use normal interval when no error', () => {
             vi.useFakeTimers();
             vi.clearAllMocks();
-            
+
             renderDashboard({ error: null, wsEnabled: true, wsConnectionState: 'Disconnected' });
 
             // Initial call
@@ -341,7 +341,7 @@ describe('Dashboard - Real API Integration', () => {
             // Should show Dashboard heading and the component should be rendered
             const heading = screen.getByRole('heading', { name: /dashboard/i, level: 2 });
             expect(heading).toBeInTheDocument();
-            
+
             // Verify System Activity section is rendered (which contains the timestamp)
             expect(screen.getByText('System Activity')).toBeInTheDocument();
         });
