@@ -1,7 +1,7 @@
 # Heimdall SDR - Development Makefile
 # Cross-platform compatible commands
 
-.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean
+.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check
 
 # Default target
 help:
@@ -35,6 +35,11 @@ help:
 	@echo ""
 	@echo "  MAINTENANCE:"
 	@echo "    clean                 Clean all generated files"
+	@echo ""
+	@echo "  DEPENDENCY MANAGEMENT:"
+	@echo "    lock-deps             Generate lock files from requirements"
+	@echo "    audit-deps            Audit dependencies for conflicts and vulnerabilities"
+	@echo "    deps-check            Run lock-deps and audit-deps"
 	@echo ""
 
 # Development Environment
@@ -240,3 +245,16 @@ setup:
 	@echo "  1. Activate virtual environment: source venv/bin/activate"
 	@echo "  2. Start services: make dev-up"
 	@echo "  3. Run tests: make test-local"
+
+# Dependency Management
+lock-deps:
+	@echo "Generating lock files from requirements..."
+	python scripts/lock_requirements.py --verbose
+
+audit-deps:
+	@echo "Auditing dependencies across all services..."
+	python scripts/audit_dependencies.py --format=all
+
+deps-check: lock-deps audit-deps
+	@echo "✅ Dependency audit complete"
+	@echo "Check audit-results/ for detailed reports"

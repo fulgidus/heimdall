@@ -11,6 +11,7 @@ build/
 # Python
 venv
 __pycache__/
+venv
 *.py[cod]
 *$py.class
 *.so
@@ -31,3 +32,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Dependency audit results (generated, can be ignored)
+audit-results/
+services/requirements/*.audit.json
