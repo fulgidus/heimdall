@@ -49,7 +49,7 @@ jobs:
           POSTGRES_USER: ${{ env.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U ${POSTGRES_USER}"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
