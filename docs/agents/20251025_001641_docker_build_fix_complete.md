@@ -24,9 +24,9 @@ These errors occurred for multiple services:
 
 ## Root Cause Analysis
 
-The issue was a **build context mismatch** between docker-compose configuration and Dockerfiles:
+The issue was a **build context mismatch** between docker compose configuration and Dockerfiles:
 
-### docker-compose.services.yml Configuration
+### docker compose.services.yml Configuration
 ```yaml
 # Most services use parent directory as build context
 build:
@@ -164,7 +164,7 @@ Applied to all services that were missing curl:
 All services now build successfully:
 
 ```bash
-$ docker compose -f docker-compose.services.yml build --parallel
+$ docker compose -f docker compose.services.yml build --parallel
 
 ✅ api-gateway  Built
 ✅ rf-acquisition  Built
@@ -176,7 +176,7 @@ $ docker compose -f docker-compose.services.yml build --parallel
 ### Configuration Verification
 
 ```bash
-$ docker compose -f docker-compose.services.yml config --services
+$ docker compose -f docker compose.services.yml config --services
 
 postgres
 redis
@@ -206,7 +206,7 @@ inference
 
 #### Pattern 1: Service-specific context (training)
 ```yaml
-# docker-compose.services.yml
+# docker compose.services.yml
 training:
   build:
     context: ./services/training    # Service directory as context
@@ -221,7 +221,7 @@ COPY src/ ./src/                     # OK: ./services/training/src/
 
 #### Pattern 2: Parent directory context (most services)
 ```yaml
-# docker-compose.services.yml
+# docker compose.services.yml
 rf-acquisition:
   build:
     context: ./services              # Parent directory as context
@@ -260,13 +260,13 @@ Production deployments should remove these flags and use proper CA certificates.
 ### Local Testing
 ```bash
 # Clean build from scratch
-docker compose -f docker-compose.services.yml build --no-cache
+docker compose -f docker compose.services.yml build --no-cache
 
 # Build specific service
-docker compose -f docker-compose.services.yml build rf-acquisition
+docker compose -f docker compose.services.yml build rf-acquisition
 
 # Parallel build (faster)
-docker compose -f docker-compose.services.yml build --parallel
+docker compose -f docker compose.services.yml build --parallel
 ```
 
 ### E2E Testing
@@ -275,7 +275,7 @@ docker compose -f docker-compose.services.yml build --parallel
 ./scripts/run-e2e-tests.sh
 
 # Or manually
-docker compose -f docker-compose.services.yml up -d
+docker compose -f docker compose.services.yml up -d
 cd frontend && npx playwright test
 ```
 
@@ -292,7 +292,7 @@ The GitHub Actions workflow (`.github/workflows/e2e-tests.yml`) will:
 - [E2E Test Workflow](.github/workflows/e2e-tests.yml)
 - [E2E Test Script](scripts/run-e2e-tests.sh)
 - [Phase 4 Complete](docs/agents/20251022_144500_phase4_completion_final.md)
-- [Docker Compose Services](docker-compose.services.yml)
+- [Docker Compose Services](docker compose.services.yml)
 
 ## Next Steps
 

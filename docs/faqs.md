@@ -12,7 +12,7 @@
 
 ### Q: What if Docker containers fail to start?
 
-**A**: Check logs with `docker-compose logs`. Common issues:
+**A**: Check logs with `docker compose logs`. Common issues:
 - Port conflicts: Change port mappings in `.env`
 - Memory issues: Increase Docker memory allocation
 - Network issues: Ensure all services can reach database
@@ -84,13 +84,13 @@ curl -X POST http://localhost:8000/api/v1/rf-tasks \
 **A**: 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f ml-detector
+docker compose logs -f ml-detector
 
 # Last N lines
-docker-compose logs --tail 100 api-gateway
+docker compose logs --tail 100 api-gateway
 ```
 
 ## Development
@@ -149,7 +149,7 @@ pytest tests/test_signal_processor.py -v
 ### Q: How do I deploy to production?
 
 **A**: 
-1. Build production images: `docker-compose -f docker-compose.prod.yml build`
+1. Build production images: `docker compose -f docker compose.prod.yml build`
 2. Deploy to Kubernetes: `helm install heimdall ./helm/heimdall`
 3. Configure environment: Set production `.env`
 4. Monitor with Prometheus/Grafana

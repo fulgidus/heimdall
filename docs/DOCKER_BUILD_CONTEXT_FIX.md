@@ -14,7 +14,7 @@ The E2E workflow was failing during Docker image builds with BuildKit checksum e
 ## Root Cause Analysis
 
 ### The Issue
-The build context in `docker-compose.services.yml` was incorrectly configured:
+The build context in `docker compose.services.yml` was incorrectly configured:
 
 **Before (BROKEN)**:
 ```yaml
@@ -101,7 +101,7 @@ COPY common/auth ./auth/              # Access to common module
 
 ## Changes Made
 
-### 1. docker-compose.services.yml
+### 1. docker compose.services.yml
 - Updated build contexts for 3 services to use per-service directories
 - Kept api-gateway with `./services` context for common/auth access
 
@@ -130,7 +130,7 @@ COPY common/auth ./auth/              # Access to common module
 ./scripts/test-docker-build-contexts.sh
 
 # Build services locally
-docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
+docker compose -f docker compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
 ```
 
 ### CI Testing

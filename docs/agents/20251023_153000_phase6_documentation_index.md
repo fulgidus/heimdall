@@ -225,7 +225,7 @@ All 5 Phase 6 checkpoints documented:
 
 ### Verification Commands
 ```bash
-docker-compose ps              # Check container status
+docker compose ps              # Check container status
 redis-cli PING                 # Check Redis
 mlflow models list             # Check MLflow registry
 ```
@@ -237,9 +237,9 @@ python scripts/create_service.py inference  # Create scaffold
 
 ### Docker Operations
 ```bash
-docker-compose build inference              # Build image
-docker-compose up -d inference              # Start service
-docker-compose logs inference               # View logs
+docker compose build inference              # Build image
+docker compose up -d inference              # Start service
+docker compose logs inference               # View logs
 ```
 
 ### Testing
@@ -266,7 +266,7 @@ pytest tests/load_test_inference.py -v     # Load test
 - Monitor with PHASE6_PROGRESS_DASHBOARD.md
 
 ### Debugging Tips
-- Check Docker logs: `docker-compose logs inference`
+- Check Docker logs: `docker compose logs inference`
 - Check Redis: `redis-cli MONITOR`
 - Check MLflow: Open http://localhost:5000/models
 - Check Prometheus: http://localhost:9090

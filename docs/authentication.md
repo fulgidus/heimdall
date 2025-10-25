@@ -537,13 +537,13 @@ curl -H "Authorization: Bearer YOUR_TOKEN_HERE" http://localhost:8000/api/v1/...
 **Solution:**
 ```bash
 # Check Keycloak container status
-docker-compose ps keycloak
+docker compose ps keycloak
 
 # View Keycloak logs
-docker-compose logs keycloak
+docker compose logs keycloak
 
 # Restart Keycloak
-docker-compose restart keycloak
+docker compose restart keycloak
 
 # Check health
 curl http://localhost:8080/health/ready

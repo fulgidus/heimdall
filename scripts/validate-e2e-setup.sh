@@ -247,22 +247,22 @@ echo -e "${YELLOW}[Step 6] Checking backend configuration...${NC}\n"
 
 cd "$PROJECT_ROOT"
 
-# Check docker-compose files
-if [ -f "docker-compose.yml" ]; then
-  check_step "docker-compose.yml exists" 0
+# Check docker compose files
+if [ -f "docker compose.yml" ]; then
+  check_step "docker compose.yml exists" 0
 else
-  check_step "docker-compose.yml exists" 1
+  check_step "docker compose.yml exists" 1
 fi
 
 # Check for api-gateway service
-if grep -q "api-gateway:" docker-compose.yml; then
+if grep -q "api-gateway:" docker compose.yml; then
   check_step "API Gateway service configured" 0
 else
   check_step "API Gateway service configured" 1
 fi
 
 # Check for health check endpoints
-if grep -q "health" docker-compose.yml; then
+if grep -q "health" docker compose.yml; then
   check_step "Health checks configured" 0
 else
   check_step "Health checks configured" 1

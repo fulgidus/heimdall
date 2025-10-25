@@ -80,7 +80,7 @@ Verify in DB: SELECT * FROM measurements WHERE task_id = ?
 
 #### 2. Docker Compose Setup
 **Files to update**:
-- `docker-compose.yml` (add rf-acquisition service)
+- `docker compose.yml` (add rf-acquisition service)
 - `.env` (add RF service configuration)
 
 **Additions needed**:
@@ -242,16 +242,16 @@ def test_load_multiple_concurrent_acquisitions():
 ### Task 2: Docker Integration (2 hours)
 **Priority**: MEDIUM (deployment readiness)
 **Files**:
-- Update `docker-compose.yml`
+- Update `docker compose.yml`
 - Update `.env.example`
 - Create `services/rf-acquisition/Dockerfile` (verify it exists)
 
 **What to do**:
 ```bash
 cd heimdall/
-docker-compose up -d postgres redis rabbitmq minio
-docker-compose up rf-acquisition
-# Then run: docker-compose exec rf-acquisition pytest tests/ -v
+docker compose up -d postgres redis rabbitmq minio
+docker compose up rf-acquisition
+# Then run: docker compose exec rf-acquisition pytest tests/ -v
 ```
 
 ### Task 3: Performance Benchmarking (3 hours)
@@ -315,9 +315,9 @@ def test_complete_acquisition_workflow():
 
 ### 3. Docker Integration Check (1 hour)
 ```bash
-docker-compose up -d  # Start all services
-docker-compose exec rf-acquisition pytest tests/ -v
-docker-compose logs rf-acquisition  # Verify no errors
+docker compose up -d  # Start all services
+docker compose exec rf-acquisition pytest tests/ -v
+docker compose logs rf-acquisition  # Verify no errors
 ```
 
 ---
@@ -387,9 +387,9 @@ uvicorn src.main:app --port 8001 --reload      # FastAPI
 celery -A src.main.celery_app worker           # Celery
 
 # Docker
-docker-compose up -d                           # Start all services
-docker-compose logs rf-acquisition -f          # Follow logs
-docker-compose down                            # Stop all services
+docker compose up -d                           # Start all services
+docker compose logs rf-acquisition -f          # Follow logs
+docker compose down                            # Stop all services
 
 # Database
 alembic upgrade head                           # Apply migrations
@@ -406,7 +406,7 @@ psql -U heimdall_user -d heimdall -f migration.sql
 - [ ] `services/rf-acquisition/monitoring.py` - Prometheus metrics
 
 ### Update
-- [ ] `docker-compose.yml` - Add rf-acquisition service
+- [ ] `docker compose.yml` - Add rf-acquisition service
 - [ ] `.env.example` - RF service config
 - [ ] `PHASE4_PLAN.md` - Detailed phase 4 plan
 
