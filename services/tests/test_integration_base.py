@@ -8,9 +8,20 @@ Docker infrastructure (PostgreSQL, Redis, RabbitMQ, MinIO).
 import pytest
 import os
 from typing import Generator
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import docker
+
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
+
+try:
+    import docker
+    DOCKER_AVAILABLE = True
+except ImportError:
+    DOCKER_AVAILABLE = False
+
 import time
 
 
@@ -20,6 +31,10 @@ class IntegrationTestBase:
     @pytest.fixture(scope="class", autouse=True)
     def setup_infrastructure(self):
         """Setup infrastructure for integration tests."""
+        if not DOCKER_AVAILABLE:
+            pytest.skip("Docker not available for integration tests")
+            return
+        
         # Check if Docker containers are running
         try:
             client = docker.from_env()
@@ -54,8 +69,8 @@ class IntegrationTestBase:
     @pytest.fixture
     def db_session(self):
         """Provide database session for integration tests."""
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
+        if not SQLALCHEMY_AVAILABLE:
+            pytest.skip("SQLAlchemy not installed")
         
         database_url = os.getenv(
             'TEST_DATABASE_URL',
@@ -76,7 +91,10 @@ class IntegrationTestBase:
     @pytest.fixture
     def redis_client(self):
         """Provide Redis client for integration tests."""
-        import redis
+        try:
+            import redis
+        except ImportError:
+            pytest.skip("Redis package not installed")
         
         try:
             client = redis.Redis(
@@ -95,7 +113,10 @@ class IntegrationTestBase:
     @pytest.fixture
     def rabbitmq_channel(self):
         """Provide RabbitMQ channel for integration tests."""
-        import pika
+        try:
+            import pika
+        except ImportError:
+            pytest.skip("Pika package not installed")
         
         try:
             credentials = pika.PlainCredentials(
@@ -112,13 +133,16 @@ class IntegrationTestBase:
             channel = connection.channel()
             yield channel
             connection.close()
-        except pika.exceptions.AMQPConnectionError:
+        except Exception:
             pytest.skip("RabbitMQ not available for integration tests")
     
     @pytest.fixture
     def minio_client(self):
         """Provide MinIO client for integration tests."""
-        from minio import Minio
+        try:
+            from minio import Minio
+        except ImportError:
+            pytest.skip("MinIO package not installed")
         
         try:
             client = Minio(
