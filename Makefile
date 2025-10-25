@@ -1,7 +1,7 @@
 # Heimdall SDR - Development Makefile
 # Cross-platform compatible commands
 
-.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check
+.PHONY: help dev-up dev-down dev-logs prod-up prod-down prod-logs prod-restart test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check
 
 # Default target
 help:
@@ -13,6 +13,11 @@ help:
 	@echo "  INFRASTRUCTURE (Phase 1):"
 	@echo "    dev-up                Start development environment"
 	@echo "    dev-down              Stop development environment"
+	@echo "    dev-logs              View development logs"
+	@echo "    prod-up               Start production environment"
+	@echo "    prod-down             Stop production environment"
+	@echo "    prod-logs             View production logs"
+	@echo "    prod-restart          Restart production environment"
 	@echo "    infra-status          Show docker compose status"
 	@echo "    health-check          Run health check script"
 	@echo "    postgres-connect      Connect to PostgreSQL CLI"
@@ -55,6 +60,24 @@ dev-down:
 
 dev-logs:
 	docker compose logs -f
+
+# Production Environment
+prod-up:
+	docker compose -f docker-compose.prod.yml up -d
+	@echo "Production environment started. Waiting for services to be healthy..."
+	@timeout /t 10 /nobreak
+	docker compose -f docker-compose.prod.yml ps
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down
+	@echo "Production environment stopped."
+
+prod-logs:
+	docker compose -f docker-compose.prod.yml logs -f
+
+prod-restart:
+	docker compose -f docker-compose.prod.yml restart
+	@echo "Production environment restarted."
 
 # Infrastructure Operations (Phase 1)
 infra-status:

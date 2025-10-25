@@ -358,6 +358,39 @@ services:
       app: "heimdall"
       component: "monitoring"
 
+  # Frontend - React application with nginx (Production)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: heimdall-frontend-prod
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://api-gateway:8000
+      - VITE_ENV=production
+      - VITE_ENABLE_ANALYTICS=true
+      - VITE_ENABLE_DEBUG=false
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - heimdall-network-prod
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      app: "heimdall"
+      component: "frontend"
+
 volumes:
   postgres_prod_data:
     driver: local
