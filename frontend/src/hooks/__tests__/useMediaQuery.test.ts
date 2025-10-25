@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useMediaQuery, useIsMobile, useIsTablet, useIsDesktop } from '../useMediaQuery';
 
 describe('useMediaQuery Hook', () => {
@@ -63,18 +63,20 @@ describe('useMediaQuery Hook', () => {
             changeListener = listener;
         });
 
-        const { result, rerender } = renderHook(() => useMediaQuery('(max-width: 768px)'));
+        const { result } = renderHook(() => useMediaQuery('(max-width: 768px)'));
 
         // Initial state
         expect(result.current).toBe(false);
 
         // Simulate resize that matches query
-        matchMediaMock.matches = true;
-        if (changeListener) {
-            changeListener();
-        }
-        rerender();
+        act(() => {
+            matchMediaMock.matches = true;
+            if (changeListener) {
+                changeListener({ matches: true });
+            }
+        });
 
+        // Verify the state was updated by the listener
         expect(result.current).toBe(true);
     });
 
