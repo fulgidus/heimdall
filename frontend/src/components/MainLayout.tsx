@@ -15,7 +15,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'Dashboard' }
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} title={title} />
 
-            <main className="lg:ml-64 p-4 sm:p-6 lg:p-8">
+            <main 
+                className="lg:ml-64 p-4 sm:p-6 lg:p-8"
+                role="main"
+                aria-label={title}
+            >
                 {children}
             </main>
         </div>

@@ -26,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <div
                     className="fixed inset-0 bg-oxford-blue bg-opacity-50 lg:hidden z-30"
                     onClick={onClose}
+                    aria-hidden="true"
                 />
             )}
 
@@ -33,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             <aside
                 className={`fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-oxford-blue to-sea-green border-r border-neon-blue border-opacity-20 transform transition-transform duration-300 ease-in-out z-40 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'
                     }`}
+                aria-label="Main navigation"
             >
                 {/* Logo */}
                 <div className="p-6 border-b border-neon-blue border-opacity-20">
@@ -43,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 flex-1">
+                <nav className="p-4 flex-1" aria-label="Primary navigation">
                     {navigation.map((item) => {
                         const isActive = location.pathname === item.path;
                         return (
@@ -54,8 +56,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                         ? 'bg-neon-blue bg-opacity-20 text-light-green border border-light-green border-opacity-50'
                                         : 'text-french-gray hover:bg-sea-green hover:bg-opacity-10 hover:text-light-green'
                                     }`}
+                                aria-current={isActive ? 'page' : undefined}
                             >
-                                <span className="text-lg">{item.icon}</span>
+                                <span className="text-lg" aria-hidden="true">{item.icon}</span>
                                 <span className="font-medium">{item.name}</span>
                             </Link>
                         );
@@ -68,8 +71,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                         variant="danger"
                         size="sm"
                         className="w-full flex items-center justify-center gap-2"
+                        aria-label="Logout from application"
                     >
-                        <LogOut size={16} />
+                        <LogOut size={16} aria-hidden="true" />
                         Logout
                     </Button>
                 </div>
@@ -80,8 +84,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 <button
                     onClick={onClose}
                     className="fixed top-4 right-4 lg:hidden z-50 p-2 bg-neon-blue rounded-lg"
+                    aria-label="Close navigation menu"
                 >
-                    <X size={24} />
+                    <X size={24} aria-hidden="true" />
                 </button>
             )}
         </>
