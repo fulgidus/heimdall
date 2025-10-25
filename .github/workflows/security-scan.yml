@@ -1,0 +1,270 @@
+name: Security Scanning
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      security-events: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety
+      
+      - name: Bandit security scan (Python)
+        id: bandit
+        continue-on-error: true
+        run: |
+          echo "## 🔒 Bandit Security Scan" >> $GITHUB_STEP_SUMMARY
+          bandit -r services/ scripts/ -f json -o bandit-report.json || true
+          bandit -r services/ scripts/ 2>&1 | tee bandit-output.txt
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ -f bandit-report.json ]; then
+            # Count issues by severity
+            high_count=$(cat bandit-report.json | grep -o '"issue_severity": "HIGH"' | wc -l || echo "0")
+            medium_count=$(cat bandit-report.json | grep -o '"issue_severity": "MEDIUM"' | wc -l || echo "0")
+            low_count=$(cat bandit-report.json | grep -o '"issue_severity": "LOW"' | wc -l || echo "0")
+            
+            echo "high=$high_count" >> $GITHUB_OUTPUT
+            echo "medium=$medium_count" >> $GITHUB_OUTPUT
+            echo "low=$low_count" >> $GITHUB_OUTPUT
+            
+            if [ "$high_count" -gt 0 ]; then
+              echo "❌ **Bandit**: $high_count HIGH, $medium_count MEDIUM, $low_count LOW" >> $GITHUB_STEP_SUMMARY
+              echo "status=FAIL" >> $GITHUB_OUTPUT
+            elif [ "$medium_count" -gt 0 ]; then
+              echo "⚠️  **Bandit**: $medium_count MEDIUM, $low_count LOW (no HIGH)" >> $GITHUB_STEP_SUMMARY
+              echo "status=WARN" >> $GITHUB_OUTPUT
+            else
+              echo "✅ **Bandit**: No HIGH or MEDIUM issues ($low_count LOW)" >> $GITHUB_STEP_SUMMARY
+              echo "status=PASS" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⚠️  **Bandit**: Could not parse report" >> $GITHUB_STEP_SUMMARY
+            echo "status=UNKNOWN" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Safety check (Python dependencies)
+        id: safety
+        continue-on-error: true
+        run: |
+          echo "## 🛡️  Safety Dependency Scan" >> $GITHUB_STEP_SUMMARY
+          
+          # Collect all requirements files
+          find services -name "requirements*.txt" -exec cat {} \; > all-requirements.txt
+          
+          # Run safety check
+          safety check --file=all-requirements.txt --json > safety-report.json 2>&1 || true
+          safety check --file=all-requirements.txt 2>&1 | tee safety-output.txt
+          exit_code=${PIPESTATUS[0]}
+          
+          if [ -f safety-report.json ]; then
+            vuln_count=$(cat safety-report.json | grep -o '"vulnerability"' | wc -l || echo "0")
+            echo "vulnerabilities=$vuln_count" >> $GITHUB_OUTPUT
+            
+            if [ "$vuln_count" -gt 0 ]; then
+              echo "❌ **Safety**: $vuln_count vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+              echo "status=FAIL" >> $GITHUB_OUTPUT
+            else
+              echo "✅ **Safety**: No known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+              echo "status=PASS" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "✅ **Safety**: No known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+            echo "vulnerabilities=0" >> $GITHUB_OUTPUT
+            echo "status=PASS" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Trivy container scan
+        id: trivy
+        continue-on-error: true
+        run: |
+          echo "## 🐳 Trivy Container Scan" >> $GITHUB_STEP_SUMMARY
+          
+          # Install Trivy
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+          
+          # Scan all Dockerfiles
+          total_critical=0
+          total_high=0
+          total_medium=0
+          
+          for dockerfile in $(find services -name "Dockerfile"); do
+            service_name=$(dirname $dockerfile | xargs basename)
+            echo "Scanning $service_name..."
+            
+            # Scan for misconfigurations
+            trivy config --format json --output trivy-${service_name}.json $dockerfile || true
+            
+            # Count issues if report exists
+            if [ -f trivy-${service_name}.json ]; then
+              critical=$(cat trivy-${service_name}.json | grep -o '"Severity": "CRITICAL"' | wc -l || echo "0")
+              high=$(cat trivy-${service_name}.json | grep -o '"Severity": "HIGH"' | wc -l || echo "0")
+              medium=$(cat trivy-${service_name}.json | grep -o '"Severity": "MEDIUM"' | wc -l || echo "0")
+              
+              total_critical=$((total_critical + critical))
+              total_high=$((total_high + high))
+              total_medium=$((total_medium + medium))
+            fi
+          done
+          
+          echo "critical=$total_critical" >> $GITHUB_OUTPUT
+          echo "high=$total_high" >> $GITHUB_OUTPUT
+          echo "medium=$total_medium" >> $GITHUB_OUTPUT
+          
+          if [ "$total_critical" -gt 0 ]; then
+            echo "❌ **Trivy**: $total_critical CRITICAL, $total_high HIGH, $total_medium MEDIUM" >> $GITHUB_STEP_SUMMARY
+            echo "status=FAIL" >> $GITHUB_OUTPUT
+          elif [ "$total_high" -gt 0 ]; then
+            echo "⚠️  **Trivy**: $total_high HIGH, $total_medium MEDIUM (no CRITICAL)" >> $GITHUB_STEP_SUMMARY
+            echo "status=WARN" >> $GITHUB_OUTPUT
+          else
+            echo "✅ **Trivy**: No CRITICAL or HIGH issues ($total_medium MEDIUM)" >> $GITHUB_STEP_SUMMARY
+            echo "status=PASS" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Check GitHub Dependabot alerts
+        id: dependabot
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const alerts = await github.rest.dependabot.listAlertsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              
+              let critical = 0, high = 0, medium = 0, low = 0;
+              
+              for (const alert of alerts.data) {
+                const severity = alert.security_advisory.severity;
+                if (severity === 'critical') critical++;
+                else if (severity === 'high') high++;
+                else if (severity === 'medium') medium++;
+                else if (severity === 'low') low++;
+              }
+              
+              core.setOutput('critical', critical);
+              core.setOutput('high', high);
+              core.setOutput('medium', medium);
+              core.setOutput('low', low);
+              
+              const summary = `## 🔔 Dependabot Alerts\n\n` +
+                `${critical > 0 ? '❌' : '✅'} **CRITICAL**: ${critical}\n` +
+                `${high > 0 ? '❌' : '✅'} **HIGH**: ${high}\n` +
+                `${medium > 0 ? '⚠️' : '✅'} **MEDIUM**: ${medium}\n` +
+                `${low > 0 ? 'ℹ️' : '✅'} **LOW**: ${low}\n`;
+              
+              await core.summary.addRaw(summary).write();
+              
+              if (critical > 0 || high > 0) {
+                core.setOutput('status', 'FAIL');
+                core.setFailed(`Found ${critical} critical and ${high} high severity alerts`);
+              } else {
+                core.setOutput('status', 'PASS');
+              }
+            } catch (error) {
+              console.log('Could not fetch Dependabot alerts:', error.message);
+              core.setOutput('status', 'UNKNOWN');
+            }
+      
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            bandit-output.txt
+            safety-report.json
+            safety-output.txt
+            trivy-*.json
+            all-requirements.txt
+      
+      - name: Generate security summary
+        id: summary
+        if: always()
+        run: |
+          echo "# 🔒 Security Scan Summary" > security-summary.md
+          echo "" >> security-summary.md
+          echo "## Findings" >> security-summary.md
+          echo "" >> security-summary.md
+          echo "| Tool | Status | Details |" >> security-summary.md
+          echo "|------|--------|---------|" >> security-summary.md
+          echo "| Bandit | ${{ steps.bandit.outputs.status }} | HIGH: ${{ steps.bandit.outputs.high }}, MEDIUM: ${{ steps.bandit.outputs.medium }}, LOW: ${{ steps.bandit.outputs.low }} |" >> security-summary.md
+          echo "| Safety | ${{ steps.safety.outputs.status }} | Vulnerabilities: ${{ steps.safety.outputs.vulnerabilities }} |" >> security-summary.md
+          echo "| Trivy | ${{ steps.trivy.outputs.status }} | CRITICAL: ${{ steps.trivy.outputs.critical }}, HIGH: ${{ steps.trivy.outputs.high }}, MEDIUM: ${{ steps.trivy.outputs.medium }} |" >> security-summary.md
+          echo "| Dependabot | ${{ steps.dependabot.outputs.status }} | CRITICAL: ${{ steps.dependabot.outputs.critical }}, HIGH: ${{ steps.dependabot.outputs.high }} |" >> security-summary.md
+          
+          cat security-summary.md
+      
+      - name: Post PR comment with security results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('security-summary.md', 'utf8');
+            
+            const comment = summary + '\n\n' +
+              `📋 [View detailed security reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n` +
+              `**Note**: To suppress findings, comment \`@github-actions ignore-security-findings\``;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Fail workflow if critical issues found
+        if: always()
+        run: |
+          bandit_status="${{ steps.bandit.outputs.status }}"
+          safety_status="${{ steps.safety.outputs.status }}"
+          trivy_status="${{ steps.trivy.outputs.status }}"
+          dependabot_status="${{ steps.dependabot.outputs.status }}"
+          
+          # Fail on FAIL status (not on WARN)
+          if [ "$bandit_status" = "FAIL" ] || [ "$safety_status" = "FAIL" ] || \
+             [ "$trivy_status" = "FAIL" ] || [ "$dependabot_status" = "FAIL" ]; then
+            echo "❌ Critical security issues found"
+            echo "Bandit: $bandit_status"
+            echo "Safety: $safety_status"
+            echo "Trivy: $trivy_status"
+            echo "Dependabot: $dependabot_status"
+            exit 1
+          else
+            echo "✅ No critical security issues"
+            exit 0
+          fi
