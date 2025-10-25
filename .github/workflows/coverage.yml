@@ -149,11 +149,11 @@ jobs:
               body: coverage_text
             });
 
-      - name: Update coverage badge in README
+      - name: Commit coverage badge to develop
         if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
         continue-on-error: true
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add docs/coverage/develop/badge.svg docs/coverage/README.md 2>/dev/null || true
+          git add docs/coverage/develop/badge.svg 2>/dev/null || true
           git diff --cached --quiet || (git commit -m "ci: update coverage badge [skip ci]" && git push)

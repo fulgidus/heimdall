@@ -7,7 +7,7 @@
 [![License: CC Non-Commercial](https://img.shields.io/badge/License-CC%20Non--Commercial-orange.svg)](LICENSE)
 [![Status: In Development](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](AGENTS.md)
 [![Community: Amateur Radio](https://img.shields.io/badge/Community-Amateur%20Radio-blue.svg)](https://www.iaru.org/)
-[![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop)
+[![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/develop/docs/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/)
 
 An AI-powered platform that locates radio transmissions in real-time using machine learning and distributed WebSDR receivers.
 
