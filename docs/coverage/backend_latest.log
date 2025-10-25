@@ -18,28 +18,10 @@ services/data-ingestion-web/src/repository.py               65     65     0%
 services/data-ingestion-web/src/routers/__init__.py          0      0   100%
 services/data-ingestion-web/src/routers/sessions.py        110     82    25%
 services/data-ingestion-web/src/tasks.py                    32     32     0%
-services/inference/src/__init__.py                           0      0   100%
-services/inference/src/config.py                            14      0   100%
-services/inference/src/main.py                              30      4    87%
-services/inference/src/models/__init__.py                    0      0   100%
-services/inference/src/models/health.py                     12      0   100%
-services/inference/src/models/onnx_loader.py                90      8    91%
-services/inference/src/models/schemas.py                    66     66     0%
-services/inference/src/routers/__init__.py                   1      0   100%
-services/inference/src/routers/analytics.py                160    115    28%
-services/inference/src/routers/model_metadata.py           233    233     0%
-services/inference/src/routers/predict.py                   63     45    29%
-services/inference/src/utils/__init__.py                     3      0   100%
-services/inference/src/utils/batch_predictor.py            168     95    43%
-services/inference/src/utils/cache.py                      133     96    28%
-services/inference/src/utils/metrics.py                     83     46    45%
-services/inference/src/utils/model_versioning.py           203    109    46%
-services/inference/src/utils/preprocessing.py              122     86    30%
-services/inference/src/utils/uncertainty.py                 56      9    84%
 services/rf-acquisition/src/__init__.py                      0      0   100%
 services/rf-acquisition/src/config.py                       24      0   100%
 services/rf-acquisition/src/fetchers/__init__.py             2      0   100%
-services/rf-acquisition/src/fetchers/websdr_fetcher.py     101     29    71%
+services/rf-acquisition/src/fetchers/websdr_fetcher.py     101     78    23%
 services/rf-acquisition/src/main.py                         42     10    76%
 services/rf-acquisition/src/models/__init__.py               5      2    60%
 services/rf-acquisition/src/models/db.py                    50      3    94%
@@ -75,4 +57,4 @@ services/training/src/train.py                             149    149     0%
 services/training/src/utils/__init__.py                      2      2     0%
 services/training/src/utils/losses.py                       96     96     0%
 ----------------------------------------------------------------------------
-TOTAL                                                     4291   2641    38%
+TOTAL                                                     2854   1778    38%
