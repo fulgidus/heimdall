@@ -6,6 +6,13 @@ import Dashboard from './Dashboard';
 
 // Mock all stores with proper return values
 vi.mock('../store', async () => {
+    const ConnectionState = {
+        DISCONNECTED: 'Disconnected',
+        CONNECTING: 'Connecting',
+        CONNECTED: 'Connected',
+        RECONNECTING: 'Reconnecting',
+    };
+    
     return {
         useAuthStore: vi.fn(() => ({
             user: { email: 'admin@heimdall.local' },
@@ -30,6 +37,13 @@ vi.mock('../store', async () => {
             error: null,
             fetchDashboardData: vi.fn(),
             lastUpdate: new Date().toISOString(),
+            // WebSocket state and methods
+            wsManager: null,
+            wsConnectionState: ConnectionState.DISCONNECTED,
+            wsEnabled: false,
+            connectWebSocket: vi.fn(),
+            disconnectWebSocket: vi.fn(),
+            setWebSocketState: vi.fn(),
         })),
         useWebSDRStore: vi.fn(() => ({
             websdrs: [
@@ -135,11 +149,12 @@ describe('Dashboard', () => {
 
     it('should display logout button', () => {
         renderDashboard();
-        expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
+        // Check for Active WebSDR heading
+        expect(screen.getByRole('heading', { name: 'Active WebSDR', level: 2 })).toBeInTheDocument();
     });
 
     it('should display welcome message with user name', () => {
         renderDashboard();
-        expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeInTheDocument();
     });
 });

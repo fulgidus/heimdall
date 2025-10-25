@@ -1,0 +1,45 @@
+/**
+ * Map Component Styles
+ * 
+ * Animations and styles for Mapbox map components
+ */
+
+/* Pulse animation for active WebSDR markers */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* WebSDR marker base styles */
+.websdr-marker {
+    transition: transform 0.2s ease;
+}
+
+.websdr-marker:hover {
+    transform: scale(1.2);
+}
+
+/* Mapbox popup customization */
+.mapboxgl-popup {
+    max-width: 400px;
+}
+
+.mapboxgl-popup-content {
+    padding: 0;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Responsive map container */
+@media (max-width: 768px) {
+    .map-container {
+        height: 400px !important;
+    }
+}

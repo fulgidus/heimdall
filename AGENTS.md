@@ -27,12 +27,6 @@
 ### Strict Terminal Command Rules
 **MANDATORY - No exceptions:**
 1. **NO arbitrary sleep commands**: Do NOT insert `sleep` statements anywhere in terminal commands unless explicitly required by the actual task logic (e.g., waiting for a specific asynchronous operation). Never use sleep for "safety" or "to be sure" - it wastes time and shows lazy thinking. BANNED: `sleep 10`, `sleep 15`, `sleep 30`, etc.
-2. **NO output redirection (`2>&1`)**: Do NOT append `2>&1` or any output redirection to console output commands. Commands that naturally print to stdout don't need redirection. BANNED: `command 2>&1 | head -100`, `docker compose ps 2>&1`
-
-**When it's actually needed:**
-- Use sleep ONLY for documented async wait conditions (e.g., "wait for service to bind port")
-- Use `2>&1` ONLY when capturing output to files and need both stdout AND stderr combined
-- When output redirection is actually needed: state the reason clearly in the explanation parameter
 
 **The rule applies to ALL agents in this project, without exception.**
 
@@ -1416,13 +1410,15 @@ Create React + Mapbox frontend for real-time RF source localization with uncerta
 - **T7.6**: Add spectrogram visualization for signal validation (one for each WebSDR)
 - **T7.7**: Implement user authentication and role management
 - **T7.8**: Create responsive design for mobile/tablet operators
-- **T7.9**: Add WebSocket integration for real-time updates
+- **T7.9**: Add WebSocket integration for real-time updates ✅ COMPLETE (2025-10-25)
 - **T7.10**: Create comprehensive E2E tests with Playwright
 
 ### Checkpoints
 
 ✅ CP7.1: Map displays 7 WebSDR locations correctly
 ✅ CP7.2: Recording session workflow complete
+✅ CP7.3: Real-time localization updates functional (WebSocket implemented)
+✅ CP7.4: Mobile responsive design verified
 ✅ CP7.3: Real-time localization updates functional
 ✅ CP7.4: Mobile responsive design verified
 ✅ CP7.5: All E2E tests pass

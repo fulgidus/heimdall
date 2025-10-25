@@ -41,7 +41,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'Dashboard', 
                 showBackButton={showBackButton}
             />
 
-            <main className="lg:ml-64 p-4 sm:p-6 lg:p-8 mobile-p-4" style={{ paddingBottom: '5rem' }}>
+            <main 
+                className="lg:ml-64 p-4 sm:p-6 lg:p-8 mobile-p-4"
+                role="main"
+                aria-label={title}
+                style={{ paddingBottom: '5rem' }}
+            >
                 {children}
             </main>
 

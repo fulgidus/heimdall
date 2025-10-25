@@ -107,6 +107,10 @@ npm run preview
 - `lucide-react@^0.263.1` - Icon library
 - `classnames@^2.3.2` - Class name utility
 
+### Maps & Visualization
+- `mapbox-gl@^3.0.0` - Interactive maps
+- `@types/mapbox-gl` - TypeScript types for Mapbox
+
 ### State Management & Data
 - `zustand@^4.4.1` - Light state management
 - `axios@^1.6.0` - HTTP client
@@ -125,6 +129,13 @@ npm run preview
 - ✅ Header with notifications
 - ✅ Zustand store for state management
 - ✅ API client with interceptors
+- ✅ **Interactive Mapbox GL JS map** with:
+  - WebSDR receiver locations (7 Northwestern Italy receivers)
+  - Real-time localization points with uncertainty ellipses
+  - Status-based color coding (green/yellow/red)
+  - Interactive popups and tooltips
+  - Auto-centering on new localizations
+  - Performance optimized for 100+ markers
 
 ### Planned
 - 📊 Chart.js / Recharts integration for live charts
@@ -211,6 +222,56 @@ VITE_ENV=production
 3. **State**: Use Zustand for global state
 4. **Styling**: Use TailwindCSS utility classes
 5. **Types**: Define interfaces in `src/types`
+
+## 🗺️ Map Integration
+
+The frontend includes an interactive Mapbox GL JS map for RF source localization visualization.
+
+### Setup
+
+1. **Get Mapbox Token**:
+   - Create account at https://www.mapbox.com/
+   - Generate access token (free tier: 50,000 map loads/month)
+
+2. **Configure Environment**:
+   ```bash
+   # Add to .env file
+   VITE_MAPBOX_TOKEN=pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJjbHh4eHh4eHgifQ.xxxxxxxxxxxx
+   ```
+
+3. **Usage**:
+   ```tsx
+   import { MapContainer } from '@/components/Map';
+   
+   <MapContainer
+     websdrs={websdrs}
+     healthStatus={healthStatus}
+     localizations={localizations}
+     onLocalizationClick={(loc) => setSelected(loc)}
+     style={{ height: '600px' }}
+   />
+   ```
+
+### Map Features
+
+- **WebSDR Markers**: 7 receivers in Northwestern Italy
+  - Green: Online and healthy
+  - Yellow: Online but degraded
+  - Red: Offline or error
+  - Pulsing animation for active receivers
+
+- **Localization Points**: Red circle markers
+  - Click for detailed information
+  - Uncertainty ellipses (1σ, 2σ, 3σ)
+  - Color-coded by confidence level
+
+- **Interactive Controls**:
+  - Zoom, pan, rotate
+  - Fullscreen mode
+  - Scale indicator
+  - Auto-center on new data
+
+See [Map Component README](src/components/Map/README.md) for detailed documentation.
 
 ## 🤝 Contributing
 
