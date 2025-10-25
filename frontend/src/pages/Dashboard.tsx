@@ -15,7 +15,6 @@ const Dashboard: React.FC = () => {
         wsEnabled,
         connectWebSocket,
         disconnectWebSocket,
-        retryDelay,
     } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,24 +38,17 @@ const Dashboard: React.FC = () => {
             disconnectWebSocket();
         };
     }, [fetchDashboardData, connectWebSocket, disconnectWebSocket, wsEnabled, wsConnectionState]);
-        // Setup auto-refresh with exponential backoff on errors
-        const interval = setInterval(() => {
-            fetchDashboardData();
-        }, error ? retryDelay : 30000); // Use retryDelay if error, otherwise 30s
-
-        return () => clearInterval(interval);
-    }, [fetchDashboardData, error, retryDelay]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
         await fetchDashboardData();
         setIsRefreshing(false);
     };
-    
+
     const handleReconnect = async () => {
         await connectWebSocket();
     };
-    
+
     // Get connection status display
     const getConnectionStatus = () => {
         switch (wsConnectionState) {
@@ -71,7 +63,7 @@ const Dashboard: React.FC = () => {
                 return { text: wsEnabled ? 'Disconnected' : 'Polling Mode', color: 'danger', icon: 'ph-x-circle' };
         }
     };
-    
+
     const connectionStatus = getConnectionStatus();
 
     // Calculate online WebSDRs from health status
@@ -418,10 +410,10 @@ const Dashboard: React.FC = () => {
                                                 <div className="flex-shrink-0">
                                                     <span
                                                         className={`badge ${health.status === 'healthy'
-                                                                ? 'bg-light-success'
-                                                                : health.status === 'degraded'
-                                                                    ? 'bg-light-warning'
-                                                                    : 'bg-light-danger'
+                                                            ? 'bg-light-success'
+                                                            : health.status === 'degraded'
+                                                                ? 'bg-light-warning'
+                                                                : 'bg-light-danger'
                                                             }`}
                                                     >
                                                         {health.status}
@@ -438,7 +430,7 @@ const Dashboard: React.FC = () => {
                                         {error ? 'Failed to load services' : 'No service data available'}
                                     </p>
                                     {error && (
-                                        <button 
+                                        <button
                                             className="btn btn-sm btn-link-primary mt-2"
                                             onClick={handleRefresh}
                                         >
@@ -472,14 +464,14 @@ const Dashboard: React.FC = () => {
                                                         <h6 className="mb-0">{sdr.city}</h6>
                                                         <div
                                                             className={`avtar avtar-xs ${sdr.status === 'online'
-                                                                    ? 'bg-light-success'
-                                                                    : 'bg-light-danger'
+                                                                ? 'bg-light-success'
+                                                                : 'bg-light-danger'
                                                                 }`}
                                                         >
                                                             <i
                                                                 className={`ph ${sdr.status === 'online'
-                                                                        ? 'ph-radio-button'
-                                                                        : 'ph-radio-button'
+                                                                    ? 'ph-radio-button'
+                                                                    : 'ph-radio-button'
                                                                     } f-18`}
                                                             ></i>
                                                         </div>
@@ -490,8 +482,8 @@ const Dashboard: React.FC = () => {
                                                             <div className="progress" style={{ height: '5px' }}>
                                                                 <div
                                                                     className={`progress-bar ${sdr.status === 'online'
-                                                                            ? 'bg-success'
-                                                                            : 'bg-danger'
+                                                                        ? 'bg-success'
+                                                                        : 'bg-danger'
                                                                         }`}
                                                                     role="progressbar"
                                                                     style={{ width: `${sdr.signal}%` }}
