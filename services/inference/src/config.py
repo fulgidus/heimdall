@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     service_port: int = 8003
     environment: str = "development"
     cors_origins: List[str] = ["*"]
-    database_url: str = "postgresql://heimdall:heimdall@postgres:5432/heimdall"
+    database_url: str = "postgresql://heimdall_user:changeme@postgres:5432/heimdall"
     redis_url: str = "redis://redis:6379/0"
     mlflow_tracking_uri: str = "http://localhost:5000"
     
