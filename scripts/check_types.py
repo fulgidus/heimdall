@@ -19,7 +19,7 @@ def run_mypy(service_path: Path) -> Tuple[int, str]:
 def run_pylint(service_path: Path) -> Tuple[int, str]:
     """Run pylint on a service."""
     result = subprocess.run(
-        ['pylint', str(service_path / 'src'), '--disable=all', '--enable=E,F'],
+        ['pylint', str(service_path / 'src'), '--rcfile=.pylintrc'],
         capture_output=True,
         text=True,
     )
