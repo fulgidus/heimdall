@@ -7,6 +7,7 @@
 [![License: CC Non-Commercial](https://img.shields.io/badge/License-CC%20Non--Commercial-orange.svg)](LICENSE)
 [![Status: In Development](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](AGENTS.md)
 [![Community: Amateur Radio](https://img.shields.io/badge/Community-Amateur%20Radio-blue.svg)](https://www.iaru.org/)
+[![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop)
 
 An AI-powered platform that locates radio transmissions in real-time using machine learning and distributed WebSDR receivers.
 
@@ -140,6 +141,24 @@ npm run test:e2e:debug
 **CI/CD**: Automated via GitHub Actions  
 
 See [E2E Testing Guide](docs/agents/20251024_104500_e2e_testing_real_backend.md) for details.
+
+## 📊 Test Coverage Reports
+
+Live test coverage reports are automatically generated on every push to `main` and `develop` branches:
+
+| Branch | Coverage | Report |
+|--------|----------|--------|
+| **Develop** | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/develop) | [View Report](https://fulgidus.github.io/heimdall/coverage/develop) |
+| **Main** | [![Coverage Badge](https://raw.githubusercontent.com/fulgidus/heimdall/gh-pages/coverage/main/badge.svg)](https://fulgidus.github.io/heimdall/coverage/main) | [View Report](https://fulgidus.github.io/heimdall/coverage/main) |
+
+**Coverage includes:**
+- ✅ Backend services (Python/FastAPI)
+- ✅ Frontend components (React/TypeScript)
+- ✅ Integration tests
+- ✅ E2E test coverage
+
+Reports are powered by the [GitHub Actions workflow](.github/workflows/coverage.yml) and hosted on [GitHub Pages](https://fulgidus.github.io/heimdall/coverage/).
+
 ### Development Credentials
 
 For local development, all services use default credentials documented in [Development Default Credentials Guide](docs/dev-credentials.md).
