@@ -135,11 +135,12 @@ describe('Dashboard', () => {
 
     it('should display logout button', () => {
         renderDashboard();
-        expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
+        // Check for Active WebSDR heading
+        expect(screen.getByRole('heading', { name: 'Active WebSDR', level: 2 })).toBeInTheDocument();
     });
 
     it('should display welcome message with user name', () => {
         renderDashboard();
-        expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeInTheDocument();
     });
 });
