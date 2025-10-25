@@ -41,6 +41,8 @@ export default defineConfig({
         target: 'esnext',
         outDir: 'dist',
         sourcemap: false,
+        minify: 'esbuild',
+        cssCodeSplit: true,
         rollupOptions: {
             output: {
                 manualChunks: (id) => {
@@ -60,6 +62,10 @@ export default defineConfig({
                         return 'vendor';
                     }
                 },
+                // Optimize chunk file names for better caching
+                chunkFileNames: 'assets/[name]-[hash].js',
+                entryFileNames: 'assets/[name]-[hash].js',
+                assetFileNames: 'assets/[name]-[hash].[ext]',
             },
         },
         chunkSizeWarningLimit: 600,
