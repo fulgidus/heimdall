@@ -9,6 +9,7 @@ dist/
 build/
 
 # Python
+venv
 __pycache__/
 venv
 *.py[cod]

@@ -18,7 +18,7 @@ Successfully implemented a centralized Keycloak-based authentication system for 
 
 ### 1. Keycloak Infrastructure Setup ✅
 
-**Added to `docker-compose.yml`:**
+**Added to `docker compose.yml`:**
 - Keycloak 23.0 container with PostgreSQL backend
 - Automatic realm import on first startup
 - Health checks and proper service dependencies
@@ -83,7 +83,7 @@ require_operator()           # Require operator role (or admin)
 - Added curl for health checks
 - Set `PYTHONPATH=/app` for module imports
 
-**docker-compose.yml:**
+**docker compose.yml:**
 - Added Keycloak environment variables
 - Updated build context for multi-directory builds
 
@@ -253,7 +253,7 @@ require_operator()           # Require operator role (or admin)
 2. **Apply Authentication to Remaining Services**
    - Copy auth module integration pattern from API Gateway
    - Update Dockerfiles for each service
-   - Add environment variables to docker-compose.yml
+   - Add environment variables to docker compose.yml
    - Test each service individually
 
 3. **Create Unit Tests**
@@ -366,7 +366,7 @@ docker compose up -d
 - `services/common/auth/requirements.txt` (4 lines)
 
 ### Modified Files
-- `docker-compose.yml` - Added Keycloak service + auth env vars
+- `docker compose.yml` - Added Keycloak service + auth env vars
 - `.env.example` - Added 10+ Keycloak configuration variables
 - `docs/ARCHITECTURE.md` - Added authentication section (150+ lines)
 - `docs/dev-credentials.md` - Added Keycloak credentials and examples

@@ -6,6 +6,1446 @@
 [1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/home/runner/work/heimdall/heimdall/frontend[39m
       [2mCoverage enabled with [22m[33mv8[39m
 
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchWebSDRs Action[2m > [22m[2mshould handle fetchWebSDRs error gracefully
+[22m[39mFailed to fetch WebSDRs: Error: Failed to fetch WebSDRs
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:245:67
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchModelInfo Action[2m > [22m[2mshould handle fetchModelInfo error gracefully
+[22m[39mFailed to fetch model info: Error: Model not found
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:276:72
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchServicesHealth Action[2m > [22m[2mshould handle fetchServicesHealth error gracefully
+[22m[39mFailed to fetch services health: Error: Services unavailable
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:308:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchDashboardData Action (Comprehensive)[2m > [22m[2mshould set loading state during fetch
+[22m[39mFailed to fetch model info: TypeError: Cannot read properties of null (reading 'accuracy')
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:145:48
+    at setState [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/zustand@5.0.8_@types+react@19.2.2_react@19.2.0/node_modules/[4mzustand[24m/esm/vanilla.mjs:5:55[90m)[39m
+    at Object.fetchModelInfo [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:138:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async Promise.allSettled (index 1)
+    at Object.fetchDashboardData [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:193:13[90m)[39m
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:331:13
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchDashboardData Action (Comprehensive)[2m > [22m[2mshould reset retry count on successful fetch
+[22m[39mFailed to fetch model info: TypeError: Cannot read properties of null (reading 'accuracy')
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:145:48
+    at setState [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/zustand@5.0.8_@types+react@19.2.2_react@19.2.0/node_modules/[4mzustand[24m/esm/vanilla.mjs:5:55[90m)[39m
+    at Object.fetchModelInfo [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:138:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async Promise.allSettled (index 1)
+    at Object.fetchDashboardData [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:193:13[90m)[39m
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:380:13
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mfetchDashboardData Action (Comprehensive)[2m > [22m[2mshould handle partial failures gracefully
+[22m[39mFailed to fetch model info: Error: Model error
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:397:72
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+Failed to fetch services health: Error: Health error
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:398:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mrefreshAll Action[2m > [22m[2mshould call fetchDashboardData
+[22m[39mFailed to fetch model info: TypeError: Cannot read properties of null (reading 'accuracy')
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:145:48
+    at setState [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/zustand@5.0.8_@types+react@19.2.2_react@19.2.0/node_modules/[4mzustand[24m/esm/vanilla.mjs:5:55[90m)[39m
+    at Object.fetchModelInfo [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:138:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async Promise.allSettled (index 1)
+    at Object.fetchDashboardData [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:193:13[90m)[39m
+    at Object.refreshAll [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:219:9[90m)[39m
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:423:13
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mEdge Cases and Error Handling[2m > [22m[2mshould handle null model info
+[22m[39mFailed to fetch model info: TypeError: Cannot read properties of null (reading 'accuracy')
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:145:48
+    at setState [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/zustand@5.0.8_@types+react@19.2.2_react@19.2.0/node_modules/[4mzustand[24m/esm/vanilla.mjs:5:55[90m)[39m
+    at Object.fetchModelInfo [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:138:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:446:13
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mEdge Cases and Error Handling[2m > [22m[2mshould handle network timeout
+[22m[39mFailed to fetch WebSDRs: Error: Network timeout
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:455:17
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/dashboardStore.test.ts[2m > [22m[2mDashboard Store (Zustand)[2m > [22m[2mState Consistency[2m > [22m[2mshould update lastUpdate timestamp on successful fetch
+[22m[39mFailed to fetch model info: TypeError: Cannot read properties of null (reading 'accuracy')
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:145:48
+    at setState [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/zustand@5.0.8_@types+react@19.2.2_react@19.2.0/node_modules/[4mzustand[24m/esm/vanilla.mjs:5:55[90m)[39m
+    at Object.fetchModelInfo [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:138:13[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at async Promise.allSettled (index 1)
+    at Object.fetchDashboardData [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.ts:193:13[90m)[39m
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/dashboardStore.test.ts:483:13
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
+
+[90mstderr[2m | src/store/acquisitionStore.test.ts[2m > [22m[2mAcquisition Store (Zustand)[2m > [22m[2mgetTaskStatus Action[2m > [22m[2mshould handle get status error
+[22m[39mFailed to get task status: Error: Task not found
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/acquisitionStore.test.ts:206:82
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstdout[2m | src/services/api/session.test.ts
+[22m[39m🔧 API Configuration: {
+  VITE_API_URL: [90mundefined[39m,
+  API_BASE_URL: [32m'http://localhost:8000'[39m,
+  environment: [32m'test'[39m,
+  isDev: [33mtrue[39m
+}
+
+ [32m✓[39m src/store/dashboardStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould list sessions with default pagination
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould list sessions with default pagination
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m638[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle pagination parameters
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle pagination parameters
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould filter by status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould filter by status
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m218[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould filter by approval status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould filter by approval status
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m245[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould combine multiple filters
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould combine multiple filters
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m48[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle empty results
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle empty results
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m48[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle 500 error from backend
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle 500 error from backend
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Database connection failed'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle network errors
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mlistSessions[2m > [22m[2mshould handle network errors
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould get a specific session by ID
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/1'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould get a specific session by ID
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/1'[39m, dataSize: [33m339[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould handle 404 error for non-existent session
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/9999'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/9999'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould handle 404 error for non-existent session
+[22m[39m❌ API Error: {
+  status: [33m404[39m,
+  url: [32m'/api/v1/sessions/9999'[39m,
+  message: [32m'Request failed with status code 404'[39m,
+  data: { detail: [32m'Session not found'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould handle sessions with null optional fields
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/2'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/2'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSession[2m > [22m[2mshould handle sessions with null optional fields
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/2'[39m, dataSize: [33m263[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould create a new session successfully
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould create a new session successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m140[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould handle validation errors (400)
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould handle validation errors (400)
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'Invalid session parameters'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould handle duplicate session name conflicts (409)
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+ [32m✓[39m src/store/acquisitionStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mcreateSession[2m > [22m[2mshould handle duplicate session name conflicts (409)
+[22m[39m❌ API Error: {
+  status: [33m409[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  message: [32m'Request failed with status code 409'[39m,
+  data: { detail: [32m'Session name already exists'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould update session status successfully
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/1/status'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1/status'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould update session status successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/1/status'[39m, dataSize: [33m210[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould update to completed status
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/1/status'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1/status'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould update to completed status
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/1/status'[39m, dataSize: [33m214[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould handle invalid status transitions
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/1/status'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1/status'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionStatus[2m > [22m[2mshould handle invalid status transitions
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/sessions/1/status'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'Invalid status transition'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould approve a session
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/1/approval'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1/approval'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould approve a session
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/1/approval'[39m, dataSize: [33m140[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould reject a session
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/2/approval'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/2/approval'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould reject a session
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/2/approval'[39m, dataSize: [33m144[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould handle 404 for non-existent session
+[22m[39m📤 API Request: {
+  method: [32m'PATCH'[39m,
+  url: [32m'/api/v1/sessions/9999/approval'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/9999/approval'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mupdateSessionApproval[2m > [22m[2mshould handle 404 for non-existent session
+[22m[39m❌ API Error: {
+  status: [33m404[39m,
+  url: [32m'/api/v1/sessions/9999/approval'[39m,
+  message: [32m'Request failed with status code 404'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould delete a session successfully
+[22m[39m📤 API Request: {
+  method: [32m'DELETE'[39m,
+  url: [32m'/api/v1/sessions/1'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould delete a session successfully
+[22m[39m📥 API Response: { status: [33m204[39m, url: [32m'/api/v1/sessions/1'[39m, dataSize: [33m2[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould handle 404 for non-existent session
+[22m[39m📤 API Request: {
+  method: [32m'DELETE'[39m,
+  url: [32m'/api/v1/sessions/9999'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/9999'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould handle 404 for non-existent session
+[22m[39m❌ API Error: {
+  status: [33m404[39m,
+  url: [32m'/api/v1/sessions/9999'[39m,
+  message: [32m'Request failed with status code 404'[39m,
+  data: { detail: [32m'Session not found'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould handle 409 if session has dependent data
+[22m[39m📤 API Request: {
+  method: [32m'DELETE'[39m,
+  url: [32m'/api/v1/sessions/1'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mdeleteSession[2m > [22m[2mshould handle 409 if session has dependent data
+[22m[39m❌ API Error: {
+  status: [33m409[39m,
+  url: [32m'/api/v1/sessions/1'[39m,
+  message: [32m'Request failed with status code 409'[39m,
+  data: { detail: [32m'Cannot delete session with existing measurements'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould fetch session analytics successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/analytics'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/analytics'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould fetch session analytics successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/analytics'[39m, dataSize: [33m200[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould handle analytics with no sessions
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/analytics'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/analytics'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould handle analytics with no sessions
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/analytics'[39m, dataSize: [33m124[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould handle 503 error when analytics unavailable
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/analytics'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/analytics'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mgetSessionAnalytics[2m > [22m[2mshould handle 503 error when analytics unavailable
+[22m[39m❌ API Error: {
+  status: [33m503[39m,
+  url: [32m'/api/v1/sessions/analytics'[39m,
+  message: [32m'Request failed with status code 503'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould list all known sources
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould list all known sources
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/known-sources'[39m, dataSize: [33m459[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould handle empty list
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould handle empty list
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/known-sources'[39m, dataSize: [33m2[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould handle 500 error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mlistKnownSources[2m > [22m[2mshould handle 500 error
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould create a new known source
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould create a new known source
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/known-sources'[39m, dataSize: [33m252[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould handle validation errors for invalid coordinates
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould handle validation errors for invalid coordinates
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'Invalid coordinates'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould handle duplicate name conflicts
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/known-sources'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mcreateKnownSource[2m > [22m[2mshould handle duplicate name conflicts
+[22m[39m❌ API Error: {
+  status: [33m409[39m,
+  url: [32m'/api/v1/sessions/known-sources'[39m,
+  message: [32m'Request failed with status code 409'[39m,
+  data: { detail: [32m'Source name already exists'[39m }
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle concurrent session listing requests
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle concurrent session listing requests
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions'[39m, dataSize: [33m49[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould validate session timestamps are chronological
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/sessions/1'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions/1'[39m
+}
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould validate session timestamps are chronological
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/sessions/1'[39m, dataSize: [33m214[39m }
+
+[90mstdout[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle timeout during session creation
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/sessions'[39m
+}
+
+[90mstderr[2m | src/services/api/session.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle timeout during session creation
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/sessions'[39m,
+  message: [32m'timeout of 10000ms exceeded'[39m,
+  data: [90mundefined[39m
+}
+
+ [32m✓[39m src/services/api/session.test.ts [2m([22m[2m35 tests[22m[2m)[22m[32m 110[2mms[22m[39m
+[90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mfetchSessions Action[2m > [22m[2mshould handle fetch error gracefully
+[22m[39mSession fetch error: Error: Failed to fetch sessions
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.test.ts:189:70
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mfetchSession Action (Single Session)[2m > [22m[2mshould handle fetch session error
+[22m[39mSession fetch error: Error: Session not found
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.test.ts:233:68
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mcreateSession Action[2m > [22m[2mshould handle create session error
+[22m[39mSession creation error: Error: Failed to create session
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.test.ts:278:71
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mFilter Actions[2m > [22m[2mshould set status filter
+[22m[39mSession fetch error: TypeError: Cannot read properties of undefined (reading 'sessions')
+    at Object.fetchSessions [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.ts:95:36[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+Session fetch error: TypeError: Cannot read properties of undefined (reading 'sessions')
+    at Object.fetchSessions [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.ts:95:36[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+[90mstderr[2m | src/store/sessionStore.test.ts[2m > [22m[2mSession Store (Zustand)[2m > [22m[2mFilter Actions[2m > [22m[2mshould set approval filter
+[22m[39mSession fetch error: TypeError: Cannot read properties of undefined (reading 'sessions')
+    at Object.fetchSessions [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.ts:95:36[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+Session fetch error: TypeError: Cannot read properties of undefined (reading 'sessions')
+    at Object.fetchSessions [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/sessionStore.ts:95:36[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+
+[90mstdout[2m | src/services/api/inference.test.ts
+[22m[39m🔧 API Configuration: {
+  VITE_API_URL: [90mundefined[39m,
+  API_BASE_URL: [32m'http://localhost:8000'[39m,
+  environment: [32m'test'[39m,
+  isDev: [33mtrue[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould fetch model information successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/info'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/info'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould fetch model information successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/analytics/model/info'[39m, dataSize: [33m184[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould handle 500 error when model info not available
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/info'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/info'[39m
+}
+
+ [32m✓[39m src/store/sessionStore.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould handle 500 error when model info not available
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/analytics/model/info'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Model not loaded'[39m }
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould handle network errors
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/info'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/info'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelInfo[2m > [22m[2mshould handle network errors
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/analytics/model/info'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould fetch model performance metrics successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/performance'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould fetch model performance metrics successfully
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  dataSize: [33m143[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould handle empty metrics (new deployment)
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/performance'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould handle empty metrics (new deployment)
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  dataSize: [33m130[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould handle 503 error when metrics service unavailable
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/model/performance'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetModelPerformance[2m > [22m[2mshould handle 503 error when metrics service unavailable
+[22m[39m❌ API Error: {
+  status: [33m503[39m,
+  url: [32m'/api/v1/analytics/model/performance'[39m,
+  message: [32m'Request failed with status code 503'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould make a successful prediction
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould make a successful prediction
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m285[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle cache hit response
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle cache hit response
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle 400 error for invalid IQ data
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle 400 error for invalid IQ data
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'IQ data is required and must not be empty'[39m }
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle 500 error during inference
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle 500 error during inference
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Model inference failed'[39m }
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle timeout errors
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould handle timeout errors
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  message: [32m'timeout of 10000ms exceeded'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould validate uncertainty values are reasonable
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalization[2m > [22m[2mshould validate uncertainty values are reasonable
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m277[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould make batch predictions successfully
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict/batch'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict/batch'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould make batch predictions successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict/batch'[39m, dataSize: [33m876[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould handle empty batch
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict/batch'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict/batch'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould handle empty batch
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/inference/predict/batch'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'Batch must contain at least one prediction'[39m }
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould handle partial failures in batch
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict/batch'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict/batch'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mpredictLocalizationBatch[2m > [22m[2mshould handle partial failures in batch
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/inference/predict/batch'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Some predictions failed'[39m }
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould fetch recent localizations with default limit
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/localizations/recent'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould fetch recent localizations with default limit
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  dataSize: [33m289[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould fetch recent localizations with custom limit
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/localizations/recent'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould fetch recent localizations with custom limit
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  dataSize: [33m782[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle empty results (no recent localizations)
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/localizations/recent'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle empty results (no recent localizations)
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  dataSize: [33m2[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle 500 error from analytics service
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/localizations/recent'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle 500 error from analytics service
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle network errors
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/analytics/localizations/recent'[39m
+}
+
+[90mstderr[2m | src/services/api/inference.test.ts[2m > [22m[2mgetRecentLocalizations[2m > [22m[2mshould handle network errors
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/analytics/localizations/recent'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle concurrent prediction requests
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould handle concurrent prediction requests
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m271[39m }
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould validate position coordinates are valid
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/inference/predict'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/predict'[39m
+}
+
+[90mstdout[2m | src/services/api/inference.test.ts[2m > [22m[2mEdge Cases and Real-World Scenarios[2m > [22m[2mshould validate position coordinates are valid
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/predict'[39m, dataSize: [33m273[39m }
+
+ [32m✓[39m src/services/api/inference.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 80[2mms[22m[39m
+ [32m✓[39m src/components/Map/WebSDRMarkers.test.tsx [2m([22m[2m26 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mfetchRecentLocalizations Action[2m > [22m[2mshould handle fetch error gracefully
+[22m[39mFailed to fetch recent localizations: Error: Failed to fetch localizations
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/localizationStore.test.ts:161:82
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstdout[2m | src/services/api/acquisition.test.ts
+[22m[39m🔧 API Configuration: {
+  VITE_API_URL: [90mundefined[39m,
+  API_BASE_URL: [32m'http://localhost:8000'[39m,
+  environment: [32m'test'[39m,
+  isDev: [33mtrue[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould trigger acquisition successfully
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould trigger acquisition successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/acquire'[39m, dataSize: [33m75[39m }
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle POST request with all fields
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle POST request with all fields
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/acquire'[39m, dataSize: [33m45[39m }
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle 400 bad request error
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle 400 bad request error
+[22m[39m❌ API Error: {
+  status: [33m400[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  message: [32m'Request failed with status code 400'[39m,
+  data: { detail: [32m'Invalid frequency range'[39m }
+}
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mpredictLocalization Action[2m > [22m[2mshould handle prediction error
+[22m[39mPrediction failed: Error: Prediction failed
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/localizationStore.test.ts:243:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in fetch
+[22m[39mFailed to fetch recent localizations: String error
+
+[90mstderr[2m | src/store/localizationStore.test.ts[2m > [22m[2mLocalization Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions in prediction
+[22m[39mPrediction failed: String error
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle 500 server error
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle 500 server error
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Internal server error'[39m }
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle network error
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle network error
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle timeout error
+[22m[39m📤 API Request: {
+  method: [32m'POST'[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/acquire'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mtriggerAcquisition[2m > [22m[2mshould handle timeout error
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/acquire'[39m,
+  message: [32m'timeout of 10000ms exceeded'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get acquisition status successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-abc123'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-abc123'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get acquisition status successfully
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-abc123'[39m,
+  dataSize: [33m124[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get pending status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-pending'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-pending'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get pending status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-pending'[39m,
+  dataSize: [33m109[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get success status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-success'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-success'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get success status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-success'[39m,
+  dataSize: [33m134[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get failure status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-failed'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-failed'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould get failure status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-failed'[39m,
+  dataSize: [33m122[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould handle 404 task not found
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-notfound'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-notfound'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould handle 404 task not found
+[22m[39m❌ API Error: {
+  status: [33m404[39m,
+  url: [32m'/api/v1/acquisition/status/task-notfound'[39m,
+  message: [32m'Request failed with status code 404'[39m,
+  data: { detail: [32m'Task not found'[39m }
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould handle network error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-network-error'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-network-error'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mgetAcquisitionStatus[2m > [22m[2mshould handle network error
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/status/task-network-error'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-success'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  dataSize: [33m111[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-success'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  dataSize: [33m118[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-success'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until success status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-success'[39m,
+  dataSize: [33m114[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until failure status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-fail'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-fail'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until failure status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-fail'[39m,
+  dataSize: [33m115[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until failure status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-fail'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-fail'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until failure status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-fail'[39m,
+  dataSize: [33m118[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until revoked status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-revoked'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-revoked'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until revoked status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-revoked'[39m,
+  dataSize: [33m116[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until revoked status
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-revoked'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-revoked'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould poll until revoked status
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-revoked'[39m,
+  dataSize: [33m118[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-progress-callback'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  dataSize: [33m123[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-progress-callback'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  dataSize: [33m123[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-progress-callback'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould call progress callback on each poll
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-progress-callback'[39m,
+  dataSize: [33m118[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould use custom poll interval
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-custom-interval'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-custom-interval'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould use custom poll interval
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-custom-interval'[39m,
+  dataSize: [33m121[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould use custom poll interval
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-custom-interval'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-custom-interval'[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould use custom poll interval
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/status/task-custom-interval'[39m,
+  dataSize: [33m112[39m
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould reject on polling error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-error'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-error'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould reject on polling error
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-error'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Server error during polling'[39m }
+}
+
+[90mstdout[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould reject on network error during polling
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-network-error'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/status/task-poll-network-error'[39m
+}
+
+[90mstderr[2m | src/services/api/acquisition.test.ts[2m > [22m[2mAcquisition API Service[2m > [22m[2mpollAcquisitionStatus[2m > [22m[2mshould reject on network error during polling
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/status/task-poll-network-error'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+ [32m✓[39m src/store/localizationStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 146[2mms[22m[39m
+ [32m✓[39m src/services/api/acquisition.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 125[2mms[22m[39m
+[90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mcheckAllServices Action[2m > [22m[2mshould handle check error gracefully
+[22m[39mService health check error: Error: Services unavailable
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/systemStore.test.ts:114:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mcheckService Action[2m > [22m[2mshould handle service check error gracefully
+[22m[39mFailed to check unknown-service health: Error: Service not found
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/systemStore.test.ts:170:75
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mfetchModelPerformance Action[2m > [22m[2mshould handle fetch error gracefully
+[22m[39mFailed to fetch model performance: Error: Model service unavailable
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/systemStore.test.ts:200:79
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mrefreshAll Action[2m > [22m[2mshould handle partial failures
+[22m[39mFailed to fetch model performance: Error: Model service unavailable
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/systemStore.test.ts:309:17
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/systemStore.test.ts[2m > [22m[2mSystem Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions
+[22m[39mService health check error: String error
+
+ [32m✓[39m src/store/systemStore.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 88[2mms[22m[39m
 [90mstderr[2m | src/store/analyticsStore.test.ts[2m > [22m[2mAnalytics Store (Zustand)[2m > [22m[2mfetchAnalytics Action[2m > [22m[2mshould handle errors from prediction metrics API
 [22m[39mFailed to fetch prediction metrics: Error: Network error
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/analyticsStore.test.ts:178:31
@@ -32,8 +1472,402 @@
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
     at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
 
- [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 22[2mms[22m[39m
- [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/store/analyticsStore.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+[90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mfetchWebSDRs Action[2m > [22m[2mshould handle fetch error gracefully
+[22m[39mWebSDR fetch error: Error: Network error
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/websdrStore.test.ts:122:67
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mcheckHealth Action[2m > [22m[2mshould handle health check error gracefully
+[22m[39mHealth check error: Error: Health check failed
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/websdrStore.test.ts:171:74
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mrefreshAll Action[2m > [22m[2mshould handle partial failures
+[22m[39mHealth check error: Error: Health check failed
+    at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/websdrStore.test.ts:289:74
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:155:11
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
+    at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1863:10[90m)[39m
+    at runTest [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1574:12[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+    at runSuite [90m(file:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1729:8[90m)[39m
+
+[90mstderr[2m | src/store/websdrStore.test.ts[2m > [22m[2mWebSDR Store (Zustand)[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle non-Error exceptions
+[22m[39mWebSDR fetch error: String error
+
+ [32m✓[39m src/store/websdrStore.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m src/services/api/analytics.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+[90mstderr[2m | src/pages/Dashboard.integration.test.tsx[2m > [22m[2mDashboard - Real API Integration[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould show refreshing state during manual refresh
+[22m[39mAn update to Dashboard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/Modal.test.tsx [2m([22m[2m23 tests[22m[2m)[22m[33m 679[2mms[22m[39m
+ [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1771[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mLoading States[2m > [22mshould display skeleton loaders when loading with no data [33m 395[2mms[22m[39m
+[90mstdout[2m | src/services/api/websdr.test.ts
+[22m[39m🔧 API Configuration: {
+  VITE_API_URL: [90mundefined[39m,
+  API_BASE_URL: [32m'http://localhost:8000'[39m,
+  environment: [32m'test'[39m,
+  isDev: [33mtrue[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould fetch all WebSDRs successfully
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould fetch all WebSDRs successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould fetch all WebSDRs successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m417[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould fetch all WebSDRs successfully
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould return empty array when no WebSDRs
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould return empty array when no WebSDRs
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould return empty array when no WebSDRs
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m2[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould return empty array when no WebSDRs
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m0[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle 500 error
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle 500 error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstderr[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle 500 error
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Internal server error'[39m }
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle network error
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle network error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstderr[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRs[2m > [22m[2mshould handle network error
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould check WebSDR health successfully
+[22m[39m🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould check WebSDR health successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs/health'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould check WebSDR health successfully
+[22m[39m📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/acquisition/websdrs/health'[39m,
+  dataSize: [33m144[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould check WebSDR health successfully
+[22m[39m✅ WebSDRService.checkWebSDRHealth(): ricevuto health status
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould return empty object when no health data
+[22m[39m🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould return empty object when no health data
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs/health'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould return empty object when no health data
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs/health'[39m, dataSize: [33m2[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould return empty object when no health data
+[22m[39m✅ WebSDRService.checkWebSDRHealth(): ricevuto health status
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould handle 503 service unavailable
+[22m[39m🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould handle 503 service unavailable
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs/health'[39m
+}
+
+[90mstderr[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mcheckWebSDRHealth[2m > [22m[2mshould handle 503 service unavailable
+[22m[39m❌ API Error: {
+  status: [33m503[39m,
+  url: [32m'/api/v1/acquisition/websdrs/health'[39m,
+  message: [32m'Request failed with status code 503'[39m,
+  data: { detail: [32m'Service temporarily unavailable'[39m }
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get specific WebSDR config by id
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get specific WebSDR config by id
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get specific WebSDR config by id
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m370[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get specific WebSDR config by id
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get second WebSDR config
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get second WebSDR config
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get second WebSDR config
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m370[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould get second WebSDR config
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when WebSDR not found
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when WebSDR not found
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when WebSDR not found
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m370[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when WebSDR not found
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when id is 0
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when id is 0
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when id is 0
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m370[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetWebSDRConfig[2m > [22m[2mshould throw error when id is 0
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould filter active WebSDRs only
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould filter active WebSDRs only
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould filter active WebSDRs only
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m558[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould filter active WebSDRs only
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m3[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return empty array when no active WebSDRs
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return empty array when no active WebSDRs
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return empty array when no active WebSDRs
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m190[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return empty array when no active WebSDRs
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m1[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return all WebSDRs when all are active
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return all WebSDRs when all are active
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return all WebSDRs when all are active
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m369[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mgetActiveWebSDRs[2m > [22m[2mshould return all WebSDRs when all are active
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m2[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle concurrent WebSDR requests
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle concurrent WebSDR requests
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m185[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m185[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/acquisition/websdrs'[39m, dataSize: [33m185[39m }
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle concurrent WebSDR requests
+[22m[39m✅ WebSDRService.getWebSDRs(): ricevuti [33m1[39m WebSDRs
+✅ WebSDRService.getWebSDRs(): ricevuti [33m1[39m WebSDRs
+✅ WebSDRService.getWebSDRs(): ricevuti [33m1[39m WebSDRs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle timeout error
+[22m[39m📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs
+
+[90mstdout[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle timeout error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/acquisition/websdrs'[39m
+}
+
+[90mstderr[2m | src/services/api/websdr.test.ts[2m > [22m[2mWebSDR API Service[2m > [22m[2mEdge Cases[2m > [22m[2mshould handle timeout error
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/acquisition/websdrs'[39m,
+  message: [32m'timeout of 10000ms exceeded'[39m,
+  data: [90mundefined[39m
+}
+
+ [32m✓[39m src/services/api/websdr.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 93[2mms[22m[39m
+[90mstderr[2m | src/components/RecordingSessionCreator.test.tsx[2m > [22m[2mRecordingSessionCreator[2m > [22m[2mshould clear error when submitting form
+[22m[39mAn update to RecordingSessionCreator inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to RecordingSessionCreator inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to RecordingSessionCreator inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to RecordingSessionCreator inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/RecordingSessionCreator.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 1033[2mms[22m[39m
+ [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 781[2mms[22m[39m
+ [32m✓[39m src/components/SessionsList.test.tsx [2m([22m[2m16 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[33m 564[2mms[22m[39m
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mConnection Management[2m > [22m[2mshould create a WebSocket manager instance
 [22m[39m[WebSocket] Disconnecting
 
@@ -181,9 +2015,236 @@
 [90mstdout[2m | src/lib/websocket.test.ts[2m > [22m[2mWebSocket Manager[2m > [22m[2mFactory Function[2m > [22m[2mshould create WebSocket manager with factory
 [22m[39m[WebSocket] Disconnecting
 
- [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 137[2mms[22m[39m
-[90mstderr[2m | src/pages/Dashboard.integration.test.tsx[2m > [22m[2mDashboard - Real API Integration[2m > [22m[2mRefresh Functionality[2m > [22m[2mshould show refreshing state during manual refresh
-[22m[39mAn update to Dashboard inside a test was not wrapped in act(...).
+ [32m✓[39m src/lib/websocket.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 154[2mms[22m[39m
+[90mstdout[2m | src/services/api/system.test.ts
+[22m[39m🔧 API Configuration: {
+  VITE_API_URL: [90mundefined[39m,
+  API_BASE_URL: [32m'http://localhost:8000'[39m,
+  environment: [32m'test'[39m,
+  isDev: [33mtrue[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould check single service health successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/api-gateway/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/api-gateway/health'[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould check single service health successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/api-gateway/health'[39m, dataSize: [33m110[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould check degraded service
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/training/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/training/health'[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould check degraded service
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/training/health'[39m, dataSize: [33m124[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould handle service health error
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/unknown-service/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/unknown-service/health'[39m
+}
+
+[90mstderr[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckServiceHealth[2m > [22m[2mshould handle service health error
+[22m[39m❌ API Error: {
+  status: [33m404[39m,
+  url: [32m'/api/v1/unknown-service/health'[39m,
+  message: [32m'Request failed with status code 404'[39m,
+  data: { detail: [32m'Service not found'[39m }
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould check all services successfully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/api-gateway/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/api-gateway/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/rf-acquisition/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/rf-acquisition/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/training/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/training/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/inference/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/data-ingestion-web/health'[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould check all services successfully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/api-gateway/health'[39m, dataSize: [33m110[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/rf-acquisition/health'[39m, dataSize: [33m113[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/training/health'[39m, dataSize: [33m107[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/inference/health'[39m, dataSize: [33m108[39m }
+📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  dataSize: [33m117[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould handle partial failures gracefully
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/api-gateway/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/api-gateway/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/rf-acquisition/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/rf-acquisition/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/training/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/training/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/inference/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/data-ingestion-web/health'[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould handle partial failures gracefully
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/api-gateway/health'[39m, dataSize: [33m110[39m }
+📥 API Response: { status: [33m200[39m, url: [32m'/api/v1/training/health'[39m, dataSize: [33m107[39m }
+📥 API Response: {
+  status: [33m200[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  dataSize: [33m117[39m
+}
+
+[90mstderr[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould handle partial failures gracefully
+[22m[39m❌ API Error: {
+  status: [33m500[39m,
+  url: [32m'/api/v1/rf-acquisition/health'[39m,
+  message: [32m'Request failed with status code 500'[39m,
+  data: { detail: [32m'Internal error'[39m }
+}
+
+[90mstderr[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould handle partial failures gracefully
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/inference/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould mark all services as unhealthy on complete failure
+[22m[39m📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/api-gateway/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/api-gateway/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/rf-acquisition/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/rf-acquisition/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/training/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/training/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/inference/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/inference/health'[39m
+}
+📤 API Request: {
+  method: [32m'GET'[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  fullURL: [32m'http://localhost:8000/api/v1/data-ingestion-web/health'[39m
+}
+
+[90mstderr[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mcheckAllServicesHealth[2m > [22m[2mshould mark all services as unhealthy on complete failure
+[22m[39m❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/api-gateway/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/rf-acquisition/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/training/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/inference/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+❌ API Error: {
+  status: [90mundefined[39m,
+  url: [32m'/api/v1/data-ingestion-web/health'[39m,
+  message: [32m'Network Error'[39m,
+  data: [90mundefined[39m
+}
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould get API gateway root status
+[22m[39m📤 API Request: { method: [32m'GET'[39m, url: [32m'/'[39m, fullURL: [32m'http://localhost:8000/'[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould get API gateway root status
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/'[39m, dataSize: [33m68[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould handle empty status
+[22m[39m📤 API Request: { method: [32m'GET'[39m, url: [32m'/'[39m, fullURL: [32m'http://localhost:8000/'[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould handle empty status
+[22m[39m📥 API Response: { status: [33m200[39m, url: [32m'/'[39m, dataSize: [33m2[39m }
+
+[90mstdout[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould handle gateway error
+[22m[39m📤 API Request: { method: [32m'GET'[39m, url: [32m'/'[39m, fullURL: [32m'http://localhost:8000/'[39m }
+
+[90mstderr[2m | src/services/api/system.test.ts[2m > [22m[2mSystem API Service[2m > [22m[2mgetAPIGatewayStatus[2m > [22m[2mshould handle gateway error
+[22m[39m❌ API Error: {
+  status: [33m503[39m,
+  url: [32m'/'[39m,
+  message: [32m'Request failed with status code 503'[39m,
+  data: { detail: [32m'Service temporarily unavailable'[39m }
+}
+
+ [32m✓[39m src/services/api/system.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 76[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1593[2mms[22m[39m
+   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy [33m 306[2mms[22m[39m
+   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels [33m 412[2mms[22m[39m
+ [32m✓[39m src/utils/ellipse.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mrenders Analytics page with title
+[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Failed to create chart: can't acquire context from the given item
+Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
+Failed to create chart: can't acquire context from the given item
+
+[90mstderr[2m | src/pages/Localization.test.tsx[2m > [22m[2mLocalization Page[2m > [22m[2mhandles result selection
+[22m[39mAn update to Localization inside a test was not wrapped in act(...).
 
 When testing, code that causes React state updates should be wrapped into act(...):
 
@@ -193,20 +2254,6 @@ act(() => {
 /* assert on the output */
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
-
- [32m✓[39m src/test/interactive.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 972[2mms[22m[39m
- [32m✓[39m src/pages/Dashboard.integration.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1976[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard - Real API Integration[2m > [22mLoading States[2m > [22mshould display skeleton loaders when loading with no data [33m 546[2mms[22m[39m
- [32m✓[39m src/utils/ellipse.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m src/hooks/__tests__/useMediaQuery.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 96[2mms[22m[39m
- [32m✓[39m src/test/accessibility.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 2016[2mms[22m[39m
-   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mSemantic HTML[2m > [22mDashboard should have proper heading hierarchy [33m 460[2mms[22m[39m
-   [33m[2m✓[22m[39m Accessibility Compliance Tests[2m > [22mScreen Reader Support[2m > [22mProgress bars should have accessible labels [33m 446[2mms[22m[39m
-[90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mrenders Analytics page with title
-[22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
-Failed to create chart: can't acquire context from the given item
-Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
-Failed to create chart: can't acquire context from the given item
 
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mdisplays breadcrumb navigation
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -238,23 +2285,12 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
+ [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1130[2mms[22m[39m
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mhandles refresh button interaction
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
-
-[90mstderr[2m | src/pages/Localization.test.tsx[2m > [22m[2mLocalization Page[2m > [22m[2mhandles result selection
-[22m[39mAn update to Localization inside a test was not wrapped in act(...).
-
-When testing, code that causes React state updates should be wrapped into act(...):
-
-act(() => {
-  /* fire events that update state */
-});
-/* assert on the output */
-
-This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
 [90mstderr[2m | src/pages/Analytics.test.tsx[2m > [22m[2mAnalytics Page[2m > [22m[2mdisplays metrics section
 [22m[39mNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
@@ -310,11 +2346,10 @@ Failed to create chart: can't acquire context from the given item
 Not implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package
 Failed to create chart: can't acquire context from the given item
 
- [32m✓[39m src/pages/Localization.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1213[2mms[22m[39m
- [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1088[2mms[22m[39m
- [32m✓[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 2354[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 424[2mms[22m[39m
-   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 646[2mms[22m[39m
+ [32m✓[39m src/pages/Analytics.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1025[2mms[22m[39m
+ [32m✓[39m src/pages/Dashboard.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 2186[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould render the dashboard [33m 485[2mms[22m[39m
+   [33m[2m✓[22m[39m Dashboard[2m > [22mshould display all stat cards [33m 555[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useLocalStorage.test.ts[2m > [22m[2museLocalStorage Hook[2m > [22m[2mreturns initial value when localStorage contains invalid JSON
 [22m[39mError reading localStorage key "test-key": SyntaxError: Unexpected token 'i', "invalid-json-{" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -354,7 +2389,7 @@ Failed to create chart: can't acquire context from the given item
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:26
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:1897:20
 
- [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useLocalStorage.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 123[2mms[22m[39m
 [90mstderr[2m | src/store/authStore.test.ts[2m > [22m[2mauthStore - Authentication Store[2m > [22m[2mlogin()[2m > [22m[2mshould reject invalid credentials
 [22m[39mLogin failed: Error: Invalid user credentials
     at Object.login [90m(/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.ts:64:31[90m)[39m
@@ -362,15 +2397,16 @@ Failed to create chart: can't acquire context from the given item
     at [90m/home/runner/work/heimdall/heimdall/frontend/[39msrc/store/authStore.test.ts:91:17
     at [90mfile:///home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@3.2.4/node_modules/[4m@vitest[24m/runner/dist/chunk-hooks.js:752:20
 
- [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 29[2mms[22m[39m
- [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 606[2mms[22m[39m
- [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 580[2mms[22m[39m
- [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1287[2mms[22m[39m
- [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 128[2mms[22m[39m
- [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1571[2mms[22m[39m
-   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 499[2mms[22m[39m
- [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 936[2mms[22m[39m
- [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 968[2mms[22m[39m
+ [32m✓[39m src/pages/Login.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 736[2mms[22m[39m
+   [33m[2m✓[22m[39m Login Component[2m > [22mRendering[2m > [22mshould render login form with all required fields [33m 308[2mms[22m[39m
+ [32m✓[39m src/store/authStore.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/SessionsList.test.tsx [2m([22m[2m14 tests[22m[2m)[22m[33m 605[2mms[22m[39m
+ [32m✓[39m src/pages/Settings.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1362[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/StatCard.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 134[2mms[22m[39m
+ [32m✓[39m src/pages/Projects.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 1659[2mms[22m[39m
+   [33m[2m✓[22m[39m Projects Page[2m > [22mshows create session button [33m 591[2mms[22m[39m
+ [32m✓[39m src/pages/RecordingSession.test.tsx [2m([22m[2m17 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+ [32m✓[39m src/pages/Profile.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 1044[2mms[22m[39m
 [90mstderr[2m | src/pages/WebSDRManagement.test.tsx[2m > [22m[2mWebSDRManagement Page[2m > [22m[2mhandles WebSDR selection
 [22m[39mAn update to WebSDRManagement inside a test was not wrapped in act(...).
 
@@ -395,14 +2431,13 @@ act(() => {
 
 This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
 
- [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2238[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 686[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 419[2mms[22m[39m
-   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 314[2mms[22m[39m
- [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 959[2mms[22m[39m
- [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1367[2mms[22m[39m
-   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 311[2mms[22m[39m
- [32m✓[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 580[2mms[22m[39m
+ [32m✓[39m src/pages/WebSDRManagement.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 2137[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mdisplays refresh button [33m 613[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles refresh button click [33m 366[2mms[22m[39m
+   [33m[2m✓[22m[39m WebSDRManagement Page[2m > [22mhandles WebSDR selection [33m 304[2mms[22m[39m
+ [32m✓[39m src/pages/SystemStatus.test.tsx [2m([22m[2m20 tests[22m[2m)[22m[33m 1111[2mms[22m[39m
+ [32m✓[39m src/pages/DataIngestion.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1471[2mms[22m[39m
+   [33m[2m✓[22m[39m DataIngestion Page[2m > [22mdisplays sources tab [33m 348[2mms[22m[39m
 [90mstderr[2m | src/hooks/__tests__/useAuth.test.ts[2m > [22m[2museAuth Hook[2m > [22m[2mhandles invalid localStorage data gracefully
 [22m[39mFailed to parse auth data: SyntaxError: Unexpected token 'i', "invalid-json-data" is not valid JSON
     at JSON.parse (<anonymous>)
@@ -416,15 +2451,15 @@ This ensures that you're testing the behavior the user would see in the browser.
     at commitPassiveMountOnFiber [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:15519:11[90m)[39m
     at flushPassiveEffects [90m(/home/runner/work/heimdall/heimdall/frontend/[39mnode_modules/[4m.pnpm[24m/react-dom@19.2.0_react@19.2.0/node_modules/[4mreact-dom[24m/cjs/react-dom-client.development.js:18432:9[90m)[39m
 
- [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 89[2mms[22m[39m
- [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1692[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 436[2mms[22m[39m
- [32m✓[39m src/components/Navigation/BottomSheet.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 268[2mms[22m[39m
- [32m✓[39m src/components/Navigation/MobileMenu.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 236[2mms[22m[39m
- [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1427[2mms[22m[39m
-   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 544[2mms[22m[39m
- [32m✓[39m src/components/Navigation/BottomNav.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 134[2mms[22m[39m
- [32m✓[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 188[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useAuth.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+ [32m✓[39m src/test/responsive.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[33m 618[2mms[22m[39m
+ [32m✓[39m src/pages/SessionHistory.test.tsx [2m([22m[2m19 tests[22m[2m)[22m[33m 1653[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionHistory Page[2m > [22mdisplays status filter options [33m 378[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/BottomSheet.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 265[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/MobileMenu.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 233[2mms[22m[39m
+ [32m✓[39m src/components/SessionDetailModal.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[33m 1318[2mms[22m[39m
+   [33m[2m✓[22m[39m SessionDetailModal[2m > [22mcalls onClose when close button clicked [33m 489[2mms[22m[39m
+ [32m✓[39m src/components/Navigation/BottomNav.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 91[2mms[22m[39m
 [90mstdout[2m | src/services/api/integration.test.ts[2m > [22m[2mPhase 6: API Integration Verification[2m > [22m[2mshould import all API services without errors
 [22m[39m🔧 API Configuration: {
   VITE_API_URL: [90mundefined[39m,
@@ -433,15 +2468,16 @@ This ensures that you're testing the behavior the user would see in the browser.
   isDev: [33mtrue[39m
 }
 
- [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 114[2mms[22m[39m
-[2m8:06:35 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
+ [32m✓[39m src/test/realtime.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+ [32m✓[39m src/services/api/integration.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+[2m9:14:47 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.
 Error: An error occurred while trying to read the map file at popper.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/popper.min.js.map'
     at async open (node:internal/fs/promises:639:25)
     at async Object.readFile (node:internal/fs/promises:1246:14)
     at async extractSourcemapFromFile (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:8061:65)
     at async loadAndTransform (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:26014:22)
-[2m8:06:35 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
+[2m9:14:47 PM[22m [33m[1m[vite][22m[39m [33m[2m(ssr)[22m[39m Failed to load source map for /home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.
 Error: An error occurred while trying to read the map file at bootstrap.min.js.map
 Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimdall/frontend/public/assets/js/plugins/bootstrap.min.js.map'
     at async open (node:internal/fs/promises:639:25)
@@ -449,8 +2485,8 @@ Error: ENOENT: no such file or directory, open '/home/runner/work/heimdall/heimd
     at async extractSourcemapFromFile (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:8061:65)
     at async loadAndTransform (file:///home/runner/work/heimdall/heimdall/frontend/node_modules/.pnpm/vite@7.1.12_@types+node@24.9.1/node_modules/vite/dist/node/chunks/config.js:26014:22)
 
-[2m Test Files [22m [1m[32m32 passed[39m[22m[90m (32)[39m
-[2m      Tests [22m [1m[32m442 passed[39m[22m[90m (442)[39m
-[2m   Start at [22m 20:06:06
-[2m   Duration [22m 28.45s[2m (transform 1.86s, setup 4.18s, collect 10.24s, tests 25.43s, environment 27.98s, prepare 4.05s)[22m
+[2m Test Files [22m [1m[32m47 passed[39m[22m[90m (47)[39m
+[2m      Tests [22m [1m[32m763 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (764)[39m
+[2m   Start at [22m 21:14:11
+[2m   Duration [22m 36.63s[2m (transform 2.31s, setup 6.05s, collect 13.18s, tests 28.43s, environment 39.25s, prepare 5.85s)[22m
 

@@ -198,7 +198,7 @@ mlflow server \
 ```
 
 ### Option 2: Docker Compose Integration
-Already available in `docker-compose.yml` or can be added:
+Already available in `docker compose.yml` or can be added:
 ```yaml
 mlflow:
   image: mcr.microsoft.com/mlflow:latest

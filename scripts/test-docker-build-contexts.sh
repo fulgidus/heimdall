@@ -21,8 +21,8 @@ else
     exit 1
 fi
 
-# Test 2: Verify docker-compose configuration
-echo "Test 2: Verifying docker-compose.yml build contexts..."
+# Test 2: Verify docker compose configuration
+echo "Test 2: Verifying docker compose.yml build contexts..."
 
 # Check rf-acquisition
 context=$(docker compose config | grep -A 2 "rf-acquisition:" | grep "context:" | awk '{print $2}')

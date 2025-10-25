@@ -64,7 +64,7 @@ def trigger_acquisition(
 
     try:
         # Call RF acquisition API
-        # The rf-acquisition service is available at http://rf-acquisition:8001 in docker-compose
+        # The rf-acquisition service is available at http://rf-acquisition:8001 in docker compose
         rf_api_url = os.getenv("RF_ACQUISITION_API_URL", "http://rf-acquisition:8001")
         
         logger.info(f"Triggering RF acquisition for session {session_id} at {frequency_mhz} MHz")

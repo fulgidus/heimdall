@@ -180,7 +180,7 @@ scheduler.start()
 curl http://localhost:8000/api/v1/rf-tasks/{task_id}
 
 # Check service logs
-docker-compose logs ml-detector
+docker compose logs ml-detector
 
 # Verify WebSDR connectivity
 curl http://localhost:8000/api/v1/health/websdrs

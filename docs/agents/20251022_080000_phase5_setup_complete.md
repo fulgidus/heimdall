@@ -106,7 +106,7 @@ cat PHASE5_START_HERE.md
 ### Step 2: Verify Infrastructure (5 min)
 ```bash
 # Terminal:
-docker-compose ps
+docker compose ps
 # Should show 13 healthy containers
 ```
 
@@ -225,7 +225,7 @@ docs/TRAINING.md                    # T5.10 - 1h
 ### Key Commands
 ```bash
 # Check infrastructure
-docker-compose ps
+docker compose ps
 
 # Run tests
 pytest tests/ -v
@@ -265,7 +265,7 @@ cd services/training
 ```bash
 # 1. Read PHASE5_START_HERE.md (10 min)
 # 2. Review PHASE5_QUICK_START.md (20 min)
-# 3. Check docker-compose ps (2 min)
+# 3. Check docker compose ps (2 min)
 # 4. Begin T5.1 (2 hours)
 ```
 

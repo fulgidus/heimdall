@@ -12,7 +12,7 @@
 
 ## Overview
 
-This document provides all default usernames and passwords for Heimdall services when running in local development mode using `docker-compose`. These credentials allow you to quickly access various management UIs and services after starting the development environment.
+This document provides all default usernames and passwords for Heimdall services when running in local development mode using `docker compose`. These credentials allow you to quickly access various management UIs and services after starting the development environment.
 
 **Quick Start:**
 ```bash
@@ -20,7 +20,7 @@ This document provides all default usernames and passwords for Heimdall services
 cp .env.example .env
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Wait for services to be healthy (2-3 minutes)
 make health-check
@@ -65,10 +65,10 @@ cp .env.example .env
 # For development, the defaults work fine
 
 # Start all infrastructure and services
-docker-compose up -d
+docker compose up -d
 
 # Monitor startup logs (optional)
-docker-compose logs -f
+docker compose logs -f
 
 # Wait for services to become healthy
 # This usually takes 2-3 minutes
@@ -79,7 +79,7 @@ make health-check
 
 ```bash
 # Check all container status
-docker-compose ps
+docker compose ps
 
 # All services should show "healthy" status
 # Example output:
@@ -413,19 +413,19 @@ REDIS_PASSWORD=redis_new_password
 
 3. Restart services for changes to take effect:
 ```bash
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 4. **Important:** If you changed database passwords, you may need to recreate volumes:
 ```bash
-docker-compose down -v  # WARNING: This deletes all data!
-docker-compose up -d
+docker compose down -v  # WARNING: This deletes all data!
+docker compose up -d
 ```
 
-#### Option 2: Update docker-compose.yml
+#### Option 2: Update docker compose.yml
 
-For permanent changes across environments, edit `docker-compose.yml` default values. However, for personal development setups, using `.env` is preferred.
+For permanent changes across environments, edit `docker compose.yml` default values. However, for personal development setups, using `.env` is preferred.
 
 #### Option 3: Use Secret Management (Production)
 
@@ -442,16 +442,16 @@ If credentials are compromised:
 1. **Immediate action:**
 ```bash
 # Stop all services
-docker-compose down
+docker compose down
 
 # Remove all data (if sensitive data exists)
-docker-compose down -v
+docker compose down -v
 
 # Update .env with new passwords
 nano .env
 
 # Restart with new credentials
-docker-compose up -d
+docker compose up -d
 ```
 
 2. **Verify new credentials:**
@@ -475,12 +475,12 @@ make health-check
    - Use firewall rules if needed
 
 3. **Regular updates**
-   - Keep Docker images updated: `docker-compose pull`
+   - Keep Docker images updated: `docker compose pull`
    - Update service versions regularly
 
 4. **Clean up**
    - Remove unused containers: `docker system prune`
-   - Clear sensitive data when done: `docker-compose down -v`
+   - Clear sensitive data when done: `docker compose down -v`
 
 ### Production Environment
 
@@ -539,8 +539,8 @@ git push origin --force --all
 # Generate new passwords
 # Update .env with new values
 # Restart all services
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 ```
 
 ### 3. Consider Repository as Compromised
@@ -582,55 +582,55 @@ git secrets --add 'REDIS_PASSWORD=.*'
 
 ```bash
 # Check if PostgreSQL is running
-docker-compose ps postgres
+docker compose ps postgres
 
 # Check logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Try resetting the database
-docker-compose down
+docker compose down
 docker volume rm heimdall_postgres_data
-docker-compose up -d postgres
+docker compose up -d postgres
 ```
 
 ### RabbitMQ Management UI not loading
 
 ```bash
 # Check if RabbitMQ is healthy
-docker-compose ps rabbitmq
+docker compose ps rabbitmq
 
 # Restart RabbitMQ
-docker-compose restart rabbitmq
+docker compose restart rabbitmq
 
 # Check logs
-docker-compose logs rabbitmq
+docker compose logs rabbitmq
 ```
 
 ### MinIO buckets not created
 
 ```bash
 # Check minio-init logs
-docker-compose logs minio-init
+docker compose logs minio-init
 
 # Manually create buckets
-docker-compose exec minio mc alias set heimdall http://localhost:9000 minioadmin minioadmin
-docker-compose exec minio mc mb heimdall/heimdall-raw-iq
-docker-compose exec minio mc mb heimdall/heimdall-models
-docker-compose exec minio mc mb heimdall/heimdall-mlflow
-docker-compose exec minio mc mb heimdall/heimdall-datasets
+docker compose exec minio mc alias set heimdall http://localhost:9000 minioadmin minioadmin
+docker compose exec minio mc mb heimdall/heimdall-raw-iq
+docker compose exec minio mc mb heimdall/heimdall-models
+docker compose exec minio mc mb heimdall/heimdall-mlflow
+docker compose exec minio mc mb heimdall/heimdall-datasets
 ```
 
 ### Redis connection refused
 
 ```bash
 # Check Redis is running
-docker-compose ps redis
+docker compose ps redis
 
 # Test connection
 redis-cli -h localhost -p 6379 -a changeme PING
 
 # Check logs
-docker-compose logs redis
+docker compose logs redis
 ```
 
 ### Services won't start
@@ -647,8 +647,8 @@ sudo systemctl restart docker  # Linux
 # or restart Docker Desktop on macOS/Windows
 
 # Try starting services again
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ---

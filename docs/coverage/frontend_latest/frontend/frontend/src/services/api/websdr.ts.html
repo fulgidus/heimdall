@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">25% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>8/32</span>
+                <span class='fraction'>32/32</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/4</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">25% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>8/32</span>
+                <span class='fraction'>32/32</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -140,44 +140,44 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -202,44 +202,44 @@ import type { WebSDRConfig, WebSDRHealthStatus } from './types';
 /**
  * Get list of all configured WebSDR receivers
  */
-<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export async function getWebSDRs(): Promise&lt;WebSDRConfig[]&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >    console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs');</span>
-<span class="cstat-no" title="statement not covered" >    const response = await api.get&lt;WebSDRConfig[]&gt;('/api/v1/acquisition/websdrs');</span>
-<span class="cstat-no" title="statement not covered" >    console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');</span>
-<span class="cstat-no" title="statement not covered" >    return response.data;</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+export async function getWebSDRs(): Promise&lt;WebSDRConfig[]&gt; {
+    console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs');
+    const response = await api.get&lt;WebSDRConfig[]&gt;('/api/v1/acquisition/websdrs');
+    console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');
+    return response.data;
+}
 &nbsp;
 /**
  * Check health status of all WebSDR receivers
  */
-<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export async function checkWebSDRHealth(): Promise&lt;Record&lt;number, WebSDRHealthStatus&gt;&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >    console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');</span>
-<span class="cstat-no" title="statement not covered" >    const response = await api.get&lt;Record&lt;number, WebSDRHealthStatus&gt;&gt;('/api/v1/acquisition/websdrs/health');</span>
-<span class="cstat-no" title="statement not covered" >    console.log('✅ WebSDRService.checkWebSDRHealth(): ricevuto health status');</span>
-<span class="cstat-no" title="statement not covered" >    return response.data;</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+export async function checkWebSDRHealth(): Promise&lt;Record&lt;number, WebSDRHealthStatus&gt;&gt; {
+    console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');
+    const response = await api.get&lt;Record&lt;number, WebSDRHealthStatus&gt;&gt;('/api/v1/acquisition/websdrs/health');
+    console.log('✅ WebSDRService.checkWebSDRHealth(): ricevuto health status');
+    return response.data;
+}
 &nbsp;
 /**
  * Get configuration for specific WebSDR
  */
-<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export async function getWebSDRConfig(id: number): Promise&lt;WebSDRConfig&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >    const websdrs = await getWebSDRs();</span>
-<span class="cstat-no" title="statement not covered" >    const websdr = websdrs.find(w =&gt; w.id === id);</span>
+export async function getWebSDRConfig(id: number): Promise&lt;WebSDRConfig&gt; {
+    const websdrs = await getWebSDRs();
+    const websdr = websdrs.find(w =&gt; w.id === id);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (!websdr) {</span>
-<span class="cstat-no" title="statement not covered" >        throw new Error(`WebSDR with id ${id} not found`);</span>
-<span class="cstat-no" title="statement not covered" >    }</span>
+    if (!websdr) {
+        throw new Error(`WebSDR with id ${id} not found`);
+    }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return websdr;</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+    return websdr;
+}
 &nbsp;
 /**
  * Get active WebSDRs only
  */
-<span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >export async function getActiveWebSDRs(): Promise&lt;WebSDRConfig[]&gt; {</span></span>
-<span class="cstat-no" title="statement not covered" >    const websdrs = await getWebSDRs();</span>
-<span class="cstat-no" title="statement not covered" >    return websdrs.filter(w =&gt; w.is_active);</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+export async function getActiveWebSDRs(): Promise&lt;WebSDRConfig[]&gt; {
+    const websdrs = await getWebSDRs();
+    return websdrs.filter(w =&gt; w.is_active);
+}
 &nbsp;
 const webSDRService = {
     getWebSDRs,
@@ -256,7 +256,7 @@ export default webSDRService;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-25T20:06:35.567Z
+                at 2025-10-25T21:14:47.994Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>
