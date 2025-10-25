@@ -68,7 +68,7 @@ jobs:
         continue-on-error: true
         run: |
           cd frontend
-          pnpm run test:coverage 2>&1 | tee ../coverage_reports/frontend.log || true
+          pnpm run coverage:full 2>&1 | tee ../coverage_reports/frontend.log || true
           if [ -d coverage ]; then
             mv coverage ../coverage_reports/frontend
           fi
