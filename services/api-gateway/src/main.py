@@ -39,11 +39,11 @@ SERVICE_NAME = "api-gateway"
 SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8000
 
-# Backend service URLs
-RF_ACQUISITION_URL = "http://rf-acquisition:8001"
-INFERENCE_URL = "http://inference:8003"
-TRAINING_URL = "http://training:8002"
-DATA_INGESTION_URL = "http://data-ingestion-web:8004"
+# Backend service URLs - from settings
+RF_ACQUISITION_URL = settings.rf_acquisition_url
+INFERENCE_URL = settings.inference_url
+TRAINING_URL = settings.training_url
+DATA_INGESTION_URL = settings.data_ingestion_url
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
@@ -395,7 +395,7 @@ async def get_system_status():
     """Aggregate health status from all services."""
     services_health = []
     service_urls = {
-        "api-gateway": "http://localhost:8000",
+        "api-gateway": settings.api_gateway_url,
         "rf-acquisition": RF_ACQUISITION_URL,
         "data-ingestion-web": DATA_INGESTION_URL,
         "inference": INFERENCE_URL,
