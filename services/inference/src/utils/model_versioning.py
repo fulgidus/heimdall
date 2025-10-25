@@ -24,6 +24,8 @@ import asyncio
 import numpy as np
 import onnxruntime as ort
 
+from ..config import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +126,7 @@ class ModelVersionRegistry:
 
     def __init__(
         self,
-        mlflow_tracking_uri: str = "http://localhost:5000",
+        mlflow_tracking_uri: str = None,
         max_versions: int = 5,
         session_options: Optional[ort.SessionOptions] = None
     ):
@@ -132,11 +134,11 @@ class ModelVersionRegistry:
         Initialize version registry.
         
         Args:
-            mlflow_tracking_uri: MLflow server endpoint
+            mlflow_tracking_uri: MLflow server endpoint (defaults to settings.mlflow_tracking_uri)
             max_versions: Maximum concurrent loaded versions
             session_options: ONNX Runtime session configuration
         """
-        self.mlflow_uri = mlflow_tracking_uri
+        self.mlflow_uri = mlflow_tracking_uri or settings.mlflow_tracking_uri
         self.max_versions = max_versions
         self.session_options = session_options or ort.SessionOptions()
         
@@ -470,14 +472,14 @@ class ModelVersionRegistry:
 
 
 async def create_version_registry(
-    mlflow_uri: str = "http://localhost:5000",
+    mlflow_uri: str = None,
     initial_versions: Optional[Dict[str, str]] = None
 ) -> ModelVersionRegistry:
     """
     Factory function to create and initialize version registry.
     
     Args:
-        mlflow_uri: MLflow tracking server
+        mlflow_uri: MLflow tracking server (defaults to settings.mlflow_tracking_uri)
         initial_versions: Dict of {version_id: model_path} to preload
         
     Returns:
