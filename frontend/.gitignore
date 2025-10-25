@@ -25,5 +25,6 @@ dist-ssr
 
 # Playwright E2E test artifacts
 test-results/
-playwright-report/
 playwright/.cache/
+coverage/.tmp
+e2e-artifacts-*

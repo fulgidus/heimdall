@@ -1,0 +1,159 @@
+name: Test Coverage Report
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    name: Generate & Deploy Coverage Report
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: "frontend/pnpm-lock.yaml"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov python-dotenv
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          pnpm install
+
+      - name: Run backend tests with coverage
+        continue-on-error: true
+        run: |
+          mkdir -p coverage_reports
+          pytest \
+            --cov=services \
+            --cov-report=html:coverage_reports/backend \
+            --cov-report=json:coverage_reports/backend.json \
+            --cov-report=term \
+            -v 2>&1 | tee coverage_reports/backend.log
+
+      - name: Run frontend tests with coverage
+        continue-on-error: true
+        run: |
+          cd frontend
+          pnpm run test:coverage 2>&1 | tee ../coverage_reports/frontend.log || true
+          if [ -d coverage ]; then
+            mv coverage ../coverage_reports/frontend
+          fi
+
+      - name: Copy coverage reports to docs
+        continue-on-error: true
+        run: |
+          mkdir -p docs/coverage
+          cp -r coverage_reports/backend docs/coverage/backend_latest
+          cp -r coverage_reports/frontend docs/coverage/frontend_latest 2>/dev/null || true
+          cp coverage_reports/backend.log docs/coverage/backend_latest.log 2>/dev/null || true
+          cp coverage_reports/frontend.log docs/coverage/frontend_latest.log 2>/dev/null || true
+
+      - name: Generate coverage badge in docs
+        continue-on-error: true
+        run: |
+          python scripts/generate_coverage_badge.py
+          # Copy badge to docs
+          mkdir -p docs/coverage
+          cp docs/coverage/badge.svg docs/coverage/badge.svg || true
+
+      - name: Generate coverage summary
+        continue-on-error: true
+        run: |
+          python scripts/create_coverage_summary.py coverage_reports/backend.json
+          # Copy summary to docs
+          mkdir -p docs/coverage
+          cp docs/coverage/README.md docs/coverage/README.md || true
+
+      - name: Create merged coverage index
+        run: |
+          python scripts/create_coverage_index.py
+          # Copy index to docs
+          mkdir -p docs/coverage
+          cp coverage_reports/index.html docs/coverage/index.html || true
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.ref_name }}
+          path: coverage_reports/
+          retention-days: 30
+
+      - name: Commit and push docs changes
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/coverage/ -f
+          git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs" && git push origin develop)
+
+      - name: Comment PR with coverage summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            let coverage_text = '## 📊 Coverage Report\n\n';
+
+            try {
+              const backend_coverage = JSON.parse(fs.readFileSync('coverage_reports/backend.json', 'utf8'));
+              const percent = backend_coverage.totals.percent_covered.toFixed(2);
+              coverage_text += `**Backend Coverage:** ${percent}%\n`;
+            } catch(e) {
+              coverage_text += '**Backend Coverage:** ⚠️ Failed to generate\n';
+            }
+
+            coverage_text += `\n[📄 View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: coverage_text
+            });
+
+      - name: Update coverage badge in README
+        if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        continue-on-error: true
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/coverage/README.md docs/coverage/badge.svg 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "ci: update coverage report [skip ci]" && git push)

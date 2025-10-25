@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""Create merged coverage index for all branches"""
+
+import json
+from pathlib import Path
+from datetime import datetime
+
+
+def create_coverage_index():
+    """Create main index.html for coverage"""
+    
+    coverage_dir = Path('coverage_reports')
+    coverage_dir.mkdir(exist_ok=True)
+    
+    # Raccogli informazioni sui report
+    branches = []
+    
+    # Controlla se esistono report per backend
+    if (coverage_dir / 'backend.json').exists():
+        try:
+            with open(coverage_dir / 'backend.json', 'r') as f:
+                backend_data = json.load(f)
+                percent = backend_data['totals']['percent_covered']
+                branches.append({
+                    'name': 'Backend',
+                    'coverage': percent,
+                    'path': 'backend/index.html',
+                    'type': 'Backend (Python)'
+                })
+        except:
+            pass
+    
+    # Controlla se esiste report frontend
+    if (coverage_dir / 'frontend').exists():
+        branches.append({
+            'name': 'Frontend',
+            'coverage': 0,  # Sarà aggiornato dal report
+            'path': 'frontend/index.html',
+            'type': 'Frontend (TypeScript/React)'
+        })
+    
+    timestamp = datetime.now().isoformat()
+    
+    html_content = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heimdall SDR - Test Coverage Report</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }}
+        
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        
+        header {{
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }}
+        
+        h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }}
+        
+        .subtitle {{
+            font-size: 1.1em;
+            opacity: 0.9;
+        }}
+        
+        .grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }}
+        
+        .card {{
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }}
+        
+        .card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }}
+        
+        .card h2 {{
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }}
+        
+        .card-type {{
+            color: #999;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }}
+        
+        .coverage-display {{
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }}
+        
+        .coverage-percent {{
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 120px;
+        }}
+        
+        .coverage-bar {{
+            flex: 1;
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }}
+        
+        .coverage-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: var(--width);
+            transition: width 0.3s ease;
+        }}
+        
+        .badge {{
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-top: 10px;
+        }}
+        
+        .badge-excellent {{ background: #31C754; color: white; }}
+        .badge-good {{ background: #3fb950; color: white; }}
+        .badge-fair {{ background: #DFCE00; color: #333; }}
+        .badge-poor {{ background: #FF9200; color: white; }}
+        .badge-critical {{ background: #E05D44; color: white; }}
+        
+        .link {{
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }}
+        
+        .link:hover {{
+            background: #764ba2;
+        }}
+        
+        footer {{
+            text-align: center;
+            color: white;
+            margin-top: 50px;
+            padding: 20px;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }}
+        
+        .metadata {{
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }}
+        
+        .metadata p {{
+            margin: 5px 0;
+        }}
+        
+        .section {{
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }}
+        
+        .section h3 {{
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }}
+        
+        .status-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }}
+        
+        .status-item {{
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            text-align: center;
+        }}
+        
+        .status-item strong {{
+            color: #667eea;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Heimdall SDR Coverage Report</h1>
+            <p class="subtitle">Real-time test coverage analysis across all services</p>
+        </header>
+        
+        <div class="metadata">
+            <p><strong>Last Updated:</strong> {timestamp}</p>
+            <p><strong>Repository:</strong> <a href="https://github.com/fulgidus/heimdall" style="color: white; text-decoration: underline;">fulgidus/heimdall</a></p>
+            <p><strong>Branch:</strong> <code>${{github.ref_name}}</code></p>
+        </div>
+        
+        <div class="grid">
+'''
+    
+    for branch in branches:
+        coverage = branch.get('coverage', 0)
+        
+        if coverage >= 85:
+            badge_class = 'badge-excellent'
+            status = 'Excellent'
+        elif coverage >= 75:
+            badge_class = 'badge-good'
+            status = 'Good'
+        elif coverage >= 60:
+            badge_class = 'badge-fair'
+            status = 'Fair'
+        elif coverage >= 40:
+            badge_class = 'badge-poor'
+            status = 'Poor'
+        else:
+            badge_class = 'badge-critical'
+            status = 'Critical'
+        
+        html_content += f'''            <div class="card" onclick="window.location.href='{branch['path']}'">
+                <h2>{branch['name']}</h2>
+                <p class="card-type">{branch['type']}</p>
+                
+                <div class="coverage-display">
+                    <div class="coverage-percent">{coverage:.1f}%</div>
+                    <div class="coverage-bar">
+                        <div class="coverage-fill" style="--width: {min(coverage, 100)}%"></div>
+                    </div>
+                </div>
+                
+                <span class="badge {badge_class}">{status}</span>
+                <a href="{branch['path']}" class="link">View Report →</a>
+            </div>
+'''
+    
+    html_content += '''        </div>
+        
+        <div class="section">
+            <h3>📈 Coverage Status Guide</h3>
+            <div class="status-grid">
+                <div class="status-item">
+                    <strong>🟢 ≥85%</strong><br/>Excellent
+                </div>
+                <div class="status-item">
+                    <strong>🟢 75-84%</strong><br/>Good
+                </div>
+                <div class="status-item">
+                    <strong>🟡 60-74%</strong><br/>Fair
+                </div>
+                <div class="status-item">
+                    <strong>🟠 40-59%</strong><br/>Poor
+                </div>
+                <div class="status-item">
+                    <strong>🔴 &lt;40%</strong><br/>Critical
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>ℹ️ About This Report</h3>
+            <p>
+                This coverage report is automatically generated on every push to <code>main</code> and <code>develop</code> branches.
+                The report includes:
+            </p>
+            <ul style="margin: 15px 0 0 20px;">
+                <li><strong>Backend Coverage:</strong> Python services (FastAPI, Celery, ML pipelines)</li>
+                <li><strong>Frontend Coverage:</strong> React/TypeScript components and utilities</li>
+                <li><strong>Integration Tests:</strong> E2E and service-to-service communication</li>
+            </ul>
+            <p style="margin-top: 15px;">
+                View the <a href="https://github.com/fulgidus/heimdall/actions" style="color: #667eea;">GitHub Actions workflows</a> 
+                for detailed test execution logs.
+            </p>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Heimdall SDR Project | <a href="https://github.com/fulgidus/heimdall" style="color: white;">GitHub Repository</a> | 
+        <a href="docs/TRAINING.md" style="color: white;">Documentation</a></p>
+    </footer>
+</body>
+</html>
+'''
+    
+    output_path = coverage_dir / 'index.html'
+    with open(output_path, 'w') as f:
+        f.write(html_content)
+    
+    print(f'✅ Coverage index created: {output_path}')
+    print(f'   Branches: {len(branches)}')
+
+
+if __name__ == '__main__':
+    create_coverage_index()
