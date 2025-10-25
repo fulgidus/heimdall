@@ -159,6 +159,8 @@ Live test coverage reports are automatically generated on every push to `main` a
 
 Reports are powered by the [GitHub Actions workflow](.github/workflows/coverage.yml) and hosted on [GitHub Pages](https://fulgidus.github.io/heimdall/coverage/).
 
+**⚠️ First-time setup:** See [GitHub Pages Setup Guide](docs/GITHUB_PAGES_SETUP.md) to enable GitHub Pages for coverage reports.
+
 ### Development Credentials
 
 For local development, all services use default credentials documented in [Development Default Credentials Guide](docs/dev-credentials.md).
