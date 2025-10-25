@@ -192,11 +192,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${RF_ACQUISITION_PORT:-8001}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${RF_ACQUISITION_PORT:-8001}/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - heimdall-network
     logging:
@@ -235,7 +235,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${API_GATEWAY_PORT:-8000}/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -279,11 +279,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${TRAINING_PORT:-8002}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${TRAINING_PORT:-8002}/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
     networks:
       - heimdall-network
     logging:
@@ -320,7 +320,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${INFERENCE_PORT:-8003}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${INFERENCE_PORT:-8003}/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -364,7 +364,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:${DATA_INGESTION_PORT:-8004}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${DATA_INGESTION_PORT:-8004}/ready"]
       interval: 30s
       timeout: 10s
       retries: 3
