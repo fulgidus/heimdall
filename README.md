@@ -14,6 +14,7 @@
 [![Security Scan](https://github.com/fulgidus/heimdall/workflows/Security%20Scanning/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/security-scan.yml)
 [![E2E Tests](https://github.com/fulgidus/heimdall/workflows/E2E%20Tests/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/e2e-tests.yml)
 [![Integration Tests](https://github.com/fulgidus/heimdall/workflows/Integration%20Tests/badge.svg)](https://github.com/fulgidus/heimdall/actions/workflows/integration-tests.yml)
+
 [![Coverage](https://raw.githubusercontent.com/fulgidus/heimdall/develop/docs/coverage/develop/badge.svg)](https://fulgidus.github.io/heimdall/coverage/)
 
 ---
