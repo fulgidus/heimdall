@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore } from '../store';
 import { ConnectionState } from '../lib/websocket';
+import { ServiceHealthSkeleton, WebSDRCardSkeleton } from '../components';
 
 const Dashboard: React.FC = () => {
     const {
@@ -14,6 +15,7 @@ const Dashboard: React.FC = () => {
         wsEnabled,
         connectWebSocket,
         disconnectWebSocket,
+        retryDelay,
     } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -37,6 +39,13 @@ const Dashboard: React.FC = () => {
             disconnectWebSocket();
         };
     }, [fetchDashboardData, connectWebSocket, disconnectWebSocket, wsEnabled, wsConnectionState]);
+        // Setup auto-refresh with exponential backoff on errors
+        const interval = setInterval(() => {
+            fetchDashboardData();
+        }, error ? retryDelay : 30000); // Use retryDelay if error, otherwise 30s
+
+        return () => clearInterval(interval);
+    }, [fetchDashboardData, error, retryDelay]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -137,6 +146,16 @@ const Dashboard: React.FC = () => {
                 <div className="alert alert-danger alert-dismissible fade show" role="alert">
                     <strong>Error!</strong> {error}
                     <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            )}
+
+            {/* Connection Status Indicator */}
+            {isLoading && (
+                <div className="alert alert-info d-flex align-items-center" role="status">
+                    <div className="spinner-border spinner-border-sm me-2" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <span>Connecting to services...</span>
                 </div>
             )}
 
@@ -384,7 +403,9 @@ const Dashboard: React.FC = () => {
                             <h5 className="mb-0">Services Status</h5>
                         </div>
                         <div className="card-body">
-                            {Object.entries(data.servicesHealth).length > 0 ? (
+                            {isLoading && Object.entries(data.servicesHealth).length === 0 ? (
+                                <ServiceHealthSkeleton />
+                            ) : Object.entries(data.servicesHealth).length > 0 ? (
                                 <ul className="list-group list-group-flush">
                                     {Object.entries(data.servicesHealth).map(([name, health]) => (
                                         <li key={name} className="list-group-item px-0">
@@ -414,8 +435,16 @@ const Dashboard: React.FC = () => {
                                 <div className="text-center py-4">
                                     <i className="ph ph-warning-circle f-40 text-muted mb-3"></i>
                                     <p className="text-muted mb-0">
-                                        {isLoading ? 'Checking services...' : 'No service data available'}
+                                        {error ? 'Failed to load services' : 'No service data available'}
                                     </p>
+                                    {error && (
+                                        <button 
+                                            className="btn btn-sm btn-link-primary mt-2"
+                                            onClick={handleRefresh}
+                                        >
+                                            <i className="ph ph-arrow-clockwise"></i> Retry
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -432,49 +461,53 @@ const Dashboard: React.FC = () => {
                         </div>
                         <div className="card-body">
                             <div className="row">
-                                {webSDRStatuses.map((sdr) => (
-                                    <div key={sdr.id} className="col-lg-3 col-md-4 col-sm-6">
-                                        <div className="card bg-light border-0 mb-3">
-                                            <div className="card-body">
-                                                <div className="d-flex align-items-center justify-content-between mb-2">
-                                                    <h6 className="mb-0">{sdr.city}</h6>
-                                                    <div
-                                                        className={`avtar avtar-xs ${sdr.status === 'online'
-                                                                ? 'bg-light-success'
-                                                                : 'bg-light-danger'
-                                                            }`}
-                                                    >
-                                                        <i
-                                                            className={`ph ${sdr.status === 'online'
-                                                                    ? 'ph-radio-button'
-                                                                    : 'ph-radio-button'
-                                                                } f-18`}
-                                                        ></i>
-                                                    </div>
-                                                </div>
-                                                <p className="text-muted f-12 mb-2">{sdr.frequency}</p>
-                                                <div className="d-flex align-items-center">
-                                                    <div className="flex-grow-1 me-2">
-                                                        <div className="progress" style={{ height: '5px' }}>
-                                                            <div
-                                                                className={`progress-bar ${sdr.status === 'online'
-                                                                        ? 'bg-success'
-                                                                        : 'bg-danger'
-                                                                    }`}
-                                                                role="progressbar"
-                                                                style={{ width: `${sdr.signal}%` }}
-                                                                aria-valuenow={sdr.signal}
-                                                                aria-valuemin={0}
-                                                                aria-valuemax={100}
-                                                            ></div>
+                                {isLoading && webSDRStatuses.length === 0 ? (
+                                    <WebSDRCardSkeleton />
+                                ) : (
+                                    webSDRStatuses.map((sdr) => (
+                                        <div key={sdr.id} className="col-lg-3 col-md-4 col-sm-6">
+                                            <div className="card bg-light border-0 mb-3">
+                                                <div className="card-body">
+                                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                                        <h6 className="mb-0">{sdr.city}</h6>
+                                                        <div
+                                                            className={`avtar avtar-xs ${sdr.status === 'online'
+                                                                    ? 'bg-light-success'
+                                                                    : 'bg-light-danger'
+                                                                }`}
+                                                        >
+                                                            <i
+                                                                className={`ph ${sdr.status === 'online'
+                                                                        ? 'ph-radio-button'
+                                                                        : 'ph-radio-button'
+                                                                    } f-18`}
+                                                            ></i>
                                                         </div>
                                                     </div>
-                                                    <span className="f-12 text-muted">{Math.round(sdr.signal)}%</span>
+                                                    <p className="text-muted f-12 mb-2">{sdr.frequency}</p>
+                                                    <div className="d-flex align-items-center">
+                                                        <div className="flex-grow-1 me-2">
+                                                            <div className="progress" style={{ height: '5px' }}>
+                                                                <div
+                                                                    className={`progress-bar ${sdr.status === 'online'
+                                                                            ? 'bg-success'
+                                                                            : 'bg-danger'
+                                                                        }`}
+                                                                    role="progressbar"
+                                                                    style={{ width: `${sdr.signal}%` }}
+                                                                    aria-valuenow={sdr.signal}
+                                                                    aria-valuemin={0}
+                                                                    aria-valuemax={100}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="f-12 text-muted">{Math.round(sdr.signal)}%</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </div>
                     </div>
