@@ -190,11 +190,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -231,11 +231,11 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -273,11 +273,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -312,11 +312,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
@@ -354,11 +354,11 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /proc/1/status && grep -q '^State:' /proc/1/status"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
       retries: 3
+      start_period: 40s
     networks:
       - heimdall-network
     logging:
