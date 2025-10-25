@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Bell, User } from 'lucide-react';
+import { Menu, Bell, User, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
     onMenuClick: () => void;
     title?: string;
+    showBackButton?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard', showBackButton = false }) => {
     const [showNotifications, setShowNotifications] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
+    const navigate = useNavigate();
     const notificationRef = useRef<HTMLDivElement>(null);
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -28,30 +31,44 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => 
     }, []);
 
     return (
-        <header className="bg-oxford-blue border-b border-neon-blue border-opacity-20 sticky top-0 z-20 backdrop-blur-sm">
+        <header className="bg-oxford-blue border-b border-neon-blue border-opacity-20 sticky top-0 z-20 backdrop-blur-sm sticky-top-mobile">
             <div className="h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-                {/* Menu Button (Mobile) */}
-                <button
-                    onClick={onMenuClick}
-                    className="lg:hidden p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors"
-                    aria-label="Toggle navigation menu"
-                    aria-expanded="false"
-                >
-                    <Menu size={24} className="text-neon-blue" aria-hidden="true" />
-                </button>
+                {/* Left Side - Menu/Back Button */}
+                <div className="flex items-center gap-2">
+                    {/* Menu Button (Mobile/Tablet) */}
+                    <button
+                        onClick={onMenuClick}
+                        className="lg:hidden p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors touch-target"
+                        aria-label="Toggle navigation menu"
+                        aria-expanded="false"
+                    >
+                        <Menu size={24} className="text-neon-blue" aria-hidden="true" />
+                    </button>
+
+                    {/* Back Button (Mobile only, when applicable) */}
+                    {showBackButton && (
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="md:hidden p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors touch-target"
+                            aria-label="Go back"
+                        >
+                            <ArrowLeft size={24} className="text-neon-blue" aria-hidden="true" />
+                        </button>
+                    )}
+                </div>
 
                 {/* Title */}
-                <h1 className="text-xl font-bold text-french-gray flex-1 text-center lg:text-left lg:ml-0 ml-2">
+                <h1 className="text-lg sm:text-xl font-bold text-french-gray flex-1 text-center lg:text-left lg:ml-0 ml-2 mobile-text-base">
                     {title}
                 </h1>
 
                 {/* Right Actions */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                     {/* Notifications */}
                     <div className="relative" ref={notificationRef}>
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="relative p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors"
+                            className="relative p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors touch-target"
                             aria-label="Notifications"
                             aria-expanded={showNotifications}
                             aria-haspopup="true"
@@ -64,7 +81,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => 
                         </button>
                         {showNotifications && (
                             <div 
-                                className="absolute right-0 mt-2 w-64 bg-sea-green rounded-lg shadow-2xl p-4 text-sm text-white"
+                                className="absolute right-0 mt-2 w-64 sm:w-80 bg-sea-green rounded-lg shadow-2xl p-4 text-sm text-white modal-fullscreen-mobile"
                                 role="menu"
                                 aria-label="Notifications menu"
                             >
@@ -81,7 +98,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => 
                     <div className="relative" ref={profileRef}>
                         <button
                             onClick={() => setShowProfile(!showProfile)}
-                            className="p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors"
+                            className="p-2 hover:bg-sea-green hover:bg-opacity-20 rounded-lg transition-colors touch-target"
                             aria-label="User profile menu"
                             aria-expanded={showProfile}
                             aria-haspopup="true"
@@ -90,7 +107,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => 
                         </button>
                         {showProfile && (
                             <div 
-                                className="absolute right-0 mt-2 w-48 bg-sea-green rounded-lg shadow-2xl overflow-hidden"
+                                className="absolute right-0 mt-2 w-48 sm:w-56 bg-sea-green rounded-lg shadow-2xl overflow-hidden"
                                 role="menu"
                                 aria-label="User menu"
                             >
@@ -100,14 +117,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, title = 'Dashboard' }) => 
                                 </div>
                                 <a 
                                     href="#" 
-                                    className="block px-4 py-2 hover:bg-oxford-blue text-white"
+                                    className="block px-4 py-3 hover:bg-oxford-blue text-white touch-target"
                                     role="menuitem"
                                 >
                                     Profile
                                 </a>
                                 <a 
                                     href="#" 
-                                    className="block px-4 py-2 hover:bg-oxford-blue text-white"
+                                    className="block px-4 py-3 hover:bg-oxford-blue text-white touch-target"
                                     role="menuitem"
                                 >
                                     Settings

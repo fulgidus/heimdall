@@ -159,7 +159,7 @@ const Dashboard: React.FC = () => {
             {/* Stats Cards Row */}
             <section aria-label="System metrics" className="row">
                 {/* Active WebSDR Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <h2 className="mb-4 h6">Active WebSDR</h2>
@@ -189,7 +189,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Signal Detection Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <h2 className="mb-4 h6">Signal Detections</h2>
@@ -220,7 +220,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* System Uptime Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <h2 className="mb-4 h6">System Uptime</h2>
@@ -253,7 +253,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Model Accuracy Card */}
-                <div className="col-md-6 col-xl-3">
+                <div className="col-12 col-sm-6 col-md-6 col-xl-3 mb-3">
                     <div className="card">
                         <div className="card-body">
                             <h2 className="mb-4 h6">Model Accuracy</h2>
@@ -289,18 +289,18 @@ const Dashboard: React.FC = () => {
             {/* Main Content Row */}
             <div className="row">
                 {/* System Activity */}
-                <section className="col-lg-8" aria-labelledby="system-activity-heading">
+                <section className="col-12 col-lg-8 mb-3" aria-labelledby="system-activity-heading">
                     <div className="card table-card">
                         <div className="card-header d-flex align-items-center justify-content-between">
                             <h2 id="system-activity-heading" className="mb-0 h5">System Activity</h2>
                             <button
-                                className="btn btn-sm btn-link-primary"
+                                className="btn btn-sm btn-link-primary touch-target"
                                 onClick={handleRefresh}
                                 disabled={isRefreshing}
                                 aria-label={isRefreshing ? 'Refreshing system activity' : 'Refresh system activity'}
                             >
                                 <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`} aria-hidden="true"></i>
-                                {isRefreshing ? ' Refreshing...' : ' Refresh'}
+                                <span className="d-none d-sm-inline">{isRefreshing ? ' Refreshing...' : ' Refresh'}</span>
                             </button>
                         </div>
                         <div className="card-body">
@@ -310,8 +310,8 @@ const Dashboard: React.FC = () => {
                                         <tr>
                                             <th scope="col">Status</th>
                                             <th scope="col">Activity</th>
-                                            <th scope="col">Details</th>
-                                            <th scope="col">Timestamp</th>
+                                            <th scope="col" className="d-none d-md-table-cell">Details</th>
+                                            <th scope="col" className="d-none d-lg-table-cell">Timestamp</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -325,10 +325,10 @@ const Dashboard: React.FC = () => {
                                                 <h3 className="mb-0 h6">System Status</h3>
                                                 <p className="text-muted f-12 mb-0">WebSDR Network</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {onlineWebSDRs} of {totalWebSDRs} receivers online
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 <time dateTime={lastUpdate ? new Date(lastUpdate).toISOString() : ''}>
                                                     {lastUpdate ? new Date(lastUpdate).toLocaleTimeString() : 'Just now'}
                                                 </time>
@@ -348,12 +348,12 @@ const Dashboard: React.FC = () => {
                                                 <h3 className="mb-0 h6">ML Model</h3>
                                                 <p className="text-muted f-12 mb-0">Inference Engine</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {data.modelInfo
                                                     ? `Version ${data.modelInfo.active_version} - ${data.modelInfo.health_status}`
                                                     : 'Initializing...'}
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {data.modelInfo?.loaded_at
                                                     ? new Date(data.modelInfo.loaded_at).toLocaleTimeString()
                                                     : '-'}
@@ -369,11 +369,11 @@ const Dashboard: React.FC = () => {
                                                 <h3 className="mb-0 h6">Services Health</h3>
                                                 <p className="text-muted f-12 mb-0">Microservices</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {Object.values(data.servicesHealth).filter(s => s.status === 'healthy').length} of{' '}
                                                 {Object.keys(data.servicesHealth).length} services healthy
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {lastUpdate ? 'Updated' : 'Checking...'}
                                             </td>
                                         </tr>
@@ -387,12 +387,12 @@ const Dashboard: React.FC = () => {
                                                 <h3 className="mb-0 h6">Predictions</h3>
                                                 <p className="text-muted f-12 mb-0">Total Count</p>
                                             </td>
-                                            <td>
+                                            <td className="d-none d-md-table-cell">
                                                 {data.modelInfo
                                                     ? `${data.modelInfo.predictions_total} total (${data.modelInfo.predictions_successful} successful)`
                                                     : 'No predictions yet'}
                                             </td>
-                                            <td className="text-muted">
+                                            <td className="text-muted d-none d-lg-table-cell">
                                                 {data.modelInfo?.last_prediction_at || '-'}
                                             </td>
                                         </tr>
@@ -404,7 +404,7 @@ const Dashboard: React.FC = () => {
                 </section>
 
                 {/* Services Status */}
-                <section className="col-lg-4" aria-labelledby="services-status-heading">
+                <section className="col-12 col-lg-4 mb-3" aria-labelledby="services-status-heading">
                     <div 
                         className="card"
                         aria-live="polite"
@@ -482,8 +482,8 @@ const Dashboard: React.FC = () => {
                                     <WebSDRCardSkeleton />
                                 ) : (
                                     webSDRStatuses.map((sdr) => (
-                                        <div key={sdr.id} className="col-lg-3 col-md-4 col-sm-6">
-                                            <div className="card bg-light border-0 mb-3">
+                                        <div key={sdr.id} className="col-12 col-sm-6 col-md-4 col-lg-3 mb-3">
+                                            <div className="card bg-light border-0">
                                                 <div className="card-body">
                                                     <div className="d-flex align-items-center justify-content-between mb-2">
                                                         <h6 className="mb-0">{sdr.city}</h6>
