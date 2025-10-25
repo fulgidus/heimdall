@@ -1,7 +1,7 @@
 # Heimdall SDR - Development Makefile
 # Cross-platform compatible commands
 
-.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check
+.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check test-unit test-integration test-e2e test-coverage coverage-report test-watch test-failed
 
 # Default target
 help:
@@ -27,6 +27,13 @@ help:
 	@echo "  DEVELOPMENT:"
 	@echo "    test                  Run all tests in Docker containers (with auth)"
 	@echo "    test-local            Run tests locally (without Docker)"
+	@echo "    test-unit             Run unit tests only"
+	@echo "    test-integration      Run integration tests only"
+	@echo "    test-e2e              Run E2E tests only"
+	@echo "    test-coverage         Run tests with coverage report"
+	@echo "    coverage-report       Generate coverage analysis"
+	@echo "    test-watch            Run tests in watch mode"
+	@echo "    test-failed           Re-run only failed tests"
 	@echo "    test-api              Test API Gateway with authentication"
 	@echo "    get-token             Get Keycloak authentication token"
 	@echo "    lint                  Run code linting"
@@ -260,6 +267,41 @@ setup:
 	@echo "  1. Activate virtual environment: source venv/bin/activate"
 	@echo "  2. Start services: make dev-up"
 	@echo "  3. Run tests: make test-local"
+
+# Testing targets
+test-unit:
+	@echo "Running unit tests..."
+	pytest services -m "not integration and not e2e" -v --tb=short
+
+test-integration:
+	@echo "Running integration tests..."
+	pytest services -m "integration" -v --tb=short
+
+test-e2e:
+	@echo "Running E2E tests..."
+	pytest services -m "e2e" -v --tb=short
+
+test-coverage:
+	@echo "Running tests with coverage..."
+	pytest services --cov=services --cov-report=html --cov-report=term -v
+	@echo "📊 Coverage report generated: htmlcov/index.html"
+
+coverage-report:
+	@echo "Generating coverage analysis..."
+	python scripts/analyze_coverage.py
+
+test-watch:
+	@echo "Running tests in watch mode..."
+	@if command -v pytest-watch >/dev/null 2>&1; then \
+		pytest-watch services; \
+	else \
+		echo "pytest-watch not installed. Install with: pip install pytest-watch"; \
+		exit 1; \
+	fi
+
+test-failed:
+	@echo "Re-running failed tests..."
+	pytest services --lf -v --tb=short
 
 # Dependency Management
 lock-deps:
