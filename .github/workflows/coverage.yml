@@ -139,34 +139,3 @@ jobs:
           git config user.email "actions@github.com"
           git add docs/coverage/README.md docs/coverage/badge.svg 2>/dev/null || true
           git diff --cached --quiet || (git commit -m "ci: update coverage report [skip ci]" && git push)
-
-  deploy-pages:
-    needs: coverage
-    if: always() && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Checkout coverage reports
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          sparse-checkout: coverage
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "coverage"
-
-      - name: Deploy to Pages
-        id: deployment
-        uses: actions/deploy-pages@v3
