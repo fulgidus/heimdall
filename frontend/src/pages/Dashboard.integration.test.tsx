@@ -339,7 +339,7 @@ describe('Dashboard - Real API Integration', () => {
             renderDashboard({ lastUpdate: now });
 
             // Should show Dashboard heading and the component should be rendered
-            const heading = screen.getByRole('heading', { name: /dashboard/i, level: 2 });
+            const heading = screen.getByRole('heading', { name: /dashboard/i, level: 1 });
             expect(heading).toBeInTheDocument();
 
             // Verify System Activity section is rendered (which contains the timestamp)
