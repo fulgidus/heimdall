@@ -58,20 +58,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Debug - List repository structure
+        run: |
+          echo "📁 Repository root contents:"
+          ls -la
+          echo ""
+          echo "📁 Services directory structure:"
+          ls -la services/
+          echo ""
+          echo "📁 Service-specific files:"
+          for service in api-gateway rf-acquisition data-ingestion-web inference; do
+            echo "  === $service ==="
+            ls -la services/$service/ || echo "    Directory not found!"
+            echo ""
+          done
+          echo "✅ Repository structure listing complete"
+
+      - name: Validate service files
+        run: |
+          chmod +x ./scripts/validate-service-files.sh
+          ./scripts/validate-service-files.sh
+
       - name: Start backend services
         run: |
           echo "🚀 Starting essential backend services for E2E tests..."
           # Start infrastructure first
           docker compose -f docker-compose.yml up -d postgres redis
-
-          echo "📁 Verifying service directories exist..."
-          for service in api-gateway rf-acquisition data-ingestion-web inference; do
-            echo "  Checking services/$service/src/..."
-            ls -la services/$service/src/ > /dev/null || { echo "❌ Missing src/ directory for $service"; exit 1; }
-            echo "  Checking services/$service/requirements.txt..."
-            ls services/$service/requirements.txt > /dev/null || { echo "❌ Missing requirements.txt for $service"; exit 1; }
-          done
-          echo "✅ All required files present"
 
           # Build and start only essential microservices to save disk space
           # Skip training service as it's not needed for E2E tests
