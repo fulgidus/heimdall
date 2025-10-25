@@ -436,33 +436,21 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
-        VITE_ENV: development
-        VITE_ENABLE_ANALYTICS: "true"
-        VITE_ENABLE_DEBUG: "false"
     container_name: heimdall-frontend
-    environment:
-      VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
-      VITE_ENV: development
     ports:
-      - "3001:3000"
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://api-gateway:8000
     depends_on:
-      api-gateway:
-        condition: service_healthy
+      - api-gateway
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
-      timeout: 3s
-      start_period: 10s
+      timeout: 5s
       retries: 3
     networks:
       - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+    restart: unless-stopped
 
   # Keycloak - Authentication & Authorization Provider
   keycloak:

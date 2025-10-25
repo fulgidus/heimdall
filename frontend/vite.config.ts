@@ -21,10 +21,11 @@ export default defineConfig({
         },
     },
     server: {
-        port: 3001,
+        port: 5173,
+        strictPort: false,
         proxy: {
             '/api': {
-                target: 'http://localhost:8000',
+                target: process.env.VITE_API_URL || 'http://localhost:8000',
                 changeOrigin: true,
                 rewrite: (path) => {
                     // Don't rewrite /api/v1/auth/* - pass directly to backend
@@ -40,32 +41,29 @@ export default defineConfig({
     build: {
         target: 'esnext',
         outDir: 'dist',
-        sourcemap: false,
-        minify: 'esbuild',
+        assetsDir: 'assets',
+        sourcemap: true, // Required for production debugging
+        minify: 'terser',
+        terserOptions: {
+            compress: {
+                drop_console: true,
+                pure_funcs: ['console.log', 'console.info'],
+            },
+        },
         cssCodeSplit: true,
         rollupOptions: {
             output: {
-                manualChunks: (id) => {
-                    if (id.includes('node_modules')) {
-                        if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                            return 'react-vendor';
-                        }
-                        if (id.includes('chart.js') || id.includes('react-chartjs')) {
-                            return 'chart-vendor';
-                        }
-                        if (id.includes('@radix-ui')) {
-                            return 'ui-vendor';
-                        }
-                        if (id.includes('@tanstack') || id.includes('axios') || id.includes('zustand')) {
-                            return 'data-vendor';
-                        }
-                        return 'vendor';
-                    }
+                manualChunks: {
+                    'mapbox': ['mapbox-gl'],
+                    'vendor': ['react', 'react-dom'],
+                    'router': ['react-router-dom'],
+                    'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-label', '@radix-ui/react-separator', '@radix-ui/react-slot', '@radix-ui/react-tooltip'],
+                    'charts': ['chart.js', 'react-chartjs-2'],
+                    'data': ['@tanstack/react-query', 'axios', 'zustand'],
                 },
-                // Optimize chunk file names for better caching
-                chunkFileNames: 'assets/[name]-[hash].js',
-                entryFileNames: 'assets/[name]-[hash].js',
-                assetFileNames: 'assets/[name]-[hash].[ext]',
+                chunkFileNames: 'assets/js/[name]-[hash].js',
+                entryFileNames: 'assets/js/[name]-[hash].js',
+                assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
             },
         },
         chunkSizeWarningLimit: 600,
