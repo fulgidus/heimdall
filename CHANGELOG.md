@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Centralized Dependency Management System** (2025-10-25, PR #3)
+  - Created `services/requirements/` directory with modular requirement files
+  - Added `base.txt`, `dev.txt`, `ml.txt`, `api.txt`, `data.txt` for shared dependencies
+  - Implemented `scripts/lock_requirements.py` for generating version-pinned lock files
+  - Implemented `scripts/audit_dependencies.py` for dependency analysis and conflict detection
+  - Created `.github/workflows/dependency-updates.yml` for automated weekly dependency updates
+  - Added comprehensive dependency management documentation in `docs/dependency_management.md`
+  - Added Makefile targets: `lock-deps`, `audit-deps`, `deps-check`
+  - Updated all service Dockerfiles to use centralized requirements with proper build contexts
+  - Updated `docker-compose.yml` with consistent build contexts and PIP_NO_CACHE_DIR arg
+  - Created `.github/ISSUE_TEMPLATE/dependency-update.md` for dependency issue reporting
+  - Resolved version conflicts in boto3 and onnxruntime across services
+  - Security: Automated vulnerability scanning with safety library
+  - Security: Weekly dependency update workflow with security checks
+  - Production stability: Version pinning strategy ensures reproducible and secure builds
+
 - **WebSocket Real-Time Dashboard Updates** (2025-10-25)
   - Implemented WebSocket support for real-time updates to Dashboard without polling overhead
   - Frontend WebSocket manager with auto-reconnection and exponential backoff (1s → 30s max)
