@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    permissions:
+      contents: read
+      pull-requests: write
+
     # Define credentials once for the entire job
     env:
       # PostgreSQL credentials (must match docker-compose and .env.example)
@@ -193,6 +197,47 @@ jobs:
           files: ./services/*/coverage.xml
           flags: integration-tests
           name: integration-coverage
+
+      - name: Comment PR with integration test results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let resultsContent = '## 🔗 Integration Test Results\n\n';
+
+            // Check if any step failed by looking at job outcome
+            const jobResult = '${{ job.status }}';
+
+            resultsContent += '### 🔧 Services Tested\n';
+            resultsContent += '- 📡 **API Gateway**: Integration tests\n';
+            resultsContent += '- 🌐 **Data Ingestion Web**: Integration tests\n';
+            resultsContent += '- 📻 **RF Acquisition**: Integration tests\n\n';
+
+            resultsContent += '### 🛠️ Infrastructure\n';
+            resultsContent += '- 🐘 **PostgreSQL**: TimescaleDB with database initialization\n';
+            resultsContent += '- 🐰 **RabbitMQ**: Message queue service\n';
+            resultsContent += '- 🗄️ **Redis**: Cache service\n';
+            resultsContent += '- 💾 **MinIO**: Object storage\n';
+            resultsContent += '- 🔐 **Keycloak**: Authentication service\n\n';
+
+            // Overall Status
+            if (jobResult === 'success') {
+              resultsContent += '✅ **Overall Result**: All integration tests passed successfully!\n\n';
+              resultsContent += '🎉 All services integrate properly with the infrastructure.\n\n';
+            } else {
+              resultsContent += '❌ **Overall Result**: Some integration tests failed.\n\n';
+              resultsContent += '⚠️  Please check the service integrations and infrastructure connectivity.\n\n';
+            }
+
+            resultsContent += `📋 [View detailed test report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            resultsContent += `📊 Coverage reports have been uploaded to Codecov.\n`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: resultsContent
+            });
 
       - name: Integration test summary
         if: always()

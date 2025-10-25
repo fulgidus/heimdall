@@ -142,28 +142,78 @@ jobs:
           git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs [skip ci]" && git push)
 
       - name: Comment PR with coverage summary
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            let coverage_text = '## 📊 Coverage Report\n\n';
+            let coverageContent = '## 📊 Test Coverage Results\n\n';
 
-            try {
-              const backend_coverage = JSON.parse(fs.readFileSync('coverage_reports/backend.json', 'utf8'));
-              const percent = backend_coverage.totals.percent_covered.toFixed(2);
-              coverage_text += `**Backend Coverage:** ${percent}%\n`;
-            } catch(e) {
-              coverage_text += '**Backend Coverage:** ⚠️ Failed to generate\n';
+            // Backend Coverage
+            if (fs.existsSync('coverage_reports/backend.json')) {
+              try {
+                const backendCoverage = JSON.parse(fs.readFileSync('coverage_reports/backend.json', 'utf8'));
+                const percent = backendCoverage.totals.percent_covered.toFixed(2);
+                const lines = backendCoverage.totals.covered_lines;
+                const totalLines = backendCoverage.totals.num_statements;
+                const missing = totalLines - lines;
+                
+                coverageContent += '### 🔧 Backend Coverage\n';
+                coverageContent += `- 📈 **Overall Coverage**: ${percent}%\n`;
+                coverageContent += `- ✅ **Lines Covered**: ${lines}\n`;
+                coverageContent += `- ❌ **Lines Missing**: ${missing}\n`;
+                coverageContent += `- 📊 **Total Lines**: ${totalLines}\n\n`;
+                
+                if (percent >= 80) {
+                  coverageContent += '✅ **Excellent coverage!** (≥80%)\n\n';
+                } else if (percent >= 70) {
+                  coverageContent += '⚠️  **Good coverage** but could be improved (≥70%)\n\n';
+                } else {
+                  coverageContent += '❌ **Coverage below recommended threshold** (<70%)\n\n';
+                }
+              } catch(e) {
+                coverageContent += '### 🔧 Backend Coverage\n';
+                coverageContent += '⚠️  **Backend coverage data could not be parsed**\n\n';
+              }
+            } else {
+              coverageContent += '### 🔧 Backend Coverage\n';
+              coverageContent += '⚠️  **Backend coverage report not found**\n\n';
             }
 
-            coverage_text += `\n*Coverage reports are available in the workflow artifacts*\n`;
+            // Frontend Coverage (if exists)
+            if (fs.existsSync('coverage_reports/frontend.log')) {
+              try {
+                const frontendLog = fs.readFileSync('coverage_reports/frontend.log', 'utf8');
+                const coverageMatch = frontendLog.match(/All files\s*\|\s*([\d.]+)/);
+                if (coverageMatch) {
+                  const frontendPercent = parseFloat(coverageMatch[1]).toFixed(2);
+                  coverageContent += '### 🎨 Frontend Coverage\n';
+                  coverageContent += `- 📈 **Overall Coverage**: ${frontendPercent}%\n\n`;
+                } else {
+                  coverageContent += '### 🎨 Frontend Coverage\n';
+                  coverageContent += '⚠️  **Frontend coverage percentage not detected**\n\n';
+                }
+              } catch(e) {
+                coverageContent += '### 🎨 Frontend Coverage\n';
+                coverageContent += '⚠️  **Frontend coverage log could not be read**\n\n';
+              }
+            }
+
+            // Test Status
+            if ('${{ steps.backend_tests.outcome }}' !== 'success') {
+              coverageContent += '❌ **Backend tests failed** - Please review the test results.\n\n';
+            } else {
+              coverageContent += '✅ **Backend tests passed successfully!**\n\n';
+            }
+
+            coverageContent += `📋 [View detailed coverage report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            coverageContent += `📦 Coverage artifacts are available for download in the workflow run.\n`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: coverage_text
+              body: coverageContent
             });
 
       - name: Commit coverage badge to develop
