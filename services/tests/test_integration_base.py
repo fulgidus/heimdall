@@ -133,8 +133,8 @@ class IntegrationTestBase:
             channel = connection.channel()
             yield channel
             connection.close()
-        except Exception:
-            pytest.skip("RabbitMQ not available for integration tests")
+        except (pika.exceptions.AMQPConnectionError, ConnectionError) as e:
+            pytest.skip(f"RabbitMQ not available for integration tests: {e}")
     
     @pytest.fixture
     def minio_client(self):
@@ -154,5 +154,5 @@ class IntegrationTestBase:
             # Test connection
             client.list_buckets()
             yield client
-        except Exception:
-            pytest.skip("MinIO not available for integration tests")
+        except (ConnectionError, OSError) as e:
+            pytest.skip(f"MinIO not available for integration tests: {e}")
