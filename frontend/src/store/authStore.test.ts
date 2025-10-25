@@ -55,9 +55,10 @@ describe('authStore - Authentication Store', () => {
             expect(state.user?.email).toBe('admin@heimdall.local');
             expect(state.user?.role).toBe('admin');
             
-            // Verify fetch was called with correct Keycloak endpoint and params
+            // Verify fetch was called with correct API Gateway endpoint (which proxies to Keycloak)
+            // The authStore uses API Gateway as proxy to avoid CORS issues with Keycloak
             expect(global.fetch).toHaveBeenCalledWith(
-                expect.stringContaining('/protocol/openid-connect/token'),
+                expect.stringContaining('/api/v1/auth/login'),
                 expect.objectContaining({
                     method: 'POST',
                     headers: {
