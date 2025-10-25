@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore } from '../store';
+import { ConnectionState } from '../lib/websocket';
 
 const Dashboard: React.FC = () => {
     const {
@@ -9,27 +10,60 @@ const Dashboard: React.FC = () => {
         error,
         fetchDashboardData,
         lastUpdate,
+        wsConnectionState,
+        wsEnabled,
+        connectWebSocket,
+        disconnectWebSocket,
     } = useDashboardStore();
     const { websdrs, healthStatus } = useWebSDRStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     useEffect(() => {
-        // Fetch data on component mount
+        // Fetch initial data
         fetchDashboardData();
 
-        // Setup auto-refresh every 30 seconds
-        const interval = setInterval(() => {
-            fetchDashboardData();
-        }, 30000);
+        // Try to connect WebSocket for real-time updates
+        connectWebSocket();
 
-        return () => clearInterval(interval);
-    }, [fetchDashboardData]);
+        // Setup polling fallback (only if WebSocket disabled)
+        const interval = setInterval(() => {
+            if (!wsEnabled || wsConnectionState !== ConnectionState.CONNECTED) {
+                fetchDashboardData();
+            }
+        }, 30000); // Poll every 30 seconds as fallback
+
+        return () => {
+            clearInterval(interval);
+            disconnectWebSocket();
+        };
+    }, [fetchDashboardData, connectWebSocket, disconnectWebSocket, wsEnabled, wsConnectionState]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
         await fetchDashboardData();
         setIsRefreshing(false);
     };
+    
+    const handleReconnect = async () => {
+        await connectWebSocket();
+    };
+    
+    // Get connection status display
+    const getConnectionStatus = () => {
+        switch (wsConnectionState) {
+            case ConnectionState.CONNECTED:
+                return { text: 'Connected', color: 'success', icon: 'ph-check-circle' };
+            case ConnectionState.CONNECTING:
+                return { text: 'Connecting...', color: 'warning', icon: 'ph-circle-notch' };
+            case ConnectionState.RECONNECTING:
+                return { text: 'Reconnecting...', color: 'warning', icon: 'ph-arrows-clockwise' };
+            case ConnectionState.DISCONNECTED:
+            default:
+                return { text: wsEnabled ? 'Disconnected' : 'Polling Mode', color: 'danger', icon: 'ph-x-circle' };
+        }
+    };
+    
+    const connectionStatus = getConnectionStatus();
 
     // Calculate online WebSDRs from health status
     const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
@@ -74,8 +108,24 @@ const Dashboard: React.FC = () => {
                             </ul>
                         </div>
                         <div className="col-md-12">
-                            <div className="page-header-title">
+                            <div className="page-header-title d-flex align-items-center justify-content-between">
                                 <h2 className="mb-0">Dashboard</h2>
+                                {/* Connection Status Indicator */}
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className={`badge bg-light-${connectionStatus.color} d-flex align-items-center gap-1`}>
+                                        <i className={`ph ${connectionStatus.icon} ${wsConnectionState === ConnectionState.CONNECTING || wsConnectionState === ConnectionState.RECONNECTING ? 'spin' : ''}`}></i>
+                                        {connectionStatus.text}
+                                    </span>
+                                    {wsConnectionState === ConnectionState.DISCONNECTED && wsEnabled && (
+                                        <button
+                                            className="btn btn-sm btn-outline-primary"
+                                            onClick={handleReconnect}
+                                            title="Reconnect WebSocket"
+                                        >
+                                            <i className="ph ph-arrows-clockwise"></i>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

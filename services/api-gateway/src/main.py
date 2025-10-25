@@ -1,17 +1,19 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import httpx
 import logging
 import os
 import sys
+import asyncio
 
 # Add parent directory to path for auth module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..', 'common'))
 
 from .config import settings
 from .models.health import HealthResponse
+from .websocket_manager import manager as ws_manager, heartbeat_task
 
 # Import Keycloak authentication
 try:
@@ -336,6 +338,61 @@ async def root():
 
 
 # =============================================================================
+# WEBSOCKET ENDPOINT - Real-time Updates
+# =============================================================================
+
+@app.websocket("/ws/updates")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time dashboard updates.
+    
+    Events broadcasted:
+    - services:health - Service health status updates
+    - websdrs:status - WebSDR receiver status changes
+    - signals:detected - New signal detections
+    - localizations:updated - New localization points
+    """
+    await ws_manager.connect(websocket)
+    
+    # Start heartbeat task
+    heartbeat = asyncio.create_task(heartbeat_task(websocket))
+    
+    try:
+        while True:
+            # Receive messages from client (e.g., ping, subscribe events)
+            data = await websocket.receive_json()
+            
+            event = data.get("event")
+            
+            # Handle ping/pong
+            if event == "ping":
+                await websocket.send_json({
+                    "event": "pong",
+                    "data": {},
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+            
+            # Handle subscription requests (future enhancement)
+            elif event == "subscribe":
+                event_name = data.get("data", {}).get("event_name")
+                if event_name:
+                    ws_manager.subscribe(websocket, event_name)
+                    
+            elif event == "unsubscribe":
+                event_name = data.get("data", {}).get("event_name")
+                if event_name:
+                    ws_manager.unsubscribe(websocket, event_name)
+                    
+    except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected normally")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+    finally:
+        heartbeat.cancel()
+        ws_manager.disconnect(websocket)
+
+
+# =============================================================================
 # AUTHENTICATION ENDPOINTS
 # =============================================================================
 
@@ -534,11 +591,17 @@ async def get_system_status():
     
     overall_healthy = all(s["status"] == "healthy" for s in services_health)
     
-    return {
+    result = {
         "overall_status": "healthy" if overall_healthy else "degraded",
         "services": services_health,
         "timestamp": datetime.utcnow().isoformat(),
     }
+    
+    # Broadcast to WebSocket clients
+    services_health_dict = {s["name"]: {"status": s["status"]} for s in services_health}
+    asyncio.create_task(ws_manager.broadcast("services:health", services_health_dict))
+    
+    return result
 
 
 if __name__ == "__main__":
