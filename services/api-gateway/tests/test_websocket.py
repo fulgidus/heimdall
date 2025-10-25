@@ -4,17 +4,13 @@ Tests for WebSocket functionality
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch, AsyncMock
-import json
-import asyncio
-
-
-# Import the app from main
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from main import app
+# Fix import path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from src.main import app
 
 
 def test_websocket_connection():
