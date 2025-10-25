@@ -87,7 +87,8 @@ def create_badge_svg(percentage: float, output_path: str) -> None:
 def main():
     """Main entry point"""
     coverage_json = 'coverage_reports/backend.json'
-    badge_path = 'docs/coverage/badge.svg'
+    # Save badge in the correct path for GitHub Pages
+    badge_path = 'docs/coverage/develop/badge.svg'
     
     percentage = get_coverage_percentage(coverage_json)
     create_badge_svg(percentage, badge_path)

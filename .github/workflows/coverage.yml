@@ -88,9 +88,9 @@ jobs:
         continue-on-error: true
         run: |
           python scripts/generate_coverage_badge.py
-          # Copy badge to docs
-          mkdir -p docs/coverage
-          cp docs/coverage/badge.svg docs/coverage/badge.svg || true
+          # Ensure the badge is in the correct location for GitHub Pages
+          mkdir -p docs/coverage/develop
+          # The script already saves it to docs/coverage/develop/badge.svg
 
       - name: Generate coverage summary
         continue-on-error: true
@@ -121,7 +121,7 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add docs/coverage/ -f
-          git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs" && git push origin develop)
+          git diff --cached --quiet || (git commit -m "ci: update coverage reports in docs [skip ci]" && git push)
 
       - name: Comment PR with coverage summary
         if: github.event_name == 'pull_request'
@@ -140,7 +140,7 @@ jobs:
               coverage_text += '**Backend Coverage:** ⚠️ Failed to generate\n';
             }
 
-            coverage_text += `\n[📄 View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n`;
+            coverage_text += `\n*Coverage reports are available in the workflow artifacts*\n`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -155,5 +155,5 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add docs/coverage/README.md docs/coverage/badge.svg 2>/dev/null || true
-          git diff --cached --quiet || (git commit -m "ci: update coverage report [skip ci]" && git push)
+          git add docs/coverage/develop/badge.svg docs/coverage/README.md 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "ci: update coverage badge [skip ci]" && git push)
