@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor, act } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 // Mock stores before importing
@@ -33,7 +33,7 @@ describe('Phase 7: Real-Time Data Updates Validation', () => {
                     <Dashboard />
                 </BrowserRouter>
             );
-            
+
             expect(container).toBeTruthy();
         });
 
@@ -45,7 +45,7 @@ describe('Phase 7: Real-Time Data Updates Validation', () => {
             );
 
             unmount();
-            
+
             // Component should unmount successfully
             expect(true).toBe(true);
         });

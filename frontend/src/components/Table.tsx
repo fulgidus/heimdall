@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 import classNames from 'classnames';
 import './Table.css';
 
-export interface TableColumn<T = any> {
+export interface TableColumn<T = Record<string, unknown>> {
     key: string;
     header: string;
-    render?: (value: any, row: T, index: number) => React.ReactNode;
+    render?: (value: unknown, row: T, index: number) => React.ReactNode;
     sortable?: boolean;
     width?: string;
     align?: 'left' | 'center' | 'right';
 }
 
-export interface TableProps<T = any> {
+export interface TableProps<T = Record<string, unknown>> {
     columns: TableColumn<T>[];
     data: T[];
     loading?: boolean;
@@ -24,7 +24,7 @@ export interface TableProps<T = any> {
     compact?: boolean;
 }
 
-function Table<T = any>({
+function Table<T = Record<string, unknown>>({
     columns,
     data,
     loading = false,
@@ -47,31 +47,31 @@ function Table<T = any>({
         className
     );
 
-    const getCellValue = (row: T, column: TableColumn<T>): any => {
+    const getCellValue = (row: T, column: TableColumn<T>): unknown => {
         const keys = column.key.split('.');
-        let value: any = row;
+        let value: unknown = row;
         for (const key of keys) {
-            value = value?.[key];
+            value = (value as Record<string, unknown>)?.[key];
         }
         return value;
     };
 
-    const renderCell = (row: T, column: TableColumn<T>, rowIndex: number) => {
+    const renderCell = (row: T, column: TableColumn<T>, rowIndex: number): ReactNode => {
         const value = getCellValue(row, column);
-        
+
         if (column.render) {
             return column.render(value, row, rowIndex);
         }
-        
+
         if (value === null || value === undefined) {
             return <span className="text-muted">—</span>;
         }
-        
+
         if (typeof value === 'boolean') {
             return value ? '✓' : '✗';
         }
-        
-        return value;
+
+        return <>{value}</>;
     };
 
     if (loading) {

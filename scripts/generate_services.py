@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     service_name: str = "{service_name}"
     service_port: int = {port}
     cors_origins: List[str] = ["*"]
-    database_url: str = "postgresql://heimdall:heimdall@postgres:5432/heimdall"
+    database_url: str = "postgresql://heimdall_user:changeme@postgres:5432/heimdall"
     redis_url: str = "redis://redis:6379/0"
 
 

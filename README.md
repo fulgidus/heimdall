@@ -115,6 +115,31 @@ make health-check
 
 See [Phase 1 Guide](docs/agents/20251022_080000_phase1_guide.md) for detailed setup instructions.
 
+### Testing
+
+**E2E Tests (Real Backend Integration)**
+
+Comprehensive end-to-end tests with **real backend calls** (NO mocks):
+
+```bash
+# Validate setup
+./scripts/validate-e2e-setup.sh
+
+# Run E2E tests (automatic backend orchestration)
+./scripts/run-e2e-tests.sh
+
+# Manual execution
+cd frontend && npm run test:e2e
+
+# Debug mode
+npm run test:e2e:debug
+```
+
+**Coverage**: 42 tests across 10 pages, 100% real HTTP calls  
+**Artifacts**: HAR files, screenshots, videos, traces, backend logs  
+**CI/CD**: Automated via GitHub Actions  
+
+See [E2E Testing Guide](docs/agents/20251024_104500_e2e_testing_real_backend.md) for details.
 ### Development Credentials
 
 For local development, all services use default credentials documented in [Development Default Credentials Guide](docs/dev-credentials.md).

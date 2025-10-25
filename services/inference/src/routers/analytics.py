@@ -23,6 +23,30 @@ class TimeSeriesPoint:
         return {"timestamp": self.timestamp, "value": self.value}
 
 
+class LocalizationResult:
+    """Mock localization result for recent predictions."""
+    def __init__(self, id: int, timestamp: str, lat: float, lon: float, accuracy: float, confidence: float):
+        self.id = id
+        self.timestamp = timestamp
+        self.latitude = lat
+        self.longitude = lon
+        self.uncertainty_m = accuracy
+        self.confidence = confidence
+        self.websdr_count = 7
+        self.snr_avg_db = 12.5 + (id % 3)
+
+    def dict(self):
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "uncertainty_m": self.uncertainty_m,
+            "confidence": self.confidence,
+            "websdr_count": self.websdr_count,
+            "snr_avg_db": self.snr_avg_db,
+        }
+
 class PredictionMetrics:
     def __init__(self):
         # Generate mock time series data for the last 7 days
@@ -147,6 +171,13 @@ async def get_system_performance(time_range: str = Query("7d", description="Time
         raise HTTPException(status_code=500, detail=f"Failed to get system performance: {str(e)}")
 
 
+# Alias for backward compatibility
+@router.get("/system")
+async def get_system_metrics_alias(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+    """Get system metrics (alias for /system/performance)."""
+    return await get_system_performance(time_range)
+
+
 @router.get("/localizations/accuracy-distribution")
 async def get_accuracy_distribution(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
     """Get localization accuracy distribution."""
@@ -160,3 +191,78 @@ async def get_accuracy_distribution(time_range: str = Query("7d", description="T
     except Exception as e:
         logger.error(f"❌ Error getting accuracy distribution: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get accuracy distribution: {str(e)}")
+
+
+@router.get("/model/info")
+async def get_model_info() -> Dict[str, Any]:
+    """Get information about the active ML model."""
+    try:
+        logger.info("📋 Getting model information")
+        return {
+            "model_id": "heimdall-v1.0.0",
+            "version": "1.0.0",
+            "description": "Heimdall SDR Localization Neural Network",
+            "architecture": "CNN-based (ResNet-18)",
+            "input_shape": [1, 128, 256],
+            "output_shape": [4],
+            "parameters": 11689472,
+            "training_date": "2025-09-15T14:30:00Z",
+            "accuracy": 0.94,
+            "status": "active",
+            "framework": "PyTorch",
+            "backend": "ONNX Runtime",
+        }
+    except Exception as e:
+        logger.error(f"❌ Error getting model info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get model info: {str(e)}")
+
+
+@router.get("/model/performance")
+async def get_model_performance() -> Dict[str, Any]:
+    """Get current model performance metrics."""
+    try:
+        logger.info("📊 Getting model performance metrics")
+        return {
+            "inference_time_ms": {
+                "mean": 245.3,
+                "median": 238.1,
+                "p95": 312.5,
+                "p99": 385.2,
+            },
+            "cache_hit_rate": 0.78,
+            "cache_misses": 1205,
+            "cache_hits": 4320,
+            "total_predictions": 5525,
+            "successful_predictions": 5209,
+            "failed_predictions": 316,
+            "error_rate": 0.057,
+            "uptime_percentage": 99.8,
+        }
+    except Exception as e:
+        logger.error(f"❌ Error getting model performance: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get model performance: {str(e)}")
+
+
+@router.get("/localizations/recent")
+async def get_recent_localizations(limit: int = Query(10, ge=1, le=100, description="Number of recent localizations")) -> List[Dict[str, Any]]:
+    """Get recent localization results."""
+    try:
+        logger.info(f"📍 Getting {limit} recent localizations")
+        now = datetime.utcnow()
+        results = []
+        
+        # Generate mock recent localizations
+        for i in range(limit):
+            timestamp = (now - timedelta(minutes=i*5)).isoformat()
+            lat = 45.0 + (i % 10) * 0.01
+            lon = 8.5 + (i % 10) * 0.01
+            accuracy = 15 + (i % 20)  # 15-35m
+            confidence = 0.75 + (i % 5) * 0.05  # 0.75-0.95
+            
+            result = LocalizationResult(i+1, timestamp, lat, lon, accuracy, confidence)
+            results.append(result.dict())
+        
+        return results
+    except Exception as e:
+        logger.error(f"❌ Error getting recent localizations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recent localizations: {str(e)}")

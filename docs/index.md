@@ -115,6 +115,7 @@ Find answers to common questions in our [FAQ section](faqs.md).
 - [Diagnostic 404 Issue](agents/20251023_153000_diagnostic_404_issue.md) - Troubleshooting 404 errors
 - [Quick Answer 404](agents/20251023_153000_quick_answer_404.md) - Quick reference for 404 fixes
 - [CI Debug Guide](agents/20251023_153000_ci_debug_guide.md) - CI/CD troubleshooting and debugging
+- [GitHub Actions Service Containers Troubleshooting](agents/github_actions_service_containers_troubleshooting.md) - Troubleshooting GitHub Actions service container issues
 - [Glossary of Terms](glossary.md)
 - [Acknowledgements](acknowledgements.md)
 - [Roadmap](roadmap.md)
@@ -154,6 +155,7 @@ Find answers to common questions in our [FAQ section](faqs.md).
 - [All Fixes Complete](agents/20251023_153000_all_fixes_complete.md) - All fixes completion report
 - [CI Fixes Ready to Push](agents/20251023_153000_ci_fixes_ready_to_push.md) - CI/CD fixes ready for deployment
 - [CI Test Fixes Complete](agents/20251023_153000_ci_test_fixes_complete.md) - CI testing fixes completion
+- [Integration Tests Fix](agents/20251024_235900_integration_tests_fix.md) - MinIO and Keycloak container startup fix for GitHub Actions
 - [Quick Verification Checklist](agents/20251023_153000_quick_verification_checklist.md) - Quick verification procedures
 - [Answer to Your Question](agents/20251023_153000_answer_to_your_question.md) - FAQ and common questions
 - [Why Mock Responses Answer](agents/20251023_153000_why_mock_responses_answer.md) - Explanation of mock responses usage

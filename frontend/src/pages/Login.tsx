@@ -30,7 +30,7 @@ const Login: React.FC = () => {
     };
 
     const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@heimdall.local';
-    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'Admin123!@#';
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin';
 
     return (
         <div className="login-container">

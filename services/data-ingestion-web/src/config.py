@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     service_port: int = 8004
     environment: str = "development"
     cors_origins: List[str] = ["*"]
-    database_url: str = "postgresql://heimdall:heimdall@postgres:5432/heimdall"
+    database_url: str = "postgresql://heimdall_user:changeme@postgres:5432/heimdall"
     redis_password: str = os.getenv("REDIS_PASSWORD", "changeme")
     redis_url: str = f"redis://:{os.getenv('REDIS_PASSWORD', 'changeme')}@redis:6379/0"
     

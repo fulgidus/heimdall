@@ -11,12 +11,19 @@ export default defineConfig({
         },
     },
     server: {
-        port: 3000,
+        port: 3001,
         proxy: {
             '/api': {
                 target: 'http://localhost:8000',
                 changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/api/, ''),
+                rewrite: (path) => {
+                    // Don't rewrite /api/v1/auth/* - pass directly to backend
+                    if (path.startsWith('/api/v1/auth')) {
+                        return path;
+                    }
+                    // Rewrite other /api/* by removing /api prefix
+                    return path.replace(/^\/api/, '');
+                },
             },
         },
     },

@@ -63,7 +63,7 @@ export async function checkAllServicesHealth(): Promise<Record<string, ServiceHe
 /**
  * Get API Gateway root status
  */
-export async function getAPIGatewayStatus(): Promise<any> {
+export async function getAPIGatewayStatus(): Promise<Record<string, unknown>> {
     const response = await api.get('/');
     return response.data;
 }
