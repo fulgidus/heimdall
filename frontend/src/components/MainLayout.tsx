@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileMenu from './Navigation/MobileMenu';
+import BottomNav from './Navigation/BottomNav';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -40,9 +41,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, title = 'Dashboard', 
                 showBackButton={showBackButton}
             />
 
-            <main className="lg:ml-64 p-4 sm:p-6 lg:p-8 mobile-p-4">
+            <main className="lg:ml-64 p-4 sm:p-6 lg:p-8 mobile-p-4" style={{ paddingBottom: '5rem' }}>
                 {children}
             </main>
+
+            {/* Bottom Navigation for Mobile */}
+            <BottomNav />
         </div>
     );
 };

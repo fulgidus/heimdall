@@ -33,6 +33,21 @@
     color: white;
     outline: none;
     transition: all 0.2s;
+    font-size: 1rem; /* Prevent iOS auto-zoom */
+    min-height: 44px; /* Touch-friendly on mobile */
+}
+
+/* Mobile-specific sizing */
+@media (max-width: 640px) {
+    .input-field {
+        font-size: 16px; /* Prevent iOS auto-zoom */
+        min-height: 44px; /* iOS HIG recommendation */
+        padding: 0.75rem 1rem;
+    }
+    
+    .input-field-with-icon {
+        padding-left: 2.75rem;
+    }
 }
 
 .input-field::placeholder {
@@ -70,3 +85,13 @@
     margin-top: 0.25rem;
     opacity: 0.75;
 }
+
+/* Input type-specific styles for better mobile UX */
+input[type="tel"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+input[type="time"] {
+    font-size: 16px; /* Always prevent iOS auto-zoom */
+}
+
