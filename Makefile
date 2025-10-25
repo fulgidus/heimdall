@@ -148,6 +148,21 @@ health-check-redis:
 health-check-minio:
 	@curl -f http://localhost:9000/minio/health/live || echo "MinIO health check failed"
 
+# Documentation Audit (cross-platform)
+audit-docs:
+	@echo "Running documentation audit..."
+	python scripts/audit_documentation.py --format=both
+
+validate-doc-links:
+	@echo "Validating documentation links..."
+	python scripts/generate_doc_index.py --check-anchors
+
+check-docs: audit-docs validate-doc-links
+	@echo ""
+	@echo "========================================="
+	@echo "  Documentation audit complete"
+	@echo "========================================="
+
 # Quick setup for new developers
 setup:
 	@echo "Setting up Heimdall development environment..."

@@ -168,6 +168,23 @@ All documentation files MUST be discoverable and contextual. Orphaned files (not
 ```
 
 **Orphan Prevention Tools:**
+
+Heimdall provides automated tools to detect and prevent orphaned documentation:
+
+- **Audit Tool**: `python scripts/audit_documentation.py --format=both` generates reports
+- **Link Validator**: `python scripts/generate_doc_index.py` validates all links
+- **Makefile Commands**: 
+  - `make audit-docs` - Check for orphaned files
+  - `make validate-doc-links` - Validate all links
+  - `make check-docs` - Run both checks
+- **CI/CD**: Automated checks run on PRs (see `.github/workflows/doc-audit.yml`)
+
+**Orphan Resolution Protocol:**
+
+For detailed procedures on identifying and resolving orphaned documentation files:
+- [Orphan Resolution Protocol](docs/agents/20251025_200000_orphan_resolution_protocol.md)
+
+**Orphan Prevention Tools:**
 - Use `scripts/reorganize_docs.py --find-orphans` to identify unreachable files
 - Review orphan reports regularly
 - Before PR merge, ensure all new files are properly linked

@@ -142,6 +142,109 @@ npm run test:e2e:debug
 
 See [E2E Testing Guide](docs/agents/20251024_104500_e2e_testing_real_backend.md) for details.
 
+## 📚 Documentation Maintenance
+
+### Automated Documentation Audits
+
+Heimdall uses automated tools to ensure all documentation files are discoverable and properly linked:
+
+#### Running Documentation Audits Locally
+
+Before committing documentation changes, always run:
+
+```bash
+# Quick audit check
+make audit-docs
+
+# Validate all links (including anchor targets)
+make validate-doc-links
+
+# Run complete documentation audit
+make check-docs
+```
+
+#### What Gets Checked
+
+1. **Orphaned Files**: Markdown files not linked from any entry point
+   - Entry points: `AGENTS.md`, `docs/index.md`
+   - All files must be reachable via link graph
+
+2. **Broken Links**: Invalid file references or missing targets
+   - Checks file existence
+   - Validates relative paths
+   - Optionally checks anchor targets
+
+#### When to Run Audits
+
+- ✅ **Before committing** documentation changes
+- ✅ **After creating** new documentation files
+- ✅ **After moving/renaming** files
+- ✅ **Before submitting** pull requests
+
+#### Continuous Integration
+
+Documentation audits run automatically on:
+- Pull requests affecting `docs/` or `AGENTS.md`
+- Pushes to `main` or `develop` branches
+
+CI will **fail** if:
+- Orphaned files are detected
+- Broken links are found
+
+#### How to Link New Documentation
+
+When creating a new file in `docs/agents/`:
+
+1. **Create file** with proper naming: `YYYYMMDD_HHMMSS_description.md`
+   ```bash
+   # Example
+   docs/agents/20251025_153000_phase7_implementation_guide.md
+   ```
+
+2. **Add link** from appropriate parent document:
+   - **Phase documentation** → Link from `AGENTS.md` phase section
+   - **Session reports** → Link from phase tracking docs
+   - **Implementation guides** → Link from phase index files
+   - **API/Architecture** → Link from `docs/index.md`
+
+3. **Verify links** work:
+   ```bash
+   make audit-docs
+   # Should show: "✅ AUDIT PASSED: No orphaned files found!"
+   ```
+
+4. **Commit changes**:
+   ```bash
+   git add AGENTS.md docs/agents/20251025_153000_new_file.md
+   git commit -m "docs: add Phase 7 implementation guide with proper linking"
+   ```
+
+#### Example: Linking a Phase Document
+
+```markdown
+# In AGENTS.md
+
+**📋 Tracking**:
+- [Phase 7 Index](docs/agents/20251023_153000_phase7_index.md)
+- [Phase 7 Implementation Guide](docs/agents/20251025_153000_phase7_guide.md) ← NEW FILE
+- [Phase 7 Complete](docs/agents/20251023_153000_phase7_frontend_complete.md)
+```
+
+#### Best Practices for Orphan Prevention
+
+1. **Link immediately** after creating a file
+2. **Use relative paths** for links
+3. **Test locally** before pushing: `make audit-docs`
+4. **Review CI results** on pull requests
+5. **Archive obsolete** files instead of leaving orphaned
+
+#### Detailed Protocol
+
+For complete documentation audit and resolution procedures, see:
+- [Orphan Resolution Protocol](docs/agents/20251025_200000_orphan_resolution_protocol.md)
+
+---
+
 ## 📊 Test Coverage Reports
 
 Live test coverage reports are automatically generated on every push to `develop` branch:

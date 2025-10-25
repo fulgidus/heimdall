@@ -1,0 +1,193 @@
+name: Documentation Audit
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'AGENTS.md'
+      - 'scripts/audit_documentation.py'
+      - 'scripts/generate_doc_index.py'
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'docs/**'
+      - 'AGENTS.md'
+
+jobs:
+  audit:
+    name: Audit Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Run orphan file detection
+        id: audit
+        continue-on-error: true
+        run: |
+          echo "Running documentation audit..."
+          python scripts/audit_documentation.py --format=both --verbose > audit_output.txt 2>&1
+          AUDIT_EXIT=$?
+          cat audit_output.txt
+          echo "audit_exit_code=$AUDIT_EXIT" >> $GITHUB_OUTPUT
+          exit 0  # Don't fail yet, we want to continue to next steps
+      
+      - name: Run link validation
+        id: validate
+        continue-on-error: true
+        run: |
+          echo "Running link validation..."
+          python scripts/generate_doc_index.py --verbose > validation_output.txt 2>&1
+          VALIDATE_EXIT=$?
+          cat validation_output.txt
+          echo "validate_exit_code=$VALIDATE_EXIT" >> $GITHUB_OUTPUT
+          exit 0  # Don't fail yet
+      
+      - name: Generate summary statistics
+        id: stats
+        run: |
+          # Extract statistics from JSON reports
+          if [ -f audit_report.json ]; then
+            ORPHANS=$(jq -r '.statistics.orphaned_files' audit_report.json)
+            BROKEN_LINKS=$(jq -r '.statistics.broken_links' audit_report.json)
+          else
+            ORPHANS="unknown"
+            BROKEN_LINKS="unknown"
+          fi
+          
+          echo "orphans=$ORPHANS" >> $GITHUB_OUTPUT
+          echo "broken_links=$BROKEN_LINKS" >> $GITHUB_OUTPUT
+          
+          # Create summary
+          echo "## Documentation Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Orphaned Files | $ORPHANS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Broken Links | $BROKEN_LINKS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$ORPHANS" != "0" ] || [ "$BROKEN_LINKS" != "0" ]; then
+            echo "### ❌ Audit Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the detailed reports in the artifacts." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ Audit Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All documentation files are properly linked!" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation-audit-reports
+          path: |
+            audit_report.json
+            audit_report.md
+            docs_index.json
+            broken_links.md
+            audit_output.txt
+            validation_output.txt
+          retention-days: 30
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const orphans = '${{ steps.stats.outputs.orphans }}';
+            const brokenLinks = '${{ steps.stats.outputs.broken_links }}';
+            
+            let comment = '## 📋 Documentation Audit Results\n\n';
+            
+            if (orphans === '0' && brokenLinks === '0') {
+              comment += '### ✅ All Checks Passed\n\n';
+              comment += '- ✅ No orphaned files detected\n';
+              comment += '- ✅ No broken links found\n';
+            } else {
+              comment += '### ❌ Issues Detected\n\n';
+              comment += `- **Orphaned Files**: ${orphans}\n`;
+              comment += `- **Broken Links**: ${brokenLinks}\n\n`;
+              comment += '#### What to do:\n';
+              
+              if (orphans !== '0') {
+                comment += '1. **Orphaned Files**: Review `audit_report.md` in artifacts\n';
+                comment += '   - Link files from AGENTS.md or appropriate phase index\n';
+                comment += '   - Or delete if obsolete\n';
+              }
+              
+              if (brokenLinks !== '0') {
+                comment += '2. **Broken Links**: Review `broken_links.md` in artifacts\n';
+                comment += '   - Fix file paths\n';
+                comment += '   - Update or remove invalid links\n';
+              }
+              
+              comment += '\n#### Run locally:\n';
+              comment += '```bash\n';
+              comment += 'make audit-docs          # Check for orphans\n';
+              comment += 'make validate-doc-links  # Check for broken links\n';
+              comment += '```\n';
+            }
+            
+            comment += '\n---\n';
+            comment += `📊 **Full reports available in workflow artifacts**\n`;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('📋 Documentation Audit Results')
+            );
+            
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+      
+      - name: Check audit results
+        run: |
+          AUDIT_EXIT=${{ steps.audit.outputs.audit_exit_code }}
+          VALIDATE_EXIT=${{ steps.validate.outputs.validate_exit_code }}
+          
+          echo "Audit exit code: $AUDIT_EXIT"
+          echo "Validation exit code: $VALIDATE_EXIT"
+          
+          if [ "$AUDIT_EXIT" != "0" ] || [ "$VALIDATE_EXIT" != "0" ]; then
+            echo "❌ Documentation audit failed!"
+            echo "   - Orphaned files: ${{ steps.stats.outputs.orphans }}"
+            echo "   - Broken links: ${{ steps.stats.outputs.broken_links }}"
+            echo ""
+            echo "Review the artifacts for detailed reports."
+            exit 1
+          else
+            echo "✅ Documentation audit passed!"
+            exit 0
+          fi
