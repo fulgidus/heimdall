@@ -1,7 +1,7 @@
 # Heimdall SDR - Development Makefile
 # Cross-platform compatible commands
 
-.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check test-unit test-integration test-e2e test-coverage coverage-report test-watch test-failed
+.PHONY: help dev-up dev-down test test-local test-api get-token lint format build-docker db-migrate clean setup lock-deps audit-deps deps-check test-unit test-integration test-e2e test-coverage coverage-report test-watch test-failed type-check type-check-strict type-check-watch type-coverage lint-types check-types
 
 # Default target
 help:
@@ -39,6 +39,14 @@ help:
 	@echo "    lint                  Run code linting"
 	@echo "    format                Auto-format code"
 	@echo "    db-migrate            Run database migrations"
+	@echo ""
+	@echo "  TYPE CHECKING:"
+	@echo "    type-check            Run comprehensive type checking"
+	@echo "    type-check-strict     Run mypy in strict mode"
+	@echo "    type-check-watch      Run mypy in watch mode"
+	@echo "    type-coverage         Generate type coverage report"
+	@echo "    lint-types            Run pylint type-related checks"
+	@echo "    check-types           Run all type checks (mypy + pylint)"
 	@echo ""
 	@echo "  MAINTENANCE:"
 	@echo "    clean                 Clean all generated files"
@@ -315,3 +323,24 @@ audit-deps:
 deps-check: lock-deps audit-deps
 	@echo "✅ Dependency audit complete"
 	@echo "Check audit-results/ for detailed reports"
+
+# Type Checking
+type-check:
+	python scripts/check_types.py
+
+type-check-strict:
+	mypy services --strict --show-error-codes
+
+type-check-watch:
+	mypy services --follow-imports=skip --strict --watch
+
+type-coverage:
+	mypy services --strict --html-report=mypy-report
+	@echo "Type coverage report generated in mypy-report/"
+
+lint-types:
+	pylint services/*/src --disable=all --enable=E,F
+
+check-types: type-check lint-types
+	@echo "✅ Type checking complete"
+

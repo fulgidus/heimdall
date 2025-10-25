@@ -66,39 +66,63 @@ ignore = [
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_any_unimported = false
-disallow_any_expr = false
-disallow_any_decorated = false
-disallow_any_explicit = false
-disallow_subclassing_any = false
-check_untyped_defs = true
-no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
-warn_unreachable = true
-strict_equality = true
-show_error_codes = true
-
-# Relax strict mode for existing codebase
-[[tool.mypy.overrides]]
-module = [
-  "services.*",
-  "tests.*",
-]
+check_untyped_defs = true
+no_implicit_optional = true
+# Gradual adoption - enable strict mode for new code
 disallow_untyped_defs = false
+disallow_incomplete_defs = false
 disallow_untyped_calls = false
+disallow_untyped_decorators = false
+disallow_any_generics = false
+disallow_any_unimported = false
+disallow_any_expr = false
+disallow_any_decorated = false
+strict_equality = true
+strict_optional = true
+implicit_reexport = false
+warn_unreachable = true
+show_error_codes = true
+exclude = ["venv", ".venv", "tests"]
+
+# Enable strict mode for common shared code (new code should be strict)
+[[tool.mypy.overrides]]
+module = "services.common.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+
+# Tests can have more relaxed type checking
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
 
 # Ignore third-party packages without type stubs
 [[tool.mypy.overrides]]
 module = [
+  "numpy.*",
+  "torch.*",
+  "sklearn.*",
   "celery.*",
   "aiohttp.*",
   "minio.*",
   "sqlalchemy.*",
   "alembic.*",
   "pytest_asyncio.*",
+  "torchaudio.*",
+  "torchvision.*",
+  "lightning.*",
+  "mlflow.*",
+  "onnxruntime.*",
+  "pydantic_settings.*",
+  "fastapi.*",
+  "uvicorn.*",
+  "boto3.*",
+  "botocore.*",
+  "redis.*",
+  "psycopg2.*",
 ]
 ignore_missing_imports = true
 
