@@ -8,7 +8,8 @@ import type {
 import {
     webSDRService,
     inferenceService,
-    systemService
+    systemService,
+    analyticsService
 } from '@/services/api';
 
 interface DashboardMetrics {
@@ -32,10 +33,14 @@ interface DashboardStore {
     isLoading: boolean;
     error: string | null;
     lastUpdate: Date | null;
+    retryCount: number;
+    retryDelay: number;
 
     setMetrics: (metrics: DashboardMetrics) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
+    resetRetry: () => void;
+    incrementRetry: () => void;
 
     fetchDashboardData: () => Promise<void>;
     fetchWebSDRs: () => Promise<void>;
@@ -62,10 +67,19 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     isLoading: false,
     error: null,
     lastUpdate: null,
+    retryCount: 0,
+    retryDelay: 1000, // Start with 1 second
 
     setMetrics: (metrics) => set({ metrics }),
     setLoading: (loading) => set({ isLoading: loading }),
     setError: (error) => set({ error }),
+    
+    resetRetry: () => set({ retryCount: 0, retryDelay: 1000 }),
+    
+    incrementRetry: () => set((state) => ({
+        retryCount: state.retryCount + 1,
+        retryDelay: Math.min(state.retryDelay * 2, 30000), // Max 30 seconds
+    })),
 
     fetchWebSDRs: async () => {
         try {
@@ -144,6 +158,24 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         set({ isLoading: true, error: null });
 
         try {
+            // Fetch all data in parallel
+            const [metricsData] = await Promise.allSettled([
+                analyticsService.getDashboardMetrics(),
+            ]);
+
+            // Update metrics from analytics endpoint
+            if (metricsData.status === 'fulfilled') {
+                set((state) => ({
+                    metrics: {
+                        ...state.metrics,
+                        signalDetections: metricsData.value.signalDetections,
+                        systemUptime: metricsData.value.systemUptime,
+                        averageAccuracy: metricsData.value.modelAccuracy * 100,
+                    },
+                }));
+            }
+
+            // Fetch other data sources
             await Promise.allSettled([
                 get().fetchWebSDRs(),
                 get().fetchModelInfo(),
@@ -154,10 +186,16 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
                 lastUpdate: new Date(),
                 error: null,
             });
+            
+            // Reset retry count on success
+            get().resetRetry();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch dashboard data';
             set({ error: errorMessage });
             console.error('Dashboard data fetch error:', error);
+            
+            // Increment retry count for exponential backoff
+            get().incrementRetry();
         } finally {
             set({ isLoading: false });
         }
