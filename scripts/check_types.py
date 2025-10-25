@@ -18,8 +18,12 @@ def run_mypy(service_path: Path) -> Tuple[int, str]:
 
 def run_pylint(service_path: Path) -> Tuple[int, str]:
     """Run pylint on a service."""
+    # Get absolute path to .pylintrc
+    repo_root = Path(__file__).parent.parent
+    pylintrc = repo_root / '.pylintrc'
+    
     result = subprocess.run(
-        ['pylint', str(service_path / 'src'), '--rcfile=.pylintrc'],
+        ['pylint', str(service_path / 'src'), f'--rcfile={pylintrc}'],
         capture_output=True,
         text=True,
     )

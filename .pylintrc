@@ -14,7 +14,7 @@ max-attributes=7
 # Only enable errors and fatal issues
 enable=E,F
 disable=
-    import-error,
+    import-error,  # Disabled: Dependencies may not be installed in CI, mypy handles import validation
     missing-docstring,
     too-many-arguments,
     duplicate-code,
