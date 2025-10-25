@@ -9,7 +9,7 @@
 ## 📋 Quick Checklist
 
 ### Prerequisites
-- [ ] Docker containers running: `docker-compose ps` (13/13 healthy)
+- [ ] Docker containers running: `docker compose ps` (13/13 healthy)
 - [ ] Services accessible:
   - [ ] API Gateway: `curl http://localhost:8000/health`
   - [ ] RF Acquisition: `curl http://localhost:8001/health`
@@ -20,7 +20,7 @@
 #### Step 1: Verify System Status (2 min)
 ```powershell
 # Check all containers are running
-docker-compose ps
+docker compose ps
 
 # Verify key services
 curl http://localhost:8000/health
@@ -147,10 +147,10 @@ Inference latency:      <50ms (well below 500ms requirement)
 ### Issue: "Connection refused" error
 ```powershell
 # Verify containers are running
-docker-compose ps
+docker compose ps
 
 # If not, start them
-docker-compose up -d
+docker compose up -d
 
 # Wait 30 seconds for services to initialize
 Start-Sleep -Seconds 30
@@ -241,7 +241,7 @@ python scripts/load_test.py --concurrent 50 --duration 300
 - **AGENTS.md** (lines 1061-1148): Phase 4 Task A3 specifications
 - **PHASE4_PROGRESS_DASHBOARD.md**: Current phase status (48% complete)
 - **performance_benchmark.py**: Script implementation
-- **docker-compose.yml**: Service configuration
+- **docker compose.yml**: Service configuration
 
 ---
 
@@ -276,7 +276,7 @@ After completion, Phase 4 will be:
 
 - Run benchmark: `python scripts/performance_benchmark.py`
 - View report: `notepad PHASE4_TASK_A3_PERFORMANCE_REPORT.md`
-- Check containers: `docker-compose ps`
+- Check containers: `docker compose ps`
 - View services: `open http://localhost:8001/api/v1/acquisition/config`
 
 **Ready? Run this command:**

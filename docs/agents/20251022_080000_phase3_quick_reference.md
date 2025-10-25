@@ -85,7 +85,7 @@ curl -X POST http://localhost:8001/api/v1/acquisition/acquire \
    - Verify all components integration
 
 2. **Docker Integration** (1 hour)
-   - Add to docker-compose
+   - Add to docker compose
    - Verify services start
 
 3. **Performance Testing** (2 hours)
@@ -112,7 +112,7 @@ uvicorn src.main:app --reload --port 8001
 celery -A src.main.celery_app worker -l info
 
 # Production
-docker-compose up -d rf-acquisition
+docker compose up -d rf-acquisition
 docker logs heimdall-rf-acquisition -f
 
 # Database
@@ -196,7 +196,7 @@ Tests
 - [ ] Start service locally
 - [ ] Read PHASE3_TO_PHASE4_HANDOFF.md
 - [ ] Create E2E test
-- [ ] Run docker-compose
+- [ ] Run docker compose
 - [ ] Performance test
 - [ ] Setup monitoring
 

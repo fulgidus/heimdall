@@ -85,7 +85,7 @@ minio:
 ## Testing
 
 ✅ YAML syntax validation passed
-✅ Workflow logic verified against docker-compose.yml
+✅ Workflow logic verified against docker compose.yml
 ✅ Health check commands validated
 
 ## Verification Plan
@@ -100,7 +100,7 @@ The fix will be verified when the GitHub Actions workflow runs:
 ## Related Documentation
 
 - [Phase 4 Infrastructure Validation](../AGENTS.md#phase-4)
-- [Docker Compose Configuration](../../docker-compose.yml)
+- [Docker Compose Configuration](../../docker compose.yml)
 - [GitHub Actions Services Limitation](https://docs.github.com/en/actions/using-containerized-services/about-service-containers)
 
 ## Lessons Learned

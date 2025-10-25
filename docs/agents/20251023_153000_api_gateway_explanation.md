@@ -193,7 +193,7 @@ Se ricevi **404 quando chiami l'endpoint**:
 
 **La risposta 404 che vedi probabilmente è perché**:
 1. Backend non è avviato → `python services/rf-acquisition/src/main.py`
-2. API Gateway non è avviato → `docker-compose up -d api-gateway`
+2. API Gateway non è avviato → `docker compose up -d api-gateway`
 3. Path sbagliato nel frontend (ma l'ho già corretto)
 4. Base URL sbagliato nel `.env` (ma l'ho già corretto)
 

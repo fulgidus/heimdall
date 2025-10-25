@@ -264,8 +264,8 @@ curl -X POST http://localhost:8001/api/v1/acquisition/acquire \
 # Build
 docker build -t heimdall-rf-acquisition:latest .
 
-# Run with docker-compose
-docker-compose up -d
+# Run with docker compose
+docker compose up -d
 
 # Check logs
 docker logs heimdall-rf-acquisition -f

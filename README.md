@@ -108,7 +108,7 @@ cp .env.example .env
 # Edit .env with your configuration
 
 # Start infrastructure (requires Docker)
-docker-compose up -d
+docker compose up -d
 
 # Verify services are healthy
 make health-check
@@ -322,7 +322,7 @@ cp .env.example .env
 # Modifica .env con la tua configurazione
 
 # Avvia infrastruttura (richiede Docker)
-docker-compose up -d
+docker compose up -d
 
 # Verifica che i servizi siano attivi
 make health-check

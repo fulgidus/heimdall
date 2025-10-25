@@ -146,16 +146,16 @@ def main():
         print(f"\n{Colors.YELLOW}💡 Troubleshooting:{Colors.END}")
         print("""
    Scenario 1: Both Gateway and Service offline
-   → Start Docker: docker-compose up -d
+   → Start Docker: docker compose up -d
    → Or start services manually:
       python services/api-gateway/src/main.py
       python services/rf-acquisition/src/main.py
 
    Scenario 2: Only API Gateway offline (port 8000)
-   → docker-compose up -d api-gateway
+   → docker compose up -d api-gateway
    
    Scenario 3: Only RF-Acquisition offline (port 8001)
-   → docker-compose up -d rf-acquisition
+   → docker compose up -d rf-acquisition
       
    Scenario 4: Services online but 404 on /api/v1/acquisition/websdrs
    → Check that RF-Acquisition service has this endpoint defined

@@ -90,7 +90,7 @@ make db-seed
 
 ```bash
 # Connect to database
-docker-compose exec postgres psql -U heimdall_user -d heimdall
+docker compose exec postgres psql -U heimdall_user -d heimdall
 
 # Backup database
 make db-backup
@@ -304,13 +304,13 @@ make ml-evaluate
 
 ```bash
 # Build production images
-docker-compose -f docker-compose.prod.yml build
+docker compose -f docker compose.prod.yml build
 
 # Start production environment
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker compose.prod.yml up -d
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker compose.prod.yml logs -f
 ```
 
 ### Kubernetes Deployment
@@ -337,20 +337,20 @@ kubectl logs -n heimdall -l app=heimdall
 docker ps
 
 # Rebuild all containers
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Start with verbose logging
-docker-compose up --verbose
+docker compose up --verbose
 ```
 
 #### Database connection errors
 
 ```bash
 # Check database logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Verify database is running
-docker-compose exec postgres psql -U heimdall_user -d heimdall -c "SELECT 1"
+docker compose exec postgres psql -U heimdall_user -d heimdall -c "SELECT 1"
 ```
 
 #### Memory issues

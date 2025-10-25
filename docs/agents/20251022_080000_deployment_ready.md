@@ -12,8 +12,8 @@ All infrastructure code for **Heimdall SDR Phase 1: Infrastructure & Database** 
 heimdall/
 │
 ├── 🐳 Docker Configuration
-│   ├── docker-compose.yml              ✅ Development stack
-│   ├── docker-compose.prod.yml         ✅ Production stack
+│   ├── docker compose.yml              ✅ Development stack
+│   ├── docker compose.prod.yml         ✅ Production stack
 │   └── .env                            ✅ Configuration
 │
 ├── 🗄️ Database Setup
@@ -126,7 +126,7 @@ heimdall/
 ```bash
 # Verify Docker is installed
 docker --version
-docker-compose --version
+docker compose --version
 
 # Verify system resources
 # Need: 8GB RAM, 20GB disk
@@ -138,10 +138,10 @@ docker-compose --version
 cd c:\Users\aless\Documents\Projects\heimdall
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Monitor startup
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### 3️⃣ Wait for Services
@@ -223,7 +223,7 @@ make health-check-minio
 | MinIO      | minioadmin    | minioadmin |
 | Grafana    | admin         | admin      |
 
-⚠️ **Change in production!** Use `docker-compose.prod.yml`
+⚠️ **Change in production!** Use `docker compose.prod.yml`
 
 ---
 
@@ -243,7 +243,7 @@ make health-check-minio
 
 ### Immediate (To Deploy)
 1. Start Docker Desktop
-2. Run `docker-compose up -d`
+2. Run `docker compose up -d`
 3. Run `make health-check`
 4. Access dashboards
 
@@ -321,7 +321,7 @@ Phases 3-10: Development
 
 ```bash
 cd c:\Users\aless\Documents\Projects\heimdall
-docker-compose up -d
+docker compose up -d
 make health-check
 ```
 
@@ -358,7 +358,7 @@ Infrastructure ready for Phase 2.
 
 **Status**: 🟡 Awaiting Docker startup to deploy services
 
-**Next Step**: `docker-compose up -d` 🚀
+**Next Step**: `docker compose up -d` 🚀
 
 ---
 

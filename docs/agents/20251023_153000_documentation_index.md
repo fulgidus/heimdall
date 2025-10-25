@@ -231,7 +231,7 @@ Frontend renderizza tabella con dati reali ✅
 
 ### 1. Assicurati che il backend sia UP
 ```bash
-docker-compose ps
+docker compose ps
 # Deve mostrare: rf-acquisition UP e api-gateway UP
 ```
 
@@ -290,7 +290,7 @@ Se trovi issues:
 
 1. **Leggi**: QUICK_VERIFICATION_CHECKLIST.md → Troubleshooting Rapido
 2. **Verification**: WEBSDR_TEST_INSTRUCTIONS.md → Debug Avanzato
-3. **Controlla**: Backend è in esecuzione (`docker-compose ps`)
+3. **Controlla**: Backend è in esecuzione (`docker compose ps`)
 4. **Test diretto**: `curl http://localhost:8000/api/v1/acquisition/websdrs`
 
 ---

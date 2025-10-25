@@ -373,7 +373,7 @@ Before starting any task:
 
 **Issues**:
 - ONNX loading fails → Check Phase 5 ONNX export
-- MLflow connection fails → Check infrastructure docker-compose
+- MLflow connection fails → Check infrastructure docker compose
 - Redis issues → Check PHASE1_CHECKLIST.md
 - Performance SLA not met → Profile with `cProfile`, check preprocessing
 

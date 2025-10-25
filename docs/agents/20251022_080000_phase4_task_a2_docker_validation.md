@@ -233,7 +233,7 @@ All 5 microservices show similar pattern:
 - ✅ Environment variables loaded from `.env`
 - ✅ PostgreSQL authentication enforced
 - ✅ RabbitMQ guest credentials (dev only)
-- ⚠️ MinIO credentials exposed in docker-compose (not production-ready)
+- ⚠️ MinIO credentials exposed in docker compose (not production-ready)
 
 ---
 

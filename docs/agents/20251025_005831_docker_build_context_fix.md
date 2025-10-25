@@ -16,14 +16,14 @@ The E2E workflow was failing during Docker builds with BuildKit checksum errors:
 
 ## Root Cause
 
-Build context mismatch in `docker-compose.services.yml`:
+Build context mismatch in `docker compose.services.yml`:
 - Services used `context: ./services` with Dockerfiles expecting files relative to their own directory
 - Docker COPY commands are relative to build context, not Dockerfile location
 - When context is `./services`, Docker looks for `services/requirements.txt` instead of `services/rf-acquisition/requirements.txt`
 
 ## Solution Implemented
 
-### 1. Fixed Build Contexts (docker-compose.services.yml)
+### 1. Fixed Build Contexts (docker compose.services.yml)
 
 **Changed**:
 - `rf-acquisition`: `./services` → `./services/rf-acquisition`
@@ -66,7 +66,7 @@ Build context mismatch in `docker-compose.services.yml`:
 ## Commits
 
 1. **d0e7a0c**: Initial plan
-2. **1bd22bc**: Fix build contexts in docker-compose.services.yml
+2. **1bd22bc**: Fix build contexts in docker compose.services.yml
 3. **fb87b49**: Add validation scripts and documentation
 
 ## Verification Results
@@ -99,7 +99,7 @@ Summary:
 
 | File | Change | Lines |
 |------|--------|-------|
-| docker-compose.services.yml | Build context fixes | ~12 |
+| docker compose.services.yml | Build context fixes | ~12 |
 | .github/workflows/e2e-tests.yml | Add debug + validation | ~20 |
 | scripts/validate-service-files.sh | New validation script | +72 |
 | scripts/test-docker-build-contexts.sh | New test script | +96 |
@@ -153,10 +153,10 @@ Summary:
 ./scripts/test-docker-build-contexts.sh
 
 # Build services locally
-docker compose -f docker-compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
+docker compose -f docker compose.services.yml build api-gateway rf-acquisition data-ingestion-web inference
 
 # Verify configuration
-docker compose -f docker-compose.services.yml config | grep -A 5 "build:"
+docker compose -f docker compose.services.yml config | grep -A 5 "build:"
 ```
 
 ## Notes for Next Session

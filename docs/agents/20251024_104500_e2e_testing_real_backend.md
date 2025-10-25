@@ -104,7 +104,7 @@ TEST_BACKEND_ORIGIN=http://localhost:8000
 ```bash
 # 1. Start backend services
 cd /home/runner/work/heimdall/heimdall
-docker-compose -f docker-compose.yml -f docker-compose.services.yml up -d
+docker compose -f docker compose.yml -f docker compose.services.yml up -d
 
 # 2. Wait for services to be healthy
 curl http://localhost:8000/health
@@ -265,7 +265,7 @@ After running tests, verify:
 
 ```bash
 # Check if services are running
-docker-compose ps
+docker compose ps
 
 # Check health endpoints
 curl http://localhost:8000/health
@@ -273,8 +273,8 @@ curl http://localhost:8001/health
 curl http://localhost:8004/health
 
 # View logs
-docker-compose logs api-gateway
-docker-compose logs rf-acquisition
+docker compose logs api-gateway
+docker compose logs rf-acquisition
 ```
 
 ### CORS Errors
@@ -331,7 +331,7 @@ jobs:
       
       - name: Start Backend Services
         run: |
-          docker-compose -f docker-compose.yml -f docker-compose.services.yml up -d
+          docker compose -f docker compose.yml -f docker compose.services.yml up -d
           sleep 30
       
       - name: Wait for Backend Health
@@ -379,7 +379,7 @@ jobs:
 ✅ Comprehensive artifacts collection  
 
 **Next Steps**:
-1. Start backend: `docker-compose up -d`
+1. Start backend: `docker compose up -d`
 2. Run tests: `./scripts/run-e2e-tests.sh`
 3. Review report: `frontend/playwright-report/index.html`
 

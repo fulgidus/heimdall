@@ -75,8 +75,8 @@ heimdall/
 │   ├── inference/ ✅ (identical structure)
 │   └── data-ingestion-web/ ✅ (identical structure)
 │
-├── docker-compose.yml ✅
-├── docker-compose.services.yml ✅
+├── docker compose.yml ✅
+├── docker compose.services.yml ✅
 ├── db/
 │   ├── init-postgres.sql ✅
 │   ├── rabbitmq.conf ✅ (FIXED: removed load_definitions)
@@ -125,8 +125,8 @@ heimdall/
 - Integration test directories
 
 ### 6. **Docker Compose Orchestration** ✅
-- `docker-compose.yml` - Infrastructure (Phase 1)
-- `docker-compose.services.yml` - Microservices (Phase 2)
+- `docker compose.yml` - Infrastructure (Phase 1)
+- `docker compose.services.yml` - Microservices (Phase 2)
 - Proper dependency ordering
 - Network isolation
 - Volume management
@@ -142,7 +142,7 @@ heimdall/
 
 ### Issue 2: MinIO Init Script Error ✅
 **Problem**: Deprecated `mc config host add` command  
-**Solution**: Updated to `mc alias set` in docker-compose.yml  
+**Solution**: Updated to `mc alias set` in docker compose.yml  
 **Status**: Buckets created successfully
 
 ### Issue 3: Python __init__.py Files ✅
@@ -156,14 +156,14 @@ heimdall/
 
 ### Option 1: Run Infrastructure Only (Phase 1)
 ```powershell
-docker-compose up -d
+docker compose up -d
 .\scripts\health-check.ps1
 ```
 
 ### Option 2: Run Infrastructure + Microservices
 ```powershell
 # Start infrastructure
-docker-compose up -d
+docker compose up -d
 
 # In separate terminals, start each microservice
 cd services/api-gateway

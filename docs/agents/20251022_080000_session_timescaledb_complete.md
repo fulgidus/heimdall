@@ -209,7 +209,7 @@ Remaining work:       25% (Config DB + E2E)
 ### Setup PostgreSQL + TimescaleDB
 ```bash
 # Docker
-docker-compose -f docker-compose.timescaledb.yml up
+docker compose -f docker compose.timescaledb.yml up
 
 # Or local setup
 createdb heimdall

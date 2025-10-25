@@ -210,7 +210,7 @@ Breakdown:
    - Test error scenarios
 
 2. **Docker Integration**
-   - Add to docker-compose.yml
+   - Add to docker compose.yml
    - Verify all services start
    - Test inter-service communication
 
@@ -245,7 +245,7 @@ pytest tests/ -v
 
 ### Deploy with Docker
 ```bash
-docker-compose up -d rf-acquisition
+docker compose up -d rf-acquisition
 ```
 
 ### API Example

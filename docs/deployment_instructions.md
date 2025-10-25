@@ -17,10 +17,10 @@ This guide covers deploying Heimdall to production environments using Docker and
 
 ```bash
 # Build all images
-docker-compose -f docker-compose.prod.yml build
+docker compose -f docker compose.prod.yml build
 
 # Build specific service
-docker-compose -f docker-compose.prod.yml build api-gateway
+docker compose -f docker compose.prod.yml build api-gateway
 
 # Push to registry
 docker tag heimdall-api registry.example.com/heimdall/api:latest
@@ -61,16 +61,16 @@ LOG_LEVEL=INFO
 
 ```bash
 # Start production environment
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker compose.prod.yml up -d
 
 # View logs
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker compose.prod.yml logs -f
 
 # Scale workers
-docker-compose -f docker-compose.prod.yml up -d --scale worker=5
+docker compose -f docker compose.prod.yml up -d --scale worker=5
 
 # Stop environment
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker compose.prod.yml down
 ```
 
 ## Kubernetes Deployment
@@ -250,10 +250,10 @@ scrape_configs:
 
 ```bash
 # Deploy ELK Stack
-docker-compose up -d elasticsearch logstash kibana
+docker compose up -d elasticsearch logstash kibana
 
 # Configure log shipping
-# Update docker-compose.prod.yml to ship logs to Logstash
+# Update docker compose.prod.yml to ship logs to Logstash
 ```
 
 ## SSL/TLS Configuration

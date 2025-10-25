@@ -323,7 +323,7 @@ Est. Completion: 2025-10-24 EOD
 
 **If Issues**:
 1. Check error logs in service output
-2. Verify MLflow connectivity: `docker-compose logs mlflow`
+2. Verify MLflow connectivity: `docker compose logs mlflow`
 3. Check Redis: `redis-cli PING`
 4. Review test cases for expected behavior
 

@@ -29,7 +29,7 @@ Done. You know everything.
 
 ```bash
 # 1. Verify
-docker-compose ps
+docker compose ps
 redis-cli PING
 
 # 2. Setup

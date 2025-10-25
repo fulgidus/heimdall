@@ -32,7 +32,7 @@ Se ricevi 404, significa uno di questi:
 ```powershell
 # Gateway non è online su :8000
 # RF-Acquisition non è online su :8001
-docker-compose up -d api-gateway rf-acquisition
+docker compose up -d api-gateway rf-acquisition
 ```
 
 **Scenario B: Frontend cache**
@@ -90,7 +90,7 @@ python test_full_stack.py
 ```
 ❌ Failed: 1-2 tests
 [Lo script ti dice quale servizio è offline]
-→ Soluzione: docker-compose up -d
+→ Soluzione: docker compose up -d
 ```
 
 ---
@@ -112,7 +112,7 @@ python test_full_stack.py
 python test_full_stack.py
 
 # 2. Se fallisce
-docker-compose up -d api-gateway rf-acquisition
+docker compose up -d api-gateway rf-acquisition
 
 # 3. Riprova test
 python test_full_stack.py
@@ -137,7 +137,7 @@ http://localhost:3001/websdrs
 ✅ Il frontend lo chiama correttamente
 
 ⚠️ Se ricevi 404:
-→ Servizi offline (docker-compose up -d)
+→ Servizi offline (docker compose up -d)
 → Browser cache (Ctrl+Shift+R)
 → Base URL sbagliato (.env)
 ```

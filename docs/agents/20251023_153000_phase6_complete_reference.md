@@ -377,7 +377,7 @@ pytest tests/ --cov=src --cov-report=html
 ### Verify Prerequisites
 ```bash
 # 1. Docker containers
-docker-compose ps
+docker compose ps
 # Expected: 13 containers healthy
 
 # 2. Redis
@@ -404,7 +404,7 @@ python scripts/create_service.py inference
 cd services/inference
 docker build -t heimdall-inference:latest .
 # or
-docker-compose build inference
+docker compose build inference
 ```
 
 ### Run Service Locally
@@ -494,7 +494,7 @@ curl -X POST http://localhost:8006/predict \
 
 ```bash
 # 1. Verify prerequisites
-docker-compose ps                # Should show 13 containers
+docker compose ps                # Should show 13 containers
 redis-cli PING                   # Should show PONG
 
 # 2. Create service structure

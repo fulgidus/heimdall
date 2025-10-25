@@ -167,7 +167,7 @@ git pull origin develop
 ### Code Artifacts
 - ✅ `scripts/performance_benchmark.py` - 550+ lines
 - ✅ `scripts/load_test_simple.py` - 220+ lines  
-- ✅ `docker-compose.yml` - Health checks refactored
+- ✅ `docker compose.yml` - Health checks refactored
 - ✅ Updated `.copilot-instructions` with learnings
 
 ### Documentation Artifacts

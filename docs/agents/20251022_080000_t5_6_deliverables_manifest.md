@@ -259,7 +259,7 @@ Testing
 Immediate (Next hour)
 1. ✅ Review documentation
 2. ✅ Run verification script
-3. ✅ Check docker-compose status
+3. ✅ Check docker compose status
 
 Short-term (T5.7)
 1. ⏳ ONNX export implementation

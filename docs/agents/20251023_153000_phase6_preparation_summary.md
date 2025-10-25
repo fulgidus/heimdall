@@ -200,7 +200,7 @@ open PHASE6_START_HERE.md
 
 ### Step 2: Verify System
 ```bash
-docker-compose ps                    # Should show 13 healthy containers
+docker compose ps                    # Should show 13 healthy containers
 redis-cli PING                       # Should respond: PONG
 # Time: 2 minutes
 ```

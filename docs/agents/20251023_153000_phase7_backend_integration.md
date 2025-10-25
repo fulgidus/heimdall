@@ -167,7 +167,7 @@ useEffect(() => {
 ### Testing
 
 **Manual Testing Required:**
-1. Start backend services (docker-compose up)
+1. Start backend services (docker compose up)
 2. Start frontend dev server (npm run dev)
 3. Verify Dashboard loads data from backend
 4. Verify auto-refresh works

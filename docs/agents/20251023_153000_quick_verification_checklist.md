@@ -91,8 +91,8 @@ Pattern corretto:
 ## 🧪 Test nel Browser
 
 ### Pre-Requisiti
-- [ ] `docker-compose ps` mostra rf-acquisition:8001 UP
-- [ ] `docker-compose ps` mostra api-gateway:8000 UP
+- [ ] `docker compose ps` mostra rf-acquisition:8001 UP
+- [ ] `docker compose ps` mostra api-gateway:8000 UP
 - [ ] Frontend runningg su localhost:3001
 - [ ] Browser can reach localhost:3001
 
@@ -122,10 +122,10 @@ Pattern corretto:
 - [ ] Dati aggiornati correttamente ✅
 
 ### Test 5: Error Handling
-- [ ] Ferma backend: `docker-compose down`
+- [ ] Ferma backend: `docker compose down`
 - [ ] Aggiorna pagina
 - [ ] Vedi messaggio di errore rosso ✅
-- [ ] Riavvia backend: `docker-compose up -d`
+- [ ] Riavvia backend: `docker compose up -d`
 - [ ] Aggiorna pagina
 - [ ] Dati si caricano correttamente ✅
 
@@ -167,7 +167,7 @@ Pattern corretto:
 ### Verification Backend
 ```bash
 # Controlla che i servizi siano UP
-docker-compose ps
+docker compose ps
 
 # Test endpoint diretto
 curl http://localhost:8000/api/v1/acquisition/websdrs | jq

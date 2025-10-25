@@ -6,7 +6,7 @@
 
 ## ✅ Checklist Pre-Test
 
-- [ ] Backend è in esecuzione (`docker-compose ps` mostra tutti i servizi UP)
+- [ ] Backend è in esecuzione (`docker compose ps` mostra tutti i servizi UP)
 - [ ] Frontend è in esecuzione su `http://localhost:3001`
 - [ ] Browser Developer Tools è accessibile (F12)
 - [ ] `.env` del frontend ha `VITE_API_URL=http://localhost:8000` (senza `/api`)
@@ -137,7 +137,7 @@ Response preview:
 
 1. **Ferma il backend**:
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 2. **Aggiorna la pagina** nel browser
@@ -155,7 +155,7 @@ Failed to connect to backend service
 
 1. **Riavvia il backend**:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 2. **Aggiorna la pagina** nel browser

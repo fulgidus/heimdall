@@ -125,7 +125,7 @@ Phase 4 Task B1 will focus on:
 - **AGENTS.md**: Phase 4 task definitions
 - **PHASE4_PROGRESS_DASHBOARD.md**: Current phase status
 - **PHASE4_TASK_A2_DOCKER_VALIDATION.md**: Infrastructure validation
-- **docker-compose.yml**: Service configuration
+- **docker compose.yml**: Service configuration
 - **pytest tests/e2e/**: End-to-end test suite
 
 **Report Status**: ✅ COMPLETE  

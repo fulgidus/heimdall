@@ -66,7 +66,7 @@
 
 **Command to verify all services**:
 ```bash
-docker-compose ps
+docker compose ps
 # Expected: All 13 containers with status "healthy" or "Up"
 ```
 
@@ -177,7 +177,7 @@ python scripts/create_service.py inference
 
 ## 🚀 Quick Readiness Checklist
 
-- [ ] All 13 Docker containers running (`docker-compose ps`)
+- [ ] All 13 Docker containers running (`docker compose ps`)
 - [ ] Redis responding to PING (`redis-cli PING`)
 - [ ] MLflow model registry accessible
 - [ ] ONNX model present in MinIO
@@ -192,19 +192,19 @@ python scripts/create_service.py inference
 
 ### 1. Verify Docker
 ```powershell
-docker-compose ps
+docker compose ps
 ```
 
 ### 2. Verify Redis
 ```powershell
-docker-compose exec redis redis-cli PING
+docker compose exec redis redis-cli PING
 # Expected: PONG
 ```
 
 ### 3. Verify MLflow
 ```powershell
 # Option A: Inside Python
-docker-compose exec training python -c "import mlflow; mlflow.set_tracking_uri('http://mlflow:5000'); models = mlflow.search_registered_models(); print(models)"
+docker compose exec training python -c "import mlflow; mlflow.set_tracking_uri('http://mlflow:5000'); models = mlflow.search_registered_models(); print(models)"
 
 # Option B: Via MLflow UI
 open http://localhost:5000
@@ -213,7 +213,7 @@ open http://localhost:5000
 
 ### 4. Verify ONNX in MinIO
 ```powershell
-docker-compose exec minio mc ls minio/heimdall-models
+docker compose exec minio mc ls minio/heimdall-models
 # Expected: model.onnx file present
 ```
 
@@ -243,8 +243,8 @@ ls services/inference
 
 ### Missing Redis?
 ```bash
-docker-compose up -d redis
-docker-compose exec redis redis-cli PING
+docker compose up -d redis
+docker compose exec redis redis-cli PING
 ```
 
 ### Missing ONNX Model?

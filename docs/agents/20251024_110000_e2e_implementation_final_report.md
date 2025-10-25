@@ -91,7 +91,7 @@ Implemented comprehensive E2E tests using Playwright to verify **real HTTP calls
 - **Framework**: Playwright (@playwright/test)
 - **Language**: TypeScript
 - **Browser**: Chromium (headless in CI, can run headed locally)
-- **Backend**: Real microservices (docker-compose)
+- **Backend**: Real microservices (docker compose)
 - **Network**: Real HTTP calls (NO mocking layer)
 
 ### File Structure
@@ -171,7 +171,7 @@ const data = await response.json();
 ### 4. Backend Orchestration
 
 **`run-e2e-tests.sh`** handles:
-1. Start docker-compose services
+1. Start docker compose services
 2. Wait for health checks (max 120s)
 3. Run E2E tests
 4. Collect artifacts
@@ -228,8 +228,8 @@ const data = await response.json();
 - ✅ Helpers don't mock requests
 
 **Step 6: Backend Config** (4/4)
-- ✅ docker-compose.yml exists
-- ✅ docker-compose.services.yml exists
+- ✅ docker compose.yml exists
+- ✅ docker compose.services.yml exists
 - ✅ API Gateway service configured
 - ✅ Health checks configured
 
@@ -256,7 +256,7 @@ cd frontend && npm run test:e2e:report
 
 ```bash
 # Start backend
-docker compose -f docker-compose.yml -f docker-compose.services.yml up -d
+docker compose -f docker compose.yml -f docker compose.services.yml up -d
 
 # Wait for health
 curl http://localhost:8000/health

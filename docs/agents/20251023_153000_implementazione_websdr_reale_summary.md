@@ -284,7 +284,7 @@ Output dovrebbe mostrare:
 
 1. **Assicurati che il backend sia in esecuzione**:
    ```bash
-   docker-compose ps
+   docker compose ps
    ```
 
 2. **Avvia il frontend**:

@@ -10,7 +10,7 @@
 
 Before starting Session 2, verify:
 
-- [ ] All docker containers running: `docker-compose ps`
+- [ ] All docker containers running: `docker compose ps`
 - [ ] MLflow accessible: http://localhost:5000
 - [ ] Redis working: `redis-cli PING`
 - [ ] PostgreSQL up: `psql -h localhost -U heimdall_user -d heimdall`
@@ -305,7 +305,7 @@ Before starting T6.2 coding:
 
 ```bash
 # Start services
-docker-compose up -d
+docker compose up -d
 
 # Run Phase 6 tests
 pytest services/inference/tests/ -v
@@ -317,7 +317,7 @@ curl http://localhost:5000/api/2.0/registered-models/list
 redis-cli PING
 
 # Check inference service logs (when running)
-docker-compose logs -f inference
+docker compose logs -f inference
 
 # Load test (will create after T6.7)
 python services/inference/tests/load_test_inference.py

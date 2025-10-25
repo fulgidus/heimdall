@@ -146,7 +146,7 @@ code PHASE6_START_HERE.md
 
 ### Step 2: Verify System (5 min)
 ```bash
-docker-compose ps                    # Check containers
+docker compose ps                    # Check containers
 redis-cli PING                       # Check Redis
 # All commands in PHASE6_PREREQUISITES_CHECK.md
 ```

@@ -286,7 +286,7 @@ location /ws/ {
 **Symptoms**: Dashboard shows "Disconnected" or "Reconnecting..."
 
 **Solutions**:
-1. Check API Gateway is running: `docker-compose ps api-gateway`
+1. Check API Gateway is running: `docker compose ps api-gateway`
 2. Check WebSocket endpoint: `curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" http://localhost:8000/ws/updates`
 3. Check browser console for connection errors
 4. Verify firewall/proxy allows WebSocket connections

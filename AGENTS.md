@@ -90,7 +90,7 @@ The main `README.md` file requires regular verification to ensure accuracy with 
 
 2. **Command accuracy**: Verify all commands are correct and functional
    - Test `cp .env.example .env` (creates configuration file)
-   - Test `docker-compose up -d` (starts all infrastructure)
+   - Test `docker compose up -d` (starts all infrastructure)
    - Test `make health-check` (verifies services are running)
    - Ensure script paths are correct (e.g., `scripts/health-check.py`)
 
@@ -467,7 +467,7 @@ MLFLOW_ARTIFACT_URI=s3://minio/mlflow
 - [x] **T0.7**: Setup Makefile with common tasks
 
 ```makefile
-make dev-up              # Start docker-compose
+make dev-up              # Start docker compose
 make dev-down            # Stop environment
 make test                # Run all tests
 make lint                # Black + Ruff
@@ -539,7 +539,7 @@ When all tasks in Phase 0 complete:
 ```bash
 git checkout develop
 git pull origin develop
-docker-compose up -d  # Ready for Phase 1
+docker compose up -d  # Ready for Phase 1
 ```
 
 ---
@@ -561,11 +561,11 @@ docker-compose up -d  # Ready for Phase 1
 
 ### Objective
 
-Setup all infrastructure components (databases, message queue, caching, object storage) as docker-compose services for local development.
+Setup all infrastructure components (databases, message queue, caching, object storage) as docker compose services for local development.
 
 ### Tasks
 
-- [x] **T1.1**: Create `docker-compose.yml` with services:
+- [x] **T1.1**: Create `docker compose.yml` with services:
   - PostgreSQL 15 + TimescaleDB extension ✅
   - RabbitMQ 3.12 (with management UI) ✅
   - Redis 7 (caching layer) ✅
@@ -574,7 +574,7 @@ Setup all infrastructure components (databases, message queue, caching, object s
   - Prometheus + Grafana (monitoring) ✅
   - Network: `heimdall-network` ✅
 
-- [ ] **T1.2**: Create `docker-compose.prod.yml` with persistent volumes, resource limits, health checks and logging configuration.
+- [ ] **T1.2**: Create `docker compose.prod.yml` with persistent volumes, resource limits, health checks and logging configuration.
 
 - [x] **T1.3**: Setup PostgreSQL
   - Create `db/init-postgres.sql` (schema initialization) ✅
@@ -594,7 +594,7 @@ Setup all infrastructure components (databases, message queue, caching, object s
   - Create vhosts and users (to be done on first startup)
   - Configure exchanges and queues for acquisition and training
 
-- [ ] **T1.8**: Setup Redis for caching and Celery result backend; add Redis Commander for debug ✅ (Redis Commander included in docker-compose)
+- [ ] **T1.8**: Setup Redis for caching and Celery result backend; add Redis Commander for debug ✅ (Redis Commander included in docker compose)
 
 - [x] **T1.9**: Create health check scripts: `scripts/health-check.py` ✅
 
@@ -605,8 +605,8 @@ Setup all infrastructure components (databases, message queue, caching, object s
 ✅ CP1.1: All services running
 
 ```bash
-docker-compose up -d
-docker-compose ps  # All services "healthy"
+docker compose up -d
+docker compose ps  # All services "healthy"
 ```
 
 ✅ CP1.2: Database schema initialized
@@ -646,7 +646,7 @@ Key Learnings:
 - PostGIS `geography` type allows queries like "sources within X km"
 - MinIO buckets should be created upfront (application doesn't auto-create)
 - RabbitMQ vhosts separate dev from production concerns
-- Health checks prevent "silent" failures when docker-compose starts
+- Health checks prevent "silent" failures when docker compose starts
 
 Credentials Matrix (dev defaults):
 
@@ -682,8 +682,8 @@ open http://localhost:9090
 Rollback Plan
 
 ```bash
-docker-compose down -v  # Remove volumes
-docker-compose up -d    # Start fresh
+docker compose down -v  # Remove volumes
+docker compose up -d    # Start fresh
 make db-migrate         # Re-initialize schema
 ```
 
@@ -692,7 +692,7 @@ Next Phase Entry Point
 When all checkpoints pass:
 
 ```bash
-docker-compose ps
+docker compose ps
 make db-migrate
 # Ready for Phase 2
 ```
@@ -787,7 +787,7 @@ async def health_check():
 
 - **T2.10**: Setup structured logging via `structlog`.
 
-- **T2.11**: Create `docker-compose.services.yml` to run all service containers in dev, with proper `depends_on`.
+- **T2.11**: Create `docker compose.services.yml` to run all service containers in dev, with proper `depends_on`.
 
 ### Checkpoints
 
@@ -813,14 +813,14 @@ Dockerfile Best Practices:
 - Multi-stage build for smaller images
 - Non-root user for security
 - Health check endpoint required
-- Logs to stdout (for docker-compose capture)
+- Logs to stdout (for docker compose capture)
 
 Rollback Plan
 
 ```bash
-docker-compose down
+docker compose down
 rm -rf services/*/src/__pycache__
-docker-compose up -d
+docker compose up -d
 ```
 
 Next Phase Entry Point
@@ -955,7 +955,7 @@ Rollback Plan
 
 ```bash
 celery -A rf_acquisition purge
-docker-compose up -d rf-acquisition --build
+docker compose up -d rf-acquisition --build
 ```
 
 Next Phase Entry Point
@@ -1149,8 +1149,8 @@ After CP3.* pass, merge feature branch into `develop` and proceed to Phase 4.
 ### Rollback Plan
 
 ```bash
-docker-compose down -v
-docker-compose up -d
+docker compose down -v
+docker compose up -d
 make db-migrate
 pytest tests/e2e/test_complete_workflow.py -v
 ```
@@ -1363,7 +1363,7 @@ Rollback Plan
 
 ```bash
 # If inference service fails
-docker-compose restart inference
+docker compose restart inference
 # Reset Redis cache if corrupted
 redis-cli FLUSHALL
 ```

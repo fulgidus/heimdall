@@ -90,7 +90,7 @@ docs/
 
 1. Open file: PHASE5_START_HERE.md
 2. Read completely (10 min)
-3. Verify: docker-compose ps
+3. Verify: docker compose ps
 4. Navigate: cd services/training
 5. Begin T5.1: src/models/localization_net.py
 
@@ -226,7 +226,7 @@ Before starting Phase 5:
 
 [ ] Read PHASE5_START_HERE.md completely
 [ ] Review PHASE5_QUICK_START.md for overview
-[ ] Run: docker-compose ps (verify all 13 containers)
+[ ] Run: docker compose ps (verify all 13 containers)
 [ ] Run: cd services/training
 [ ] Run: pip install -r requirements.txt
 [ ] Verify: python -c "import torch; import pytorch_lightning"

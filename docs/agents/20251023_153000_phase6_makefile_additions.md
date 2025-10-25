@@ -28,10 +28,10 @@ phase6-check:
 	@echo "✅ Checking Phase 6 prerequisites..."
 	@echo ""
 	@echo "1️⃣  Docker containers:"
-	docker-compose ps
+	docker compose ps
 	@echo ""
 	@echo "2️⃣  Redis connectivity:"
-	docker-compose exec redis redis-cli PING
+	docker compose exec redis redis-cli PING
 	@echo ""
 	@echo "3️⃣  MLflow registry:"
 	@echo "    Open http://localhost:5000/models"
@@ -47,19 +47,19 @@ build-inference:
 # Run inference service
 run-inference:
 	@echo "Starting inference service..."
-	docker-compose up -d inference
+	docker compose up -d inference
 	@echo "✅ Service started at http://localhost:8006"
 	@echo ""
 	@echo "Check health: curl http://localhost:8006/health"
 
 # Stop inference service
 stop-inference:
-	docker-compose stop inference
+	docker compose stop inference
 	@echo "✅ Inference service stopped"
 
 # Inference service logs
 logs-inference:
-	docker-compose logs -f inference
+	docker compose logs -f inference
 
 # Test inference service
 test-inference:

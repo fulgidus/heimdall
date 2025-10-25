@@ -150,7 +150,7 @@ Services communicate via DNS names:
 - ✅ Source code: Mounted read-only
 
 ### Logging
-- ✅ Stdout captured by docker-compose
+- ✅ Stdout captured by docker compose
 - ✅ Structured logging (Python logging module)
 - ✅ Task execution logs visible
 

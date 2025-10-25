@@ -73,7 +73,7 @@ CONCLUSION: System production-ready ✅
 
 ### Code
 - ✅ `scripts/load_test_simple.py` - Simplified load test
-- ✅ `docker-compose.yml` - Updated health checks
+- ✅ `docker compose.yml` - Updated health checks
 - ✅ `AGENTS.md` - Project status updated
 
 ### Session Documentation
