@@ -451,11 +451,7 @@ describe('Acquisition API Service', () => {
                 detail: 'Server error during polling',
             });
 
-            const pollPromise = pollAcquisitionStatus(taskId);
-
-            await vi.runOnlyPendingTimersAsync();
-
-            await expect(pollPromise).rejects.toThrow();
+            await expect(pollAcquisitionStatus(taskId)).rejects.toThrow('Request failed');
         });
 
         it('should reject on network error during polling', async () => {
@@ -463,11 +459,7 @@ describe('Acquisition API Service', () => {
 
             mock.onGet(`/api/v1/acquisition/status/${taskId}`).networkError();
 
-            const pollPromise = pollAcquisitionStatus(taskId);
-
-            await vi.runOnlyPendingTimersAsync();
-
-            await expect(pollPromise).rejects.toThrow();
+            await expect(pollAcquisitionStatus(taskId)).rejects.toThrow('Network Error');
         });
     });
 });
