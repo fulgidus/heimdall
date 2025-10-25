@@ -1,7 +1,7 @@
 .env.local
 .env.*.local
 node_modules/
-dist/
+# dist/ - Commented out: needed for Docker build until npm bug is fixed
 build/
 *.log
 npm-debug.log*
