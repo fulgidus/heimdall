@@ -365,6 +365,91 @@ docker-compose exec redis redis-cli CONFIG SET maxmemory-policy allkeys-lru
 docker-compose exec redis redis-cli FLUSHALL
 ```
 
+## CI/CD Issues
+
+### GitHub Actions integration tests failing
+
+**Error**: `Service container <name> failed` or `Failed to initialize container`
+
+**Common Causes**:
+- Service containers not starting (missing commands)
+- MinIO or Keycloak showing help text instead of running
+- Health checks timing out
+
+**Solution**:
+
+See the comprehensive [GitHub Actions Service Containers Troubleshooting Guide](agents/github_actions_service_containers_troubleshooting.md) for detailed solutions including:
+- Service container limitations and workarounds
+- Manual container startup patterns
+- Network discovery for service communication
+- Health check implementation
+- Cleanup procedures
+
+For the specific MinIO and Keycloak fix, see [Integration Tests Fix Documentation](agents/20251024_235900_integration_tests_fix.md).
+
+**Quick Fix Pattern**:
+```yaml
+# Don't use service containers for commands
+steps:
+  - name: Start MinIO
+    run: |
+      NETWORK=$(docker network ls --format '{{.Name}}' | grep github || echo "bridge")
+      docker run -d --name minio --network "$NETWORK" \
+        -p 9000:9000 minio/minio:latest \
+        server /data --console-address ":9001"
+      timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+```
+
+### Workflow timeout
+
+**Error**: Workflow exceeds time limit
+
+**Solution**:
+```yaml
+# Increase timeout in workflow
+jobs:
+  test:
+    timeout-minutes: 30  # Increase as needed
+```
+
+### Secrets not available
+
+**Error**: Environment variable undefined
+
+**Solution**:
+```yaml
+# Add secrets to GitHub repository
+# Settings > Secrets and variables > Actions > New repository secret
+
+# Reference in workflow
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
+
+### Tests pass locally but fail in CI
+
+**Error**: Tests work on local machine but not in GitHub Actions
+
+**Solution**:
+```bash
+# Match CI environment
+docker-compose -f docker-compose.test.yml up -d
+
+# Use same Python version as CI
+pyenv install 3.11.0
+pyenv local 3.11.0
+
+# Clear caches
+rm -rf __pycache__ .pytest_cache
+pip cache purge
+
+# Run tests with same flags as CI
+pytest -v --cov=src --cov-report=xml
+
+# Check environment variables
+env | grep -E 'DATABASE|REDIS|MINIO|KEYCLOAK'
+```
+
 ## Log & Debugging
 
 ### View container logs
