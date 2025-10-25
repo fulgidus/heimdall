@@ -94,13 +94,13 @@ describe('Dashboard', () => {
     it('should render the dashboard', () => {
         renderDashboard();
         // Just verify the component renders without crashing
-        expect(screen.getByRole('heading', { level: 2, name: /Dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: /Dashboard/i })).toBeInTheDocument();
     });
 
     it('should display the sidebar with Heimdall branding', () => {
         renderDashboard();
         // Just check that component renders
-        expect(screen.getByRole('heading', { level: 2, name: /Dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: /Dashboard/i })).toBeInTheDocument();
     });
 
     it('should display sidebar navigation items', () => {
@@ -119,7 +119,7 @@ describe('Dashboard', () => {
     it('should display stat values', () => {
         renderDashboard();
         // Simplified: just check component renders
-        const dashboardElement = screen.getByRole('heading', { level: 2, name: /Dashboard/i });
+        const dashboardElement = screen.getByRole('heading', { level: 1, name: /Dashboard/i });
         expect(dashboardElement).toBeInTheDocument();
     });
 
@@ -132,7 +132,7 @@ describe('Dashboard', () => {
     it('should display system health section', () => {
         renderDashboard();
         // Simplified: check if heading exists
-        expect(screen.getByRole('heading', { level: 2, name: /Dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: /Dashboard/i })).toBeInTheDocument();
     });
 
     it('should display WebSDR network status', () => {
@@ -144,7 +144,7 @@ describe('Dashboard', () => {
     it('should display user email in sidebar', () => {
         renderDashboard();
         // Check that main heading is present
-        expect(screen.getByRole('heading', { level: 2, name: /Dashboard/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 1, name: /Dashboard/i })).toBeInTheDocument();
     });
 
     it('should display logout button', () => {

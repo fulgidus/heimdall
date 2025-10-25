@@ -110,7 +110,7 @@ const Dashboard: React.FC = () => {
                         </div>
                         <div className="col-md-12">
                             <div className="page-header-title d-flex align-items-center justify-content-between">
-                                <h2 className="mb-0">Dashboard</h2>
+                                <h1 className="mb-0">Dashboard</h1>
                                 {/* Connection Status Indicator */}
                                 <div className="d-flex align-items-center gap-2">
                                     <span className={`badge bg-light-${connectionStatus.color} d-flex align-items-center gap-1`}>

@@ -20,10 +20,19 @@ export const createMockDashboardStore = () => create(() => ({
     metrics: {
         accuracy_history: [0.25, 0.26, 0.27, 0.28],
         latency_avg_ms: 150,
+        signalDetections: 42,
+        systemUptime: 3600,
+        activeWebSDRs: 7,
+        totalWebSDRs: 7,
     },
     isLoading: false,
     error: null,
+    lastUpdate: new Date().toISOString(),
+    wsConnectionState: 'Disconnected',
+    wsEnabled: false,
     fetchDashboardData: () => { },
+    connectWebSocket: () => { },
+    disconnectWebSocket: () => { },
 }));
 
 export const createMockWebSDRStore = () => create(() => ({
