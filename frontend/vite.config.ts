@@ -43,23 +43,32 @@ export default defineConfig({
         outDir: 'dist',
         assetsDir: 'assets',
         sourcemap: true, // Required for production debugging
-        minify: 'terser',
-        terserOptions: {
-            compress: {
-                drop_console: true,
-                pure_funcs: ['console.log', 'console.info'],
-            },
-        },
+        minify: true, // Let rolldown-vite handle minification with its default minifier
         cssCodeSplit: true,
         rollupOptions: {
             output: {
-                manualChunks: {
-                    'mapbox': ['mapbox-gl'],
-                    'vendor': ['react', 'react-dom'],
-                    'router': ['react-router-dom'],
-                    'ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-label', '@radix-ui/react-separator', '@radix-ui/react-slot', '@radix-ui/react-tooltip'],
-                    'charts': ['chart.js', 'react-chartjs-2'],
-                    'data': ['@tanstack/react-query', 'axios', 'zustand'],
+                manualChunks: (id) => {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('mapbox-gl')) {
+                            return 'mapbox';
+                        }
+                        if (id.includes('react') || id.includes('react-dom')) {
+                            return 'vendor';
+                        }
+                        if (id.includes('react-router')) {
+                            return 'router';
+                        }
+                        if (id.includes('@radix-ui')) {
+                            return 'ui';
+                        }
+                        if (id.includes('chart.js') || id.includes('react-chartjs')) {
+                            return 'charts';
+                        }
+                        if (id.includes('@tanstack') || id.includes('axios') || id.includes('zustand')) {
+                            return 'data';
+                        }
+                        return 'vendor';
+                    }
                 },
                 chunkFileNames: 'assets/js/[name]-[hash].js',
                 entryFileNames: 'assets/js/[name]-[hash].js',
