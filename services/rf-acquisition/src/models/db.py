@@ -2,11 +2,141 @@
 
 from datetime import datetime
 from typing import Optional, Dict, Any
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, BigInteger, Index
+from uuid import UUID
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, BigInteger, Boolean, Index, text
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
+from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION, UUID as PG_UUID
 
 Base = declarative_base()
+
+
+class WebSDRStation(Base):
+    """
+    WebSDR receiver station configuration.
+    
+    Each row represents a configured WebSDR receiver with geographic location
+    and operational parameters for RF data acquisition.
+    """
+    
+    __tablename__ = "websdr_stations"
+    __table_args__ = {"schema": "heimdall"}
+    
+    # Primary key
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    
+    # Station identification
+    name = Column(String(255), nullable=False, unique=True)
+    url = Column(String(512), nullable=False)
+    country = Column(String(100), nullable=True)
+    
+    # Geographic location (required for triangulation)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    
+    # Frequency capabilities
+    frequency_min_hz = Column(BigInteger, nullable=True)
+    frequency_max_hz = Column(BigInteger, nullable=True)
+    
+    # Operational parameters
+    is_active = Column(Boolean, default=True, nullable=False)
+    api_type = Column(String(50), default='http', nullable=True)
+    rate_limit_ms = Column(Integer, default=1000, nullable=True)
+    timeout_seconds = Column(Integer, default=30, nullable=True)
+    retry_count = Column(Integer, default=3, nullable=True)
+    
+    # Extended metadata (from health-check)
+    admin_email = Column(String(255), nullable=True)
+    location_description = Column(Text, nullable=True)
+    altitude_asl = Column(Integer, nullable=True)
+    
+    # Additional metadata
+    notes = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        """String representation."""
+        return (
+            f"<WebSDRStation(id={self.id}, name='{self.name}', "
+            f"lat={self.latitude}, lon={self.longitude}, "
+            f"active={self.is_active})>"
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert WebSDR station to dictionary for API responses."""
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "url": self.url,
+            "location_name": f"{self.name}, {self.country}" if self.country else self.name,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "is_active": self.is_active,
+            "timeout_seconds": self.timeout_seconds,
+            "frequency_min_hz": self.frequency_min_hz,
+            "frequency_max_hz": self.frequency_max_hz,
+        }
+
+
+class SDRProfile(Base):
+    """
+    SDR receiver profile representing a specific frequency/mode configuration.
+    
+    Populated from WebSDR health-check JSON (receiver.sdrs[].profiles[]).
+    One WebSDR station can have multiple SDR receivers, each with multiple profiles.
+    """
+    
+    __tablename__ = "sdr_profiles"
+    __table_args__ = {"schema": "heimdall"}
+    
+    # Primary key
+    id = Column(PG_UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    
+    # Foreign key to websdr_stations
+    websdr_station_id = Column(
+        PG_UUID(as_uuid=True), 
+        nullable=False,
+        index=True
+    )
+    
+    # SDR identification (from health-check JSON)
+    sdr_name = Column(String(50), nullable=False)  # e.g., "A)", "B)", "C)"
+    sdr_type = Column(String(100), nullable=True)  # e.g., "RtlSdrSource"
+    
+    # Profile details
+    profile_name = Column(String(255), nullable=False)  # e.g., "2m [144.00-146.00 Mhz]"
+    center_freq_hz = Column(BigInteger, nullable=False)
+    sample_rate_hz = Column(Integer, nullable=False)
+    
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    def __repr__(self) -> str:
+        """String representation."""
+        return (
+            f"<SDRProfile(id={self.id}, sdr={self.sdr_name}, "
+            f"profile='{self.profile_name}', "
+            f"freq={self.center_freq_hz}Hz)>"
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert SDR profile to dictionary."""
+        return {
+            "id": str(self.id),
+            "websdr_station_id": str(self.websdr_station_id),
+            "sdr_name": self.sdr_name,
+            "sdr_type": self.sdr_type,
+            "profile_name": self.profile_name,
+            "center_freq_hz": self.center_freq_hz,
+            "sample_rate_hz": self.sample_rate_hz,
+            "is_active": self.is_active,
+        }
 
 
 class Measurement(Base):

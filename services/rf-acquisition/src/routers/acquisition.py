@@ -13,99 +13,40 @@ from ..models.websdrs import (
     WebSDRConfig,
 )
 from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
+from ..storage.db_manager import get_db_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/acquisition", tags=["acquisition"])
 
 
-# WebSDRs - Northwestern Italy (Piedmont & Liguria regions)
-# Source: WEBSDRS.md - Strategic network for triangulation in Northern Italy
-DEFAULT_WEBSDRS = [
-    {
-        "id": 1,
-        "name": "Aquila di Giaveno",
-        "url": "http://sdr1.ik1jns.it:8076/",
-        "location_name": "Giaveno, Italy",
-        "latitude": 45.02,
-        "longitude": 7.29,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 2,
-        "name": "Montanaro",
-        "url": "http://cbfenis.ddns.net:43510/",
-        "location_name": "Montanaro, Italy",
-        "latitude": 45.234,
-        "longitude": 7.857,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 3,
-        "name": "Torino",
-        "url": "http://vst-aero.it:8073/",
-        "location_name": "Torino, Italy",
-        "latitude": 45.044,
-        "longitude": 7.672,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 4,
-        "name": "Coazze",
-        "url": "http://94.247.189.130:8076/",
-        "location_name": "Coazze, Italy",
-        "latitude": 45.03,
-        "longitude": 7.27,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 5,
-        "name": "Passo del Giovi",
-        "url": "http://iz1mlt.ddns.net:8074/",
-        "location_name": "Passo del Giovi, Italy",
-        "latitude": 44.561,
-        "longitude": 8.956,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 6,
-        "name": "Genova",
-        "url": "http://iq1zw.ddns.net:42154/",
-        "location_name": "Genova, Italy",
-        "latitude": 44.395,
-        "longitude": 8.956,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 7,
-        "name": "Milano - Baggio",
-        "url": "http://iu2mch.duckdns.org:8073/",
-        "location_name": "Milano (Baggio), Italy",
-        "latitude": 45.478,
-        "longitude": 9.123,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-]
-
-
 def get_websdrs_config() -> list[dict]:
-    """Get WebSDR configuration."""
-    # TODO: Load from database
-    return DEFAULT_WEBSDRS
+    """
+    Get WebSDR configuration from database.
+    
+    Returns list of active WebSDR configurations suitable for acquisition tasks.
+    """
+    db_manager = get_db_manager()
+    active_stations = db_manager.get_active_websdrs()
+    
+    # Convert ORM models to dicts compatible with acquisition tasks
+    websdrs_config = []
+    for idx, station in enumerate(active_stations, start=1):
+        config = {
+            "id": idx,  # Sequential ID for compatibility
+            "name": station.name,
+            "url": station.url,
+            "location_name": station.location_description or f"{station.name}, {station.country or 'Italy'}",
+            "latitude": float(station.latitude),
+            "longitude": float(station.longitude),
+            "is_active": station.is_active,
+            "timeout_seconds": station.timeout_seconds or 30,
+            "retry_count": station.retry_count or 3,
+        }
+        websdrs_config.append(config)
+    
+    logger.debug(f"Loaded {len(websdrs_config)} active WebSDR configurations from database")
+    return websdrs_config
 
 
 @router.post("/acquire", response_model=AcquisitionTaskResponse)
@@ -232,12 +173,14 @@ async def get_acquisition_status(task_id: str):
 @router.get("/websdrs", response_model=list[dict])
 async def list_websdrs():
     """
-    List all configured WebSDR receivers.
+    List all configured WebSDR receivers from database.
     
     Returns:
-        List of WebSDR configurations
+        List of WebSDR configurations from database
     """
-    return get_websdrs_config()
+    websdrs = get_websdrs_config()
+    logger.info(f"Returning {len(websdrs)} WebSDR stations from database")
+    return websdrs
 
 
 @router.get("/websdrs/health")

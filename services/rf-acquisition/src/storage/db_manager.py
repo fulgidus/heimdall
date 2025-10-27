@@ -17,10 +17,10 @@ except ImportError:
     from config import settings
 
 try:
-    from ..models.db import Measurement, Base
+    from ..models.db import Measurement, WebSDRStation, SDRProfile, Base
 except ImportError:
     # For testing
-    from models.db import Measurement, Base
+    from models.db import Measurement, WebSDRStation, SDRProfile, Base
 
 logger = logging.getLogger(__name__)
 
@@ -263,6 +263,204 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error retrieving SNR statistics: {e}")
             return {}
+    
+    def get_all_websdrs(self) -> List[WebSDRStation]:
+        """Get all WebSDR stations from the database."""
+        try:
+            with self.get_session() as session:
+                query = select(WebSDRStation).order_by(WebSDRStation.name)
+                results = session.execute(query).scalars().all()
+                logger.debug(f"Retrieved {len(results)} WebSDR stations")
+                return list(results)
+        except Exception as e:
+            logger.error(f"Error retrieving WebSDR stations: {e}")
+            return []
+    
+    def get_active_websdrs(self) -> List[WebSDRStation]:
+        """Get only active WebSDR stations from the database."""
+        try:
+            with self.get_session() as session:
+                query = select(WebSDRStation).where(
+                    WebSDRStation.is_active == True
+                ).order_by(WebSDRStation.name)
+                results = session.execute(query).scalars().all()
+                logger.debug(f"Retrieved {len(results)} active WebSDR stations")
+                return list(results)
+        except Exception as e:
+            logger.error(f"Error retrieving active WebSDR stations: {e}")
+            return []
+    
+    def get_websdr_by_name(self, name: str) -> Optional[WebSDRStation]:
+        """Get a WebSDR station by name."""
+        try:
+            with self.get_session() as session:
+                query = select(WebSDRStation).where(WebSDRStation.name == name)
+                result = session.execute(query).scalar_one_or_none()
+                return result
+        except Exception as e:
+            logger.error(f"Error retrieving WebSDR by name '{name}': {e}")
+            return None
+    
+    def upsert_websdr_from_health_check(
+        self, 
+        name: str,
+        url: str,
+        health_data: Dict[str, Any]
+    ) -> Optional[str]:
+        """
+        Insert or update WebSDR station from health-check JSON.
+        
+        Args:
+            name: Station name (unique identifier)
+            url: Base URL of the WebSDR
+            health_data: Parsed JSON from health-check endpoint
+                Expected structure:
+                {
+                    "receiver": {
+                        "name": str,
+                        "admin": str (email),
+                        "gps": {"lat": float, "lon": float},
+                        "asl": int,
+                        "location": str
+                    },
+                    "sdrs": [
+                        {
+                            "name": str (e.g., "A)"),
+                            "type": str,
+                            "profiles": [
+                                {
+                                    "name": str,
+                                    "center_freq": int (Hz),
+                                    "sample_rate": int (Hz)
+                                },
+                                ...
+                            ]
+                        },
+                        ...
+                    ]
+                }
+        
+        Returns:
+            WebSDR station UUID as string if successful, None otherwise
+        """
+        try:
+            with self.get_session() as session:
+                # Extract receiver info
+                receiver = health_data.get("receiver", {})
+                gps = receiver.get("gps", {})
+                
+                latitude = gps.get("lat")
+                longitude = gps.get("lon")
+                
+                if latitude is None or longitude is None:
+                    logger.error(f"Missing GPS coordinates for {name}")
+                    return None
+                
+                # Check if station exists
+                existing = session.execute(
+                    select(WebSDRStation).where(WebSDRStation.name == name)
+                ).scalar_one_or_none()
+                
+                if existing:
+                    # Update existing station
+                    existing.url = url
+                    existing.latitude = float(latitude)
+                    existing.longitude = float(longitude)
+                    existing.admin_email = receiver.get("admin")
+                    existing.location_description = receiver.get("location")
+                    existing.altitude_asl = receiver.get("asl")
+                    existing.updated_at = datetime.utcnow()
+                    station = existing
+                    logger.info(f"Updated WebSDR station: {name}")
+                else:
+                    # Create new station
+                    station = WebSDRStation(
+                        name=name,
+                        url=url,
+                        latitude=float(latitude),
+                        longitude=float(longitude),
+                        admin_email=receiver.get("admin"),
+                        location_description=receiver.get("location"),
+                        altitude_asl=receiver.get("asl"),
+                        is_active=True
+                    )
+                    session.add(station)
+                    session.flush()
+                    logger.info(f"Created new WebSDR station: {name}")
+                
+                station_id = station.id
+                
+                # Process SDR profiles
+                sdrs = health_data.get("sdrs", [])
+                for sdr in sdrs:
+                    sdr_name = sdr.get("name", "Unknown")
+                    sdr_type = sdr.get("type")
+                    profiles = sdr.get("profiles", [])
+                    
+                    for profile in profiles:
+                        profile_name = profile.get("name", "Unknown")
+                        center_freq = profile.get("center_freq")
+                        sample_rate = profile.get("sample_rate")
+                        
+                        if center_freq is None or sample_rate is None:
+                            logger.warning(
+                                f"Skipping profile '{profile_name}' - missing freq/sample_rate"
+                            )
+                            continue
+                        
+                        # Check if profile exists
+                        existing_profile = session.execute(
+                            select(SDRProfile).where(
+                                and_(
+                                    SDRProfile.websdr_station_id == station_id,
+                                    SDRProfile.sdr_name == sdr_name,
+                                    SDRProfile.profile_name == profile_name
+                                )
+                            )
+                        ).scalar_one_or_none()
+                        
+                        if existing_profile:
+                            # Update existing profile
+                            existing_profile.center_freq_hz = int(center_freq)
+                            existing_profile.sample_rate_hz = int(sample_rate)
+                            existing_profile.sdr_type = sdr_type
+                            existing_profile.updated_at = datetime.utcnow()
+                        else:
+                            # Create new profile
+                            new_profile = SDRProfile(
+                                websdr_station_id=station_id,
+                                sdr_name=sdr_name,
+                                sdr_type=sdr_type,
+                                profile_name=profile_name,
+                                center_freq_hz=int(center_freq),
+                                sample_rate_hz=int(sample_rate),
+                                is_active=True
+                            )
+                            session.add(new_profile)
+                
+                session.commit()
+                logger.info(
+                    f"Successfully upserted WebSDR {name} with {len(sdrs)} SDR profiles"
+                )
+                return str(station_id)
+                
+        except Exception as e:
+            logger.error(f"Error upserting WebSDR from health-check: {e}")
+            return None
+    
+    def get_sdr_profiles(self, websdr_station_id: str) -> List[SDRProfile]:
+        """Get all SDR profiles for a specific WebSDR station."""
+        try:
+            with self.get_session() as session:
+                query = select(SDRProfile).where(
+                    SDRProfile.websdr_station_id == websdr_station_id
+                ).order_by(SDRProfile.sdr_name, SDRProfile.center_freq_hz)
+                results = session.execute(query).scalars().all()
+                logger.debug(f"Retrieved {len(results)} SDR profiles for station {websdr_station_id}")
+                return list(results)
+        except Exception as e:
+            logger.error(f"Error retrieving SDR profiles: {e}")
+            return []
     
     def close(self) -> None:
         """Close database engine and cleanup resources."""
