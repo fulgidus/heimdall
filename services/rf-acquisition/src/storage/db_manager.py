@@ -462,6 +462,179 @@ class DatabaseManager:
             logger.error(f"Error retrieving SDR profiles: {e}")
             return []
     
+    def create_websdr(
+        self,
+        name: str,
+        url: str,
+        latitude: float,
+        longitude: float,
+        location_description: Optional[str] = None,
+        country: Optional[str] = "Italy",
+        admin_email: Optional[str] = None,
+        altitude_asl: Optional[int] = None,
+        timeout_seconds: int = 30,
+        retry_count: int = 3,
+        is_active: bool = True
+    ) -> Optional[WebSDRStation]:
+        """
+        Create a new WebSDR station.
+        
+        Args:
+            name: Unique station name
+            url: WebSDR base URL
+            latitude: GPS latitude (-90 to 90)
+            longitude: GPS longitude (-180 to 180)
+            location_description: Human-readable location
+            country: Country name
+            admin_email: Administrator email
+            altitude_asl: Altitude above sea level (meters)
+            timeout_seconds: Connection timeout
+            retry_count: Number of retry attempts
+            is_active: Whether station is active
+        
+        Returns:
+            Created WebSDRStation object or None on error
+        """
+        try:
+            with self.get_session() as session:
+                # Check if name already exists
+                existing = session.execute(
+                    select(WebSDRStation).where(WebSDRStation.name == name)
+                ).scalar_one_or_none()
+                
+                if existing:
+                    logger.error(f"WebSDR with name '{name}' already exists")
+                    return None
+                
+                # Create new station
+                new_station = WebSDRStation(
+                    name=name,
+                    url=url,
+                    latitude=latitude,
+                    longitude=longitude,
+                    location_description=location_description,
+                    country=country,
+                    admin_email=admin_email,
+                    altitude_asl=altitude_asl,
+                    timeout_seconds=timeout_seconds,
+                    retry_count=retry_count,
+                    is_active=is_active
+                )
+                
+                session.add(new_station)
+                session.commit()
+                session.refresh(new_station)
+                
+                logger.info(f"Created WebSDR station: {name}")
+                return new_station
+                
+        except Exception as e:
+            logger.error(f"Error creating WebSDR station: {e}")
+            return None
+    
+    def update_websdr(
+        self,
+        station_id: str,
+        **kwargs
+    ) -> Optional[WebSDRStation]:
+        """
+        Update an existing WebSDR station.
+        
+        Args:
+            station_id: UUID of the station to update
+            **kwargs: Fields to update (name, url, latitude, longitude, etc.)
+        
+        Returns:
+            Updated WebSDRStation object or None on error
+        """
+        try:
+            with self.get_session() as session:
+                station = session.get(WebSDRStation, station_id)
+                
+                if not station:
+                    logger.error(f"WebSDR station {station_id} not found")
+                    return None
+                
+                # If updating name, check for uniqueness
+                if 'name' in kwargs and kwargs['name'] != station.name:
+                    existing = session.execute(
+                        select(WebSDRStation).where(WebSDRStation.name == kwargs['name'])
+                    ).scalar_one_or_none()
+                    
+                    if existing:
+                        logger.error(f"WebSDR with name '{kwargs['name']}' already exists")
+                        return None
+                
+                # Update allowed fields
+                allowed_fields = {
+                    'name', 'url', 'latitude', 'longitude', 'location_description',
+                    'country', 'admin_email', 'altitude_asl', 'timeout_seconds',
+                    'retry_count', 'is_active'
+                }
+                
+                for key, value in kwargs.items():
+                    if key in allowed_fields:
+                        setattr(station, key, value)
+                
+                session.commit()
+                session.refresh(station)
+                
+                logger.info(f"Updated WebSDR station: {station.name}")
+                return station
+                
+        except Exception as e:
+            logger.error(f"Error updating WebSDR station: {e}")
+            return None
+    
+    def delete_websdr(self, station_id: str, soft_delete: bool = True) -> bool:
+        """
+        Delete a WebSDR station (soft delete by default).
+        
+        Args:
+            station_id: UUID of the station to delete
+            soft_delete: If True, set is_active=False; if False, hard delete
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with self.get_session() as session:
+                station = session.get(WebSDRStation, station_id)
+                
+                if not station:
+                    logger.error(f"WebSDR station {station_id} not found")
+                    return False
+                
+                if soft_delete:
+                    # Soft delete: just deactivate
+                    station.is_active = False
+                    session.commit()
+                    logger.info(f"Soft deleted (deactivated) WebSDR station: {station.name}")
+                else:
+                    # Hard delete: remove from database
+                    session.delete(station)
+                    session.commit()
+                    logger.info(f"Hard deleted WebSDR station: {station.name}")
+                
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error deleting WebSDR station: {e}")
+            return False
+    
+    def get_websdr_by_id(self, station_id: str) -> Optional[WebSDRStation]:
+        """Get a WebSDR station by UUID."""
+        try:
+            with self.get_session() as session:
+                station = session.get(WebSDRStation, station_id)
+                if station:
+                    # Detach from session to avoid lazy loading issues
+                    session.expunge(station)
+                return station
+        except Exception as e:
+            logger.error(f"Error retrieving WebSDR by ID '{station_id}': {e}")
+            return None
+    
     def close(self) -> None:
         """Close database engine and cleanup resources."""
         try:

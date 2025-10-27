@@ -11,7 +11,7 @@ import type { WebSDRConfig, WebSDRHealthStatus } from '@/services/api/types';
 export interface WebSDRMarkersProps {
     map: mapboxgl.Map;
     websdrs: WebSDRConfig[];
-    healthStatus: Record<number, WebSDRHealthStatus>;
+    healthStatus: Record<string, WebSDRHealthStatus>;  // UUID keys
 }
 
 /**
@@ -38,8 +38,8 @@ function createPopupHTML(websdr: WebSDRConfig, health?: WebSDRHealthStatus): str
         status === 'online'
             ? '<span class="badge bg-success">Online</span>'
             : status === 'offline'
-            ? '<span class="badge bg-danger">Offline</span>'
-            : '<span class="badge bg-warning">Unknown</span>';
+                ? '<span class="badge bg-danger">Offline</span>'
+                : '<span class="badge bg-warning">Unknown</span>';
 
     return `
         <div style="min-width: 200px;">
@@ -49,28 +49,26 @@ function createPopupHTML(websdr: WebSDRConfig, health?: WebSDRHealthStatus): str
                 <tbody>
                     <tr>
                         <td class="text-muted">Location:</td>
-                        <td>${websdr.location_name}</td>
+                        <td>${websdr.location_description || websdr.name}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Coordinates:</td>
                         <td>${websdr.latitude.toFixed(4)}, ${websdr.longitude.toFixed(4)}</td>
                     </tr>
-                    ${
-                        health?.response_time_ms
-                            ? `<tr>
+                    ${health?.response_time_ms
+            ? `<tr>
                             <td class="text-muted">Response:</td>
                             <td>${health.response_time_ms}ms</td>
                         </tr>`
-                            : ''
-                    }
-                    ${
-                        health?.avg_snr !== undefined && health?.avg_snr !== null
-                            ? `<tr>
+            : ''
+        }
+                    ${health?.avg_snr !== undefined && health?.avg_snr !== null
+            ? `<tr>
                             <td class="text-muted">Avg SNR:</td>
                             <td>${health.avg_snr.toFixed(1)} dB</td>
                         </tr>`
-                            : ''
-                    }
+            : ''
+        }
                 </tbody>
             </table>
         </div>

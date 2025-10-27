@@ -36,7 +36,7 @@ export const useWebSDRHealth = () => {
 /**
  * Hook to fetch a specific WebSDR by ID
  */
-export const useWebSDR = (websdrId: number | null) => {
+export const useWebSDR = (websdrId: string | null) => {
     return useQuery({
         queryKey: ['websdrs', websdrId],
         queryFn: async () => {

@@ -2,7 +2,8 @@
 
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, HttpUrl
+from uuid import UUID
+from pydantic import BaseModel, Field, HttpUrl, field_serializer
 
 
 class WebSDRConfig(BaseModel):
@@ -146,3 +147,110 @@ class WebSDRFetcherConfig(BaseModel):
     retry_count: int = Field(default=3, description="Number of retries")
     concurrent_requests: int = Field(default=7, description="Max concurrent requests")
     backoff_factor: float = Field(default=2.0, description="Exponential backoff factor")
+
+
+# ============================================================================
+# CRUD Models for WebSDR Management
+# ============================================================================
+
+class WebSDRCreateRequest(BaseModel):
+    """Request to create a new WebSDR station."""
+    
+    name: str = Field(..., min_length=1, max_length=100, description="Unique station name")
+    url: str = Field(..., description="WebSDR base URL (e.g., http://websdr.example.com:8073)")
+    latitude: float = Field(..., ge=-90, le=90, description="GPS latitude")
+    longitude: float = Field(..., ge=-180, le=180, description="GPS longitude")
+    location_description: Optional[str] = Field(None, max_length=255, description="Human-readable location")
+    country: Optional[str] = Field("Italy", max_length=100, description="Country name")
+    admin_email: Optional[str] = Field(None, max_length=255, description="Administrator email")
+    altitude_asl: Optional[int] = Field(None, description="Altitude above sea level (meters)")
+    timeout_seconds: int = Field(30, ge=1, le=300, description="Connection timeout")
+    retry_count: int = Field(3, ge=0, le=10, description="Number of retry attempts")
+    is_active: bool = Field(True, description="Whether station is active")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "IW2MXM Milano",
+                "url": "http://websdr.iw2mxm.it:8073",
+                "latitude": 45.464,
+                "longitude": 9.188,
+                "location_description": "Milano, Italy",
+                "country": "Italy",
+                "admin_email": "admin@iw2mxm.it",
+                "altitude_asl": 120,
+                "timeout_seconds": 30,
+                "retry_count": 3,
+                "is_active": True
+            }
+        }
+
+
+class WebSDRUpdateRequest(BaseModel):
+    """Request to update an existing WebSDR station."""
+    
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Station name")
+    url: Optional[str] = Field(None, description="WebSDR base URL")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="GPS latitude")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="GPS longitude")
+    location_description: Optional[str] = Field(None, max_length=255, description="Location description")
+    country: Optional[str] = Field(None, max_length=100, description="Country name")
+    admin_email: Optional[str] = Field(None, max_length=255, description="Administrator email")
+    altitude_asl: Optional[int] = Field(None, description="Altitude ASL (meters)")
+    timeout_seconds: Optional[int] = Field(None, ge=1, le=300, description="Connection timeout")
+    retry_count: Optional[int] = Field(None, ge=0, le=10, description="Retry attempts")
+    is_active: Optional[bool] = Field(None, description="Active status")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "IW2MXM Milano - Updated",
+                "is_active": True,
+                "timeout_seconds": 45
+            }
+        }
+
+
+class WebSDRResponse(BaseModel):
+    """Response model for WebSDR station."""
+    
+    id: UUID = Field(..., description="Station UUID")
+    name: str = Field(..., description="Station name")
+    url: str = Field(..., description="WebSDR base URL")
+    latitude: float = Field(..., description="GPS latitude")
+    longitude: float = Field(..., description="GPS longitude")
+    location_description: Optional[str] = Field(None, description="Location description")
+    country: Optional[str] = Field(None, description="Country")
+    admin_email: Optional[str] = Field(None, description="Administrator email")
+    altitude_asl: Optional[int] = Field(None, description="Altitude ASL")
+    timeout_seconds: int = Field(..., description="Connection timeout")
+    retry_count: int = Field(..., description="Retry count")
+    is_active: bool = Field(..., description="Active status")
+    created_at: Optional[datetime] = Field(None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    
+    @field_serializer('id')
+    def serialize_uuid(self, value: UUID, _info) -> str:
+        """Convert UUID to string for JSON serialization."""
+        return str(value)
+    
+    class Config:
+        from_attributes = True  # Enable ORM mode
+        json_schema_extra = {
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "IW2MXM Milano",
+                "url": "http://websdr.iw2mxm.it:8073",
+                "latitude": 45.464,
+                "longitude": 9.188,
+                "location_description": "Milano, Italy",
+                "country": "Italy",
+                "admin_email": "admin@iw2mxm.it",
+                "altitude_asl": 120,
+                "timeout_seconds": 30,
+                "retry_count": 3,
+                "is_active": True,
+                "created_at": "2025-10-27T10:00:00Z",
+                "updated_at": "2025-10-27T10:00:00Z"
+            }
+        }

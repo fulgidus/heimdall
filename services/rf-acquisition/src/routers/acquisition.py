@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from celery.result import AsyncResult
 
@@ -11,6 +11,9 @@ from ..models.websdrs import (
     AcquisitionTaskResponse,
     AcquisitionStatusResponse,
     WebSDRConfig,
+    WebSDRCreateRequest,
+    WebSDRUpdateRequest,
+    WebSDRResponse,
 )
 from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
 from ..storage.db_manager import get_db_manager
@@ -282,3 +285,218 @@ async def get_configuration():
         'max_duration_seconds': 300,
         'default_sample_rate_khz': 12.5,
     }
+
+
+# ============================================================================
+# WebSDR CRUD Endpoints
+# ============================================================================
+
+@router.post("/websdrs", response_model=WebSDRResponse, status_code=201)
+async def create_websdr(request: WebSDRCreateRequest):
+    """
+    Create a new WebSDR station.
+    
+    Args:
+        request: WebSDR creation request with all required fields
+    
+    Returns:
+        Created WebSDR station details
+    
+    Raises:
+        HTTPException 400: If station name already exists or validation fails
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        # Create the station
+        station = db_manager.create_websdr(
+            name=request.name,
+            url=request.url,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            location_description=request.location_description,
+            country=request.country,
+            admin_email=request.admin_email,
+            altitude_asl=request.altitude_asl,
+            timeout_seconds=request.timeout_seconds,
+            retry_count=request.retry_count,
+            is_active=request.is_active
+        )
+        
+        if not station:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to create WebSDR station. Name '{request.name}' may already exist."
+            )
+        
+        logger.info(f"Created WebSDR station: {station.name} (ID: {station.id})")
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error creating WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.get("/websdrs/{station_id}", response_model=WebSDRResponse)
+async def get_websdr(station_id: str):
+    """
+    Get a specific WebSDR station by ID.
+    
+    Args:
+        station_id: UUID of the WebSDR station
+    
+    Returns:
+        WebSDR station details
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        station = db_manager.get_websdr_by_id(station_id)
+        
+        if not station:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found"
+            )
+        
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error retrieving WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.put("/websdrs/{station_id}", response_model=WebSDRResponse)
+async def update_websdr(station_id: str, request: WebSDRUpdateRequest):
+    """
+    Update an existing WebSDR station.
+    
+    Args:
+        station_id: UUID of the WebSDR station to update
+        request: Fields to update (only provided fields will be updated)
+    
+    Returns:
+        Updated WebSDR station details
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 400: If update validation fails (e.g., duplicate name)
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        # Only include fields that were actually provided
+        update_data = request.model_dump(exclude_unset=True)
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No fields provided for update"
+            )
+        
+        station = db_manager.update_websdr(station_id, **update_data)
+        
+        if not station:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found or update failed"
+            )
+        
+        logger.info(f"Updated WebSDR station: {station.name} (ID: {station.id})")
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.delete("/websdrs/{station_id}", status_code=204)
+async def delete_websdr(station_id: str, hard_delete: bool = False):
+    """
+    Delete a WebSDR station (soft delete by default).
+    
+    Args:
+        station_id: UUID of the WebSDR station to delete
+        hard_delete: If True, permanently delete; if False, set is_active=False
+    
+    Returns:
+        No content on success
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        success = db_manager.delete_websdr(station_id, soft_delete=not hard_delete)
+        
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found"
+            )
+        
+        action = "Hard deleted" if hard_delete else "Soft deleted"
+        logger.info(f"{action} WebSDR station: {station_id}")
+        
+        return None  # 204 No Content
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error deleting WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.get("/websdrs-all", response_model=List[WebSDRResponse])
+async def list_all_websdrs(include_inactive: bool = False):
+    """
+    List all WebSDR stations with full details.
+    
+    Args:
+        include_inactive: If True, include inactive stations; if False, only active
+    
+    Returns:
+        List of WebSDR station details
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        if include_inactive:
+            stations = db_manager.get_all_websdrs()
+        else:
+            stations = db_manager.get_active_websdrs()
+        
+        return [WebSDRResponse.model_validate(station) for station in stations]
+    
+    except Exception as e:
+        logger.exception(f"Error listing WebSDR stations: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+

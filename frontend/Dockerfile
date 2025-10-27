@@ -19,7 +19,7 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_ENABLE_DEBUG=$VITE_ENABLE_DEBUG
 
 # Install dependencies and build
-RUN npm ci --legacy-peer-deps && npm run build
+RUN npm install --legacy-peer-deps && npm run build
 
 # Runtime stage - Using nginx for better performance
 FROM nginx:alpine
