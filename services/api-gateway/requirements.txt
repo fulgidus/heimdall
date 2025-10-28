@@ -1,7 +1,7 @@
 # API Gateway Service Requirements
 # References centralized requirements
--r ../requirements/base.txt
--r ../requirements/api.txt
+-r requirements/base.txt
+-r requirements/api.txt
 
 # Service-specific dependencies
 slowapi==0.1.9

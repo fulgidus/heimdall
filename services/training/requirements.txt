@@ -1,8 +1,8 @@
 # Training Service Requirements
 # References centralized requirements
--r ../requirements/base.txt
--r ../requirements/ml.txt
--r ../requirements/data.txt
+-r requirements/base.txt
+-r requirements/ml.txt
+-r requirements/data.txt
 
 # Service-specific dependencies
 tensorboard>=2.14.0
