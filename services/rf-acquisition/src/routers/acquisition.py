@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from celery.result import AsyncResult
 
@@ -11,101 +11,45 @@ from ..models.websdrs import (
     AcquisitionTaskResponse,
     AcquisitionStatusResponse,
     WebSDRConfig,
+    WebSDRCreateRequest,
+    WebSDRUpdateRequest,
+    WebSDRResponse,
 )
 from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
+from ..storage.db_manager import get_db_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/acquisition", tags=["acquisition"])
 
 
-# WebSDRs - Northwestern Italy (Piedmont & Liguria regions)
-# Source: WEBSDRS.md - Strategic network for triangulation in Northern Italy
-DEFAULT_WEBSDRS = [
-    {
-        "id": 1,
-        "name": "Aquila di Giaveno",
-        "url": "http://sdr1.ik1jns.it:8076/",
-        "location_name": "Giaveno, Italy",
-        "latitude": 45.02,
-        "longitude": 7.29,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 2,
-        "name": "Montanaro",
-        "url": "http://cbfenis.ddns.net:43510/",
-        "location_name": "Montanaro, Italy",
-        "latitude": 45.234,
-        "longitude": 7.857,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 3,
-        "name": "Torino",
-        "url": "http://vst-aero.it:8073/",
-        "location_name": "Torino, Italy",
-        "latitude": 45.044,
-        "longitude": 7.672,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 4,
-        "name": "Coazze",
-        "url": "http://94.247.189.130:8076/",
-        "location_name": "Coazze, Italy",
-        "latitude": 45.03,
-        "longitude": 7.27,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 5,
-        "name": "Passo del Giovi",
-        "url": "http://iz1mlt.ddns.net:8074/",
-        "location_name": "Passo del Giovi, Italy",
-        "latitude": 44.561,
-        "longitude": 8.956,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 6,
-        "name": "Genova",
-        "url": "http://iq1zw.ddns.net:42154/",
-        "location_name": "Genova, Italy",
-        "latitude": 44.395,
-        "longitude": 8.956,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-    {
-        "id": 7,
-        "name": "Milano - Baggio",
-        "url": "http://iu2mch.duckdns.org:8073/",
-        "location_name": "Milano (Baggio), Italy",
-        "latitude": 45.478,
-        "longitude": 9.123,
-        "is_active": True,
-        "timeout_seconds": 30,
-        "retry_count": 3
-    },
-]
-
-
 def get_websdrs_config() -> list[dict]:
-    """Get WebSDR configuration."""
-    # TODO: Load from database
-    return DEFAULT_WEBSDRS
+    """
+    Get WebSDR configuration from database.
+    
+    Returns list of active WebSDR configurations suitable for acquisition tasks.
+    """
+    db_manager = get_db_manager()
+    active_stations = db_manager.get_active_websdrs()
+    
+    # Convert ORM models to dicts compatible with acquisition tasks
+    websdrs_config = []
+    for idx, station in enumerate(active_stations, start=1):
+        config = {
+            "id": idx,  # Sequential ID for compatibility
+            "name": station.name,
+            "url": station.url,
+            "location_name": station.location_description or f"{station.name}, {station.country or 'Italy'}",
+            "latitude": float(station.latitude),
+            "longitude": float(station.longitude),
+            "is_active": station.is_active,
+            "timeout_seconds": station.timeout_seconds or 30,
+            "retry_count": station.retry_count or 3,
+        }
+        websdrs_config.append(config)
+    
+    logger.debug(f"Loaded {len(websdrs_config)} active WebSDR configurations from database")
+    return websdrs_config
 
 
 @router.post("/acquire", response_model=AcquisitionTaskResponse)
@@ -232,12 +176,14 @@ async def get_acquisition_status(task_id: str):
 @router.get("/websdrs", response_model=list[dict])
 async def list_websdrs():
     """
-    List all configured WebSDR receivers.
+    List all configured WebSDR receivers from database.
     
     Returns:
-        List of WebSDR configurations
+        List of WebSDR configurations from database
     """
-    return get_websdrs_config()
+    websdrs = get_websdrs_config()
+    logger.info(f"Returning {len(websdrs)} WebSDR stations from database")
+    return websdrs
 
 
 @router.get("/websdrs/health")
@@ -504,3 +450,218 @@ async def trigger_openwebrx_health_check():
             status_code=500,
             detail=f"Health check failed: {str(e)}"
         )
+
+
+# ============================================================================
+# WebSDR CRUD Endpoints
+# ============================================================================
+
+@router.post("/websdrs", response_model=WebSDRResponse, status_code=201)
+async def create_websdr(request: WebSDRCreateRequest):
+    """
+    Create a new WebSDR station.
+    
+    Args:
+        request: WebSDR creation request with all required fields
+    
+    Returns:
+        Created WebSDR station details
+    
+    Raises:
+        HTTPException 400: If station name already exists or validation fails
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        # Create the station
+        station = db_manager.create_websdr(
+            name=request.name,
+            url=request.url,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            location_description=request.location_description,
+            country=request.country,
+            admin_email=request.admin_email,
+            altitude_asl=request.altitude_asl,
+            timeout_seconds=request.timeout_seconds,
+            retry_count=request.retry_count,
+            is_active=request.is_active
+        )
+        
+        if not station:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to create WebSDR station. Name '{request.name}' may already exist."
+            )
+        
+        logger.info(f"Created WebSDR station: {station.name} (ID: {station.id})")
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error creating WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.get("/websdrs/{station_id}", response_model=WebSDRResponse)
+async def get_websdr(station_id: str):
+    """
+    Get a specific WebSDR station by ID.
+    
+    Args:
+        station_id: UUID of the WebSDR station
+    
+    Returns:
+        WebSDR station details
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        station = db_manager.get_websdr_by_id(station_id)
+        
+        if not station:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found"
+            )
+        
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error retrieving WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.put("/websdrs/{station_id}", response_model=WebSDRResponse)
+async def update_websdr(station_id: str, request: WebSDRUpdateRequest):
+    """
+    Update an existing WebSDR station.
+    
+    Args:
+        station_id: UUID of the WebSDR station to update
+        request: Fields to update (only provided fields will be updated)
+    
+    Returns:
+        Updated WebSDR station details
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 400: If update validation fails (e.g., duplicate name)
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        # Only include fields that were actually provided
+        update_data = request.model_dump(exclude_unset=True)
+        
+        if not update_data:
+            raise HTTPException(
+                status_code=400,
+                detail="No fields provided for update"
+            )
+        
+        station = db_manager.update_websdr(station_id, **update_data)
+        
+        if not station:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found or update failed"
+            )
+        
+        logger.info(f"Updated WebSDR station: {station.name} (ID: {station.id})")
+        return WebSDRResponse.model_validate(station)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error updating WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.delete("/websdrs/{station_id}", status_code=204)
+async def delete_websdr(station_id: str, hard_delete: bool = False):
+    """
+    Delete a WebSDR station (soft delete by default).
+    
+    Args:
+        station_id: UUID of the WebSDR station to delete
+        hard_delete: If True, permanently delete; if False, set is_active=False
+    
+    Returns:
+        No content on success
+    
+    Raises:
+        HTTPException 404: If station not found
+        HTTPException 500: If database error occurs
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        success = db_manager.delete_websdr(station_id, soft_delete=not hard_delete)
+        
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"WebSDR station with ID {station_id} not found"
+            )
+        
+        action = "Hard deleted" if hard_delete else "Soft deleted"
+        logger.info(f"{action} WebSDR station: {station_id}")
+        
+        return None  # 204 No Content
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error deleting WebSDR station: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.get("/websdrs-all", response_model=List[WebSDRResponse])
+async def list_all_websdrs(include_inactive: bool = False):
+    """
+    List all WebSDR stations with full details.
+    
+    Args:
+        include_inactive: If True, include inactive stations; if False, only active
+    
+    Returns:
+        List of WebSDR station details
+    """
+    try:
+        db_manager = get_db_manager()
+        
+        if include_inactive:
+            stations = db_manager.get_all_websdrs()
+        else:
+            stations = db_manager.get_active_websdrs()
+        
+        return [WebSDRResponse.model_validate(station) for station in stations]
+    
+    except Exception as e:
+        logger.exception(f"Error listing WebSDR stations: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+

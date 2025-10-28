@@ -9,19 +9,24 @@
 // ============================================================================
 
 export interface WebSDRConfig {
-    id: number;
+    id: string;  // UUID from backend
     name: string;
     url: string;
-    location_name: string;
+    location_description?: string;  // Optional location description from backend
+    country?: string;  // Optional country
+    admin_email?: string;  // Optional admin email
+    altitude_asl?: number;  // Optional altitude ASL
     latitude: number;
     longitude: number;
     is_active: boolean;
     timeout_seconds: number;
     retry_count: number;
+    created_at?: string;  // ISO timestamp
+    updated_at?: string;  // ISO timestamp
 }
 
 export interface WebSDRHealthStatus {
-    websdr_id: number;
+    websdr_id: string;  // UUID from backend
     name: string;
     status: 'online' | 'offline' | 'unknown';
     response_time_ms?: number;

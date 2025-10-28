@@ -26,6 +26,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy installed packages from builder
 COPY --from=builder /root/.local /home/appuser/.local
 
+# Copy shared common module
+COPY --chown=appuser:appuser services/common/ ./common/
+
 # Copy application code
 COPY --chown=appuser:appuser services/rf-acquisition/src/ ./src/
 COPY --chown=appuser:appuser services/rf-acquisition/entrypoint.py ./entrypoint.py

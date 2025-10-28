@@ -1,8 +1,8 @@
 # RF Acquisition Service Requirements
-# References centralized requirements
--r ../requirements/base.txt
--r ../requirements/api.txt
--r ../requirements/data.txt
+# References centralized requirements (Docker build context paths)
+-r requirements/base.txt
+-r requirements/api.txt
+-r requirements/data.txt
 
 # Service-specific dependencies
 websockets==12.0

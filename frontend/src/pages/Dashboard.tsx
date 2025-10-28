@@ -75,7 +75,7 @@ const Dashboard: React.FC = () => {
         const health = healthStatus[sdr.id];
         return {
             id: sdr.id,
-            city: sdr.location_name.split(',')[0],
+            city: sdr.location_description?.split(',')[0] || sdr.name,  // Use location_description or name as fallback
             status: health?.status === 'online' ? 'online' : 'offline',
             signal: health?.response_time_ms
                 ? Math.max(0, 100 - health.response_time_ms / 10)
@@ -88,7 +88,7 @@ const Dashboard: React.FC = () => {
     const defaultCities = ['Turin', 'Milan', 'Genoa', 'Alessandria', 'Asti', 'La Spezia', 'Piacenza'];
     while (webSDRStatuses.length < 7) {
         webSDRStatuses.push({
-            id: webSDRStatuses.length + 1,
+            id: `placeholder-${webSDRStatuses.length + 1}`,  // UUID format for consistency
             city: defaultCities[webSDRStatuses.length] || `Location ${webSDRStatuses.length + 1}`,
             status: 'offline' as const,
             signal: 0,
@@ -135,8 +135,8 @@ const Dashboard: React.FC = () => {
 
             {/* Error Display */}
             {error && (
-                <div 
-                    className="alert alert-danger alert-dismissible fade show" 
+                <div
+                    className="alert alert-danger alert-dismissible fade show"
                     role="alert"
                     aria-live="assertive"
                     aria-atomic="true"
@@ -336,9 +336,9 @@ const Dashboard: React.FC = () => {
                                         </tr>
                                         <tr>
                                             <td>
-                                                <span 
+                                                <span
                                                     className={`badge ${data.modelInfo ? 'bg-light-primary' : 'bg-light-warning'}`}
-                                                    role="img" 
+                                                    role="img"
                                                     aria-label={data.modelInfo ? 'Active' : 'Warning'}
                                                 >
                                                     <i className={`ph ${data.modelInfo ? 'ph-brain' : 'ph-warning-circle'}`} aria-hidden="true"></i>
@@ -405,7 +405,7 @@ const Dashboard: React.FC = () => {
 
                 {/* Services Status */}
                 <section className="col-12 col-lg-4 mb-3" aria-labelledby="services-status-heading">
-                    <div 
+                    <div
                         className="card"
                         aria-live="polite"
                         aria-atomic="true"
@@ -468,7 +468,7 @@ const Dashboard: React.FC = () => {
             {/* WebSDR Network Status */}
             <section className="row" aria-labelledby="websdr-network-heading">
                 <div className="col-12">
-                    <div 
+                    <div
                         className="card"
                         aria-live="polite"
                         aria-atomic="false"
