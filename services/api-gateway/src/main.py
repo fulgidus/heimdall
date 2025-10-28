@@ -711,6 +711,182 @@ async def get_system_status():
     return result
 
 
+# ============================================================================
+# OpenWebRX Acquisition Endpoints
+# ============================================================================
+
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class AcquireOpenWebRXRequest(BaseModel):
+    """Request to start OpenWebRX acquisition."""
+    websdr_url: Optional[str] = Field(None, description="Single WebSDR URL (if None, acquires from all 7)")
+    duration_seconds: int = Field(60, ge=10, le=3600, description="Acquisition duration (10-3600 seconds)")
+    save_fft: bool = Field(True, description="Save FFT frames to database")
+    save_audio: bool = Field(False, description="Save audio frames (uses lots of storage!)")
+
+
+class AcquireOpenWebRXResponse(BaseModel):
+    """Response from acquisition trigger."""
+    task_id: str
+    message: str
+    websdr_url: Optional[str] = None
+    duration_seconds: int
+    estimated_completion_time: str
+
+
+@app.post("/api/v1/acquisition/openwebrx/acquire", response_model=AcquireOpenWebRXResponse)
+async def trigger_openwebrx_acquisition(
+    request: AcquireOpenWebRXRequest,
+    user: User = Depends(require_operator())
+):
+    """
+    Trigger OpenWebRX data acquisition.
+    
+    **Permissions:** Requires `operator` or `admin` role.
+    
+    **Single WebSDR mode:**
+    - Set `websdr_url` to specific URL (e.g., "http://sdr1.ik1jns.it:8076")
+    - Acquires from that single receiver
+    
+    **Multi-WebSDR mode:**
+    - Leave `websdr_url` as null/None
+    - Acquires from all 7 receivers simultaneously
+    
+    **Duration:**
+    - Min: 10 seconds
+    - Max: 3600 seconds (1 hour)
+    - Default: 60 seconds
+    
+    **Storage:**
+    - `save_fft=true`: Saves FFT frames (~50 MB/hour per receiver)
+    - `save_audio=false`: Don't save audio (uses ~200 MB/hour per receiver!)
+    
+    **Returns:**
+    - `task_id`: Celery task ID for status checking
+    - `estimated_completion_time`: When acquisition should finish
+    """
+    logger.info(
+        f"🎯 OpenWebRX acquisition triggered by {user.username}: "
+        f"url={request.websdr_url or 'ALL'}, duration={request.duration_seconds}s"
+    )
+    
+    try:
+        # Forward request to rf-acquisition service
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{RF_ACQUISITION_URL}/api/v1/acquisition/openwebrx/acquire",
+                json=request.dict()
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"RF Acquisition service error: {response.text}"
+                )
+            
+            result = response.json()
+            
+            # Broadcast WebSocket notification
+            await ws_manager.broadcast("acquisition:started", {
+                "task_id": result["task_id"],
+                "websdr_url": request.websdr_url,
+                "duration": request.duration_seconds,
+                "started_by": user.username,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+            
+            return result
+    
+    except httpx.RequestError as e:
+        logger.error(f"❌ Failed to trigger acquisition: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"RF Acquisition service unavailable: {str(e)}"
+        )
+
+
+@app.get("/api/v1/acquisition/openwebrx/status/{task_id}")
+async def get_openwebrx_task_status(
+    task_id: str,
+    user: User = Depends(get_current_user)
+):
+    """
+    Get status of OpenWebRX acquisition task.
+    
+    **Permissions:** Authenticated user (viewer, operator, or admin).
+    
+    **Returns:**
+    - `state`: PENDING, STARTED, SUCCESS, FAILURE
+    - `result`: Task result if completed
+    - `progress`: Progress info if running
+    """
+    logger.debug(f"📊 Checking OpenWebRX task status: {task_id}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                f"{RF_ACQUISITION_URL}/api/v1/acquisition/openwebrx/status/{task_id}"
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Task not found or error: {response.text}"
+                )
+            
+            return response.json()
+    
+    except httpx.RequestError as e:
+        logger.error(f"❌ Failed to get task status: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"RF Acquisition service unavailable: {str(e)}"
+        )
+
+
+@app.post("/api/v1/acquisition/openwebrx/health-check")
+async def trigger_openwebrx_health_check(
+    user: User = Depends(require_operator())
+):
+    """
+    Trigger health check for all 7 OpenWebRX receivers.
+    
+    **Permissions:** Requires `operator` or `admin` role.
+    
+    **Returns:**
+    - `task_id`: Celery task ID
+    - Status dict with online/offline for each receiver
+    """
+    logger.info(f"🏥 OpenWebRX health check triggered by {user.username}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.post(
+                f"{RF_ACQUISITION_URL}/api/v1/acquisition/openwebrx/health-check"
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Health check failed: {response.text}"
+                )
+            
+            result = response.json()
+            
+            # Broadcast WebSocket notification
+            await ws_manager.broadcast("websdrs:health", result)
+            
+            return result
+    
+    except httpx.RequestError as e:
+        logger.error(f"❌ Health check failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"RF Acquisition service unavailable: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=SERVICE_PORT)

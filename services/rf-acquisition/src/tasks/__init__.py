@@ -10,6 +10,11 @@ from .uptime_monitor import (
     monitor_websdrs_uptime,
     calculate_uptime_percentage,
 )
+from .acquire_openwebrx import (
+    acquire_openwebrx_single,
+    acquire_openwebrx_all,
+    health_check_openwebrx,
+)
 
 __all__ = [
     "acquire_iq",
@@ -18,4 +23,7 @@ __all__ = [
     "health_check_websdrs",
     "monitor_websdrs_uptime",
     "calculate_uptime_percentage",
+    "acquire_openwebrx_single",
+    "acquire_openwebrx_all",
+    "health_check_openwebrx",
 ]
