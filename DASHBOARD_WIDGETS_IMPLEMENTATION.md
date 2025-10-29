@@ -50,7 +50,7 @@ Implemented a fully functional, customizable dashboard with real, working widget
 #### 3. Recent Activity Widget
 **File:** `RecentActivityWidget.tsx`  
 **Data Source:** `sessionStore.fetchSessions()`  
-**Refresh:** On mount  
+**Refresh:** On mount only (sessions don't change frequently - manual refresh via dashboard refresh button)  
 **Features:**
 - Shows last 5 recording sessions
 - Session name, frequency, duration
@@ -236,8 +236,8 @@ Implemented a fully functional, customizable dashboard with real, working widget
 
 ### Modified Files
 - `frontend/src/pages/Dashboard.tsx` - Complete rewrite with widget system
-- `frontend/src/components/RecordingSessionCreator.tsx` - Fixed frequency_hz
-- `frontend/src/pages/Projects.tsx` - Fixed frequency_hz
+- `frontend/src/components/RecordingSessionCreator.tsx` - Fixed session creation: added missing known_source_id field and converted frequency from MHz to Hz (frequency_hz field)
+- `frontend/src/pages/Projects.tsx` - Fixed session creation: added missing known_source_id field and converted frequency from MHz to Hz (frequency_hz field)
 
 ### Backup Files
 - `frontend/src/pages/Dashboard.tsx.backup` - Original dashboard for reference
