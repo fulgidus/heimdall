@@ -17,6 +17,7 @@ from ..models.session import (
     SessionAnalytics,
     KnownSource,
     KnownSourceCreate,
+    KnownSourceUpdate,
 )
 from ..db import get_pool
 
@@ -364,7 +365,7 @@ async def list_known_sources():
     
     query = """
         SELECT id, name, description, frequency_hz, latitude, longitude,
-               power_dbm, source_type, is_validated, created_at, updated_at
+               power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
         FROM heimdall.known_sources
         ORDER BY name
     """
@@ -374,6 +375,27 @@ async def list_known_sources():
         return [KnownSource(**dict(row)) for row in rows]
 
 
+@router.get("/known-sources/{source_id}", response_model=KnownSource)
+async def get_known_source(source_id: UUID):
+    """Get a specific known RF source"""
+    pool = await get_pool()
+    
+    query = """
+        SELECT id, name, description, frequency_hz, latitude, longitude,
+               power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+        FROM heimdall.known_sources
+        WHERE id = $1
+    """
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, source_id)
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Known source not found")
+        
+        return KnownSource(**dict(row))
+
+
 @router.post("/known-sources", response_model=KnownSource, status_code=201)
 async def create_known_source(source: KnownSourceCreate):
     """Create a new known RF source"""
@@ -381,10 +403,10 @@ async def create_known_source(source: KnownSourceCreate):
     
     query = """
         INSERT INTO heimdall.known_sources 
-        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated, error_margin_meters)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, name, description, frequency_hz, latitude, longitude,
-                  power_dbm, source_type, is_validated, created_at, updated_at
+                  power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
     """
     
     async with pool.acquire() as conn:
@@ -399,6 +421,7 @@ async def create_known_source(source: KnownSourceCreate):
                 source.power_dbm,
                 source.source_type,
                 source.is_validated,
+                source.error_margin_meters,
             )
             
             return KnownSource(**dict(row))
@@ -407,3 +430,118 @@ async def create_known_source(source: KnownSourceCreate):
                 status_code=400,
                 detail="A known source with this name already exists"
             )
+
+
+@router.put("/known-sources/{source_id}", response_model=KnownSource)
+async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
+    """Update a known RF source"""
+    pool = await get_pool()
+    
+    # Build dynamic update query based on provided fields
+    update_fields = []
+    params = []
+    param_count = 1
+    
+    if source.name is not None:
+        update_fields.append(f"name = ${param_count}")
+        params.append(source.name)
+        param_count += 1
+    
+    if source.description is not None:
+        update_fields.append(f"description = ${param_count}")
+        params.append(source.description)
+        param_count += 1
+    
+    if source.frequency_hz is not None:
+        update_fields.append(f"frequency_hz = ${param_count}")
+        params.append(source.frequency_hz)
+        param_count += 1
+    
+    if source.latitude is not None:
+        update_fields.append(f"latitude = ${param_count}")
+        params.append(source.latitude)
+        param_count += 1
+    
+    if source.longitude is not None:
+        update_fields.append(f"longitude = ${param_count}")
+        params.append(source.longitude)
+        param_count += 1
+    
+    if source.power_dbm is not None:
+        update_fields.append(f"power_dbm = ${param_count}")
+        params.append(source.power_dbm)
+        param_count += 1
+    
+    if source.source_type is not None:
+        update_fields.append(f"source_type = ${param_count}")
+        params.append(source.source_type)
+        param_count += 1
+    
+    if source.is_validated is not None:
+        update_fields.append(f"is_validated = ${param_count}")
+        params.append(source.is_validated)
+        param_count += 1
+    
+    if source.error_margin_meters is not None:
+        update_fields.append(f"error_margin_meters = ${param_count}")
+        params.append(source.error_margin_meters)
+        param_count += 1
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    # Always update updated_at
+    update_fields.append("updated_at = NOW()")
+    
+    params.append(source_id)
+    
+    query = f"""
+        UPDATE heimdall.known_sources
+        SET {', '.join(update_fields)}
+        WHERE id = ${param_count}
+        RETURNING id, name, description, frequency_hz, latitude, longitude,
+                  power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+    """
+    
+    async with pool.acquire() as conn:
+        try:
+            row = await conn.fetchrow(query, *params)
+            
+            if not row:
+                raise HTTPException(status_code=404, detail="Known source not found")
+            
+            return KnownSource(**dict(row))
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(
+                status_code=400,
+                detail="A known source with this name already exists"
+            )
+
+
+@router.delete("/known-sources/{source_id}", status_code=204)
+async def delete_known_source(source_id: UUID):
+    """Delete a known RF source"""
+    pool = await get_pool()
+    
+    async with pool.acquire() as conn:
+        # Check if source is in use by any recording sessions
+        usage_check = await conn.fetchval(
+            "SELECT COUNT(*) FROM heimdall.recording_sessions WHERE known_source_id = $1",
+            source_id
+        )
+        
+        if usage_check > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete source: it is referenced by {usage_check} recording session(s)"
+            )
+        
+        result = await conn.execute(
+            "DELETE FROM heimdall.known_sources WHERE id = $1",
+            source_id
+        )
+        
+        if result == "DELETE 0":
+            raise HTTPException(status_code=404, detail="Known source not found")
+        
+        return None

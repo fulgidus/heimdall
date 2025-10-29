@@ -17,6 +17,7 @@ const SessionHistory = lazy(() => import('./pages/SessionHistory'));
 const WebSDRManagement = lazy(() => import('./pages/WebSDRManagement'));
 const SystemStatus = lazy(() => import('./pages/SystemStatus'));
 const DataIngestion = lazy(() => import('./pages/DataIngestion'));
+const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -137,6 +138,14 @@ function App() {
                             element={
                                 <ProtectedRoute>
                                     <SystemStatus />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/sources"
+                            element={
+                                <ProtectedRoute>
+                                    <SourcesManagement />
                                 </ProtectedRoute>
                             }
                         />
