@@ -16,9 +16,9 @@ export interface KnownSource {
     id: string;
     name: string;
     description?: string;
-    frequency_hz: number;
-    latitude: number;
-    longitude: number;
+    frequency_hz?: number;
+    latitude?: number;
+    longitude?: number;
     power_dbm?: number;
     source_type?: string;
     is_validated: boolean;
@@ -30,9 +30,9 @@ export interface KnownSource {
 export interface KnownSourceCreate {
     name: string;
     description?: string;
-    frequency_hz: number;
-    latitude: number;
-    longitude: number;
+    frequency_hz?: number;
+    latitude?: number;
+    longitude?: number;
     power_dbm?: number;
     source_type?: string;
     is_validated?: boolean;
