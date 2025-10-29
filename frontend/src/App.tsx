@@ -35,6 +35,15 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const { isAuthenticated } = useAuthStore();
+    
+    // Allow bypass in development mode when VITE_ENABLE_DEBUG is true
+    const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_ENV === 'development';
+    const debugMode = import.meta.env.VITE_ENABLE_DEBUG === 'true';
+    
+    // Bypass auth in development/debug mode
+    if (isDevelopment && debugMode) {
+        return <DattaLayout>{children}</DattaLayout>;
+    }
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
