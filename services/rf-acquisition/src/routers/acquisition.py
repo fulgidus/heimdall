@@ -36,7 +36,8 @@ def get_websdrs_config() -> list[dict]:
     websdrs_config = []
     for idx, station in enumerate(active_stations, start=1):
         config = {
-            "id": idx,  # Sequential ID for compatibility
+            "id": idx,  # Sequential ID for compatibility with legacy code
+            "uuid": str(station.id),  # Real UUID for frontend matching
             "name": station.name,
             "url": station.url,
             "location_name": station.location_description or f"{station.name}, {station.country or 'Italy'}",
@@ -220,6 +221,7 @@ async def check_websdrs_health():
         
         for ws_config in websdrs_config:
             ws_id = ws_config['id']
+            ws_uuid = ws_config['uuid']  # Use UUID as key for frontend
             # IMPORTANT: Celery serializes dict keys as strings!
             is_online = result.get(str(ws_id), False)
             
@@ -230,8 +232,8 @@ async def check_websdrs_health():
             # Calculate uptime from database history (last 24 hours)
             uptime = calculate_uptime_percentage(ws_id, hours=24)
             
-            health_status[ws_id] = {
-                'websdr_id': ws_id,
+            health_status[ws_uuid] = {
+                'websdr_id': ws_uuid,  # Use UUID for frontend matching
                 'name': ws_config['name'],
                 'status': 'online' if is_online else 'offline',
                 'last_check': check_time,
@@ -240,7 +242,7 @@ async def check_websdrs_health():
             }
             
             if not is_online:
-                health_status[ws_id]['error_message'] = 'Health check failed or timed out'
+                health_status[ws_uuid]['error_message'] = 'Health check failed or timed out'
         
         logger.info(f"Health check response ready with metrics")
         return health_status

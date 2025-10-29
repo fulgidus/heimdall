@@ -55,6 +55,12 @@ def start_beat():
     import time
     time.sleep(2)
     
+    # Rimuovi il pidfile se esiste già (cleanup da restart precedenti)
+    pidfile = "/tmp/celerybeat.pid"
+    if os.path.exists(pidfile):
+        print(f"[BEAT] Removing stale pidfile: {pidfile}")
+        os.remove(pidfile)
+    
     log_level = os.getenv("LOG_LEVEL", "info").upper()
     cmd = [
         sys.executable, "-m", "celery",
@@ -62,7 +68,7 @@ def start_beat():
         "beat",
         "--loglevel", log_level,
         "--scheduler", "celery.beat:PersistentScheduler",
-        "--pidfile", "/tmp/celerybeat.pid",
+        "--pidfile", pidfile,
         "--schedule", "/tmp/celerybeat-schedule"
     ]
     print(f"[BEAT] Starting: {' '.join(cmd)}")
