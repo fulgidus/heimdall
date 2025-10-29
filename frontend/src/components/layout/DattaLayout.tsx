@@ -36,6 +36,7 @@ const DattaLayout: React.FC<DattaLayoutProps> = ({ children }) => {
             icon: 'ph-radio',
             items: [
                 { label: 'Localization', path: '/localization', icon: 'ph-map-pin' },
+                { label: 'Sources Management', path: '/sources', icon: 'ph-broadcast' },
                 { label: 'WebSDR Management', path: '/websdrs', icon: 'ph-radio-button' },
                 { label: 'Data Ingestion', path: '/data-ingestion', icon: 'ph-database' },
                 { label: 'Recording Session', path: '/recording', icon: 'ph-record' },
