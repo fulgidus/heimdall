@@ -13,6 +13,7 @@ import type {
     SessionAnalytics,
     KnownSource,
     KnownSourceCreate,
+    KnownSourceUpdate,
 } from '@/services/api/session';
 import { sessionService } from '@/services/api';
 
@@ -61,6 +62,8 @@ interface SessionStore {
 
     fetchKnownSources: () => Promise<void>;
     createKnownSource: (source: KnownSourceCreate) => Promise<KnownSource>;
+    updateKnownSource: (sourceId: string, source: KnownSourceUpdate) => Promise<KnownSource>;
+    deleteKnownSource: (sourceId: string) => Promise<void>;
 
     setStatusFilter: (status: string | null) => void;
     setApprovalFilter: (approval: string | null) => void;
@@ -233,6 +236,32 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             return newSource;
         } catch (error) {
             console.error('Known source creation error:', error);
+            throw error;
+        }
+    },
+
+    updateKnownSource: async (sourceId: string, source: KnownSourceUpdate) => {
+        try {
+            const updatedSource = await sessionService.updateKnownSource(sourceId, source);
+
+            // Refresh known sources list
+            await get().fetchKnownSources();
+
+            return updatedSource;
+        } catch (error) {
+            console.error('Known source update error:', error);
+            throw error;
+        }
+    },
+
+    deleteKnownSource: async (sourceId: string) => {
+        try {
+            await sessionService.deleteKnownSource(sourceId);
+
+            // Refresh known sources list
+            await get().fetchKnownSources();
+        } catch (error) {
+            console.error('Known source deletion error:', error);
             throw error;
         }
     },

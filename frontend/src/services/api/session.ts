@@ -22,6 +22,7 @@ export interface KnownSource {
     power_dbm?: number;
     source_type?: string;
     is_validated: boolean;
+    error_margin_meters: number;
     created_at: string;
     updated_at: string;
 }
@@ -35,6 +36,19 @@ export interface KnownSourceCreate {
     power_dbm?: number;
     source_type?: string;
     is_validated?: boolean;
+    error_margin_meters?: number;
+}
+
+export interface KnownSourceUpdate {
+    name?: string;
+    description?: string;
+    frequency_hz?: number;
+    latitude?: number;
+    longitude?: number;
+    power_dbm?: number;
+    source_type?: string;
+    is_validated?: boolean;
+    error_margin_meters?: number;
 }
 
 export interface RecordingSession {
@@ -64,8 +78,9 @@ export interface RecordingSessionWithDetails extends RecordingSession {
 }
 
 export interface RecordingSessionCreate {
+    known_source_id: string;
     session_name: string;
-    frequency_mhz: number;
+    frequency_hz: number;
     duration_seconds: number;
     notes?: string;
 }
@@ -181,11 +196,34 @@ export async function listKnownSources(): Promise<KnownSource[]> {
 }
 
 /**
+ * Get a specific known RF source
+ */
+export async function getKnownSource(sourceId: string): Promise<KnownSource> {
+    const response = await api.get<KnownSource>(`/api/v1/sessions/known-sources/${sourceId}`);
+    return response.data;
+}
+
+/**
  * Create a new known RF source
  */
 export async function createKnownSource(source: KnownSourceCreate): Promise<KnownSource> {
     const response = await api.post<KnownSource>('/api/v1/sessions/known-sources', source);
     return response.data;
+}
+
+/**
+ * Update a known RF source
+ */
+export async function updateKnownSource(sourceId: string, source: KnownSourceUpdate): Promise<KnownSource> {
+    const response = await api.put<KnownSource>(`/api/v1/sessions/known-sources/${sourceId}`, source);
+    return response.data;
+}
+
+/**
+ * Delete a known RF source
+ */
+export async function deleteKnownSource(sourceId: string): Promise<void> {
+    await api.delete(`/api/v1/sessions/known-sources/${sourceId}`);
 }
 
 const sessionService = {
@@ -197,7 +235,10 @@ const sessionService = {
     deleteSession,
     getSessionAnalytics,
     listKnownSources,
+    getKnownSource,
     createKnownSource,
+    updateKnownSource,
+    deleteKnownSource,
 };
 
 export default sessionService;

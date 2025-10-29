@@ -35,18 +35,19 @@ const RecordingSession: React.FC = () => {
     const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
 
     const handleStartAcquisition = async () => {
-        if (!formData.knownSourceId || !formData.sessionName) {
-            alert('Please select a source and enter a session name');
+        if (!formData.knownSourceId || !formData.sessionName || !formData.frequency) {
+            alert('Please select a source, enter a session name, and specify frequency');
             return;
         }
 
         try {
             setIsAcquiring(true);
 
-            // Create session in database
+            // Create session in database with correct field names
             await createSession({
+                known_source_id: formData.knownSourceId,
                 session_name: formData.sessionName,
-                frequency_mhz: parseFloat(formData.frequency),
+                frequency_hz: Math.round(parseFloat(formData.frequency) * 1e6), // Convert MHz to Hz
                 duration_seconds: formData.duration,
                 notes: formData.notes,
             });
