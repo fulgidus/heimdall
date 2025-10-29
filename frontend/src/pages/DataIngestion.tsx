@@ -77,7 +77,7 @@ const DataIngestion: React.FC = () => {
             {error && (
                 <div className="alert alert-danger alert-dismissible fade show" role="alert">
                     <strong>Error!</strong> {error}
-                    <button type="button" className="btn-close" data-bs-dismiss="alert" onClick={clearError}></button>
+                    <button type="button" className="btn-close" onClick={clearError}></button>
                 </div>
             )}
 
