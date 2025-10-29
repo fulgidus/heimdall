@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 
 export interface MapConfig {
-    container: string | HTMLElement;
+    container: string | HTMLElement | null;
     style?: string;
     center?: [number, number];
     zoom?: number;
@@ -37,6 +37,11 @@ export function useMapbox(config: MapConfig): UseMapboxResult {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Don't initialize if container is not ready
+        if (!config.container) {
+            return;
+        }
+
         // Get access token from environment or config
         const token = config.accessToken || import.meta.env.VITE_MAPBOX_TOKEN;
 

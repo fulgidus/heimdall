@@ -31,8 +31,17 @@ const MapContainer: React.FC<MapContainerProps> = ({
     className = '',
 }) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    const [containerReady, setContainerReady] = React.useState(false);
+
+    // Wait for container to be ready
+    React.useEffect(() => {
+        if (mapContainerRef.current) {
+            setContainerReady(true);
+        }
+    }, []);
+
     const { map, isLoaded, error } = useMapbox({
-        container: mapContainerRef.current!,
+        container: containerReady && mapContainerRef.current ? mapContainerRef.current : null,
     });
 
     // Show error if map fails to load
