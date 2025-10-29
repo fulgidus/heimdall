@@ -9,3 +9,7 @@ psycopg2-binary==2.9.9
 # Caching and message queue
 redis==5.0.1
 celery==5.3.4
+pika==1.3.2
+
+# Object storage
+minio==7.2.0

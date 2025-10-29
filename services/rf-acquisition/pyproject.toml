@@ -23,6 +23,7 @@ dependencies = [
     "scipy==1.11.4",
     "h5py==3.10.0",
     "boto3==1.29.7",
+    "websockets==12.0",
 ]
 
 [project.optional-dependencies]

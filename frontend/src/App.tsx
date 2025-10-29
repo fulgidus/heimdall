@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { lazy, Suspense } from 'react';
 import { useAuthStore } from './store';
 import DattaLayout from './components/layout/DattaLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Lazy load all pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -16,6 +17,7 @@ const SessionHistory = lazy(() => import('./pages/SessionHistory'));
 const WebSDRManagement = lazy(() => import('./pages/WebSDRManagement'));
 const SystemStatus = lazy(() => import('./pages/SystemStatus'));
 const DataIngestion = lazy(() => import('./pages/DataIngestion'));
+const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -43,108 +45,118 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
 function App() {
     return (
-        <Router>
-            <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/login" element={<Login />} />
+        <ErrorBoundary>
+            <Router>
+                <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
+                        {/* Public Routes */}
+                        <Route path="/login" element={<Login />} />
 
-                    {/* Protected Routes */}
-                    <Route
-                        path="/dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/localization"
-                        element={
-                            <ProtectedRoute>
-                                <Localization />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/analytics"
-                        element={
-                            <ProtectedRoute>
-                                <Analytics />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/data-ingestion"
-                        element={
-                            <ProtectedRoute>
-                                <DataIngestion />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/projects"
-                        element={
-                            <ProtectedRoute>
-                                <Projects />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/settings"
-                        element={
-                            <ProtectedRoute>
-                                <Settings />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/profile"
-                        element={
-                            <ProtectedRoute>
-                                <Profile />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/recording"
-                        element={
-                            <ProtectedRoute>
-                                <RecordingSession />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/history"
-                        element={
-                            <ProtectedRoute>
-                                <SessionHistory />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/websdrs"
-                        element={
-                            <ProtectedRoute>
-                                <WebSDRManagement />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/system-status"
-                        element={
-                            <ProtectedRoute>
-                                <SystemStatus />
-                            </ProtectedRoute>
-                        }
-                    />
+                        {/* Protected Routes */}
+                        <Route
+                            path="/dashboard"
+                            element={
+                                <ProtectedRoute>
+                                    <Dashboard />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/localization"
+                            element={
+                                <ProtectedRoute>
+                                    <Localization />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/analytics"
+                            element={
+                                <ProtectedRoute>
+                                    <Analytics />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/data-ingestion"
+                            element={
+                                <ProtectedRoute>
+                                    <DataIngestion />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/projects"
+                            element={
+                                <ProtectedRoute>
+                                    <Projects />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/settings"
+                            element={
+                                <ProtectedRoute>
+                                    <Settings />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/profile"
+                            element={
+                                <ProtectedRoute>
+                                    <Profile />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/recording"
+                            element={
+                                <ProtectedRoute>
+                                    <RecordingSession />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/history"
+                            element={
+                                <ProtectedRoute>
+                                    <SessionHistory />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/websdrs"
+                            element={
+                                <ProtectedRoute>
+                                    <WebSDRManagement />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/system-status"
+                            element={
+                                <ProtectedRoute>
+                                    <SystemStatus />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/sources"
+                            element={
+                                <ProtectedRoute>
+                                    <SourcesManagement />
+                                </ProtectedRoute>
+                            }
+                        />
 
-                    {/* Redirect */}
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-            </Suspense>
-        </Router>
+                        {/* Redirect */}
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
+                </Suspense>
+            </Router>
+        </ErrorBoundary>
     );
 }
 

@@ -26,6 +26,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy installed packages from builder
 COPY --from=builder /root/.local /home/appuser/.local
 
+# Copy shared common module
+COPY --chown=appuser:appuser services/common/ ./common/
+
 # Copy application code
 COPY --chown=appuser:appuser services/rf-acquisition/src/ ./src/
 COPY --chown=appuser:appuser services/rf-acquisition/entrypoint.py ./entrypoint.py
@@ -37,7 +40,7 @@ USER appuser
 EXPOSE 8001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8001/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8001/ready || exit 1
 
 CMD ["python", "entrypoint.py"]

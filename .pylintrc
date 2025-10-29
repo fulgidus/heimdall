@@ -1,0 +1,21 @@
+[MASTER]
+jobs=4
+extension-pkg-whitelist=pydantic,numpy
+
+[FORMAT]
+max-line-length=100
+
+[DESIGN]
+max-locals=15
+max-branches=12
+max-attributes=7
+
+[MESSAGES CONTROL]
+# Only enable errors and fatal issues
+enable=E,F
+disable=
+    import-error,  # Disabled: Dependencies may not be installed in CI, mypy handles import validation
+    missing-docstring,
+    too-many-arguments,
+    duplicate-code,
+    line-too-long

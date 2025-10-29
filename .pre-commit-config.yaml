@@ -13,12 +13,11 @@ repos:
         args: ['--config', 'pyproject.toml', '--fix']
   
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.6.0
+    rev: v1.6.1
     hooks:
       - id: mypy
-        additional_dependencies: []
-        args: ['--config-file', 'pyproject.toml']
-        exclude: '^(tests/|conftest\.py)'
+        args: ['--strict', '--show-error-codes']
+        additional_dependencies: [pydantic, numpy]
   
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -31,6 +30,13 @@ repos:
       - id: check-merge-conflict
       - id: check-json
       - id: check-toml
+      - id: check-ast
+  
+  - repo: https://github.com/pylint-dev/pylint
+    rev: pylint-3.0.0
+    hooks:
+      - id: pylint
+        args: [--disable=all, --enable=E,F]
   
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0

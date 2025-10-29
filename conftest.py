@@ -26,7 +26,9 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip E2E tests che richiedono server running"""
+    """Skip E2E tests that require server running"""
+    import pytest
+    
     skip_markers = [
         'e2e',
         'health_endpoint',
@@ -36,7 +38,8 @@ def pytest_collection_modifyitems(config, items):
     ]
     
     for item in items:
-        # Se il test è in una directory e2e o ha un marker da skippare, marcalo
+        # Skip tests in e2e directories or with specific markers
         if "e2e" in str(item.fspath):
-            item.add_marker("skip")
-            item.add_marker("SKIPPED_E2E_REQUIRES_SERVER")
+            # Don't skip our new e2e tests in services/tests/
+            if "services/tests/test_e2e" not in str(item.fspath):
+                item.add_marker(pytest.mark.skip(reason="E2E test requires running server"))

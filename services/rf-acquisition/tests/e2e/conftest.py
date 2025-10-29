@@ -62,6 +62,13 @@ async def http_client(api_base_url):
 
 
 @pytest.fixture
+async def api_client(api_base_url):
+    """Async API client (alias for http_client)."""
+    async with AsyncClient(base_url=api_base_url, timeout=30.0) as client:
+        yield client
+
+
+@pytest.fixture
 def sync_http_client(api_base_url):
     """Sync HTTP client for API calls."""
     with Client(base_url=api_base_url, timeout=30.0) as client:

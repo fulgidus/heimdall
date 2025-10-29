@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://:changeme@redis:6379/0"
     
     # Celery configuration
-    celery_broker_url: str = "amqp://guest:guest@rabbitmq:5672//"
+    celery_broker_url: str = "amqp://guest:guest@rabbitmq:5672/"
     celery_result_backend_url: str = "redis://:changeme@redis:6379/1"
     celery_check_required: bool = False  # Set to True in production
     

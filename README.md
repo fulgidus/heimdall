@@ -77,6 +77,7 @@ make health-check
 **Reference**:
 - **[API Reference](docs/api_reference.md)** - REST endpoints
 - **[Architecture](docs/ARCHITECTURE.md)** - System design
+- **[Health Checks](docs/HEALTH_CHECKS.md)** - Service health monitoring
 - **[Deployment](docs/deployment_instructions.md)** - Production setup
 
 **Project**:

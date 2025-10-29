@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     mlflow_experiment_name: str = "heimdall-localization"
     mlflow_run_name_prefix: str = "rf-localization"
     
+    # MinIO configuration
+    minio_url: str = "http://minio:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

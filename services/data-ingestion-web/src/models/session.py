@@ -18,6 +18,7 @@ class KnownSource(BaseModel):
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False
+    error_margin_meters: float = 50.0
     created_at: datetime
     updated_at: datetime
 
@@ -32,6 +33,20 @@ class KnownSourceCreate(BaseModel):
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False
+    error_margin_meters: float = Field(default=50.0, gt=0, description="Error margin radius in meters")
+
+
+class KnownSourceUpdate(BaseModel):
+    """Update a known source"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    frequency_hz: Optional[int] = Field(None, gt=0, description="Frequency in Hz")
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+    power_dbm: Optional[float] = None
+    source_type: Optional[str] = None
+    is_validated: Optional[bool] = None
+    error_margin_meters: Optional[float] = Field(None, gt=0, description="Error margin radius in meters")
 
 
 class RecordingSession(BaseModel):

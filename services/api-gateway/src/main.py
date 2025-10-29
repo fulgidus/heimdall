@@ -15,6 +15,13 @@ from .config import settings
 from .models.health import HealthResponse
 from .websocket_manager import manager as ws_manager, heartbeat_task
 
+# Import common health utilities (after path setup)
+try:
+    from common.health import HealthChecker
+    HEALTH_CHECKER_ENABLED = True
+except ImportError:
+    HEALTH_CHECKER_ENABLED = False
+
 # Import Keycloak authentication
 try:
     from auth.keycloak_auth import get_current_user, require_admin, require_operator
@@ -66,6 +73,44 @@ DATA_INGESTION_URL = settings.data_ingestion_url
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# Initialize health checker if available
+if HEALTH_CHECKER_ENABLED:
+    health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)
+    
+    # Register backend service health checks
+    async def check_rf_acquisition():
+        """Check RF acquisition service connectivity."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{RF_ACQUISITION_URL}/health")
+            if response.status_code != 200:
+                raise Exception(f"RF Acquisition unhealthy: {response.status_code}")
+    
+    async def check_inference():
+        """Check inference service connectivity."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{INFERENCE_URL}/health")
+            if response.status_code != 200:
+                raise Exception(f"Inference unhealthy: {response.status_code}")
+    
+    async def check_training():
+        """Check training service connectivity."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{TRAINING_URL}/health")
+            if response.status_code != 200:
+                raise Exception(f"Training unhealthy: {response.status_code}")
+    
+    async def check_data_ingestion():
+        """Check data ingestion service connectivity."""
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{DATA_INGESTION_URL}/health")
+            if response.status_code != 200:
+                raise Exception(f"Data Ingestion unhealthy: {response.status_code}")
+    
+    health_checker.register_dependency("rf-acquisition", check_rf_acquisition)
+    health_checker.register_dependency("inference", check_inference)
+    health_checker.register_dependency("training", check_training)
+    health_checker.register_dependency("data-ingestion", check_data_ingestion)
 
 
 async def proxy_request(request: Request, target_url: str):
@@ -137,7 +182,11 @@ async def proxy_request(request: Request, target_url: str):
 
 @app.get("/health")
 async def health_check():
-    """Health check for API Gateway."""
+    """
+    Liveness probe - checks if API Gateway is alive.
+    
+    Returns basic health status without backend service checks.
+    """
     return HealthResponse(
         status="healthy",
         service=SERVICE_NAME,
@@ -146,10 +195,68 @@ async def health_check():
     )
 
 
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """
+    Detailed health check with backend service status.
+    
+    Returns comprehensive health information including all backend services.
+    """
+    if not HEALTH_CHECKER_ENABLED:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "up",
+                "service_name": SERVICE_NAME,
+                "version": SERVICE_VERSION,
+                "message": "Health checker not available"
+            }
+        )
+    
+    result = await health_checker.check_all()
+    return JSONResponse(
+        status_code=200 if result.ready else 503,
+        content=result.to_dict()
+    )
+
+
 @app.get("/ready")
 async def readiness_check():
-    """Readiness check for API Gateway."""
-    return {"ready": True}
+    """
+    Readiness probe - checks if API Gateway can handle requests.
+    
+    Validates connectivity to backend services.
+    """
+    if not HEALTH_CHECKER_ENABLED:
+        return {"ready": True, "service": SERVICE_NAME}
+    
+    try:
+        result = await health_checker.check_all()
+        
+        # Gateway can be ready even if some backend services are down
+        # It will still proxy requests and return appropriate errors
+        return JSONResponse(
+            status_code=200,
+            content={
+                "ready": True,
+                "service": SERVICE_NAME,
+                "backend_services": result.to_dict()["dependencies"]
+            }
+        )
+    except Exception as e:
+        logger.error("Readiness check failed: %s", str(e), exc_info=True)
+        return JSONResponse(
+            status_code=200,  # Gateway is still ready even if checks fail
+            content={"ready": True, "service": SERVICE_NAME, "warning": str(e)}
+        )
+
+
+@app.get("/startup")
+async def startup_check():
+    """
+    Startup probe - checks if API Gateway has finished starting up.
+    """
+    return await readiness_check()
 
 
 # These must be defined BEFORE the catch-all {path:path} routes to take precedence

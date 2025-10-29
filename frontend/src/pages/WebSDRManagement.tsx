@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useWebSDRStore } from '../store/websdrStore';
+import WebSDRModal from '../components/WebSDRModal';
+import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import type { WebSDRConfig } from '@/services/api/types';
 
 const WebSDRManagement: React.FC = () => {
     const {
@@ -10,11 +13,21 @@ const WebSDRManagement: React.FC = () => {
         fetchWebSDRs,
         checkHealth,
         refreshAll,
-        lastHealthCheck,
+        // lastHealthCheck,  // Commented - not used after removing stats cards
+        createWebSDR,
+        updateWebSDR,
+        deleteWebSDR,
     } = useWebSDRStore();
 
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [selectedWebSDR, setSelectedWebSDR] = useState<number | null>(null);
+    const [selectedWebSDR, setSelectedWebSDR] = useState<string | null>(null);
+
+    // Modal states
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [editingWebSDR, setEditingWebSDR] = useState<WebSDRConfig | null>(null);
+    const [deletingWebSDR, setDeletingWebSDR] = useState<WebSDRConfig | null>(null);
 
     useEffect(() => {
         // Initial data load
@@ -38,11 +51,50 @@ const WebSDRManagement: React.FC = () => {
         setIsRefreshing(false);
     };
 
-    // Calculate statistics
-    const onlineCount = Object.values(healthStatus).filter(h => h.status === 'online').length;
-    const totalCount = websdrs.length;
-    const activeCount = websdrs.filter(w => w.is_active).length;
-    const avgResponseTime = Object.values(healthStatus).reduce((sum, h) => sum + (h.response_time_ms || 0), 0) / (Object.keys(healthStatus).length || 1);
+    // Modal handlers
+    const handleCreateClick = () => {
+        setShowCreateModal(true);
+    };
+
+    const handleEditClick = (websdr: WebSDRConfig) => {
+        setEditingWebSDR(websdr);
+        setShowEditModal(true);
+    };
+
+    const handleDeleteClick = (websdr: WebSDRConfig) => {
+        setDeletingWebSDR(websdr);
+        setShowDeleteModal(true);
+    };
+
+    const handleCreateSave = async (data: Partial<WebSDRConfig>) => {
+        await createWebSDR(data as Omit<WebSDRConfig, 'id'>);
+        setShowCreateModal(false);
+        await refreshAll();
+    };
+
+    const handleEditSave = async (data: Partial<WebSDRConfig>) => {
+        if (editingWebSDR) {
+            await updateWebSDR(editingWebSDR.id, data);
+            setShowEditModal(false);
+            setEditingWebSDR(null);
+            await refreshAll();
+        }
+    };
+
+    const handleDeleteConfirm = async (hardDelete: boolean) => {
+        if (deletingWebSDR) {
+            await deleteWebSDR(deletingWebSDR.id, hardDelete);
+            setShowDeleteModal(false);
+            setDeletingWebSDR(null);
+            await refreshAll();
+        }
+    };
+
+    // Calculate statistics - Commented because stats cards were removed
+    // const onlineCount = Object.values(healthStatus).filter(h => h.status === 'online').length;
+    // const totalCount = websdrs.length;
+    // const activeCount = websdrs.filter(w => w.is_active).length;
+    // const avgResponseTime = Object.values(healthStatus).reduce((sum, h) => sum + (h.response_time_ms || 0), 0) / (Object.keys(healthStatus).length || 1);
 
     return (
         <>
@@ -74,118 +126,6 @@ const WebSDRManagement: React.FC = () => {
                 </div>
             )}
 
-            {/* Statistics Cards */}
-            <div className="row">
-                <div className="col-md-6 col-xl-3">
-                    <div className="card">
-                        <div className="card-body">
-                            <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
-                                    <div className="avtar avtar-s bg-light-success rounded">
-                                        <i className="ph ph-radio-button f-20"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h6 className="mb-0">Online Receivers</h6>
-                                    <h4 className="mb-0">{onlineCount}/{totalCount}</h4>
-                                </div>
-                            </div>
-                            <div className="bg-body p-2 mt-2 rounded">
-                                <div className="d-flex align-items-center justify-content-between">
-                                    <p className="text-muted mb-0 f-12">Availability</p>
-                                    <span className="badge bg-light-success">
-                                        {totalCount > 0 ? Math.round((onlineCount / totalCount) * 100) : 0}%
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="col-md-6 col-xl-3">
-                    <div className="card">
-                        <div className="card-body">
-                            <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
-                                    <div className="avtar avtar-s bg-light-primary rounded">
-                                        <i className="ph ph-check-circle f-20"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h6 className="mb-0">Active Receivers</h6>
-                                    <h4 className="mb-0">{activeCount}</h4>
-                                </div>
-                            </div>
-                            <div className="bg-body p-2 mt-2 rounded">
-                                <div className="d-flex align-items-center justify-content-between">
-                                    <p className="text-muted mb-0 f-12">Total Configured</p>
-                                    <span className="badge bg-light-primary">{totalCount}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="col-md-6 col-xl-3">
-                    <div className="card">
-                        <div className="card-body">
-                            <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
-                                    <div className="avtar avtar-s bg-light-warning rounded">
-                                        <i className="ph ph-timer f-20"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h6 className="mb-0">Avg Response</h6>
-                                    <h4 className="mb-0">{Math.round(avgResponseTime)}ms</h4>
-                                </div>
-                            </div>
-                            <div className="bg-body p-2 mt-2 rounded">
-                                <div className="d-flex align-items-center justify-content-between">
-                                    <p className="text-muted mb-0 f-12">Performance</p>
-                                    <span className={`badge ${avgResponseTime < 200 ? 'bg-light-success' : avgResponseTime < 500 ? 'bg-light-warning' : 'bg-light-danger'}`}>
-                                        {avgResponseTime < 200 ? 'Excellent' : avgResponseTime < 500 ? 'Good' : 'Slow'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="col-md-6 col-xl-3">
-                    <div className="card">
-                        <div className="card-body">
-                            <div className="d-flex align-items-center">
-                                <div className="flex-shrink-0">
-                                    <div className="avtar avtar-s bg-light-info rounded">
-                                        <i className="ph ph-clock f-20"></i>
-                                    </div>
-                                </div>
-                                <div className="flex-grow-1 ms-3">
-                                    <h6 className="mb-0">Last Check</h6>
-                                    <h4 className="mb-0 f-14">
-                                        {lastHealthCheck 
-                                            ? new Date(lastHealthCheck).toLocaleTimeString()
-                                            : 'Never'
-                                        }
-                                    </h4>
-                                </div>
-                            </div>
-                            <div className="bg-body p-2 mt-2 rounded">
-                                <button
-                                    className="btn btn-sm btn-link-primary w-100"
-                                    onClick={handleRefresh}
-                                    disabled={isRefreshing}
-                                >
-                                    <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
-                                    {isRefreshing ? ' Checking...' : ' Refresh Now'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             {/* WebSDR List */}
             <div className="row">
                 <div className="col-12">
@@ -193,6 +133,12 @@ const WebSDRManagement: React.FC = () => {
                         <div className="card-header d-flex align-items-center justify-content-between">
                             <h5 className="mb-0">Configured WebSDR Receivers</h5>
                             <div className="btn-group">
+                                <button
+                                    className="btn btn-sm btn-primary me-2"
+                                    onClick={handleCreateClick}
+                                >
+                                    <i className="ph ph-plus"></i> Add New WebSDR
+                                </button>
                                 <button className="btn btn-sm btn-outline-primary" onClick={handleRefresh} disabled={isRefreshing}>
                                     <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
                                     Refresh
@@ -244,14 +190,14 @@ const WebSDRManagement: React.FC = () => {
                                                                 <span className="ms-2">{websdr.name}</span>
                                                             </div>
                                                         </td>
-                                                        <td>{websdr.location_name}</td>
+                                                        <td>{websdr.location_description || '-'}</td>
                                                         <td className="f-12">
                                                             {websdr.latitude.toFixed(4)}, {websdr.longitude.toFixed(4)}
                                                         </td>
                                                         <td>
-                                                            <a 
-                                                                href={websdr.url} 
-                                                                target="_blank" 
+                                                            <a
+                                                                href={websdr.url}
+                                                                target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="link-primary"
                                                             >
@@ -283,9 +229,17 @@ const WebSDRManagement: React.FC = () => {
                                                                 </button>
                                                                 <button
                                                                     className="btn btn-sm btn-link-primary"
+                                                                    onClick={() => handleEditClick(websdr)}
                                                                     title="Edit"
                                                                 >
                                                                     <i className="ph ph-pencil-simple"></i>
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn-sm btn-link-danger"
+                                                                    onClick={() => handleDeleteClick(websdr)}
+                                                                    title="Delete"
+                                                                >
+                                                                    <i className="ph ph-trash"></i>
                                                                 </button>
                                                             </div>
                                                         </td>
@@ -299,7 +253,7 @@ const WebSDRManagement: React.FC = () => {
                                 <div className="text-center py-5">
                                     <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
                                     <p className="text-muted mb-0">No WebSDR receivers configured</p>
-                                    <button className="btn btn-primary mt-3">
+                                    <button className="btn btn-primary mt-3" onClick={handleCreateClick}>
                                         <i className="ph ph-plus-circle"></i>
                                         Add WebSDR Receiver
                                     </button>
@@ -317,7 +271,7 @@ const WebSDRManagement: React.FC = () => {
                         <div className="card">
                             <div className="card-header d-flex align-items-center justify-content-between">
                                 <h5 className="mb-0">WebSDR Details</h5>
-                                <button 
+                                <button
                                     className="btn btn-sm btn-link-secondary"
                                     onClick={() => setSelectedWebSDR(null)}
                                 >
@@ -346,7 +300,7 @@ const WebSDRManagement: React.FC = () => {
                                                         </tr>
                                                         <tr>
                                                             <td className="text-muted">Location</td>
-                                                            <td>{websdr.location_name}</td>
+                                                            <td>{websdr.location_description || '-'}</td>
                                                         </tr>
                                                         <tr>
                                                             <td className="text-muted">Latitude</td>
@@ -410,6 +364,35 @@ const WebSDRManagement: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modals */}
+            <WebSDRModal
+                show={showCreateModal}
+                onHide={() => setShowCreateModal(false)}
+                onSave={handleCreateSave}
+                mode="create"
+            />
+
+            <WebSDRModal
+                show={showEditModal}
+                onHide={() => {
+                    setShowEditModal(false);
+                    setEditingWebSDR(null);
+                }}
+                onSave={handleEditSave}
+                websdr={editingWebSDR}
+                mode="edit"
+            />
+
+            <DeleteConfirmModal
+                show={showDeleteModal}
+                onHide={() => {
+                    setShowDeleteModal(false);
+                    setDeletingWebSDR(null);
+                }}
+                onConfirm={handleDeleteConfirm}
+                websdr={deletingWebSDR}
+            />
         </>
     );
 };
