@@ -8,7 +8,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Settings = lazy(() => import('./pages/Settings'));
-const Projects = lazy(() => import('./pages/Projects'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Localization = lazy(() => import('./pages/Localization'));
 const Login = lazy(() => import('./pages/Login'));
@@ -91,14 +90,6 @@ function App() {
                             element={
                                 <ProtectedRoute>
                                     <DataIngestion />
-                                </ProtectedRoute>
-                            }
-                        />
-                        <Route
-                            path="/projects"
-                            element={
-                                <ProtectedRoute>
-                                    <Projects />
                                 </ProtectedRoute>
                             }
                         />
