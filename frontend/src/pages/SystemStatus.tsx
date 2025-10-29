@@ -145,20 +145,18 @@ const SystemStatus: React.FC = () => {
                                                     <td>
                                                         <div className="d-flex align-items-center">
                                                             <div className="flex-shrink-0">
-                                                                <div className={`avtar avtar-s ${
-                                                                    service.status === 'healthy'
+                                                                <div className={`avtar avtar-s ${service.status === 'healthy'
                                                                         ? 'bg-light-success'
                                                                         : service.status === 'degraded'
-                                                                        ? 'bg-light-warning'
-                                                                        : 'bg-light-danger'
-                                                                }`}>
-                                                                    <i className={`ph ${
-                                                                        service.status === 'healthy'
+                                                                            ? 'bg-light-warning'
+                                                                            : 'bg-light-danger'
+                                                                    }`}>
+                                                                    <i className={`ph ${service.status === 'healthy'
                                                                             ? 'ph-check-circle'
                                                                             : service.status === 'degraded'
-                                                                            ? 'ph-warning-circle'
-                                                                            : 'ph-x-circle'
-                                                                    }`}></i>
+                                                                                ? 'ph-warning-circle'
+                                                                                : 'ph-x-circle'
+                                                                        }`}></i>
                                                                 </div>
                                                             </div>
                                                             <div className="flex-grow-1 ms-3">
@@ -167,33 +165,31 @@ const SystemStatus: React.FC = () => {
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <span className={`badge ${
-                                                            service.status === 'healthy'
+                                                        <span className={`badge ${service.status === 'healthy'
                                                                 ? 'bg-light-success'
                                                                 : service.status === 'degraded'
-                                                                ? 'bg-light-warning'
-                                                                : 'bg-light-danger'
-                                                        }`}>
+                                                                    ? 'bg-light-warning'
+                                                                    : 'bg-light-danger'
+                                                            }`}>
                                                             {service.status}
                                                         </span>
                                                     </td>
                                                     <td>
                                                         <div className="progress" style={{ height: '6px' }}>
                                                             <div
-                                                                className={`progress-bar ${
-                                                                    service.status === 'healthy'
+                                                                className={`progress-bar ${service.status === 'healthy'
                                                                         ? 'bg-success'
                                                                         : service.status === 'degraded'
-                                                                        ? 'bg-warning'
-                                                                        : 'bg-danger'
-                                                                }`}
+                                                                            ? 'bg-warning'
+                                                                            : 'bg-danger'
+                                                                    }`}
                                                                 role="progressbar"
                                                                 style={{
                                                                     width: service.status === 'healthy'
                                                                         ? '100%'
                                                                         : service.status === 'degraded'
-                                                                        ? '50%'
-                                                                        : '25%'
+                                                                            ? '50%'
+                                                                            : '25%'
                                                                 }}
                                                             ></div>
                                                         </div>
@@ -230,11 +226,10 @@ const SystemStatus: React.FC = () => {
                                         <div className="col-6">
                                             <p className="text-muted mb-1">Health Status</p>
                                             <h6 className="mb-0">
-                                                <span className={`badge ${
-                                                    data.modelInfo.health_status === 'healthy'
+                                                <span className={`badge ${data.modelInfo.health_status === 'healthy'
                                                         ? 'bg-light-success'
                                                         : 'bg-light-warning'
-                                                }`}>
+                                                    }`}>
                                                     {data.modelInfo.health_status}
                                                 </span>
                                             </h6>
@@ -263,16 +258,16 @@ const SystemStatus: React.FC = () => {
                                     <div className="row">
                                         <div className="col-4">
                                             <p className="text-muted mb-1">Total Predictions</p>
-                                            <h6 className="mb-0">{data.modelInfo.predictions_total}</h6>
+                                            <h6 className="mb-0">{data.modelInfo.predictions_total ?? 0}</h6>
                                         </div>
                                         <div className="col-4">
                                             <p className="text-muted mb-1">Successful</p>
-                                            <h6 className="mb-0 text-success">{data.modelInfo.predictions_successful}</h6>
+                                            <h6 className="mb-0 text-success">{data.modelInfo.predictions_successful ?? 0}</h6>
                                         </div>
                                         <div className="col-4">
                                             <p className="text-muted mb-1">Failed</p>
                                             <h6 className="mb-0 text-danger">
-                                                {data.modelInfo.predictions_total - data.modelInfo.predictions_successful}
+                                                {(data.modelInfo.predictions_total ?? 0) - (data.modelInfo.predictions_successful ?? 0)}
                                             </h6>
                                         </div>
                                     </div>

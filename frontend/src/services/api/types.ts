@@ -79,9 +79,9 @@ export interface ModelInfo {
     loaded_at: string;
     uptime_seconds: number;
     last_prediction_at?: string;
-    predictions_total: number;
-    predictions_successful: number;
-    predictions_failed: number;
+    predictions_total?: number;
+    predictions_successful?: number;
+    predictions_failed?: number;
     is_ready: boolean;
     health_status: 'healthy' | 'degraded' | 'unhealthy';
     error_message?: string;

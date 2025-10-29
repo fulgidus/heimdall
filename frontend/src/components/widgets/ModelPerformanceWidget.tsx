@@ -52,8 +52,8 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
     }
 
     const accuracy = modelInfo.accuracy ? (modelInfo.accuracy * 100).toFixed(1) : 'N/A';
-    const successRate = modelInfo.predictions_total > 0
-        ? ((modelInfo.predictions_successful / modelInfo.predictions_total) * 100).toFixed(1)
+    const successRate = modelInfo.predictions_total && modelInfo.predictions_total > 0 && modelInfo.predictions_successful
+        ? (((modelInfo.predictions_successful ?? 0) / modelInfo.predictions_total) * 100).toFixed(1)
         : '0';
 
     return (
@@ -83,10 +83,9 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
                 <div className="list-group-item px-0 py-2">
                     <div className="d-flex justify-content-between">
                         <span className="text-muted">Status</span>
-                        <span className={`badge bg-light-${
-                            modelInfo.health_status === 'healthy' ? 'success' :
+                        <span className={`badge bg-light-${modelInfo.health_status === 'healthy' ? 'success' :
                             modelInfo.health_status === 'degraded' ? 'warning' : 'danger'
-                        }`}>
+                            }`}>
                             {modelInfo.health_status}
                         </span>
                     </div>
@@ -95,7 +94,7 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
                     <div className="d-flex justify-content-between">
                         <span className="text-muted">Predictions</span>
                         <span className="fw-medium">
-                            {modelInfo.predictions_total.toLocaleString()}
+                            {modelInfo.predictions_total?.toLocaleString() ?? '0'}
                         </span>
                     </div>
                 </div>
