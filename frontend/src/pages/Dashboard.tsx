@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDashboardStore } from '../store';
 import { useWidgetStore } from '../store/widgetStore';
 import { ConnectionState } from '../lib/websocket';
-import { 
+import {
     WidgetContainer,
     WebSDRStatusWidget,
     SystemHealthWidget,
@@ -26,7 +26,7 @@ const Dashboard: React.FC = () => {
         connectWebSocket,
         disconnectWebSocket,
     } = useDashboardStore();
-    
+
     const { widgets, resetToDefault } = useWidgetStore();
     const [showWidgetPicker, setShowWidgetPicker] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -81,7 +81,7 @@ const Dashboard: React.FC = () => {
     // Render widget based on type
     const renderWidget = (widgetConfig: typeof widgets[0]) => {
         let WidgetComponent;
-        
+
         switch (widgetConfig.type as WidgetType) {
             case 'websdr-status':
                 WidgetComponent = WebSDRStatusWidget;
@@ -174,7 +174,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </nav>
 
-            {/* Error Display */}
+            {/* Error Alert */}
             {error && (
                 <div
                     className="alert alert-danger alert-dismissible fade show"
@@ -184,16 +184,6 @@ const Dashboard: React.FC = () => {
                 >
                     <strong>Error!</strong> {error}
                     <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close error message"></button>
-                </div>
-            )}
-
-            {/* Loading Indicator */}
-            {isLoading && (
-                <div className="alert alert-info d-flex align-items-center" role="status">
-                    <div className="spinner-border spinner-border-sm me-2" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </div>
-                    <span>Loading dashboard data...</span>
                 </div>
             )}
 
@@ -304,9 +294,9 @@ const Dashboard: React.FC = () => {
             )}
 
             {/* Widget Picker Modal */}
-            <WidgetPicker 
-                show={showWidgetPicker} 
-                onClose={() => setShowWidgetPicker(false)} 
+            <WidgetPicker
+                show={showWidgetPicker}
+                onClose={() => setShowWidgetPicker(false)}
             />
         </>
     );
