@@ -4,7 +4,7 @@ Tests for RF acquisition client
 import sys
 from pathlib import Path
 from datetime import datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -21,7 +21,6 @@ class TestRFAcquisitionClient:
         """Test successful acquisition trigger"""
         client = RFAcquisitionClient(base_url="http://test-rf:8001")
         
-        from unittest.mock import Mock
         mock_response = Mock()
         mock_response.json.return_value = {
             "task_id": "test-task-123",
@@ -60,7 +59,6 @@ class TestRFAcquisitionClient:
         
         start_time = datetime(2024, 1, 15, 12, 30, 0)
         
-        from unittest.mock import Mock
         mock_response = Mock()
         mock_response.json.return_value = {"task_id": "test-task-123"}
         mock_response.raise_for_status = lambda: None
@@ -108,7 +106,6 @@ class TestRFAcquisitionClient:
         """Test getting task status"""
         client = RFAcquisitionClient()
         
-        from unittest.mock import Mock
         mock_response = Mock()
         mock_response.json.return_value = {
             "task_id": "test-task-123",

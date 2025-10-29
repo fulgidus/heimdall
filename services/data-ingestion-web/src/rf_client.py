@@ -4,7 +4,7 @@ Client for RF acquisition service
 import httpx
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class RFAcquisitionClient:
             dict with task_id and status
         """
         if start_time is None:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
         
         frequency_mhz = frequency_hz / 1_000_000.0
         

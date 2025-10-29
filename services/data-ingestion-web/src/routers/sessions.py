@@ -233,6 +233,22 @@ async def get_session(session_id: UUID):
         )
 
 
+async def update_session_to_failed(pool, session_id: UUID):
+    """Update session status to failed with end time"""
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE heimdall.recording_sessions
+            SET status = 'failed', 
+                session_end = NOW(),
+                duration_seconds = EXTRACT(EPOCH FROM (NOW() - session_start)),
+                updated_at = NOW()
+            WHERE id = $1
+            """,
+            session_id,
+        )
+
+
 async def trigger_rf_acquisition_task(
     session_id: UUID,
     frequency_hz: int,
@@ -279,20 +295,7 @@ async def trigger_rf_acquisition_task(
         
     except Exception as e:
         logger.error(f"Failed to trigger RF acquisition for session {session_id}: {e}")
-        
-        # Update session status to failed
-        async with pool.acquire() as conn:
-            await conn.execute(
-                """
-                UPDATE heimdall.recording_sessions
-                SET status = 'failed', 
-                    session_end = NOW(),
-                    duration_seconds = EXTRACT(EPOCH FROM (NOW() - session_start)),
-                    updated_at = NOW()
-                WHERE id = $1
-                """,
-                session_id,
-            )
+        await update_session_to_failed(pool, session_id)
 
 
 @router.post("", response_model=RecordingSession, status_code=201)
