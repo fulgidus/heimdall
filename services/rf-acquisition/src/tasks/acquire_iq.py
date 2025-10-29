@@ -9,7 +9,7 @@ from celery.utils.log import get_task_logger
 import numpy as np
 
 from ..models.websdrs import WebSDRConfig, MeasurementRecord, AcquisitionRequest
-from ..fetchers.websdr_fetcher import WebSDRFetcher
+from ..fetchers.openwebrx_fetcher import OpenWebRXFetcher
 from ..processors.iq_processor import IQProcessor
 from ..storage.minio_client import MinIOClient
 from ..config import settings
@@ -84,84 +84,85 @@ def acquire_iq(
         import asyncio
         
         async def fetch_and_process():
-            async with WebSDRFetcher(
+            fetcher = OpenWebRXFetcher(
                 websdrs=websdrs,
                 timeout=30,
                 retry_count=3,
                 concurrent_limit=7
-            ) as fetcher:
-                # Update state: fetching
+            )
+            
+            # Update state: fetching
+            self.update_state(
+                state='PROGRESS',
+                meta={
+                    'current': 0,
+                    'total': len(websdrs),
+                    'status': f'Fetching IQ from {len(websdrs)} WebSDRs...'
+                }
+            )
+            
+            # Fetch all simultaneously
+            iq_data_dict = await fetcher.fetch_iq_simultaneous(
+                frequency_mhz=frequency_mhz,
+                duration_seconds=duration_seconds,
+                sample_rate_khz=sample_rate_khz
+            )
+            
+            # Process results
+            successful = 0
+            for idx, (websdr_id, (iq_data, error)) in enumerate(iq_data_dict.items()):
+                if error:
+                    errors.append(f"WebSDR {websdr_id}: {error}")
+                    logger.warning("WebSDR %d acquisition failed: %s", websdr_id, error)
+                elif iq_data is not None:
+                    try:
+                        # Compute metrics
+                        metrics = IQProcessor.compute_metrics(
+                            iq_data=iq_data,
+                            sample_rate_hz=int(sample_rate_khz * 1e3),
+                            target_frequency_hz=int(frequency_mhz * 1e6),
+                            noise_bandwidth_hz=10000
+                        )
+                        
+                        # Create measurement record
+                        measurement = {
+                            'websdr_id': websdr_id,
+                            'frequency_mhz': frequency_mhz,
+                            'sample_rate_khz': sample_rate_khz,
+                            'samples_count': len(iq_data),
+                            'timestamp_utc': datetime.utcnow().isoformat(),
+                            'metrics': metrics.dict(),
+                            'iq_data_path': f's3://heimdall-raw-iq/sessions/{self.request.id}/websdr_{websdr_id}.npy',
+                            'iq_data': iq_data.tolist(),  # For now, store in memory
+                        }
+                        measurements.append(measurement)
+                        successful += 1
+                        
+                        logger.info(
+                            "Processed WebSDR %d - SNR: %.2f dB, Offset: %.2f Hz",
+                            websdr_id,
+                            metrics.snr_db,
+                            metrics.frequency_offset_hz
+                        )
+                    except Exception as e:
+                        error_msg = f"Processing error for WebSDR {websdr_id}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.exception(error_msg)
+                
+                # Update progress
+                progress = ((idx + 1) / len(websdrs)) * 100
                 self.update_state(
                     state='PROGRESS',
                     meta={
-                        'current': 0,
+                        'current': idx + 1,
                         'total': len(websdrs),
-                        'status': f'Fetching IQ from {len(websdrs)} WebSDRs...'
+                        'successful': successful,
+                        'status': f'Processing {idx + 1}/{len(websdrs)} measurements...',
+                        'progress': progress
                     }
                 )
-                
-                # Fetch all simultaneously
-                iq_data_dict = await fetcher.fetch_iq_simultaneous(
-                    frequency_mhz=frequency_mhz,
-                    duration_seconds=duration_seconds,
-                    sample_rate_khz=sample_rate_khz
-                )
-                
-                # Process results
-                successful = 0
-                for idx, (websdr_id, (iq_data, error)) in enumerate(iq_data_dict.items()):
-                    if error:
-                        errors.append(f"WebSDR {websdr_id}: {error}")
-                        logger.warning("WebSDR %d acquisition failed: %s", websdr_id, error)
-                    else:
-                        try:
-                            # Compute metrics
-                            metrics = IQProcessor.compute_metrics(
-                                iq_data=iq_data,
-                                sample_rate_hz=int(sample_rate_khz * 1e3),
-                                target_frequency_hz=int(frequency_mhz * 1e6),
-                                noise_bandwidth_hz=10000
-                            )
-                            
-                            # Create measurement record
-                            measurement = {
-                                'websdr_id': websdr_id,
-                                'frequency_mhz': frequency_mhz,
-                                'sample_rate_khz': sample_rate_khz,
-                                'samples_count': len(iq_data),
-                                'timestamp_utc': datetime.utcnow().isoformat(),
-                                'metrics': metrics.dict(),
-                                'iq_data_path': f's3://heimdall-raw-iq/sessions/{self.request.id}/websdr_{websdr_id}.npy',
-                                'iq_data': iq_data.tolist(),  # For now, store in memory
-                            }
-                            measurements.append(measurement)
-                            successful += 1
-                            
-                            logger.info(
-                                "Processed WebSDR %d - SNR: %.2f dB, Offset: %.2f Hz",
-                                websdr_id,
-                                metrics.snr_db,
-                                metrics.frequency_offset_hz
-                            )
-                        except Exception as e:
-                            error_msg = f"Processing error for WebSDR {websdr_id}: {str(e)}"
-                            errors.append(error_msg)
-                            logger.exception(error_msg)
-                    
-                    # Update progress
-                    progress = ((idx + 1) / len(websdrs)) * 100
-                    self.update_state(
-                        state='PROGRESS',
-                        meta={
-                            'current': idx + 1,
-                            'total': len(websdrs),
-                            'successful': successful,
-                            'status': f'Processing {idx + 1}/{len(websdrs)} measurements...',
-                            'progress': progress
-                        }
-                    )
-                
-                return measurements, errors
+            
+            return measurements, errors
         
         # Run async function
         try:
@@ -172,10 +173,17 @@ def acquire_iq(
         
         measurements, errors = loop.run_until_complete(fetch_and_process())
         
+        # Remove iq_data from result to make it JSON serializable
+        # (iq_data contains complex numbers which can't be JSON serialized)
+        measurements_summary = [
+            {k: v for k, v in m.items() if k != 'iq_data'}
+            for m in measurements
+        ]
+        
         result = {
             'task_id': self.request.id,
             'status': 'SUCCESS' if measurements else 'PARTIAL_FAILURE',
-            'measurements': measurements,
+            'measurements': measurements_summary,  # Without iq_data
             'measurements_count': len(measurements),
             'errors': errors,
             'start_time': start_time_iso,
@@ -481,8 +489,8 @@ def health_check_websdrs(self):
         return {}
     
     async def check():
-        async with WebSDRFetcher(websdrs=websdrs) as fetcher:
-            return await fetcher.health_check()
+        fetcher = OpenWebRXFetcher(websdrs=websdrs)
+        return await fetcher.health_check()
     
     try:
         loop = asyncio.get_event_loop()
