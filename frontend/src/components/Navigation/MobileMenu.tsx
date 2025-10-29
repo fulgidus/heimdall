@@ -13,7 +13,6 @@ const navigation = [
     { name: 'Localization', path: '/localization', icon: '🎯' },
     { name: 'Session History', path: '/sessions', icon: '📝' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },
-    { name: 'Projects', path: '/projects', icon: '📁' },
     { name: 'WebSDR Management', path: '/websdr-management', icon: '🛰️' },
     { name: 'System Status', path: '/system-status', icon: '⚙️' },
     { name: 'Settings', path: '/settings', icon: '🔧' },
@@ -36,9 +35,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
 
             {/* Mobile Menu Drawer */}
             <div
-                className={`fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-oxford-blue to-sea-green border-r border-neon-blue border-opacity-20 transform transition-transform duration-300 ease-in-out z-50 ${
-                    isOpen ? 'translate-x-0' : '-translate-x-full'
-                }`}
+                className={`fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-gradient-to-b from-oxford-blue to-sea-green border-r border-neon-blue border-opacity-20 transform transition-transform duration-300 ease-in-out z-50 ${isOpen ? 'translate-x-0' : '-translate-x-full'
+                    }`}
                 style={{ backgroundColor: 'var(--oxford-blue)' }}
             >
                 {/* Header */}
@@ -65,11 +63,10 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
                                 key={item.path}
                                 to={item.path}
                                 onClick={onClose}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all duration-200 touch-target ${
-                                    isActive
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-all duration-200 touch-target ${isActive
                                         ? 'bg-neon-blue bg-opacity-20 text-light-green border border-light-green border-opacity-50'
                                         : 'text-french-gray hover:bg-sea-green hover:bg-opacity-10 hover:text-light-green'
-                                }`}
+                                    }`}
                             >
                                 <span className="text-lg">{item.icon}</span>
                                 <span className="font-medium">{item.name}</span>
