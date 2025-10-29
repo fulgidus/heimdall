@@ -38,8 +38,9 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
 
         try {
             const newSession = await createSession({
+                known_source_id: '00000000-0000-0000-0000-000000000000', // Default unknown source
                 session_name: sessionName,
-                frequency_mhz: frequency,
+                frequency_hz: frequency * 1_000_000, // Convert MHz to Hz
                 duration_seconds: duration,
             });
 

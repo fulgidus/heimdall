@@ -57,8 +57,9 @@ export const Projects: React.FC = () => {
         setSubmitting(true);
         try {
             await createSession({
+                known_source_id: '00000000-0000-0000-0000-000000000000', // Default unknown source
                 session_name: newSessionName,
-                frequency_mhz: parseFloat(newSessionFrequency),
+                frequency_hz: parseFloat(newSessionFrequency) * 1_000_000, // Convert MHz to Hz
                 duration_seconds: parseInt(newSessionDuration),
             });
             setNewSessionName('');
