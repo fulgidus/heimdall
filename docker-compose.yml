@@ -95,23 +95,23 @@ services:
         max-file: "3"
 
   # Redis Commander - Redis management UI
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: heimdall-redis-commander
-    environment:
-      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-changeme}
-    ports:
-      - "8081:8081"
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # redis-commander:
+  #   image: rediscommander/redis-commander:latest
+  #   container_name: heimdall-redis-commander
+  #   environment:
+  #     - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-changeme}
+  #   ports:
+  #     - "8081:8081"
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - heimdall-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # MinIO - S3-compatible object storage
   minio:
@@ -378,58 +378,58 @@ services:
   #       max-file: "3"
 
   # Prometheus - metrics collection
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: heimdall-prometheus
-    volumes:
-      - ./db/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:9090/-/healthy"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: heimdall-prometheus
+  #   volumes:
+  #     - ./db/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--storage.tsdb.retention.time=30d'
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:9090/-/healthy"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - heimdall-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # Grafana - visualization and dashboards
-  grafana:
-    image: grafana/grafana:latest
-    container_name: heimdall-grafana
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./db/grafana-provisioning:/etc/grafana/provisioning:ro
-    ports:
-      - "3000:3000"
-    depends_on:
-      prometheus:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: heimdall-grafana
+  #   environment:
+  #     GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+  #     GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./db/grafana-provisioning:/etc/grafana/provisioning:ro
+  #   ports:
+  #     - "3001:3000"
+  #   depends_on:
+  #     prometheus:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/api/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - heimdall-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # Frontend - React application with nginx
   frontend:
@@ -438,15 +438,37 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
-        VITE_ENV: development
-        VITE_ENABLE_ANALYTICS: "true"
-        VITE_ENABLE_DEBUG: "false"
+        VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
+        VITE_ENV: ${VITE_ENV:-development}
+        VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
+        VITE_ENABLE_DEBUG: ${VITE_ENABLE_DEBUG:-false}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-heimdall}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
+        VITE_ADMIN_EMAIL: ${VITE_ADMIN_EMAIL:-admin@heimdall.local}
+        VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
+        VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
+        VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
+        VITE_SOCKET_URL: ws://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/ws
+        VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     container_name: heimdall-frontend
     environment:
       VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
-      VITE_ENV: development
+      VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
+      VITE_ENV: ${VITE_ENV:-development}
+      VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
+      VITE_ENABLE_DEBUG: ${VITE_ENABLE_DEBUG:-false}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+      VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-heimdall}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
+      VITE_ADMIN_EMAIL: ${VITE_ADMIN_EMAIL:-admin@heimdall.local}
+      VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
+      VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
+      VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
+      VITE_SOCKET_URL: ws://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/ws
+      VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     ports:
-      - "3001:3000"
+      - "3000:3000"
     depends_on:
       api-gateway:
         condition: service_healthy
