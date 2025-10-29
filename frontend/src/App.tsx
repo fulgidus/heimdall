@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { useAuthStore } from './store';
 import DattaLayout from './components/layout/DattaLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { useTokenRefresh } from './hooks/useTokenRefresh';
 
 // Lazy load all pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -52,6 +53,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 };
 
 function App() {
+    // Enable automatic token refresh
+    useTokenRefresh();
+
     return (
         <ErrorBoundary>
             <Router>

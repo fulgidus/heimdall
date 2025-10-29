@@ -586,6 +586,71 @@ async def login_proxy(request: Request):
         )
 
 
+@app.post("/api/v1/auth/refresh")
+async def refresh_token_proxy(request: Request):
+    """
+    Proxy OAuth2 refresh token request to Keycloak.
+    
+    Uses refresh token to obtain a new access token without requiring credentials.
+    """
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        
+        if "application/json" in content_type:
+            body = await request.json()
+            refresh_token = body.get("refresh_token")
+        else:
+            form_data = await request.form()
+            refresh_token = form_data.get("refresh_token")
+        
+        if not refresh_token:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Missing refresh_token"}
+            )
+        
+        keycloak_url = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
+        keycloak_realm = os.getenv("KEYCLOAK_REALM", "heimdall")
+        client_id = os.getenv("VITE_KEYCLOAK_CLIENT_ID", "heimdall-frontend")
+        token_endpoint = f"{keycloak_url}/realms/{keycloak_realm}/protocol/openid-connect/token"
+        
+        logger.info(f"🔄 Proxying token refresh to: {token_endpoint}")
+        
+        form_data = {
+            "client_id": client_id,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                token_endpoint,
+                data=form_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"}
+            )
+        
+        logger.info(f"🔄 Keycloak refresh response: {response.status_code}")
+        
+        if response.status_code == 200:
+            return JSONResponse(
+                status_code=response.status_code,
+                content=response.json()
+            )
+        else:
+            error_content = response.json() if response.text else {}
+            logger.warning(f"⚠️ Keycloak refresh error: {error_content}")
+            return JSONResponse(
+                status_code=response.status_code,
+                content=error_content or {"error": "Token refresh failed"}
+            )
+    except Exception as e:
+        logger.error(f"❌ Token refresh proxy error: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
+
+
 @app.get("/api/v1/auth/check")
 async def auth_check(user: User = Depends(get_current_user)):
     """Check authentication status and return user info."""
