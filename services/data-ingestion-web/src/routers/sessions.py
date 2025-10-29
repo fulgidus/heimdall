@@ -5,7 +5,7 @@ Recording sessions API endpoints
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 import asyncpg
 import logging
 
@@ -20,10 +20,14 @@ from ..models.session import (
     KnownSourceUpdate,
 )
 from ..db import get_pool
+from ..rf_client import RFAcquisitionClient
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["sessions"])
+
+# Initialize RF acquisition client
+rf_client = RFAcquisitionClient()
 
 
 @router.get("", response_model=SessionListResponse)
@@ -229,9 +233,74 @@ async def get_session(session_id: UUID):
         )
 
 
+async def trigger_rf_acquisition_task(
+    session_id: UUID,
+    frequency_hz: int,
+    duration_seconds: float,
+):
+    """Background task to trigger RF acquisition and update session status"""
+    pool = await get_pool()
+    
+    try:
+        # Update status to in_progress
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE heimdall.recording_sessions
+                SET status = 'in_progress', updated_at = NOW()
+                WHERE id = $1
+                """,
+                session_id,
+            )
+        
+        # Trigger RF acquisition
+        result = await rf_client.trigger_acquisition(
+            frequency_hz=frequency_hz,
+            duration_seconds=duration_seconds,
+        )
+        
+        task_id = result.get("task_id")
+        
+        # Update session with task ID
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE heimdall.recording_sessions
+                SET celery_task_id = $1, updated_at = NOW()
+                WHERE id = $2
+                """,
+                task_id,
+                session_id,
+            )
+        
+        logger.info(
+            f"RF acquisition triggered for session {session_id}, task_id={task_id}"
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to trigger RF acquisition for session {session_id}: {e}")
+        
+        # Update session status to failed
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE heimdall.recording_sessions
+                SET status = 'failed', 
+                    session_end = NOW(),
+                    duration_seconds = EXTRACT(EPOCH FROM (NOW() - session_start)),
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                session_id,
+            )
+
+
 @router.post("", response_model=RecordingSession, status_code=201)
-async def create_session(session: RecordingSessionCreate):
-    """Create a new recording session"""
+async def create_session(
+    session: RecordingSessionCreate,
+    background_tasks: BackgroundTasks,
+):
+    """Create a new recording session and trigger RF acquisition"""
     pool = await get_pool()
     
     # Verify known source exists
@@ -263,7 +332,19 @@ async def create_session(session: RecordingSessionCreate):
             session.notes,
         )
         
-        return RecordingSession(**dict(row))
+        session_result = RecordingSession(**dict(row))
+        
+        # Trigger RF acquisition in background
+        background_tasks.add_task(
+            trigger_rf_acquisition_task,
+            session_result.id,
+            session.frequency_hz,
+            session.duration_seconds,
+        )
+        
+        logger.info(f"Created session {session_result.id}, queuing RF acquisition")
+        
+        return session_result
 
 
 @router.patch("/{session_id}/status")
