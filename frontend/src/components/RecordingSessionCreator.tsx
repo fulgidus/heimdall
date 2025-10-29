@@ -37,8 +37,12 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
         clearError();
 
         try {
+            // TODO: This component is simplified and missing proper source selection.
+            // The full implementation is in RecordingSession.tsx. This component should either:
+            // 1. Add a source selection dropdown, or
+            // 2. Be deprecated in favor of RecordingSession.tsx
             const newSession = await createSession({
-                known_source_id: '00000000-0000-0000-0000-000000000000', // Placeholder UUID for unknown source
+                known_source_id: '00000000-0000-0000-0000-000000000000', // Placeholder - API will reject this
                 session_name: sessionName,
                 frequency_hz: Math.round(frequency * 1e6), // Convert MHz to Hz
                 duration_seconds: duration,
