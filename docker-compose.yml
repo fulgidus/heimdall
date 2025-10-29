@@ -27,24 +27,24 @@ services:
         max-file: "3"
 
   # pgAdmin - PostgreSQL management UI
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: heimdall-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@pg.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    ports:
-      - "5050:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: heimdall-pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@pg.com}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - heimdall-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # RabbitMQ 3.12
   rabbitmq:
@@ -72,7 +72,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Redis 7
+  # Redis 7 - In-memory data store
   redis:
     image: redis:7-alpine
     container_name: heimdall-redis
@@ -334,48 +334,48 @@ services:
         max-file: "3"
 
   # Data Ingestion Web - Data collection UI and API
-  data-ingestion-web:
-    build:
-      context: .
-      dockerfile: services/data-ingestion-web/Dockerfile
-      args:
-        PIP_NO_CACHE_DIR: 1
-    container_name: heimdall-data-ingestion-web
-    environment:
-      SERVICE_NAME: data-ingestion-web
-      SERVICE_PORT: ${DATA_INGESTION_PORT:-8004}
-      DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
-      REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
-      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
-      MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DEBUG: ${DEBUG:-false}
-    ports:
-      - "${DATA_INGESTION_PORT:-8004}:${DATA_INGESTION_PORT:-8004}"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${DATA_INGESTION_PORT:-8004}/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    networks:
-      - heimdall-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # data-ingestion-web:
+  #   build:
+  #     context: .
+  #     dockerfile: services/data-ingestion-web/Dockerfile
+  #     args:
+  #       PIP_NO_CACHE_DIR: 1
+  #   container_name: heimdall-data-ingestion-web
+  #   environment:
+  #     SERVICE_NAME: data-ingestion-web
+  #     SERVICE_PORT: ${DATA_INGESTION_PORT:-8004}
+  #     DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
+  #     REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+  #     CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
+  #     MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
+  #     MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  #     MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  #     LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  #     DEBUG: ${DEBUG:-false}
+  #   ports:
+  #     - "${DATA_INGESTION_PORT:-8004}:${DATA_INGESTION_PORT:-8004}"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:${DATA_INGESTION_PORT:-8004}/ready"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+  #   networks:
+  #     - heimdall-network
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # Prometheus - metrics collection
   prometheus:
