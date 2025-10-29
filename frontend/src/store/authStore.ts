@@ -18,6 +18,7 @@ interface AuthStore {
     logout: () => void;
     setUser: (user: User | null) => void;
     setToken: (token: string | null) => void;
+    refreshAccessToken: () => Promise<boolean>;
 }
 
 // API Gateway configuration (reads from .env)
@@ -118,6 +119,55 @@ export const useAuthStore = create<AuthStore>()(
 
             setToken: (token) => {
                 set({ token });
+            },
+
+            refreshAccessToken: async () => {
+                const state = useAuthStore.getState();
+                const currentRefreshToken = state.refreshToken;
+
+                if (!currentRefreshToken) {
+                    console.warn('No refresh token available');
+                    return false;
+                }
+
+                try {
+                    const refreshUrl = `${API_URL}/api/v1/auth/refresh`;
+                    
+                    const response = await fetch(refreshUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'omit',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        body: JSON.stringify({
+                            refresh_token: currentRefreshToken,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        console.error('Token refresh failed:', response.status);
+                        // Refresh token is invalid or expired, logout user
+                        useAuthStore.getState().logout();
+                        return false;
+                    }
+
+                    const data = await response.json();
+
+                    // Update tokens in store
+                    set({
+                        token: data.access_token,
+                        refreshToken: data.refresh_token,
+                    });
+
+                    console.log('✅ Token refreshed successfully');
+                    return true;
+                } catch (error) {
+                    console.error('Token refresh error:', error);
+                    useAuthStore.getState().logout();
+                    return false;
+                }
             },
         }),
         {
