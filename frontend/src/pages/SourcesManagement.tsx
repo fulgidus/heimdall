@@ -84,6 +84,7 @@ const SourcesManagement: React.FC = () => {
             map.current?.remove();
             map.current = null;
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fetch sources on mount
@@ -95,115 +96,120 @@ const SourcesManagement: React.FC = () => {
     useEffect(() => {
         if (!map.current || !mapLoaded) return;
 
-        // Remove old markers
-        Object.values(markers.current).forEach((marker) => marker.remove());
-        markers.current = {};
+        const updateMarkers = async () => {
+            // Remove old markers
+            Object.values(markers.current).forEach((marker) => marker.remove());
+            markers.current = {};
 
-        // Add new markers
-        knownSources.forEach((source) => {
-            // Create marker element
-            const el = document.createElement('div');
-            el.className = 'source-marker';
-            el.style.width = '30px';
-            el.style.height = '30px';
-            el.style.borderRadius = '50%';
-            el.style.backgroundColor = source.is_validated ? '#10b981' : '#f59e0b';
-            el.style.border = '3px solid white';
-            el.style.cursor = 'pointer';
-            el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            // Add new markers
+            knownSources.forEach((source) => {
+                // Create marker element
+                const el = document.createElement('div');
+                el.className = 'source-marker';
+                el.style.width = '30px';
+                el.style.height = '30px';
+                el.style.borderRadius = '50%';
+                el.style.backgroundColor = source.is_validated ? '#10b981' : '#f59e0b';
+                el.style.border = '3px solid white';
+                el.style.cursor = 'pointer';
+                el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
 
-            // Create marker
-            const marker = new mapboxgl.Marker({
-                element: el,
-                draggable: true,
-            })
-                .setLngLat([source.longitude, source.latitude])
-                .addTo(map.current!);
+                // Create marker
+                const marker = new mapboxgl.Marker({
+                    element: el,
+                    draggable: true,
+                })
+                    .setLngLat([source.longitude, source.latitude])
+                    .addTo(map.current!);
 
-            // Add popup
-            const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
-                <div style="padding: 8px;">
-                    <h6 style="margin: 0 0 8px 0; font-weight: bold;">${source.name}</h6>
-                    <p style="margin: 4px 0; font-size: 12px;">
-                        <strong>Frequency:</strong> ${(source.frequency_hz / 1e6).toFixed(3)} MHz
-                    </p>
-                    <p style="margin: 4px 0; font-size: 12px;">
-                        <strong>Location:</strong> ${source.latitude.toFixed(4)}, ${source.longitude.toFixed(4)}
-                    </p>
-                    <p style="margin: 4px 0; font-size: 12px;">
-                        <strong>Error Margin:</strong> ${source.error_margin_meters}m
-                    </p>
-                </div>
-            `);
+                // Add popup
+                const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
+                    <div style="padding: 8px;">
+                        <h6 style="margin: 0 0 8px 0; font-weight: bold;">${source.name}</h6>
+                        <p style="margin: 4px 0; font-size: 12px;">
+                            <strong>Frequency:</strong> ${(source.frequency_hz / 1e6).toFixed(3)} MHz
+                        </p>
+                        <p style="margin: 4px 0; font-size: 12px;">
+                            <strong>Location:</strong> ${source.latitude.toFixed(4)}, ${source.longitude.toFixed(4)}
+                        </p>
+                        <p style="margin: 4px 0; font-size: 12px;">
+                            <strong>Error Margin:</strong> ${source.error_margin_meters}m
+                        </p>
+                    </div>
+                `);
 
-            marker.setPopup(popup);
+                marker.setPopup(popup);
 
-            // Handle marker click
-            el.addEventListener('click', () => {
-                setSelectedSource(source);
-                map.current?.flyTo({
-                    center: [source.longitude, source.latitude],
-                    zoom: 10,
+                // Handle marker click
+                el.addEventListener('click', () => {
+                    setSelectedSource(source);
+                    map.current?.flyTo({
+                        center: [source.longitude, source.latitude],
+                        zoom: 10,
+                    });
+                });
+
+                // Handle marker drag
+                marker.on('dragend', async () => {
+                    const lngLat = marker.getLngLat();
+                    try {
+                        await updateKnownSource(source.id, {
+                            latitude: lngLat.lat,
+                            longitude: lngLat.lng,
+                        });
+                        showNotification('success', 'Source location updated');
+                        await fetchKnownSources();
+                    } catch (error) {
+                        console.error('Failed to update source location:', error);
+                        showNotification('error', 'Failed to update source location');
+                        marker.setLngLat([source.longitude, source.latitude]);
+                    }
+                });
+
+                markers.current[source.id] = marker;
+
+                // Add error margin circle
+                if (map.current?.getSource(`source-circle-${source.id}`)) {
+                    map.current.removeLayer(`source-circle-${source.id}`);
+                    map.current.removeSource(`source-circle-${source.id}`);
+                }
+
+                map.current?.addSource(`source-circle-${source.id}`, {
+                    type: 'geojson',
+                    data: {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [source.longitude, source.latitude],
+                        },
+                        properties: {},
+                    },
+                });
+
+                map.current?.addLayer({
+                    id: `source-circle-${source.id}`,
+                    type: 'circle',
+                    source: `source-circle-${source.id}`,
+                    paint: {
+                        'circle-radius': {
+                            stops: [
+                                [0, 0],
+                                [20, metersToPixels(source.error_margin_meters, source.latitude, 20)],
+                            ],
+                            base: 2,
+                        },
+                        'circle-color': source.is_validated ? '#10b981' : '#f59e0b',
+                        'circle-opacity': 0.2,
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': source.is_validated ? '#10b981' : '#f59e0b',
+                        'circle-stroke-opacity': 0.5,
+                    },
                 });
             });
+        };
 
-            // Handle marker drag
-            marker.on('dragend', async () => {
-                const lngLat = marker.getLngLat();
-                try {
-                    await updateKnownSource(source.id, {
-                        latitude: lngLat.lat,
-                        longitude: lngLat.lng,
-                    });
-                    showNotification('success', 'Source location updated');
-                    await fetchKnownSources();
-                } catch (error) {
-                    console.error('Failed to update source location:', error);
-                    showNotification('error', 'Failed to update source location');
-                    marker.setLngLat([source.longitude, source.latitude]);
-                }
-            });
-
-            markers.current[source.id] = marker;
-
-            // Add error margin circle
-            if (map.current?.getSource(`source-circle-${source.id}`)) {
-                map.current.removeLayer(`source-circle-${source.id}`);
-                map.current.removeSource(`source-circle-${source.id}`);
-            }
-
-            map.current?.addSource(`source-circle-${source.id}`, {
-                type: 'geojson',
-                data: {
-                    type: 'Feature',
-                    geometry: {
-                        type: 'Point',
-                        coordinates: [source.longitude, source.latitude],
-                    },
-                    properties: {},
-                },
-            });
-
-            map.current?.addLayer({
-                id: `source-circle-${source.id}`,
-                type: 'circle',
-                source: `source-circle-${source.id}`,
-                paint: {
-                    'circle-radius': {
-                        stops: [
-                            [0, 0],
-                            [20, metersToPixels(source.error_margin_meters, source.latitude, 20)],
-                        ],
-                        base: 2,
-                    },
-                    'circle-color': source.is_validated ? '#10b981' : '#f59e0b',
-                    'circle-opacity': 0.2,
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': source.is_validated ? '#10b981' : '#f59e0b',
-                    'circle-stroke-opacity': 0.5,
-                },
-            });
-        });
+        updateMarkers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [knownSources, mapLoaded]);
 
     // Utility function to convert meters to pixels at a given latitude and zoom
@@ -278,8 +284,11 @@ const SourcesManagement: React.FC = () => {
 
             handleCancelForm();
             await fetchKnownSources();
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.detail || error?.message || 'Operation failed';
+        } catch (error: unknown) {
+            const errorMessage = 
+                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail || 
+                (error as { message?: string })?.message || 
+                'Operation failed';
             showNotification('error', errorMessage);
         }
     };
@@ -308,8 +317,11 @@ const SourcesManagement: React.FC = () => {
             setDeleteConfirm(null);
             setSelectedSource(null);
             await fetchKnownSources();
-        } catch (error: any) {
-            const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to delete source';
+        } catch (error: unknown) {
+            const errorMessage = 
+                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail || 
+                (error as { message?: string })?.message || 
+                'Failed to delete source';
             showNotification('error', errorMessage);
         }
     };
