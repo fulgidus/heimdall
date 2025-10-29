@@ -291,8 +291,9 @@ describe('getSession', () => {
 describe('createSession', () => {
     it('should create a new session successfully', async () => {
         const request: RecordingSessionCreate = {
+            known_source_id: '123e4567-e89b-12d3-a456-426614174000',
             session_name: 'New Recording',
-            frequency_mhz: 145.500,
+            frequency_hz: 145500000, // 145.500 MHz in Hz
             duration_seconds: 300,
             notes: 'Test notes',
         };
@@ -318,8 +319,9 @@ describe('createSession', () => {
 
     it('should handle validation errors (400)', async () => {
         const request: RecordingSessionCreate = {
+            known_source_id: '123e4567-e89b-12d3-a456-426614174000',
             session_name: '',
-            frequency_mhz: -1, // Invalid frequency
+            frequency_hz: -1, // Invalid frequency
             duration_seconds: 0,
         };
 
@@ -332,8 +334,9 @@ describe('createSession', () => {
 
     it('should handle duplicate session name conflicts (409)', async () => {
         const request: RecordingSessionCreate = {
+            known_source_id: '123e4567-e89b-12d3-a456-426614174000',
             session_name: 'Existing Session',
-            frequency_mhz: 145.500,
+            frequency_hz: 145500000, // 145.500 MHz in Hz
             duration_seconds: 300,
         };
 
@@ -687,8 +690,9 @@ describe('Edge Cases and Real-World Scenarios', () => {
 
     it('should handle timeout during session creation', async () => {
         const request: RecordingSessionCreate = {
+            known_source_id: '123e4567-e89b-12d3-a456-426614174000',
             session_name: 'Timeout Test',
-            frequency_mhz: 145.500,
+            frequency_hz: 145500000, // 145.500 MHz in Hz
             duration_seconds: 300,
         };
 

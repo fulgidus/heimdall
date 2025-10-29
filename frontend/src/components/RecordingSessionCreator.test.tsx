@@ -98,8 +98,9 @@ describe('RecordingSessionCreator', () => {
         await waitFor(() => {
             expect(mockClearError).toHaveBeenCalled();
             expect(mockCreateSession).toHaveBeenCalledWith({
+                known_source_id: '00000000-0000-0000-0000-000000000000',
                 session_name: 'Test Session',
-                frequency_mhz: 433.5,
+                frequency_hz: 433500000, // 433.5 MHz converted to Hz
                 duration_seconds: 60,
             });
         });
