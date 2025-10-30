@@ -7,21 +7,25 @@
  */
 
 import api from '@/lib/api';
-import type { ServiceHealth } from './types';
+import { ServiceHealthSchema } from './schemas';
+import type { ServiceHealth } from './schemas';
 
 /**
  * Check health of a specific service
  */
 export async function checkServiceHealth(serviceName: string): Promise<ServiceHealth> {
-    const response = await api.get<ServiceHealth>(`/api/v1/${serviceName}/health`);
-    return response.data;
+    const response = await api.get(`/api/v1/${serviceName}/health`);
+    
+    // Validate response with Zod
+    const validated = ServiceHealthSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Check health of all services
  */
 export async function checkAllServicesHealth(): Promise<Record<string, ServiceHealth>> {
-    const services = ['api-gateway', 'rf-acquisition', 'training', 'inference'];
+    const services = ['backend', 'training', 'inference'];
     const healthChecks = await Promise.allSettled(
         services.map(async (service) => {
             try {

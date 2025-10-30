@@ -130,12 +130,12 @@ const SourcesManagement: React.FC = () => {
             setMapLoaded(false);
         }
 
-            return () => {
-                map.current?.remove();
-                map.current = null;
-            };
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, []);
+        return () => {
+            map.current?.remove();
+            map.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Fetch sources on mount
     useEffect(() => {

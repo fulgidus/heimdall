@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim AS build-base
 WORKDIR /build
 
 # Install system dependencies
@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/l
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy installed packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=build-base /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser services/data-ingestion-web/src/ ./src/

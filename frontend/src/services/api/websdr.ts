@@ -7,17 +7,23 @@
  * - Get WebSDR configuration
  */
 
+import { z } from 'zod';
 import api from '@/lib/api';
-import type { WebSDRConfig, WebSDRHealthStatus } from './types';
+import { WebSDRConfigSchema, WebSDRHealthStatusSchema } from './schemas';
+import type { WebSDRConfig, WebSDRHealthStatus } from './schemas';
 
 /**
  * Get list of all configured WebSDR receivers
  */
 export async function getWebSDRs(): Promise<WebSDRConfig[]> {
     console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs-all');
-    const response = await api.get<WebSDRConfig[]>('/api/v1/acquisition/websdrs-all');
-    console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');
-    return response.data;
+    const response = await api.get('/v1/acquisition/websdrs-all');
+
+    // Validate response with Zod
+    const validated = z.array(WebSDRConfigSchema).parse(response.data);
+
+    console.log('✅ WebSDRService.getWebSDRs(): ricevuti', validated.length, 'WebSDRs');
+    return validated;
 }
 
 /**
@@ -25,9 +31,13 @@ export async function getWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function checkWebSDRHealth(): Promise<Record<string, WebSDRHealthStatus>> {
     console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');
-    const response = await api.get<Record<string, WebSDRHealthStatus>>('/api/v1/acquisition/websdrs/health');
+    const response = await api.get('/v1/acquisition/websdrs/health');
+    
+    // Validate response with Zod
+    const validated = z.record(z.string(), WebSDRHealthStatusSchema).parse(response.data);
+    
     console.log('✅ WebSDRService.checkWebSDRHealth(): ricevuto health status');
-    return response.data;
+    return validated;
 }
 
 /**
@@ -49,6 +59,11 @@ export async function getWebSDRConfig(id: string): Promise<WebSDRConfig> {
  */
 export async function getActiveWebSDRs(): Promise<WebSDRConfig[]> {
     const websdrs = await getWebSDRs();
+    // Ensure websdrs is an array before filtering
+    if (!Array.isArray(websdrs)) {
+        console.error('❌ getActiveWebSDRs(): websdrs is not an array:', typeof websdrs);
+        return [];
+    }
     return websdrs.filter(w => w.is_active);
 }
 
@@ -57,9 +72,13 @@ export async function getActiveWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function createWebSDR(data: Omit<WebSDRConfig, 'id'>): Promise<WebSDRConfig> {
     console.log('➕ WebSDRService.createWebSDR():', data.name);
-    const response = await api.post<WebSDRConfig>('/api/v1/acquisition/websdrs', data);
-    console.log('✅ WebSDRService.createWebSDR(): created', response.data.name);
-    return response.data;
+    const response = await api.post('/v1/acquisition/websdrs', data);
+    
+    // Validate response with Zod
+    const validated = WebSDRConfigSchema.parse(response.data);
+    
+    console.log('✅ WebSDRService.createWebSDR(): created', validated.name);
+    return validated;
 }
 
 /**
@@ -67,9 +86,13 @@ export async function createWebSDR(data: Omit<WebSDRConfig, 'id'>): Promise<WebS
  */
 export async function updateWebSDR(id: string, data: Partial<WebSDRConfig>): Promise<WebSDRConfig> {
     console.log('✏️ WebSDRService.updateWebSDR():', id);
-    const response = await api.put<WebSDRConfig>(`/api/v1/acquisition/websdrs/${id}`, data);
-    console.log('✅ WebSDRService.updateWebSDR(): updated', response.data.name);
-    return response.data;
+    const response = await api.put(`/api/v1/acquisition/websdrs/${id}`, data);
+    
+    // Validate response with Zod
+    const validated = WebSDRConfigSchema.parse(response.data);
+    
+    console.log('✅ WebSDRService.updateWebSDR(): updated', validated.name);
+    return validated;
 }
 
 /**

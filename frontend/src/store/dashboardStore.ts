@@ -23,7 +23,7 @@ interface DashboardMetrics {
 
 interface DashboardData {
     websdrs: WebSDRConfig[];
-    websdrsHealth: Record<number, WebSDRHealthStatus>;
+    websdrsHealth: Record<string, WebSDRHealthStatus>;  // UUID keys from backend
     modelInfo: ModelInfo | null;
     servicesHealth: Record<string, ServiceHealth>;
 }
@@ -82,7 +82,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     // WebSocket state
     wsManager: null,
     wsConnectionState: ConnectionState.DISCONNECTED,
-    wsEnabled: true, // Enable WebSocket by default, fallback to polling if unavailable
+    wsEnabled: true, // WebSocket enabled for real-time updates
 
     setMetrics: (metrics) => set({ metrics }),
     setLoading: (loading) => set({ isLoading: loading }),
@@ -99,6 +99,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         try {
             // Load WebSDRs FAST - don't wait for health check
             const websdrs = await webSDRService.getWebSDRs();
+
+            // Ensure websdrs is an array (defensive programming)
+            if (!Array.isArray(websdrs)) {
+                console.error('❌ fetchWebSDRs: websdrs is not an array:', typeof websdrs);
+                set({ error: 'Invalid WebSDRs response format' });
+                return;
+            }
 
             set((state) => ({
                 data: {
@@ -246,10 +253,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         }
 
         try {
-            // Use configured WebSocket URL from environment
-            // Construct WebSocket URL based on browser location (proxied through Nginx)
+            // Use configured WebSocket URL from environment or construct from browser location
+            // Envoy proxies WebSocket requests to backend service at /ws
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${window.location.host}/ws/updates`;
+            const hostname = window.location.hostname;
+            const port = window.location.port || (protocol === 'wss' ? '443' : '80');
+            // WebSocket endpoint: Envoy routes /ws to backend /ws
+            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:${port}/ws`;
             console.log('[Dashboard] Connecting to WebSocket:', wsUrl);
 
             const manager = createWebSocketManager(wsUrl);
@@ -271,7 +281,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
                 }));
             });
 
-            manager.subscribe('websdrs:status', (data) => {
+            manager.subscribe('websdrs_update', (data) => {
                 console.log('[Dashboard] Received WebSDR status update:', data);
                 set((state) => ({
                     data: {

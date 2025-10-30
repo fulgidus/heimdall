@@ -121,7 +121,9 @@ const Dashboard: React.FC = () => {
     };
 
     // Sort widgets by position
-    const sortedWidgets = [...widgets].sort((a, b) => a.position - b.position);
+    const sortedWidgets = Array.isArray(widgets)
+        ? [...widgets].sort((a, b) => a.position - b.position)
+        : [];
 
     return (
         <>
@@ -270,7 +272,7 @@ const Dashboard: React.FC = () => {
             <section aria-label="Dashboard Widgets">
                 <div className="row g-3">
                     {sortedWidgets.length > 0 ? (
-                        sortedWidgets.map(renderWidget)
+                        sortedWidgets.map((widget) => renderWidget(widget))
                     ) : (
                         <div className="col-12">
                             <div className="card">

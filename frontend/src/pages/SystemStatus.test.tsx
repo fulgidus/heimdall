@@ -47,7 +47,7 @@ describe('SystemStatus Page', () => {
         expect(titles.length).toBeGreaterThan(0);
     });
 
-    it('displays rf-acquisition service status', () => {
+    it('displays backend service status', () => {
         render(<SystemStatus />);
         const titles = screen.queryAllByText('System Status');
         expect(titles.length).toBeGreaterThan(0);

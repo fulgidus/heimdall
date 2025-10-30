@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim AS deps-train
 WORKDIR /build
 
 # Install system dependencies
@@ -9,10 +9,13 @@ COPY services/requirements/ ./requirements/
 COPY services/training/requirements.txt .
 
 # Using locked versions for reproducibility
-# Install from requirements that reference centralized dependencies
+# Resolve all requirements by combining base + ml + data + service-specific
 RUN pip install --upgrade pip && \
+    { cat requirements/base.txt requirements/ml.txt requirements/data.txt; \
+    grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
+    grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
-    -r requirements.txt
+    -r /tmp/all_reqs.txt
 
 FROM python:3.11-slim
 WORKDIR /app
@@ -24,13 +27,16 @@ RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/l
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy installed packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=deps-train /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser services/training/src/ ./src/
 
+# Copy common module
+COPY --chown=appuser:appuser services/common/ ./common/
+
 # Set environment
-ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1
+ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1 PYTHONPATH=/app
 
 USER appuser
 EXPOSE 8002

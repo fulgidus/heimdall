@@ -13,10 +13,10 @@ from unittest.mock import patch, AsyncMock, MagicMock
 import sys
 from pathlib import Path
 
-# Add rf-acquisition tests to path for importing mocks
-rf_acq_tests = Path(__file__).parent.parent / "rf-acquisition" / "tests"
-if str(rf_acq_tests) not in sys.path:
-    sys.path.insert(0, str(rf_acq_tests))
+# Add backend tests to path for importing mocks
+backend_tests = Path(__file__).parent.parent / "backend" / "tests"
+if str(backend_tests) not in sys.path:
+    sys.path.insert(0, str(backend_tests))
 
 
 pytestmark = pytest.mark.e2e

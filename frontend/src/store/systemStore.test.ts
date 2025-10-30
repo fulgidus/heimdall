@@ -69,7 +69,7 @@ describe('System Store (Zustand)', () => {
         it('should check all services successfully', async () => {
             const mockServicesHealth = {
                 'api-gateway': { status: 'healthy', latency_ms: 10 },
-                'rf-acquisition': { status: 'healthy', latency_ms: 50 },
+                'backend': { status: 'healthy', latency_ms: 50 },
                 'training': { status: 'degraded', latency_ms: 300 },
                 'inference': { status: 'healthy', latency_ms: 45 },
             };
@@ -150,7 +150,7 @@ describe('System Store (Zustand)', () => {
             useSystemStore.setState({
                 servicesHealth: {
                     'api-gateway': { status: 'degraded', latency_ms: 100 },
-                    'rf-acquisition': { status: 'healthy', latency_ms: 50 },
+                    'backend': { status: 'healthy', latency_ms: 50 },
                 },
             });
 
@@ -162,7 +162,7 @@ describe('System Store (Zustand)', () => {
             const state = useSystemStore.getState();
             expect(state.servicesHealth['api-gateway']).toEqual(updatedHealth);
             // Other services should remain unchanged
-            expect(state.servicesHealth['rf-acquisition']).toEqual({ status: 'healthy', latency_ms: 50 });
+            expect(state.servicesHealth['backend']).toEqual({ status: 'healthy', latency_ms: 50 });
         });
 
         it('should handle service check error gracefully', async () => {
@@ -236,7 +236,7 @@ describe('System Store (Zustand)', () => {
             useSystemStore.setState({
                 servicesHealth: {
                     'api-gateway': { status: 'healthy', latency_ms: 10 },
-                    'rf-acquisition': { status: 'degraded', latency_ms: 250 },
+                    'backend': { status: 'degraded', latency_ms: 250 },
                     'training': { status: 'unhealthy', latency_ms: 1000 },
                 },
             });
@@ -249,7 +249,7 @@ describe('System Store (Zustand)', () => {
             });
 
             it('should return false for degraded service', () => {
-                const isHealthy = useSystemStore.getState().isServiceHealthy('rf-acquisition');
+                const isHealthy = useSystemStore.getState().isServiceHealthy('backend');
                 expect(isHealthy).toBe(false);
             });
 
@@ -359,11 +359,11 @@ describe('System Store (Zustand)', () => {
                 status: 'healthy',
                 latency_ms: 50,
             });
-            await useSystemStore.getState().checkService('rf-acquisition');
+            await useSystemStore.getState().checkService('backend');
             
             const state = useSystemStore.getState();
             expect(state.servicesHealth['api-gateway']).toBeDefined();
-            expect(state.servicesHealth['rf-acquisition']).toBeDefined();
+            expect(state.servicesHealth['backend']).toBeDefined();
         });
 
         it('should handle concurrent service checks', async () => {
