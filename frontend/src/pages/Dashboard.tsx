@@ -17,7 +17,6 @@ import type { WidgetType } from '@/types/widgets';
 const Dashboard: React.FC = () => {
     const {
         metrics,
-        isLoading,
         error,
         fetchDashboardData,
         lastUpdate,
