@@ -232,12 +232,13 @@ export const LocalizationResultSchema = z.object({
 });
 
 export const UncertaintyEllipseSchema = z.object({
-    center: z.array(z.number()).length(2).refine((arr) => arr[0] >= -90 && arr[0] <= 90 && arr[1] >= -180 && arr[1] <= 180, {
-        message: "Center coordinates must be valid [lat, lon]"
-    }),
+    center: z.tuple([
+        z.number().min(-90).max(90), // latitude
+        z.number().min(-180).max(180) // longitude
+    ]),
     semi_major_axis_m: z.number().nonnegative(),
     semi_minor_axis_m: z.number().nonnegative(),
-    rotation_degrees: z.number().min(0).max(360),
+    rotation_degrees: z.number().min(0).lt(360), // 0 to <360 (360 equals 0)
     confidence_level: z.number().min(0).max(1),
 });
 
