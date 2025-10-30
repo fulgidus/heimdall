@@ -90,9 +90,9 @@ describe('System API Service', () => {
                 details: {},
             });
 
-            mock.onGet('/api/v1/rf-acquisition/health').reply(200, {
+            mock.onGet('/api/v1/backend/health').reply(200, {
                 status: 'healthy',
-                service: 'rf-acquisition',
+                service: 'backend',
                 version: '1.0.0',
                 timestamp: '2025-01-01T00:00:00Z',
                 details: {},
@@ -114,9 +114,9 @@ describe('System API Service', () => {
                 details: {},
             });
 
-            mock.onGet('/api/v1/rf-acquisition/health').reply(200, {
+            mock.onGet('/api/v1/backend/health').reply(200, {
                 status: 'healthy',
-                service: 'rf-acquisition',
+                service: 'backend',
                 version: '1.0.0',
                 timestamp: '2025-01-01T00:00:00Z',
                 details: {},
@@ -126,7 +126,7 @@ describe('System API Service', () => {
 
             expect(Object.keys(result)).toHaveLength(4);
             expect(result['api-gateway'].status).toBe('healthy');
-            expect(result['rf-acquisition'].status).toBe('healthy');
+            expect(result['backend'].status).toBe('healthy');
         });
 
         it('should handle partial failures gracefully', async () => {
@@ -138,7 +138,7 @@ describe('System API Service', () => {
                 details: {},
             });
 
-            mock.onGet('/api/v1/rf-acquisition/health').reply(500, {
+            mock.onGet('/api/v1/backend/health').reply(500, {
                 detail: 'Internal error',
             });
 
@@ -152,9 +152,9 @@ describe('System API Service', () => {
 
             mock.onGet('/api/v1/inference/health').networkError();
 
-            mock.onGet('/api/v1/rf-acquisition/health').reply(200, {
+            mock.onGet('/api/v1/backend/health').reply(200, {
                 status: 'healthy',
-                service: 'rf-acquisition',
+                service: 'backend',
                 version: '1.0.0',
                 timestamp: '2025-01-01T00:00:00Z',
                 details: {},
@@ -164,7 +164,7 @@ describe('System API Service', () => {
 
             expect(Object.keys(result)).toHaveLength(4);
             expect(result['api-gateway'].status).toBe('healthy');
-            expect(result['rf-acquisition'].status).toBe('unhealthy');
+            expect(result['backend'].status).toBe('unhealthy');
             expect(result['inference'].status).toBe('unhealthy');
             expect(result['training'].status).toBe('healthy');
         });

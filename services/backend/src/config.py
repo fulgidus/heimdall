@@ -3,7 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    service_name: str = "rf-acquisition"
+    service_name: str = "backend"
     service_port: int = 8001
     environment: str = "development"
     cors_origins: List[str] = ["*"]

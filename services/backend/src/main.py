@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-SERVICE_NAME = "rf-acquisition"
+SERVICE_NAME = "backend"
 SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8001
 

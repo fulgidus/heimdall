@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     
     # Backend service URLs
-    rf_acquisition_url: str = "http://rf-acquisition:8001"
+    backend_url: str = "http://backend:8001"  # Renamed from rf_acquisition_url
+    rf_acquisition_url: str = "http://backend:8001"  # Legacy alias for backward compatibility
     inference_url: str = "http://inference:8003"
     training_url: str = "http://training:8002"
     api_gateway_url: str = "http://localhost:8000"

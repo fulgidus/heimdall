@@ -18,7 +18,7 @@ async def test_01_health_endpoint(api_helper):
     assert response.status_code == 200, f"Health endpoint failed: {response.text}"
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "rf-acquisition"
+    assert data["service"] == "backend"
     print(f"✅ Health endpoint responding: {data['service']} is healthy")
 
 
