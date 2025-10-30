@@ -135,7 +135,7 @@ export const useAuthStore = create<AuthStore>()(
 
                 try {
                     const refreshUrl = `${API_URL}/api/v1/auth/refresh`;
-                    
+
                     const response = await fetch(refreshUrl, {
                         method: 'POST',
                         headers: {

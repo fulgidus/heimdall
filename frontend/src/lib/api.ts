@@ -92,7 +92,7 @@ api.interceptors.response.use(
 
             try {
                 const refreshSuccessful = await useAuthStore.getState().refreshAccessToken();
-                
+
                 if (refreshSuccessful) {
                     const newToken = useAuthStore.getState().token;
                     originalRequest.headers.Authorization = `Bearer ${newToken}`;
