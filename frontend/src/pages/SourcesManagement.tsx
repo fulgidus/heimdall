@@ -117,32 +117,18 @@ const SourcesManagement: React.FC = () => {
                             .addTo(map.current!);
                     }
                 });
+            });
 
-                map.current?.on('load', () => {
-                    setMapLoaded(true);
-
-                    // Add click handler for setting new source location
-                    map.current?.on('click', (e) => {
-                        if (isFormVisible && !editingSource) {
-                            setFormData((prev) => ({
-                                ...prev,
-                                latitude: e.lngLat.lat.toFixed(6),
-                                longitude: e.lngLat.lng.toFixed(6),
-                            }));
-                        }
-                    });
-                });
-
-                map.current?.on('error', (err) => {
-                    console.error('Mapbox error:', err);
-                    setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
-                    setMapLoaded(false);
-                });
-            } catch (error) {
-                console.error('Mapbox initialization error:', error);
+            map.current?.on('error', (err) => {
+                console.error('Mapbox error:', err);
                 setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
                 setMapLoaded(false);
-            }
+            });
+        } catch (error) {
+            console.error('Mapbox initialization error:', error);
+            setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
+            setMapLoaded(false);
+        }
 
             return () => {
                 map.current?.remove();

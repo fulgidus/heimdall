@@ -58,9 +58,16 @@ export class WebSocketManager {
      * Connect to WebSocket server
      */
     public async connect(): Promise<void> {
+        // Guard: If already connected or connecting, skip
         if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
             console.log('[WebSocket] Already connected or connecting');
             return;
+        }
+
+        // Guard: Clean up any stale websocket before reconnecting
+        if (this.ws && (this.ws.readyState === WebSocket.CLOSING || this.ws.readyState === WebSocket.CLOSED)) {
+            console.log('[WebSocket] Cleaning up closed connection before reconnecting');
+            this.ws = null;
         }
 
         this.shouldReconnect = true;
@@ -110,13 +117,22 @@ export class WebSocketManager {
      * Disconnect from WebSocket server
      */
     public disconnect(): void {
+        // Guard: Don't disconnect if already disconnected or never connected
+        if (!this.ws && this.state === ConnectionState.DISCONNECTED) {
+            console.log('[WebSocket] Already disconnected, skipping');
+            return;
+        }
+
         console.log('[WebSocket] Disconnecting');
         this.shouldReconnect = false;
         this.stopHeartbeat();
         this.clearReconnectTimer();
 
         if (this.ws) {
-            this.ws.close();
+            // Only close if connection is in a closeable state
+            if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+                this.ws.close();
+            }
             this.ws = null;
         }
 
