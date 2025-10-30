@@ -74,6 +74,13 @@ class RecordingSessionCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class RecordingSessionUpdate(BaseModel):
+    """Update recording session metadata"""
+    session_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    notes: Optional[str] = None
+    approval_status: Optional[str] = Field(None, pattern="^(pending|approved|rejected)$")
+
+
 class RecordingSessionWithDetails(RecordingSession):
     """Recording session with source details"""
     source_name: str

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import SessionEditModal from '../components/SessionEditModal';
 
 const SessionHistory: React.FC = () => {
     const {
@@ -15,9 +16,11 @@ const SessionHistory: React.FC = () => {
         fetchAnalytics,
         setStatusFilter,
         clearError,
+        updateSession,
     } = useSessionStore();
 
     const [selectedSession, setSelectedSession] = useState<number | null>(null);
+    const [editingSession, setEditingSession] = useState<number | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -48,6 +51,17 @@ const SessionHistory: React.FC = () => {
             per_page: perPage,
             status: statusFilter || undefined,
         });
+    };
+
+    const handleSaveSession = async (
+        sessionId: number,
+        updates: {
+            session_name?: string;
+            notes?: string;
+            approval_status?: 'pending' | 'approved' | 'rejected';
+        }
+    ) => {
+        await updateSession(sessionId, updates);
     };
 
     const totalPages = Math.ceil(totalSessions / perPage);
@@ -287,6 +301,13 @@ const SessionHistory: React.FC = () => {
                                                                     <i className="ph ph-eye"></i>
                                                                 </button>
                                                                 <button
+                                                                    className="btn btn-sm btn-link-warning"
+                                                                    onClick={() => setEditingSession(session.id)}
+                                                                    title="Edit Session"
+                                                                >
+                                                                    <i className="ph ph-pencil-simple"></i>
+                                                                </button>
+                                                                <button
                                                                     className="btn btn-sm btn-link-secondary"
                                                                     title="Download"
                                                                 >
@@ -373,12 +394,24 @@ const SessionHistory: React.FC = () => {
                         <div className="card">
                             <div className="card-header d-flex align-items-center justify-content-between">
                                 <h5 className="mb-0">Session Details</h5>
-                                <button
-                                    className="btn btn-sm btn-link-secondary"
-                                    onClick={() => setSelectedSession(null)}
-                                >
-                                    <i className="ph ph-x"></i>
-                                </button>
+                                <div className="d-flex gap-2">
+                                    <button
+                                        className="btn btn-sm btn-warning"
+                                        onClick={() => {
+                                            setEditingSession(selectedSessionData.id);
+                                            setSelectedSession(null);
+                                        }}
+                                    >
+                                        <i className="ph ph-pencil-simple me-1"></i>
+                                        Edit
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-link-secondary"
+                                        onClick={() => setSelectedSession(null)}
+                                    >
+                                        <i className="ph ph-x"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div className="card-body">
                                 <div className="row">
@@ -473,6 +506,15 @@ const SessionHistory: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingSession && sessions.find(s => s.id === editingSession) && (
+                <SessionEditModal
+                    session={sessions.find(s => s.id === editingSession)!}
+                    onSave={handleSaveSession}
+                    onClose={() => setEditingSession(null)}
+                />
             )}
         </>
     );

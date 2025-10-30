@@ -10,6 +10,7 @@ import type {
     RecordingSession,
     RecordingSessionWithDetails,
     RecordingSessionCreate,
+    RecordingSessionUpdate,
     SessionAnalytics,
     KnownSource,
     KnownSourceCreate,
@@ -46,6 +47,8 @@ interface SessionStore {
     fetchSession: (sessionId: number) => Promise<void>;
 
     createSession: (session: RecordingSessionCreate) => Promise<RecordingSession>;
+
+    updateSession: (sessionId: number, sessionUpdate: RecordingSessionUpdate) => Promise<void>;
 
     updateSessionStatus: (
         sessionId: number,
@@ -134,6 +137,27 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
             const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
             set({ error: errorMessage, isLoading: false });
             console.error('Session creation error:', error);
+            throw error;
+        }
+    },
+
+    updateSession: async (sessionId: number, sessionUpdate: RecordingSessionUpdate) => {
+        set({ isLoading: true, error: null });
+        try {
+            await sessionService.updateSession(sessionId, sessionUpdate);
+            set({ isLoading: false });
+
+            // Refresh session list
+            await get().fetchSessions();
+
+            // Refresh current session if it's the one being updated
+            if (get().currentSession?.id === sessionId) {
+                await get().fetchSession(sessionId);
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to update session';
+            set({ error: errorMessage, isLoading: false });
+            console.error('Session update error:', error);
             throw error;
         }
     },

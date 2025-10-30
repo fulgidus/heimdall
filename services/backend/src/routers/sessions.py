@@ -12,6 +12,7 @@ import logging
 from ..models.session import (
     RecordingSession,
     RecordingSessionCreate,
+    RecordingSessionUpdate,
     RecordingSessionWithDetails,
     SessionListResponse,
     SessionAnalytics,
@@ -230,6 +231,103 @@ async def get_session(session_id: UUID):
             source_latitude=row["source_latitude"],
             source_longitude=row["source_longitude"],
             measurements_count=row["measurements_count"],
+        )
+
+
+@router.patch("/{session_id}", response_model=RecordingSessionWithDetails)
+async def update_session(session_id: UUID, session_update: RecordingSessionUpdate):
+    """Update recording session metadata (session_name, notes, approval_status)"""
+    pool = await get_pool()
+    
+    # Build dynamic update query based on provided fields
+    update_fields = []
+    params = []
+    param_count = 1
+    
+    if session_update.session_name is not None:
+        update_fields.append(f"session_name = ${param_count}")
+        params.append(session_update.session_name)
+        param_count += 1
+    
+    if session_update.notes is not None:
+        update_fields.append(f"notes = ${param_count}")
+        params.append(session_update.notes)
+        param_count += 1
+    
+    if session_update.approval_status is not None:
+        update_fields.append(f"approval_status = ${param_count}")
+        params.append(session_update.approval_status)
+        param_count += 1
+    
+    if not update_fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    # Always update updated_at
+    update_fields.append("updated_at = NOW()")
+    
+    params.append(session_id)
+    
+    update_query = f"""
+        UPDATE heimdall.recording_sessions
+        SET {', '.join(update_fields)}
+        WHERE id = ${param_count}
+        RETURNING id
+    """
+    
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(update_query, *params)
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        # Fetch full session details to return
+        detail_query = """
+            SELECT 
+                rs.id,
+                rs.known_source_id,
+                rs.session_name,
+                rs.session_start,
+                rs.session_end,
+                rs.duration_seconds,
+                rs.celery_task_id,
+                rs.status,
+                rs.approval_status,
+                rs.notes,
+                rs.created_at,
+                rs.updated_at,
+                ks.name as source_name,
+                ks.frequency_hz as source_frequency,
+                ks.latitude as source_latitude,
+                ks.longitude as source_longitude,
+                COUNT(m.id) as measurements_count
+            FROM heimdall.recording_sessions rs
+            JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
+            LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start 
+                AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
+            WHERE rs.id = $1
+            GROUP BY rs.id, ks.name, ks.frequency_hz, ks.latitude, ks.longitude
+        """
+        
+        detail_row = await conn.fetchrow(detail_query, session_id)
+        
+        return RecordingSessionWithDetails(
+            id=detail_row["id"],
+            known_source_id=detail_row["known_source_id"],
+            session_name=detail_row["session_name"],
+            session_start=detail_row["session_start"],
+            session_end=detail_row["session_end"],
+            duration_seconds=detail_row["duration_seconds"],
+            celery_task_id=detail_row["celery_task_id"],
+            status=detail_row["status"],
+            approval_status=detail_row["approval_status"],
+            notes=detail_row["notes"],
+            created_at=detail_row["created_at"],
+            updated_at=detail_row["updated_at"],
+            source_name=detail_row["source_name"],
+            source_frequency=detail_row["source_frequency"],
+            source_latitude=detail_row["source_latitude"],
+            source_longitude=detail_row["source_longitude"],
+            measurements_count=detail_row["measurements_count"],
         )
 
 
