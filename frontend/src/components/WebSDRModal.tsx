@@ -24,6 +24,8 @@ interface FormData {
     country: string;
     admin_email: string;
     altitude_asl: string;
+    frequency_min_hz: string;
+    frequency_max_hz: string;
     timeout_seconds: string;
     retry_count: string;
     is_active: boolean;
@@ -43,6 +45,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
         country: '',
         admin_email: '',
         altitude_asl: '',
+        frequency_min_hz: '',
+        frequency_max_hz: '',
         timeout_seconds: '30',
         retry_count: '3',
         is_active: true,
@@ -50,6 +54,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
 
     const [errors, setErrors] = useState<FormErrors>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     // Populate form when editing
     useEffect(() => {
@@ -63,6 +69,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
                 country: websdr.country || '',
                 admin_email: websdr.admin_email || '',
                 altitude_asl: websdr.altitude_asl?.toString() || '',
+                frequency_min_hz: websdr.frequency_min_hz?.toString() || '',
+                frequency_max_hz: websdr.frequency_max_hz?.toString() || '',
                 timeout_seconds: websdr.timeout_seconds?.toString() || '30',
                 retry_count: websdr.retry_count?.toString() || '3',
                 is_active: websdr.is_active ?? true,
@@ -78,12 +86,15 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
                 country: '',
                 admin_email: '',
                 altitude_asl: '',
+                frequency_min_hz: '',
+                frequency_max_hz: '',
                 timeout_seconds: '30',
                 retry_count: '3',
                 is_active: true,
             });
         }
         setErrors({});
+        setFetchError(null);
     }, [mode, websdr, show]);
 
     const validateForm = (): boolean => {
@@ -164,6 +175,52 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
         }
     };
 
+    const handleFetchFromUrl = async () => {
+        if (!formData.url.trim()) {
+            setFetchError('Please enter a URL first');
+            return;
+        }
+
+        if (!/^https?:\/\/.+/.test(formData.url)) {
+            setFetchError('URL must start with http:// or https://');
+            return;
+        }
+
+        setIsFetching(true);
+        setFetchError(null);
+
+        try {
+            const { fetchWebSDRInfo } = await import('@/services/api/websdr');
+            const info = await fetchWebSDRInfo(formData.url);
+
+            if (!info.success) {
+                setFetchError(info.error_message || 'Failed to fetch WebSDR information');
+                return;
+            }
+
+            // Populate form with fetched data
+            setFormData(prev => ({
+                ...prev,
+                name: info.receiver_name || prev.name,
+                location_description: info.location || prev.location_description,
+                latitude: info.latitude?.toString() || prev.latitude,
+                longitude: info.longitude?.toString() || prev.longitude,
+                altitude_asl: info.altitude_asl?.toString() || prev.altitude_asl,
+                admin_email: info.admin_email || prev.admin_email,
+                frequency_min_hz: info.frequency_min_hz?.toString() || prev.frequency_min_hz,
+                frequency_max_hz: info.frequency_max_hz?.toString() || prev.frequency_max_hz,
+            }));
+
+            // Show success feedback
+            console.log('✅ Fetched WebSDR info:', info);
+        } catch (error) {
+            console.error('Fetch error:', error);
+            setFetchError(error instanceof Error ? error.message : 'Failed to fetch WebSDR information');
+        } finally {
+            setIsFetching(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -196,6 +253,12 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
             }
             if (formData.altitude_asl) {
                 payload.altitude_asl = parseInt(formData.altitude_asl);
+            }
+            if (formData.frequency_min_hz) {
+                payload.frequency_min_hz = parseInt(formData.frequency_min_hz);
+            }
+            if (formData.frequency_max_hz) {
+                payload.frequency_max_hz = parseInt(formData.frequency_max_hz);
             }
 
             await onSave(payload);
@@ -264,17 +327,43 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
                                             <label htmlFor="url" className="form-label">
                                                 WebSDR URL <span className="text-danger">*</span>
                                             </label>
-                                            <input
-                                                type="url"
-                                                className={`form-control ${errors.url ? 'is-invalid' : ''}`}
-                                                id="url"
-                                                name="url"
-                                                value={formData.url}
-                                                onChange={handleChange}
-                                                placeholder="http://websdr.example.com:8901"
-                                                required
-                                            />
-                                            {errors.url && <div className="invalid-feedback">{errors.url}</div>}
+                                            <div className="input-group">
+                                                <input
+                                                    type="url"
+                                                    className={`form-control ${errors.url ? 'is-invalid' : ''}`}
+                                                    id="url"
+                                                    name="url"
+                                                    value={formData.url}
+                                                    onChange={handleChange}
+                                                    placeholder="http://websdr.example.com:8901"
+                                                    required
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-outline-primary"
+                                                    onClick={handleFetchFromUrl}
+                                                    disabled={isFetching || !formData.url.trim()}
+                                                    title="Fetch station info from URL"
+                                                >
+                                                    {isFetching ? (
+                                                        <span className="spinner-border spinner-border-sm"></span>
+                                                    ) : (
+                                                        <i className="ph ph-download-simple"></i>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            {errors.url && <div className="invalid-feedback d-block">{errors.url}</div>}
+                                            {fetchError && (
+                                                <div className="text-danger small mt-1">
+                                                    <i className="ph ph-warning-circle me-1"></i>
+                                                    {fetchError}
+                                                </div>
+                                            )}
+                                            {!fetchError && isFetching && (
+                                                <small className="text-muted d-block mt-1">
+                                                    Fetching WebSDR information...
+                                                </small>
+                                            )}
                                         </div>
                                     </div>
 
@@ -389,6 +478,56 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
                                             <small className="text-muted">Above sea level</small>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Frequency Range */}
+                                <div className="mb-4">
+                                    <h6 className="mb-3">
+                                        <i className="ph ph-wave-sine me-2"></i>Frequency Range
+                                    </h6>
+
+                                    <div className="row">
+                                        <div className="col-md-6 mb-3">
+                                            <label htmlFor="frequency_min_hz" className="form-label">
+                                                Min Frequency (Hz)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                id="frequency_min_hz"
+                                                name="frequency_min_hz"
+                                                value={formData.frequency_min_hz}
+                                                onChange={handleChange}
+                                                placeholder="144000000"
+                                                readOnly
+                                            />
+                                            <small className="text-muted">Auto-updated from status.json</small>
+                                        </div>
+
+                                        <div className="col-md-6 mb-3">
+                                            <label htmlFor="frequency_max_hz" className="form-label">
+                                                Max Frequency (Hz)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                id="frequency_max_hz"
+                                                name="frequency_max_hz"
+                                                value={formData.frequency_max_hz}
+                                                onChange={handleChange}
+                                                placeholder="146000000"
+                                                readOnly
+                                            />
+                                            <small className="text-muted">Auto-updated from status.json</small>
+                                        </div>
+                                    </div>
+                                    
+                                    {formData.frequency_min_hz && formData.frequency_max_hz && (
+                                        <div className="alert alert-info mb-0">
+                                            <i className="ph ph-info me-2"></i>
+                                            <strong>Frequency Range:</strong> {(parseInt(formData.frequency_min_hz) / 1e6).toFixed(3)} MHz - {(parseInt(formData.frequency_max_hz) / 1e6).toFixed(3)} MHz
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Connection Settings */}

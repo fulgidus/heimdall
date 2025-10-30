@@ -1,6 +1,7 @@
 """FastAPI endpoints for RF acquisition."""
 
 import logging
+import requests
 from datetime import datetime
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
@@ -14,6 +15,8 @@ from ..models.websdrs import (
     WebSDRCreateRequest,
     WebSDRUpdateRequest,
     WebSDRResponse,
+    WebSDRFetchInfoRequest,
+    WebSDRFetchInfoResponse,
 )
 from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
 from ..storage.db_manager import get_db_manager
@@ -523,5 +526,116 @@ async def list_all_websdrs(include_inactive: bool = False):
         raise HTTPException(
             status_code=500,
             detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post("/websdrs/fetch-info", response_model=WebSDRFetchInfoResponse)
+async def fetch_websdr_info(request: WebSDRFetchInfoRequest):
+    """
+    Fetch WebSDR information from its status.json endpoint.
+    
+    This endpoint fetches metadata from a WebSDR's /status.json endpoint,
+    including receiver details, GPS coordinates, frequency ranges, and SDR profiles.
+    
+    Args:
+        request: URL of the WebSDR to fetch info from
+    
+    Returns:
+        WebSDR information extracted from status.json
+    
+    Raises:
+        HTTPException 400: If URL is invalid or unreachable
+        HTTPException 500: If parsing fails
+    """
+    try:
+        url = request.url.rstrip('/')
+        status_url = f"{url}/status.json"
+        
+        logger.info(f"Fetching WebSDR info from {status_url}")
+        
+        # Fetch status.json with timeout
+        response = requests.get(status_url, timeout=10)
+        response.raise_for_status()
+        
+        health_data = response.json()
+        
+        # Extract receiver information
+        receiver = health_data.get("receiver", {})
+        gps = receiver.get("gps", {})
+        
+        latitude = gps.get("lat")
+        longitude = gps.get("lon")
+        
+        # Extract frequency ranges from all SDR profiles
+        sdrs = health_data.get("sdrs", [])
+        all_frequencies = []
+        profile_count = 0
+        
+        for sdr in sdrs:
+            profiles = sdr.get("profiles", [])
+            profile_count += len(profiles)
+            
+            for profile in profiles:
+                center_freq = profile.get("center_freq")
+                if center_freq is not None:
+                    all_frequencies.append(int(center_freq))
+        
+        # Calculate frequency range
+        frequency_min_hz = min(all_frequencies) if all_frequencies else None
+        frequency_max_hz = max(all_frequencies) if all_frequencies else None
+        
+        logger.info(
+            f"Successfully fetched info: {len(sdrs)} SDRs, {profile_count} profiles, "
+            f"freq range: {frequency_min_hz}-{frequency_max_hz} Hz"
+        )
+        
+        return WebSDRFetchInfoResponse(
+            receiver_name=receiver.get("name"),
+            location=receiver.get("location"),
+            latitude=float(latitude) if latitude is not None else None,
+            longitude=float(longitude) if longitude is not None else None,
+            altitude_asl=receiver.get("asl"),
+            admin_email=receiver.get("admin"),
+            frequency_min_hz=frequency_min_hz,
+            frequency_max_hz=frequency_max_hz,
+            sdr_count=len(sdrs),
+            profile_count=profile_count,
+            success=True,
+            error_message=None
+        )
+    
+    except requests.exceptions.Timeout:
+        logger.warning(f"Timeout fetching info from {request.url}")
+        return WebSDRFetchInfoResponse(
+            success=False,
+            error_message="Connection timeout - WebSDR did not respond within 10 seconds"
+        )
+    
+    except requests.exceptions.ConnectionError as e:
+        logger.warning(f"Connection error fetching info from {request.url}: {e}")
+        return WebSDRFetchInfoResponse(
+            success=False,
+            error_message="Connection failed - unable to reach WebSDR URL"
+        )
+    
+    except requests.exceptions.HTTPError as e:
+        logger.warning(f"HTTP error fetching info from {request.url}: {e}")
+        return WebSDRFetchInfoResponse(
+            success=False,
+            error_message=f"HTTP error {e.response.status_code} - WebSDR may not support status.json"
+        )
+    
+    except ValueError as e:
+        logger.error(f"Invalid JSON from {request.url}: {e}")
+        return WebSDRFetchInfoResponse(
+            success=False,
+            error_message="Invalid response - not valid JSON"
+        )
+    
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching info from {request.url}: {e}")
+        return WebSDRFetchInfoResponse(
+            success=False,
+            error_message=f"Unexpected error: {str(e)}"
         )
 

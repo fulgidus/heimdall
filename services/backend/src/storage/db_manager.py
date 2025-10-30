@@ -390,8 +390,10 @@ class DatabaseManager:
                 
                 station_id = station.id
                 
-                # Process SDR profiles
+                # Process SDR profiles and collect frequency ranges
                 sdrs = health_data.get("sdrs", [])
+                all_frequencies = []
+                
                 for sdr in sdrs:
                     sdr_name = sdr.get("name", "Unknown")
                     sdr_type = sdr.get("type")
@@ -407,6 +409,8 @@ class DatabaseManager:
                                 f"Skipping profile '{profile_name}' - missing freq/sample_rate"
                             )
                             continue
+                        
+                        all_frequencies.append(int(center_freq))
                         
                         # Check if profile exists
                         existing_profile = session.execute(
@@ -437,6 +441,14 @@ class DatabaseManager:
                                 is_active=True
                             )
                             session.add(new_profile)
+                
+                # Update frequency ranges based on collected frequencies
+                if all_frequencies:
+                    station.frequency_min_hz = min(all_frequencies)
+                    station.frequency_max_hz = max(all_frequencies)
+                    logger.info(
+                        f"Updated frequency range: {station.frequency_min_hz} - {station.frequency_max_hz} Hz"
+                    )
                 
                 session.commit()
                 logger.info(
