@@ -6,11 +6,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "heimdall-sdr"
-version = "0.1.0"
+version = "0.3.1"
 description = "AI-driven platform for real-time localization of radio sources"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "CC Non-Commercial"}
+license = { text = "CC Non-Commercial" }
 
 [tool.black]
 line-length = 100
@@ -36,34 +36,38 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "0.3.1"
 
 [tool.ruff.lint]
 select = [
-  "E",      # pycodestyle errors
-  "W",      # pycodestyle warnings
-  "F",      # pyflakes
-  "I",      # isort
-  "C",      # flake8-comprehensions
-  "B",      # flake8-bugbear
-  "N",      # pep8-naming
-  "UP",     # pyupgrade
-  "S",      # bandit (security)
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "N",  # pep8-naming
+    "UP", # pyupgrade
+    "S",  # bandit (security)
 ]
 ignore = [
-  "E501",   # line too long (handled by black)
-  "S101",   # use of assert (common in tests)
-  "S104",   # possible binding to all interfaces
-  "S105",   # possible hardcoded password
-  "S106",   # possible hardcoded password
+    "E501", # line too long (handled by black)
+    "S101", # use of assert (common in tests)
+    "S104", # possible binding to all interfaces
+    "S105", # possible hardcoded password
+    "S106", # possible hardcoded password
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "S105", "S106"]  # Allow asserts and test credentials in tests
+"tests/**/*.py" = [
+    "S101",
+    "S105",
+    "S106",
+] # Allow asserts and test credentials in tests
 "conftest.py" = ["S101"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "0.3.1"
 warn_return_any = true
 warn_unused_configs = true
 warn_redundant_casts = true
@@ -102,60 +106,65 @@ ignore_errors = true
 # Ignore third-party packages without type stubs
 [[tool.mypy.overrides]]
 module = [
-  "numpy.*",
-  "torch.*",
-  "sklearn.*",
-  "celery.*",
-  "aiohttp.*",
-  "minio.*",
-  "sqlalchemy.*",
-  "alembic.*",
-  "pytest_asyncio.*",
-  "torchaudio.*",
-  "torchvision.*",
-  "lightning.*",
-  "mlflow.*",
-  "onnxruntime.*",
-  "pydantic_settings.*",
-  "fastapi.*",
-  "uvicorn.*",
-  "boto3.*",
-  "botocore.*",
-  "redis.*",
-  "psycopg2.*",
+    "numpy.*",
+    "torch.*",
+    "sklearn.*",
+    "celery.*",
+    "aiohttp.*",
+    "minio.*",
+    "sqlalchemy.*",
+    "alembic.*",
+    "pytest_asyncio.*",
+    "torchaudio.*",
+    "torchvision.*",
+    "lightning.*",
+    "mlflow.*",
+    "onnxruntime.*",
+    "pydantic_settings.*",
+    "fastapi.*",
+    "uvicorn.*",
+    "boto3.*",
+    "botocore.*",
+    "redis.*",
+    "psycopg2.*",
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["services"]
-norecursedirs = ["frontend", "scripts", ".git", ".venv", "node_modules", "__pycache__", ".pytest_cache", "coverage_reports", "docs", "db"]
+norecursedirs = [
+    "frontend",
+    "scripts",
+    ".git",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    "coverage_reports",
+    "docs",
+    "db",
+]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-  "-v",
-  "--strict-markers",
-  "--tb=short",
-  "--cov=services",
-  "--cov-report=term-missing",
-  "--cov-report=xml",
-  "--cov-report=html",
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=services",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+    "--cov-report=html",
 ]
 markers = [
-  "e2e: End-to-end tests that require running services",
-  "integration: Integration tests",
-  "unit: Unit tests",
+    "e2e: End-to-end tests that require running services",
+    "integration: Integration tests",
+    "unit: Unit tests",
 ]
 # Minimum coverage threshold (80%)
 [tool.coverage.run]
 source = ["services"]
-omit = [
-  "*/tests/*",
-  "*/test_*.py",
-  "*/__pycache__/*",
-  "*/venv/*",
-  "*/.venv/*",
-]
+omit = ["*/tests/*", "*/test_*.py", "*/__pycache__/*", "*/venv/*", "*/.venv/*"]
 
 [tool.coverage.report]
 precision = 2

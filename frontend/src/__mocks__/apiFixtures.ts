@@ -7,7 +7,6 @@ export const mockServiceHealth = {
     'backend': { status: 'healthy', version: '1.0.0', latency_ms: 50 },
     'inference': { status: 'healthy', version: '1.0.0', latency_ms: 30 },
     'training': { status: 'healthy', version: '1.0.0', latency_ms: 100 },
-    : { status: 'healthy', version: '1.0.0', latency_ms: 20 },
 };
 
 export const mockServiceHealthUnhealthy = {
