@@ -90,36 +90,41 @@ export const WidgetContainer: React.FC<WidgetContainerProps> = ({ widget, childr
                                         </div>
                                         <div>
                                             <small className="text-muted d-block mb-1">Height</small>
-                                            <div className="d-flex flex-column gap-1">
+                                            <div className="btn-group btn-group-sm w-100" role="group">
                                                 <button
-                                                    className={`btn btn-sm ${!widget.height || widget.height === 'auto' ? 'btn-primary' : 'btn-outline-secondary'} text-start`}
+                                                    className={`btn ${!widget.height || widget.height === 'auto' ? 'btn-primary' : 'btn-outline-secondary'}`}
                                                     onClick={() => handleHeightChange('auto')}
+                                                    title="Auto height"
                                                 >
-                                                    Auto
+                                                    A
                                                 </button>
                                                 <button
-                                                    className={`btn btn-sm ${widget.height === 'small' ? 'btn-primary' : 'btn-outline-secondary'} text-start`}
+                                                    className={`btn ${widget.height === 'small' ? 'btn-primary' : 'btn-outline-secondary'}`}
                                                     onClick={() => handleHeightChange('small')}
+                                                    title="Small height (200px)"
                                                 >
-                                                    Small
+                                                    S
                                                 </button>
                                                 <button
-                                                    className={`btn btn-sm ${widget.height === 'medium' ? 'btn-primary' : 'btn-outline-secondary'} text-start`}
+                                                    className={`btn ${widget.height === 'medium' ? 'btn-primary' : 'btn-outline-secondary'}`}
                                                     onClick={() => handleHeightChange('medium')}
+                                                    title="Medium height (350px)"
                                                 >
-                                                    Medium
+                                                    M
                                                 </button>
                                                 <button
-                                                    className={`btn btn-sm ${widget.height === 'large' ? 'btn-primary' : 'btn-outline-secondary'} text-start`}
+                                                    className={`btn ${widget.height === 'large' ? 'btn-primary' : 'btn-outline-secondary'}`}
                                                     onClick={() => handleHeightChange('large')}
+                                                    title="Large height (500px)"
                                                 >
-                                                    Large
+                                                    L
                                                 </button>
                                                 <button
-                                                    className={`btn btn-sm ${widget.height === 'xlarge' ? 'btn-primary' : 'btn-outline-secondary'} text-start`}
+                                                    className={`btn ${widget.height === 'xlarge' ? 'btn-primary' : 'btn-outline-secondary'}`}
                                                     onClick={() => handleHeightChange('xlarge')}
+                                                    title="X-Large height (700px)"
                                                 >
-                                                    X-Large
+                                                    XL
                                                 </button>
                                             </div>
                                         </div>
