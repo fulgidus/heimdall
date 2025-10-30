@@ -232,16 +232,24 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     },
 
     connectWebSocket: async () => {
-        const { wsManager, wsEnabled } = get();
+        const { wsManager, wsEnabled, wsConnectionState } = get();
 
         if (!wsEnabled) {
             console.log('[Dashboard] WebSocket disabled, using polling');
             return;
         }
 
-        if (wsManager) {
-            console.log('[Dashboard] WebSocket already initialized');
+        // Guard: Don't reconnect if already connected or connecting
+        if (wsManager && (wsConnectionState === ConnectionState.CONNECTED || wsConnectionState === ConnectionState.CONNECTING)) {
+            console.log('[Dashboard] WebSocket already initialized and connected/connecting');
             return;
+        }
+
+        // Guard: If manager exists but is disconnected, clean it up first
+        if (wsManager && wsConnectionState === ConnectionState.DISCONNECTED) {
+            console.log('[Dashboard] Cleaning up disconnected WebSocket manager');
+            wsManager.disconnect();
+            set({ wsManager: null });
         }
 
         try {
@@ -314,7 +322,14 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     },
 
     disconnectWebSocket: () => {
-        const { wsManager } = get();
+        const { wsManager, wsConnectionState } = get();
+        
+        // Guard: Don't disconnect if already disconnected
+        if (!wsManager || wsConnectionState === ConnectionState.DISCONNECTED) {
+            console.log('[Dashboard] Already disconnected, skipping');
+            return;
+        }
+        
         if (wsManager) {
             console.log('[Dashboard] Disconnecting WebSocket');
             wsManager.disconnect();

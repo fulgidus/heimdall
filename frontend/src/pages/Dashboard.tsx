@@ -46,9 +46,18 @@ const Dashboard: React.FC = () => {
 
         return () => {
             clearInterval(interval);
+            // Don't disconnect WebSocket here - let component unmount handle it
+            // This prevents issues with React StrictMode double mounting
+        };
+    }, [fetchDashboardData, connectWebSocket, wsEnabled, wsConnectionState]);
+
+    // Separate effect for WebSocket cleanup on actual unmount
+    useEffect(() => {
+        return () => {
+            // Only disconnect on actual unmount (not during StrictMode remount)
             disconnectWebSocket();
         };
-    }, [fetchDashboardData, connectWebSocket, disconnectWebSocket, wsEnabled, wsConnectionState]);
+    }, [disconnectWebSocket]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
