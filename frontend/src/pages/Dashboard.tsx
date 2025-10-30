@@ -94,15 +94,19 @@ const Dashboard: React.FC = () => {
             useDashboardStore.setState({ lastUpdate: new Date() });
         };
 
-        // Subscribe to events
-        subscribe('services:health', handleServicesHealth);
-        subscribe('websdrs_update', handleWebSDRUpdate);
-        subscribe('signals:detected', handleSignalDetected);
-        subscribe('localizations:updated', handleLocalizationUpdate);
+        // Subscribe to events and store unsubscribe functions
+        const unsubscribeServicesHealth = subscribe('services:health', handleServicesHealth);
+        const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
+        const unsubscribeSignalDetected = subscribe('signals:detected', handleSignalDetected);
+        const unsubscribeLocalizationUpdate = subscribe('localizations:updated', handleLocalizationUpdate);
 
-        // Cleanup is handled by WebSocketContext
+        // Cleanup: unsubscribe from all events
         return () => {
             isMountedRef.current = false;
+            unsubscribeServicesHealth();
+            unsubscribeWebSDRUpdate();
+            unsubscribeSignalDetected();
+            unsubscribeLocalizationUpdate();
         };
     }, [subscribe]);
 

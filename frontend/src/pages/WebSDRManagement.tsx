@@ -79,12 +79,14 @@ const WebSDRManagement: React.FC = () => {
             useWebSDRStore.setState({ healthStatus: data });
         };
 
-        // Subscribe to events
-        subscribe('websdrs_data', handleWebSDRData);
-        subscribe('websdrs_update', handleWebSDRUpdate);
+        // Subscribe to events and store unsubscribe functions
+        const unsubscribeWebSDRData = subscribe('websdrs_data', handleWebSDRData);
+        const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
 
         return () => {
             isMountedRef.current = false;
+            unsubscribeWebSDRData();
+            unsubscribeWebSDRUpdate();
         };
     }, [subscribe]);
 

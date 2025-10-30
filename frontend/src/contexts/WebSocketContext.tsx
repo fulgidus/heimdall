@@ -17,7 +17,7 @@ interface WebSocketContextValue {
     isConnected: boolean;
     connect: () => Promise<void>;
     disconnect: () => void;
-    subscribe: (event: string, callback: (data: any) => void) => void;
+    subscribe: (event: string, callback: (data: any) => void) => () => void;
     unsubscribe: (event: string, callback: (data: any) => void) => void;
 }
 
@@ -37,6 +37,8 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     const managerRef = useRef<WebSocketManager | null>(null);
     const isMountedRef = useRef<boolean>(true);
     const connectingRef = useRef<boolean>(false);
+    const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const callbackMapRef = useRef<Map<(data: any) => void, (data: any) => void>>(new Map());
     const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
     
     // Get WebSocket URL from props or construct from environment
@@ -114,12 +116,29 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
             }
         };
         
+        // Store mapping so we can unsubscribe with the original callback
+        callbackMapRef.current.set(callback, guardedCallback);
+        
         manager.subscribe(event, guardedCallback);
+        
+        // Return unsubscribe function for this specific subscription
+        return () => {
+            const guarded = callbackMapRef.current.get(callback);
+            if (guarded) {
+                manager.unsubscribe(event, guarded);
+                callbackMapRef.current.delete(callback);
+            }
+        };
     }, [initializeManager]);
 
     const unsubscribe = useCallback((event: string, callback: (data: any) => void) => {
         if (managerRef.current) {
-            managerRef.current.unsubscribe(event, callback);
+            // Get the guarded callback from the map
+            const guardedCallback = callbackMapRef.current.get(callback);
+            if (guardedCallback) {
+                managerRef.current.unsubscribe(event, guardedCallback);
+                callbackMapRef.current.delete(callback);
+            }
         }
     }, []);
 
@@ -135,16 +154,22 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         return () => {
             isMountedRef.current = false;
             
+            // Clear any existing cleanup timer
+            if (cleanupTimerRef.current) {
+                clearTimeout(cleanupTimerRef.current);
+            }
+            
             // Use a small delay to handle React StrictMode double-mounting
-            setTimeout(() => {
+            cleanupTimerRef.current = setTimeout(() => {
                 if (managerRef.current) {
                     console.log('[WebSocketContext] Component unmounted, disconnecting WebSocket');
                     managerRef.current.disconnect();
                     managerRef.current = null;
                 }
+                cleanupTimerRef.current = null;
             }, 100);
         };
-    }, [autoConnect, connect]);
+    }, [autoConnect]);  // Removed 'connect' dependency to avoid unnecessary reconnections
 
     const value: WebSocketContextValue = {
         manager: managerRef.current,
