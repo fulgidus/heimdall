@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim AS deps-rf
 WORKDIR /build
 
 # Install system dependencies
@@ -9,10 +9,13 @@ COPY services/requirements/ ./requirements/
 COPY services/rf-acquisition/requirements.txt .
 
 # Using locked versions for reproducibility
-# Install from centralized lock files first, then service-specific
+# Resolve all requirements by combining base + api + data + service-specific
 RUN pip install --upgrade pip && \
+    { cat requirements/base.txt requirements/api.txt requirements/data.txt; \
+    grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
+    grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
-    -r requirements.txt
+    -r /tmp/all_reqs.txt
 
 FROM python:3.11-slim
 WORKDIR /app
@@ -24,7 +27,7 @@ RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/l
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Copy installed packages from builder
-COPY --from=builder /root/.local /home/appuser/.local
+COPY --from=deps-rf /root/.local /home/appuser/.local
 
 # Copy shared common module
 COPY --chown=appuser:appuser services/common/ ./common/
@@ -34,7 +37,7 @@ COPY --chown=appuser:appuser services/rf-acquisition/src/ ./src/
 COPY --chown=appuser:appuser services/rf-acquisition/entrypoint.py ./entrypoint.py
 
 # Set environment
-ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1
+ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1 PYTHONPATH=/app
 
 USER appuser
 EXPOSE 8001
