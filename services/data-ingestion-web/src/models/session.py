@@ -12,9 +12,9 @@ class KnownSource(BaseModel):
     id: UUID
     name: str
     description: Optional[str] = None
-    frequency_hz: int
-    latitude: float
-    longitude: float
+    frequency_hz: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False
@@ -24,12 +24,12 @@ class KnownSource(BaseModel):
 
 
 class KnownSourceCreate(BaseModel):
-    """Create a new known source"""
+    """Create a new known source - only name is required, location and frequency can be unknown"""
     name: str
     description: Optional[str] = None
-    frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    frequency_hz: Optional[int] = Field(None, gt=0, description="Frequency in Hz (optional)")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude (optional)")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude (optional)")
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False

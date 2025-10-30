@@ -138,7 +138,7 @@ const RecordingSession: React.FC = () => {
                                             setFormData({
                                                 ...formData,
                                                 knownSourceId: e.target.value,
-                                                frequency: source ? (source.frequency_hz / 1e6).toString() : '',
+                                                frequency: source?.frequency_hz ? (source.frequency_hz / 1e6).toString() : '',
                                             });
                                         }}
                                         disabled={isAcquiring}
@@ -146,7 +146,7 @@ const RecordingSession: React.FC = () => {
                                         <option value="">Select a source...</option>
                                         {knownSources.map((source) => (
                                             <option key={source.id} value={source.id}>
-                                                {source.name} - {(source.frequency_hz / 1e6).toFixed(3)} MHz
+                                                {source.name}{source.frequency_hz ? ` - ${(source.frequency_hz / 1e6).toFixed(3)} MHz` : ''}
                                             </option>
                                         ))}
                                     </select>
@@ -222,7 +222,9 @@ const RecordingSession: React.FC = () => {
                                                     <tr>
                                                         <td className="text-muted">Location:</td>
                                                         <td>
-                                                            {selectedSource.latitude.toFixed(4)}, {selectedSource.longitude.toFixed(4)}
+                                                            {selectedSource.latitude != null && selectedSource.longitude != null
+                                                                ? `${selectedSource.latitude.toFixed(4)}, ${selectedSource.longitude.toFixed(4)}`
+                                                                : 'N/A'}
                                                         </td>
                                                     </tr>
                                                     <tr>

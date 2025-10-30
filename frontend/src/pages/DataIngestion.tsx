@@ -307,10 +307,12 @@ const DataIngestion: React.FC = () => {
                                                                     </div>
                                                                 </div>
                                                             </td>
-                                                            <td>{(source.frequency_hz / 1e6).toFixed(3)} MHz</td>
+                                                            <td>{source.frequency_hz ? `${(source.frequency_hz / 1e6).toFixed(3)} MHz` : '-'}</td>
                                                             <td className="d-none d-md-table-cell">{source.source_type || '-'}</td>
                                                             <td className="f-12 d-none d-lg-table-cell">
-                                                                {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
+                                                                {source.latitude != null && source.longitude != null 
+                                                                    ? `${source.latitude.toFixed(4)}, ${source.longitude.toFixed(4)}`
+                                                                    : '-'}
                                                             </td>
                                                             <td className="d-none d-lg-table-cell">{source.power_dbm ? `${source.power_dbm} dBm` : '-'}</td>
                                                             <td>
