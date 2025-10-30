@@ -93,7 +93,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 
 **Deliverables**:
 - Service scaffold generator script
-- 5 microservices (rf-acquisition, training, inference, data-ingestion-web, api-gateway)
+- 4 microservices (rf-acquisition, training, inference, api-gateway)
 - Health check endpoints (`/health`)
 - Structured logging (structlog with JSON format)
 - Docker multi-stage builds with health checks

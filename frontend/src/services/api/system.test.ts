@@ -114,9 +114,9 @@ describe('System API Service', () => {
                 details: {},
             });
 
-            mock.onGet('/api/v1/data-ingestion-web/health').reply(200, {
+            mock.onGet('/api/v1/rf-acquisition/health').reply(200, {
                 status: 'healthy',
-                service: 'data-ingestion-web',
+                service: 'rf-acquisition',
                 version: '1.0.0',
                 timestamp: '2025-01-01T00:00:00Z',
                 details: {},
@@ -124,7 +124,7 @@ describe('System API Service', () => {
 
             const result = await checkAllServicesHealth();
 
-            expect(Object.keys(result)).toHaveLength(5);
+            expect(Object.keys(result)).toHaveLength(4);
             expect(result['api-gateway'].status).toBe('healthy');
             expect(result['rf-acquisition'].status).toBe('healthy');
         });
@@ -152,9 +152,9 @@ describe('System API Service', () => {
 
             mock.onGet('/api/v1/inference/health').networkError();
 
-            mock.onGet('/api/v1/data-ingestion-web/health').reply(200, {
+            mock.onGet('/api/v1/rf-acquisition/health').reply(200, {
                 status: 'healthy',
-                service: 'data-ingestion-web',
+                service: 'rf-acquisition',
                 version: '1.0.0',
                 timestamp: '2025-01-01T00:00:00Z',
                 details: {},
@@ -162,7 +162,7 @@ describe('System API Service', () => {
 
             const result = await checkAllServicesHealth();
 
-            expect(Object.keys(result)).toHaveLength(5);
+            expect(Object.keys(result)).toHaveLength(4);
             expect(result['api-gateway'].status).toBe('healthy');
             expect(result['rf-acquisition'].status).toBe('unhealthy');
             expect(result['inference'].status).toBe('unhealthy');
@@ -174,7 +174,7 @@ describe('System API Service', () => {
 
             const result = await checkAllServicesHealth();
 
-            expect(Object.keys(result)).toHaveLength(5);
+            expect(Object.keys(result)).toHaveLength(4);
             Object.values(result).forEach((health) => {
                 expect(health.status).toBe('unhealthy');
             });

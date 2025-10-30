@@ -11,7 +11,7 @@ This directory contains all CI/CD workflows for the Heimdall project.
 **Jobs**:
 1. **backend-quality** - Python code quality (Black, Ruff, mypy)
 2. **frontend-quality** - TypeScript code quality (ESLint, TypeScript, Prettier)
-3. **backend-tests** - Unit tests for all backend services (matrix strategy)
+3. **backend-tests** - Unit tests for all backend services (matrix: 4 services)
 4. **frontend-tests** - Vitest unit tests with coverage
 5. **integration-tests** - Integration tests with Docker services (PostgreSQL, Redis, RabbitMQ, MinIO)
 6. **e2e-tests** - Playwright E2E tests with real backend
@@ -19,7 +19,7 @@ This directory contains all CI/CD workflows for the Heimdall project.
 
 **Features**:
 - Parallel execution of independent jobs
-- Matrix strategy for backend services (tests 5 services in parallel)
+- Matrix strategy for backend services (tests 4 services in parallel)
 - Proper job dependencies (quality → tests → integration → e2e)
 - Caching for pip and npm dependencies
 - Codecov integration for coverage reports

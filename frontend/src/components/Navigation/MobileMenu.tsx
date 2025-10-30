@@ -9,7 +9,7 @@ interface MobileMenuProps {
 
 const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { name: 'Data Ingestion', path: '/data-ingestion', icon: '📡' },
+
     { name: 'Localization', path: '/localization', icon: '🎯' },
     { name: 'Session History', path: '/sessions', icon: '📝' },
     { name: 'Analytics', path: '/analytics', icon: '📈' },

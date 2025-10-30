@@ -6,7 +6,7 @@ services = [
     ("rf-acquisition", 8001),
     ("training", 8002),
     ("inference", 8003),
-    ("data-ingestion-web", 8004),
+
     ("api-gateway", 8000),
 ]
 

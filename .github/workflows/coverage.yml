@@ -67,7 +67,7 @@ jobs:
           mkdir -p coverage_reports
           # Test each service separately to avoid conftest conflicts
           # Combine coverage from all services
-          for service_dir in services/api-gateway services/rf-acquisition services/training services/inference services/data-ingestion-web; do
+          for service_dir in services/api-gateway services/rf-acquisition services/training services/inference; do
             if [ -d "$service_dir/tests" ]; then
               echo "Testing $service_dir..."
               pytest "$service_dir/tests" \

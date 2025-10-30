@@ -10,7 +10,7 @@
 
 ### 1. ✅ Fixed CORS Configuration Issues
 - **Issue**: CORS was properly configured but sessions endpoint was routing to wrong service
-- **Fix**: Sessions endpoint now correctly routes to `data-ingestion-web` service
+- **Fix**: Sessions endpoint now correctly routes to `rf-acquisition` service
 - **Verification**: All services have `CORSMiddleware` with `allow_origins=["*"]`
 
 ### 2. ✅ Consolidated GitHub Workflows
@@ -34,7 +34,7 @@
 graph TD
     A[Git Push/PR] --> B[backend-quality]
     A --> C[frontend-quality]
-    B --> D[backend-tests<br/>Matrix: 5 services]
+    B --> D[backend-tests<br/>Matrix: 4 services]
     C --> E[frontend-tests]
     D --> F[integration-tests]
     E --> F
@@ -115,15 +115,10 @@ proxy: {
 
 ### Sessions Endpoint Fix
 ```python
-# BEFORE (incorrect)
+# Sessions endpoint routes to RF Acquisition
 @app.api_route("/api/v1/sessions/{path:path}", ...)
 async def proxy_to_sessions(...):
-    return await proxy_request(request, RF_ACQUISITION_URL)  # ❌ Wrong!
-
-# AFTER (correct)
-@app.api_route("/api/v1/sessions/{path:path}", ...)
-async def proxy_to_sessions(...):
-    return await proxy_request(request, DATA_INGESTION_URL)  # ✅ Correct!
+    return await proxy_request(request, RF_ACQUISITION_URL)  # ✅ Correct!
 ```
 
 ### Requirements Path Fix
@@ -218,7 +213,7 @@ The CI will post a comment with:
 ```bash
 # Terminal 1: Start backend
 docker compose up -d postgres redis rabbitmq
-docker compose up api-gateway rf-acquisition data-ingestion-web inference
+docker compose up api-gateway rf-acquisition inference
 
 # Terminal 2: Start frontend
 cd frontend
@@ -388,7 +383,7 @@ gh workflow run ci.yml --ref copilot/fix-cors-issues-and-tests
 - [ ] All 7 jobs visible in Actions UI
 - [ ] backend-quality passes (Black, Ruff, mypy)
 - [ ] frontend-quality passes (ESLint, TypeScript, Prettier)
-- [ ] backend-tests passes (5 services)
+- [ ] backend-tests passes (4 services)
 - [ ] frontend-tests passes (Vitest)
 - [ ] integration-tests passes (Docker services)
 - [ ] e2e-tests passes (Playwright)

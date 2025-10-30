@@ -69,7 +69,7 @@ heimdall/
 │   ├── rf-acquisition/ # WebSDR data fetching
 │   ├── training/       # ML model training
 │   ├── inference/      # Real-time inference
-│   ├── data-ingestion-web/  # Data management API
+│   ├── rf-acquisition/      # RF data acquisition + sessions management
 │   └── api-gateway/    # API gateway
 ├── frontend/           # React + TypeScript UI
 ├── db/                 # Database scripts and migrations
