@@ -38,7 +38,7 @@ async def list_sessions(
     approval_status: Optional[str] = Query(None, description="Filter by approval status"),
 ):
     """List all recording sessions with pagination"""
-    pool = await get_pool()
+    pool = get_pool()
     
     offset = (page - 1) * per_page
     
@@ -127,7 +127,7 @@ async def list_sessions(
 @router.get("/analytics", response_model=SessionAnalytics)
 async def get_session_analytics():
     """Get analytics for all sessions"""
-    pool = await get_pool()
+    pool = get_pool()
     
     query = """
         SELECT 
@@ -177,7 +177,7 @@ async def get_session_analytics():
 @router.get("/{session_id}", response_model=RecordingSessionWithDetails)
 async def get_session(session_id: UUID):
     """Get a specific recording session by ID"""
-    pool = await get_pool()
+    pool = get_pool()
     
     query = """
         SELECT 
@@ -255,7 +255,7 @@ async def trigger_rf_acquisition_task(
     duration_seconds: float,
 ):
     """Background task to trigger RF acquisition and update session status"""
-    pool = await get_pool()
+    pool = get_pool()
     
     try:
         # Update status to in_progress
@@ -304,7 +304,7 @@ async def create_session(
     background_tasks: BackgroundTasks,
 ):
     """Create a new recording session and trigger RF acquisition"""
-    pool = await get_pool()
+    pool = get_pool()
     
     # Verify known source exists
     async with pool.acquire() as conn:
@@ -357,7 +357,7 @@ async def update_session_status(
     celery_task_id: Optional[str] = None,
 ):
     """Update session status"""
-    pool = await get_pool()
+    pool = get_pool()
     
     # Validate status
     valid_statuses = ["pending", "in_progress", "completed", "failed"]
@@ -396,7 +396,7 @@ async def update_session_status(
 @router.patch("/{session_id}/approval")
 async def update_session_approval(session_id: UUID, approval_status: str):
     """Update session approval status"""
-    pool = await get_pool()
+    pool = get_pool()
     
     # Validate approval status
     valid_statuses = ["pending", "approved", "rejected"]
@@ -428,7 +428,7 @@ async def update_session_approval(session_id: UUID, approval_status: str):
 @router.delete("/{session_id}", status_code=204)
 async def delete_session(session_id: UUID):
     """Delete a recording session"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         result = await conn.execute(
@@ -445,11 +445,11 @@ async def delete_session(session_id: UUID):
 @router.get("/known-sources", response_model=List[KnownSource])
 async def list_known_sources():
     """List all known RF sources"""
-    pool = await get_pool()
+    pool = get_pool()
     
     query = """
         SELECT id, name, description, frequency_hz, latitude, longitude,
-               power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+               power_dbm, source_type, is_validated, created_at, updated_at
         FROM heimdall.known_sources
         ORDER BY name
     """
@@ -462,11 +462,11 @@ async def list_known_sources():
 @router.get("/known-sources/{source_id}", response_model=KnownSource)
 async def get_known_source(source_id: UUID):
     """Get a specific known RF source"""
-    pool = await get_pool()
+    pool = get_pool()
     
     query = """
         SELECT id, name, description, frequency_hz, latitude, longitude,
-               power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+               power_dbm, source_type, is_validated, created_at, updated_at
         FROM heimdall.known_sources
         WHERE id = $1
     """
@@ -483,14 +483,14 @@ async def get_known_source(source_id: UUID):
 @router.post("/known-sources", response_model=KnownSource, status_code=201)
 async def create_known_source(source: KnownSourceCreate):
     """Create a new known RF source"""
-    pool = await get_pool()
+    pool = get_pool()
     
     query = """
         INSERT INTO heimdall.known_sources 
-        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated, error_margin_meters)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id, name, description, frequency_hz, latitude, longitude,
-                  power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+                  power_dbm, source_type, is_validated, created_at, updated_at
     """
     
     async with pool.acquire() as conn:
@@ -505,7 +505,6 @@ async def create_known_source(source: KnownSourceCreate):
                 source.power_dbm,
                 source.source_type,
                 source.is_validated,
-                source.error_margin_meters,
             )
             
             return KnownSource(**dict(row))
@@ -519,7 +518,7 @@ async def create_known_source(source: KnownSourceCreate):
 @router.put("/known-sources/{source_id}", response_model=KnownSource)
 async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
     """Update a known RF source"""
-    pool = await get_pool()
+    pool = get_pool()
     
     # Build dynamic update query based on provided fields
     update_fields = []
@@ -566,11 +565,6 @@ async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
         params.append(source.is_validated)
         param_count += 1
     
-    if source.error_margin_meters is not None:
-        update_fields.append(f"error_margin_meters = ${param_count}")
-        params.append(source.error_margin_meters)
-        param_count += 1
-    
     if not update_fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     
@@ -584,7 +578,7 @@ async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
         SET {', '.join(update_fields)}
         WHERE id = ${param_count}
         RETURNING id, name, description, frequency_hz, latitude, longitude,
-                  power_dbm, source_type, is_validated, error_margin_meters, created_at, updated_at
+                  power_dbm, source_type, is_validated, created_at, updated_at
     """
     
     async with pool.acquire() as conn:
@@ -605,7 +599,7 @@ async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
 @router.delete("/known-sources/{source_id}", status_code=204)
 async def delete_known_source(source_id: UUID):
     """Delete a known RF source"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if source is in use by any recording sessions
@@ -633,9 +627,7 @@ async def delete_known_source(source_id: UUID):
 
 # WebSocket handlers for real-time session management
 async def handle_session_start_ws(session_data: dict):
-    """Handle session start command via WebSocket"""
-    pool = await get_pool()
-    
+    """Handle session start command via WebSocket - now only validates configuration"""
     session_name = session_data.get("session_name")
     frequency_mhz = session_data.get("frequency_mhz")
     duration_seconds = session_data.get("duration_seconds")
@@ -644,51 +636,19 @@ async def handle_session_start_ws(session_data: dict):
     if not session_name or not frequency_mhz or not duration_seconds:
         raise ValueError("Missing required fields: session_name, frequency_mhz, duration_seconds")
     
-    # Create "unknown" source if it doesn't exist
-    async with pool.acquire() as conn:
-        unknown_source_id = await conn.fetchval(
-            """
-            INSERT INTO heimdall.known_sources 
-            (name, description, is_validated, error_margin_meters)
-            VALUES ('Unknown', 'Placeholder for unknown sources', false, 1000.0)
-            ON CONFLICT (name) DO UPDATE SET updated_at = NOW()
-            RETURNING id
-            """
-        )
-        
-        # Create session with unknown source initially
-        query = """
-            INSERT INTO heimdall.recording_sessions 
-            (known_source_id, session_name, session_start, status, approval_status, notes)
-            VALUES ($1, $2, $3, 'recording', 'pending', $4)
-            RETURNING 
-                id, known_source_id, session_name, session_start, session_end,
-                duration_seconds, celery_task_id, status, approval_status,
-                notes, created_at, updated_at
-        """
-        
-        row = await conn.fetchrow(
-            query,
-            unknown_source_id,
-            session_name,
-            datetime.utcnow(),
-            notes,
-        )
-        
-        session = RecordingSession(**dict(row))
-        
-        return {
-            "session_id": str(session.id),
-            "session_name": session.session_name,
-            "status": session.status,
-            "frequency_mhz": frequency_mhz,
-            "duration_seconds": duration_seconds,
-        }
+    # Just validate and return the configuration - session creation happens in session:complete
+    return {
+        "status": "ready",
+        "session_name": session_name,
+        "frequency_mhz": frequency_mhz,
+        "duration_seconds": duration_seconds,
+        "notes": notes,
+    }
 
 
 async def handle_session_assign_source_ws(assignment_data: dict):
     """Handle source assignment via WebSocket"""
-    pool = await get_pool()
+    pool = get_pool()
     
     session_id = assignment_data.get("session_id")
     source_id = assignment_data.get("source_id")
@@ -749,32 +709,63 @@ async def handle_session_assign_source_ws(assignment_data: dict):
 
 async def handle_session_complete_ws(complete_data: dict):
     """Handle session completion and trigger acquisition via WebSocket"""
-    pool = await get_pool()
+    pool = get_pool()
     
-    session_id = complete_data.get("session_id")
+    # New workflow: create session when acquisition starts
+    session_name = complete_data.get("session_name")
     frequency_hz = complete_data.get("frequency_hz")
     duration_seconds = complete_data.get("duration_seconds")
+    source_id = complete_data.get("source_id")
+    notes = complete_data.get("notes", "")
     
-    if not session_id or not frequency_hz or not duration_seconds:
-        raise ValueError("Missing required fields: session_id, frequency_hz, duration_seconds")
+    if not session_name or not frequency_hz or not duration_seconds or not source_id:
+        raise ValueError("Missing required fields: session_name, frequency_hz, duration_seconds, source_id")
     
     async with pool.acquire() as conn:
-        # Update session status to in_progress
+        # Handle "unknown" source - find or create it
+        if source_id == "unknown":
+            # Check if "Unknown" source exists
+            unknown_id = await conn.fetchval(
+                "SELECT id FROM heimdall.known_sources WHERE name = 'Unknown' LIMIT 1"
+            )
+            
+            # If not, create it with the frequency from this session
+            if unknown_id is None:
+                unknown_id = await conn.fetchval(
+                    """
+                    INSERT INTO heimdall.known_sources 
+                    (name, description, frequency_hz, latitude, longitude, is_validated)
+                    VALUES ('Unknown', 'Placeholder for unknown sources', $1, 0.0, 0.0, false)
+                    RETURNING id
+                    """,
+                    frequency_hz  # Already in Hz
+                )
+            
+            source_id = str(unknown_id)
+        
+        # Create session with selected source
         query = """
-            UPDATE heimdall.recording_sessions
-            SET status = 'in_progress', updated_at = NOW()
-            WHERE id = $1
+            INSERT INTO heimdall.recording_sessions 
+            (known_source_id, session_name, session_start, status, approval_status, notes)
+            VALUES ($1, $2, $3, 'in_progress', 'pending', $4)
             RETURNING 
                 id, known_source_id, session_name, session_start, session_end,
                 duration_seconds, celery_task_id, status, approval_status,
                 notes, created_at, updated_at
         """
         
-        row = await conn.fetchrow(query, UUID(session_id) if isinstance(session_id, str) else session_id)
+        row = await conn.fetchrow(
+            query,
+            UUID(source_id) if isinstance(source_id, str) else source_id,
+            session_name,
+            datetime.utcnow(),
+            notes,
+        )
         
         if not row:
-            raise ValueError("Session not found")
+            raise ValueError("Failed to create session")
         
+        session_id = row[0]
         session = RecordingSession(**dict(row))
     
     # Trigger RF acquisition with 1-second chunking

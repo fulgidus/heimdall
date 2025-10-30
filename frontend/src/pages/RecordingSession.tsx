@@ -3,7 +3,7 @@ import { useSessionStore } from '../store/sessionStore';
 import { useWebSDRStore } from '../store/websdrStore';
 import { createWebSocketManager } from '../lib/websocket';
 
-type SessionState = 'idle' | 'recording' | 'assigning_source' | 'acquiring' | 'complete' | 'error';
+type SessionState = 'idle' | 'ready_to_assign' | 'acquiring' | 'complete' | 'error';
 
 const RecordingSession: React.FC = () => {
     const {
@@ -34,28 +34,26 @@ const RecordingSession: React.FC = () => {
     useEffect(() => {
         fetchKnownSources();
         fetchWebSDRs();
-        
+
         // Initialize WebSocket connection
         const wsUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:80/ws';
         const websocket = createWebSocketManager(wsUrl);
-        
+
         // Subscribe to session events
         websocket.subscribe('session:started', handleSessionStarted);
-        websocket.subscribe('session:source_assigned', handleSourceAssigned);
         websocket.subscribe('session:completed', handleSessionCompleted);
         websocket.subscribe('session:progress', handleSessionProgress);
         websocket.subscribe('session:error', handleSessionError);
-        
+
         // Connect
         websocket.connect().catch((error) => {
             console.error('Failed to connect to WebSocket:', error);
         });
-        
+
         setWs(websocket);
-        
+
         return () => {
             websocket.unsubscribe('session:started', handleSessionStarted);
-            websocket.unsubscribe('session:source_assigned', handleSourceAssigned);
             websocket.unsubscribe('session:completed', handleSessionCompleted);
             websocket.unsubscribe('session:progress', handleSessionProgress);
             websocket.unsubscribe('session:error', handleSessionError);
@@ -67,23 +65,17 @@ const RecordingSession: React.FC = () => {
 
     // WebSocket event handlers
     const handleSessionStarted = (data: any) => {
-        console.log('Session started:', data);
-        setCurrentSessionId(data.session_id);
-        setSessionState('recording');
-        setStatusMessage('Recording session started. Now assign a source.');
-    };
-
-    const handleSourceAssigned = (data: any) => {
-        console.log('Source assigned:', data);
-        setSessionState('assigning_source');
-        setStatusMessage('Source assigned. Ready to start acquisition.');
+        console.log('Session configuration validated:', data);
+        setSessionState('ready_to_assign');
+        setStatusMessage('Configuration validated. Now select a source.');
     };
 
     const handleSessionCompleted = (data: any) => {
-        console.log('Session completed:', data);
+        console.log('Session created and acquisition started:', data);
+        setCurrentSessionId(data.session_id);
         setSessionState('acquiring');
         setTotalChunks(data.chunks || 0);
-        setStatusMessage(`Acquiring ${data.chunks} 1-second samples...`);
+        setStatusMessage(`Session created! Acquiring ${data.chunks} 1-second samples...`);
     };
 
     const handleSessionProgress = (data: any) => {
@@ -93,7 +85,7 @@ const RecordingSession: React.FC = () => {
         setProgress(data.progress || 0);
         setMeasurementsCount(data.measurements_count || 0);
         setStatusMessage(`Chunk ${data.chunk}/${data.total_chunks} acquired`);
-        
+
         if (data.chunk === data.total_chunks) {
             setSessionState('complete');
             setStatusMessage('Acquisition complete!');
@@ -106,8 +98,8 @@ const RecordingSession: React.FC = () => {
         setStatusMessage(`Error: ${data.error}`);
     };
 
-    // Step 1: Start recording session
-    const handleStartRecording = () => {
+    // Step 1: Validate configuration
+    const handleValidateConfig = () => {
         if (!formData.sessionName || !formData.frequency) {
             alert('Please enter a session name and specify frequency');
             return;
@@ -118,7 +110,7 @@ const RecordingSession: React.FC = () => {
             return;
         }
 
-        // Send start command via WebSocket
+        // Send start command via WebSocket (now just validates)
         ws.send('session:start', {
             session_name: formData.sessionName,
             frequency_mhz: parseFloat(formData.frequency),
@@ -127,29 +119,15 @@ const RecordingSession: React.FC = () => {
         });
     };
 
-    // Step 2: Assign source
-    const handleAssignSource = () => {
-        if (!currentSessionId) {
-            alert('No active session');
-            return;
-        }
-
-        if (!ws || !ws.isConnected()) {
-            alert('WebSocket not connected. Please wait and try again.');
-            return;
-        }
-
-        // Send assign source command via WebSocket
-        ws.send('session:assign_source', {
-            session_id: currentSessionId,
-            source_id: selectedSourceId || 'unknown',
-        });
-    };
-
-    // Step 3: Complete and start acquisition
+    // Step 2: Complete and start acquisition (combined - creates session + starts acquisition)
     const handleCompleteAndAcquire = () => {
-        if (!currentSessionId) {
-            alert('No active session');
+        if (!selectedSourceId) {
+            alert('Please select a source');
+            return;
+        }
+
+        if (!formData.sessionName || !formData.frequency) {
+            alert('Please enter a session name and specify frequency');
             return;
         }
 
@@ -158,11 +136,13 @@ const RecordingSession: React.FC = () => {
             return;
         }
 
-        // Send complete command via WebSocket
+        // Send complete command via WebSocket (now creates session + starts acquisition)
         ws.send('session:complete', {
-            session_id: currentSessionId,
+            session_name: formData.sessionName,
             frequency_hz: Math.round(parseFloat(formData.frequency) * 1e6), // Convert MHz to Hz
             duration_seconds: formData.duration,
+            source_id: selectedSourceId,
+            notes: formData.notes,
         });
     };
 
@@ -291,11 +271,11 @@ const RecordingSession: React.FC = () => {
                                 </div>
 
                                 {/* Step 2: Source Assignment */}
-                                {sessionState === 'recording' && (
+                                {sessionState === 'ready_to_assign' && (
                                     <>
                                         <div className="col-12">
-                                            <div className="alert alert-warning">
-                                                <strong>Step 2:</strong> Assign a source (or select "Unknown")
+                                            <div className="alert alert-info">
+                                                <strong>Step 2:</strong> Select a source for this recording
                                             </div>
                                         </div>
 
@@ -306,8 +286,9 @@ const RecordingSession: React.FC = () => {
                                                 value={selectedSourceId}
                                                 onChange={(e) => setSelectedSourceId(e.target.value)}
                                             >
-                                                <option value="unknown">Unknown Source</option>
-                                                {knownSources.filter(s => s.name !== 'Unknown').map((source) => (
+                                                <option value="">-- Select Source --</option>
+                                                <option value="unknown">Unknown (Generic)</option>
+                                                {knownSources.map((source) => (
                                                     <option key={source.id} value={source.id}>
                                                         {source.name}
                                                         {source.frequency_hz ? ` - ${(source.frequency_hz / 1e6).toFixed(3)} MHz` : ''}
@@ -317,46 +298,28 @@ const RecordingSession: React.FC = () => {
                                         </div>
                                     </>
                                 )}
-
-                                {/* Step 3: Ready to Acquire */}
-                                {sessionState === 'assigning_source' && (
-                                    <div className="col-12">
-                                        <div className="alert alert-success">
-                                            <strong>Step 3:</strong> Source assigned. Ready to start acquisition!
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                         <div className="card-footer">
                             {sessionState === 'idle' && (
                                 <button
                                     className="btn btn-primary"
-                                    onClick={handleStartRecording}
+                                    onClick={handleValidateConfig}
                                     disabled={!formData.sessionName || !formData.frequency}
                                 >
                                     <i className="ph ph-play me-2"></i>
-                                    Start Recording Session
+                                    Step 1: Validate Configuration
                                 </button>
                             )}
 
-                            {sessionState === 'recording' && (
-                                <button
-                                    className="btn btn-warning"
-                                    onClick={handleAssignSource}
-                                >
-                                    <i className="ph ph-check me-2"></i>
-                                    Assign Source
-                                </button>
-                            )}
-
-                            {sessionState === 'assigning_source' && (
+                            {sessionState === 'ready_to_assign' && (
                                 <button
                                     className="btn btn-success"
                                     onClick={handleCompleteAndAcquire}
+                                    disabled={!selectedSourceId}
                                 >
                                     <i className="ph ph-rocket-launch me-2"></i>
-                                    Start Acquisition
+                                    Step 2: Start Acquisition
                                 </button>
                             )}
 
@@ -417,27 +380,24 @@ const RecordingSession: React.FC = () => {
                             </div>
                             <div className="card-body">
                                 <div className="d-flex align-items-center mb-3">
-                                    <div className={`avtar avtar-s ${
-                                        sessionState === 'complete'
+                                    <div className={`avtar avtar-s ${sessionState === 'complete'
                                             ? 'bg-light-success'
                                             : sessionState === 'error'
                                                 ? 'bg-light-danger'
                                                 : 'bg-light-primary'
-                                    }`}>
-                                        <i className={`ph ${
-                                            sessionState === 'complete'
+                                        }`}>
+                                        <i className={`ph ${sessionState === 'complete'
                                                 ? 'ph-check-circle'
                                                 : sessionState === 'error'
                                                     ? 'ph-x-circle'
                                                     : sessionState === 'acquiring'
                                                         ? 'ph-spinner'
                                                         : 'ph-record'
-                                        }`}></i>
+                                            }`}></i>
                                     </div>
                                     <div className="ms-3 flex-grow-1">
                                         <h6 className="mb-0">
-                                            {sessionState === 'recording' && 'Recording'}
-                                            {sessionState === 'assigning_source' && 'Source Assigned'}
+                                            {sessionState === 'ready_to_assign' && 'Ready to Assign Source'}
                                             {sessionState === 'acquiring' && 'Acquiring Data'}
                                             {sessionState === 'complete' && 'Complete'}
                                             {sessionState === 'error' && 'Error'}

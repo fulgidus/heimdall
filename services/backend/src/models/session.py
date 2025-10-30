@@ -18,7 +18,7 @@ class KnownSource(BaseModel):
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False
-    error_margin_meters: float = 50.0
+    error_margin_meters: Optional[float] = None  # Optional, can be set later
     created_at: datetime
     updated_at: datetime
 
@@ -33,7 +33,7 @@ class KnownSourceCreate(BaseModel):
     power_dbm: Optional[float] = None
     source_type: Optional[str] = None
     is_validated: bool = False
-    error_margin_meters: float = Field(default=50.0, gt=0, description="Error margin radius in meters")
+    error_margin_meters: Optional[float] = Field(None, gt=0, description="Error margin radius in meters")
 
 
 class KnownSourceUpdate(BaseModel):

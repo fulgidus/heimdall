@@ -661,22 +661,33 @@ def acquire_iq_chunked(
                 }
             )
             
-            # Broadcast progress via WebSocket
+            # Broadcast progress via RabbitMQ (not direct WebSocket from Celery)
+            # This will be picked up by the backend WebSocket handlers
             try:
-                from ..routers.websocket import manager
-                import asyncio
+                from kombu import Connection, Exchange
+                from ..config import settings
                 
-                asyncio.create_task(manager.broadcast({
-                    "event": "session:progress",
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "data": {
-                        "session_id": session_id,
-                        "chunk": chunk_idx + 1,
-                        "total_chunks": duration_seconds,
-                        "progress": progress,
-                        "measurements_count": len(all_measurements),
-                    }
-                }))
+                connection = Connection(settings.celery_broker_url)
+                exchange = Exchange('heimdall', type='topic', durable=True)
+                
+                with connection.Producer() as producer:
+                    producer.publish(
+                        {
+                            "event": "session:progress",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": {
+                                "session_id": session_id,
+                                "chunk": chunk_idx + 1,
+                                "total_chunks": duration_seconds,
+                                "progress": progress,
+                                "measurements_count": len(all_measurements),
+                            }
+                        },
+                        exchange=exchange,
+                        routing_key=f'session.{session_id}.progress',
+                        serializer='json'
+                    )
+                    logger.debug(f"Published progress event for session {session_id}: chunk {chunk_idx + 1}/{duration_seconds}")
             except Exception as e:
                 logger.warning(f"Failed to broadcast progress: {e}")
         
@@ -709,29 +720,35 @@ def acquire_iq_chunked(
         
         # Update session status in database
         try:
-            from ..db import get_pool
-            import asyncio
+            from sqlalchemy import create_engine, text
             from uuid import UUID
+            from ..config import settings
             
-            async def update_session():
-                pool = await get_pool()
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        """
+            # Create synchronous engine for worker context (not async)
+            engine = create_engine(
+                settings.database_url,
+                echo=False,
+                pool_size=5,
+                max_overflow=10
+            )
+            
+            with engine.connect() as conn:
+                conn.execute(
+                    text("""
                         UPDATE heimdall.recording_sessions
-                        SET status = $1, 
+                        SET status = :status, 
                             session_end = NOW(),
-                            duration_seconds = $2,
+                            duration_seconds = :duration,
                             updated_at = NOW()
-                        WHERE id = $3
-                        """,
-                        'completed' if successful_chunks == duration_seconds else 'failed',
-                        duration_seconds,
-                        UUID(session_id),
-                    )
-            
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(update_session())
+                        WHERE id = :session_id
+                    """),
+                    {
+                        'status': 'completed' if successful_chunks == duration_seconds else 'partial_failure',
+                        'duration': duration_seconds,
+                        'session_id': session_id,
+                    }
+                )
+                conn.commit()
             
             logger.info(f"Updated session {session_id} status to completed")
         except Exception as e:
@@ -744,26 +761,31 @@ def acquire_iq_chunked(
         
         # Update session to failed
         try:
-            from ..db import get_pool
-            import asyncio
+            from sqlalchemy import create_engine, text
             from uuid import UUID
+            from ..config import settings
             
-            async def fail_session():
-                pool = await get_pool()
-                async with pool.acquire() as conn:
-                    await conn.execute(
-                        """
+            engine = create_engine(
+                settings.database_url,
+                echo=False,
+                pool_size=5,
+                max_overflow=10
+            )
+            
+            with engine.connect() as conn:
+                conn.execute(
+                    text("""
                         UPDATE heimdall.recording_sessions
                         SET status = 'failed', 
                             session_end = NOW(),
                             updated_at = NOW()
-                        WHERE id = $1
-                        """,
-                        UUID(session_id),
-                    )
-            
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(fail_session())
+                        WHERE id = :session_id
+                    """),
+                    {'session_id': session_id}
+                )
+                conn.commit()
+                
+            logger.info(f"Updated session {session_id} status to failed")
         except Exception as db_error:
             logger.error(f"Failed to update session to failed status: {db_error}")
         

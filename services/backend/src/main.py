@@ -1,6 +1,8 @@
 import logging
 import sys
 import os
+import asyncio
+import threading
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +13,7 @@ from celery import Celery
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from .config import settings
+from .db import init_pool, close_pool
 from .models.health import HealthResponse
 from .routers.acquisition import router as acquisition_router
 from .routers.sessions import router as sessions_router
@@ -71,6 +74,105 @@ celery_app.conf.beat_schedule = {
         'schedule': 60.0,  # Every 60 seconds
     },
 }
+
+# Startup and shutdown events
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection pool and RabbitMQ listener on startup."""
+    logger.info("Initializing database connection pool...")
+    try:
+        await init_pool()
+        logger.info("Database connection pool initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database pool: {e}")
+        raise
+    
+    # Start RabbitMQ listener for progress events in background thread
+    logger.info("Starting RabbitMQ progress event listener...")
+    listener_thread = threading.Thread(target=rabbitmq_progress_listener, daemon=True)
+    listener_thread.start()
+    logger.info("RabbitMQ listener thread started")
+
+
+def rabbitmq_progress_listener():
+    """Listen for progress events from Celery tasks via RabbitMQ (runs in separate thread)."""
+    from kombu import Connection, Exchange, Queue
+    from kombu.common import Broadcast
+    import json
+    
+    logger.info("RabbitMQ listener thread: started listening for progress events")
+    
+    try:
+        connection = Connection(settings.celery_broker_url)
+        exchange = Exchange('heimdall', type='topic', durable=True)
+        queue = Queue(
+            'progress_updates',
+            exchange=exchange,
+            routing_key='session.*.progress',
+            durable=True,
+            auto_delete=False
+        )
+        
+        def process_event(body, message):
+            """Process incoming progress event and broadcast to WebSocket clients."""
+            try:
+                if isinstance(body, bytes):
+                    body = body.decode('utf-8')
+                
+                event_data = json.loads(body) if isinstance(body, str) else body
+                logger.debug(f"RabbitMQ listener: received event: {event_data.get('event', '?')}")
+                
+                # Schedule broadcast in FastAPI event loop
+                import asyncio
+                loop = asyncio.new_event_loop()
+                
+                async def broadcast():
+                    from .routers.websocket import manager
+                    await manager.broadcast(event_data)
+                
+                # Try to get existing event loop, else create new one
+                try:
+                    loop = asyncio.get_running_loop()
+                    asyncio.ensure_future(broadcast())
+                except RuntimeError:
+                    # No running loop, schedule it asynchronously
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    loop.run_until_complete(broadcast())
+                    loop.close()
+                
+                message.ack()
+                
+            except Exception as e:
+                logger.error(f"RabbitMQ listener: error processing event: {e}")
+                message.nack()
+        
+        with connection.Consumer(queue, callbacks=[process_event], auto_declare=True) as consumer:
+            logger.info("RabbitMQ listener: listening for messages...")
+            while True:
+                try:
+                    connection.drain_events(timeout=1)
+                except KeyboardInterrupt:
+                    logger.info("RabbitMQ listener: interrupted by user")
+                    break
+                except Exception as e:
+                    logger.warning(f"RabbitMQ listener: error during drain_events: {e}")
+                    break
+                    
+    except Exception as e:
+        logger.error(f"RabbitMQ listener: fatal error: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Close database connection pool on shutdown."""
+    logger.info("Closing database connection pool...")
+    try:
+        await close_pool()
+        logger.info("Database connection pool closed successfully")
+    except Exception as e:
+        logger.error(f"Failed to close database pool: {e}")
+
 
 # Include routers
 app.include_router(acquisition_router)

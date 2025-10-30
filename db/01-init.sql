@@ -77,7 +77,7 @@ SELECT
     create_hypertable(
         'measurements',
         'timestamp',
-        if_not_exists => TRUE
+        if_not_exists = > TRUE
     );
 
 CREATE INDEX idx_measurements_websdr_station ON measurements(websdr_station_id, timestamp DESC);
@@ -197,7 +197,7 @@ SELECT
     create_hypertable(
         'inference_requests',
         'timestamp',
-        if_not_exists => TRUE
+        if_not_exists = > TRUE
     );
 
 CREATE INDEX idx_inference_requests_model ON inference_requests(model_id, timestamp DESC);
@@ -246,7 +246,7 @@ SELECT
     create_hypertable(
         'websdrs_uptime_history',
         'timestamp',
-        if_not_exists => TRUE
+        if_not_exists = > TRUE
     );
 
 CREATE INDEX idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(websdr_id, timestamp DESC);
@@ -254,3 +254,104 @@ CREATE INDEX idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(we
 CREATE INDEX idx_websdrs_uptime_history_timestamp ON websdrs_uptime_history(timestamp DESC);
 
 COMMENT ON TABLE websdrs_uptime_history IS 'TimescaleDB hypertable for WebSDR uptime history';
+
+-- ============================================================================
+-- SEED DATA: WebSDR Stations (7 Italian receivers)
+-- ============================================================================
+INSERT INTO
+    heimdall.websdr_stations (
+        name,
+        url,
+        country,
+        latitude,
+        longitude,
+        frequency_min_hz,
+        frequency_max_hz,
+        is_active,
+        timeout_seconds
+    )
+VALUES
+    -- 1. Aquila di Giaveno
+    (
+        'Aquila di Giaveno',
+        'http://sdr1.ik1jns.it:8076/',
+        'Italy',
+        45.02,
+        7.29,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 2. Montanaro
+    (
+        'Montanaro',
+        'http://cbfenis.ddns.net:43510/',
+        'Italy',
+        45.234,
+        7.857,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 3. Torino
+    (
+        'Torino',
+        'http://vst-aero.it:8073/',
+        'Italy',
+        45.044,
+        7.672,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 4. Coazze
+    (
+        'Coazze',
+        'http://94.247.189.130:8076/',
+        'Italy',
+        45.03,
+        7.27,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 5. Passo del Giovi
+    (
+        'Passo del Giovi',
+        'http://iz1mlt.ddns.net:8074/',
+        'Italy',
+        44.561,
+        8.956,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 6. Genova
+    (
+        'Genova',
+        'http://iq1zw.ddns.net:42154/',
+        'Italy',
+        44.395,
+        8.956,
+        144000000,
+        146000000,
+        true,
+        30
+    ),
+    -- 7. Milano - Baggio
+    (
+        'Milano - Baggio',
+        'http://iu2mch.duckdns.org:8073/',
+        'Italy',
+        45.478,
+        9.123,
+        144000000,
+        146000000,
+        true,
+        30
+    ) ON CONFLICT (name) DO NOTHING;
