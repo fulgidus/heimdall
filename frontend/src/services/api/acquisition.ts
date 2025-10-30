@@ -8,11 +8,12 @@
  */
 
 import api from '@/lib/api';
+import { AcquisitionTaskResponseSchema, AcquisitionStatusResponseSchema } from './schemas';
 import type {
     AcquisitionRequest,
     AcquisitionTaskResponse,
     AcquisitionStatusResponse,
-} from './types';
+} from './schemas';
 
 /**
  * Trigger a new RF acquisition
@@ -20,11 +21,11 @@ import type {
 export async function triggerAcquisition(
     request: AcquisitionRequest
 ): Promise<AcquisitionTaskResponse> {
-    const response = await api.post<AcquisitionTaskResponse>(
-        '/v1/acquisition/acquire',
-        request
-    );
-    return response.data;
+    const response = await api.post('/v1/acquisition/acquire', request);
+    
+    // Validate response with Zod
+    const validated = AcquisitionTaskResponseSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -33,10 +34,11 @@ export async function triggerAcquisition(
 export async function getAcquisitionStatus(
     taskId: string
 ): Promise<AcquisitionStatusResponse> {
-    const response = await api.get<AcquisitionStatusResponse>(
-        `/api/v1/acquisition/status/${taskId}`
-    );
-    return response.data;
+    const response = await api.get(`/api/v1/acquisition/status/${taskId}`);
+    
+    // Validate response with Zod
+    const validated = AcquisitionStatusResponseSchema.parse(response.data);
+    return validated;
 }
 
 /**
