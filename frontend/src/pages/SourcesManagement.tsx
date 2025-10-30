@@ -53,38 +53,51 @@ const SourcesManagement: React.FC = () => {
     const [formErrors, setFormErrors] = useState<Partial<SourceFormData>>({});
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [mapError, setMapError] = useState<string | null>(null);
 
     // Initialize map
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
 
-        map.current = new mapboxgl.Map({
-            container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/dark-v11',
-            center: [12.4964, 41.9028], // Rome, Italy (center of coverage area)
-            zoom: 5,
-        });
-
-        map.current.on('load', () => {
-            setMapLoaded(true);
-
-            // Add click handler for setting new source location
-            map.current?.on('click', (e) => {
-                if (isFormVisible && !editingSource) {
-                    setFormData((prev) => ({
-                        ...prev,
-                        latitude: e.lngLat.lat.toFixed(6),
-                        longitude: e.lngLat.lng.toFixed(6),
-                    }));
-                }
+        try {
+            map.current = new mapboxgl.Map({
+                container: mapContainer.current,
+                style: 'mapbox://styles/mapbox/dark-v11',
+                center: [12.4964, 41.9028], // Rome, Italy (center of coverage area)
+                zoom: 5,
             });
-        });
+
+            map.current.on('load', () => {
+                setMapLoaded(true);
+
+                // Add click handler for setting new source location
+                map.current?.on('click', (e) => {
+                    if (isFormVisible && !editingSource) {
+                        setFormData((prev) => ({
+                            ...prev,
+                            latitude: e.lngLat.lat.toFixed(6),
+                            longitude: e.lngLat.lng.toFixed(6),
+                        }));
+                    }
+                });
+            });
+
+            map.current.on('error', (err) => {
+                console.error('Mapbox error:', err);
+                setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
+                setMapLoaded(false);
+            });
+        } catch (error) {
+            console.error('Mapbox initialization error:', error);
+            setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
+            setMapLoaded(false);
+        }
 
         return () => {
             map.current?.remove();
             map.current = null;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fetch sources on mount
@@ -209,7 +222,7 @@ const SourcesManagement: React.FC = () => {
         };
 
         updateMarkers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [knownSources, mapLoaded]);
 
     // Utility function to convert meters to pixels at a given latitude and zoom
@@ -285,9 +298,9 @@ const SourcesManagement: React.FC = () => {
             handleCancelForm();
             await fetchKnownSources();
         } catch (error: unknown) {
-            const errorMessage = 
-                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail || 
-                (error as { message?: string })?.message || 
+            const errorMessage =
+                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail ||
+                (error as { message?: string })?.message ||
                 'Operation failed';
             showNotification('error', errorMessage);
         }
@@ -318,9 +331,9 @@ const SourcesManagement: React.FC = () => {
             setSelectedSource(null);
             await fetchKnownSources();
         } catch (error: unknown) {
-            const errorMessage = 
-                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail || 
-                (error as { message?: string })?.message || 
+            const errorMessage =
+                (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data?.detail ||
+                (error as { message?: string })?.message ||
                 'Failed to delete source';
             showNotification('error', errorMessage);
         }
@@ -389,7 +402,17 @@ const SourcesManagement: React.FC = () => {
                             <h5 className="mb-0">Map View</h5>
                         </div>
                         <div className="card-body p-0">
-                            <div ref={mapContainer} style={{ height: '600px', width: '100%' }} />
+                            {mapError ? (
+                                <div className="alert alert-warning m-3 mb-0" role="alert">
+                                    <i className="ph ph-warning-circle me-2"></i>
+                                    {mapError}
+                                    <p className="mt-2 mb-0 small">
+                                        Use the table below to manage RF sources manually.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div ref={mapContainer} style={{ height: '600px', width: '100%' }} />
+                            )}
                         </div>
                         <div className="card-footer">
                             <div className="d-flex gap-3 align-items-center flex-wrap">

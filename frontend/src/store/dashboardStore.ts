@@ -238,12 +238,8 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         }
 
         try {
-            // Determine WebSocket URL based on current location
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = window.location.hostname;
-            const port = import.meta.env.VITE_API_PORT || '8000';
-            const wsUrl = `${protocol}//${host}:${port}/ws/updates`;
-
+            // Use configured WebSocket URL from environment
+            const wsUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:8000/ws/updates';
             console.log('[Dashboard] Connecting to WebSocket:', wsUrl);
 
             const manager = createWebSocketManager(wsUrl);

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import httpx
 import logging
 import os
@@ -405,17 +405,19 @@ async def proxy_to_training(
 # PROTECTED DATA INGESTION ENDPOINTS - Requires auth (falls back to anonymous if disabled)
 # =============================================================================
 
-@app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def proxy_to_data_ingestion(
+@app.api_route("/api/v1/sessions/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+async def proxy_to_sessions(
     request: Request,
     path: str,
     user: User = Depends(get_current_user)
 ):
-    """Proxy requests to Data Ingestion service (requires authentication)."""
+    """Proxy requests to RF Acquisition service for sessions management (requires authentication)."""
+    if request.method == "OPTIONS":
+        return Response(status_code=200)
     if AUTH_ENABLED and not user.is_operator:
         raise HTTPException(status_code=403, detail="Operator access required")
-    logger.debug(f"💾 Data Ingestion route matched: path={path} (user={user.username})")
-    return await proxy_request(request, DATA_INGESTION_URL)
+    logger.debug(f"💾 Sessions route matched: path={path} (user={user.username})")
+    return await proxy_request(request, RF_ACQUISITION_URL)
 
 
 # =============================================================================
@@ -742,7 +744,6 @@ async def get_system_status():
     service_urls = {
         "api-gateway": settings.api_gateway_url,
         "rf-acquisition": RF_ACQUISITION_URL,
-        "data-ingestion-web": DATA_INGESTION_URL,
         "inference": INFERENCE_URL,
         "training": TRAINING_URL,
     }

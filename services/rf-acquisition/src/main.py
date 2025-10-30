@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 from .config import settings
 from .models.health import HealthResponse
 from .routers.acquisition import router as acquisition_router
+from .routers.sessions import router as sessions_router
 
 # Import common health utilities
 from common.health import HealthChecker
@@ -72,6 +73,7 @@ celery_app.conf.beat_schedule = {
 
 # Include routers
 app.include_router(acquisition_router)
+app.include_router(sessions_router)
 
 # Initialize health checker
 health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)
