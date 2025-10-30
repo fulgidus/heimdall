@@ -76,80 +76,80 @@ const SourcesManagement: React.FC = () => {
     useEffect(() => {
         if (!mapContainer.current || map.current) return;
 
-
-        map.current = new mapboxgl.Map({
-            container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/dark-v11',
-            center: [12.4964, 41.9028], // Rome, Italy (center of coverage area)
-            zoom: 5,
-        });
-
-        map.current.on('load', () => {
-            setMapLoaded(true);
-
-            // Add click handler for setting new source location
-            map.current?.on('click', (e) => {
-                if (isFormVisible && !editingSource) {
-                    // Remove previous temp marker
-                    if (tempMarker.current) {
-                        tempMarker.current.remove();
-                    }
-
-                    // Update form data
-                    setFormData((prev) => ({
-                        ...prev,
-                        latitude: e.lngLat.lat.toFixed(6),
-                        longitude: e.lngLat.lng.toFixed(6),
-                    }));
-
-                    // Create temporary marker
-                    const el = document.createElement('div');
-                    el.style.width = '30px';
-                    el.style.height = '30px';
-                    el.style.borderRadius = '50%';
-                    el.style.backgroundColor = '#3b82f6';
-                    el.style.border = '3px solid white';
-                    el.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5)';
-                    el.style.animation = 'pulse 2s infinite';
-
-                    tempMarker.current = new mapboxgl.Marker({ element: el })
-                        .setLngLat([e.lngLat.lng, e.lngLat.lat])
-                        .addTo(map.current!);
-                }
+        try {
+            map.current = new mapboxgl.Map({
+                container: mapContainer.current,
+                style: 'mapbox://styles/mapbox/dark-v11',
+                center: [12.4964, 41.9028], // Rome, Italy (center of coverage area)
+                zoom: 5,
             });
 
-            map.current?.on('load', () => {
+            map.current.on('load', () => {
                 setMapLoaded(true);
 
                 // Add click handler for setting new source location
                 map.current?.on('click', (e) => {
                     if (isFormVisible && !editingSource) {
+                        // Remove previous temp marker
+                        if (tempMarker.current) {
+                            tempMarker.current.remove();
+                        }
+
+                        // Update form data
                         setFormData((prev) => ({
                             ...prev,
                             latitude: e.lngLat.lat.toFixed(6),
                             longitude: e.lngLat.lng.toFixed(6),
                         }));
+
+                        // Create temporary marker
+                        const el = document.createElement('div');
+                        el.style.width = '30px';
+                        el.style.height = '30px';
+                        el.style.borderRadius = '50%';
+                        el.style.backgroundColor = '#3b82f6';
+                        el.style.border = '3px solid white';
+                        el.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5)';
+                        el.style.animation = 'pulse 2s infinite';
+
+                        tempMarker.current = new mapboxgl.Marker({ element: el })
+                            .setLngLat([e.lngLat.lng, e.lngLat.lat])
+                            .addTo(map.current!);
                     }
                 });
-            });
 
-            map.current.on('error', (err) => {
-                console.error('Mapbox error:', err);
+                map.current?.on('load', () => {
+                    setMapLoaded(true);
+
+                    // Add click handler for setting new source location
+                    map.current?.on('click', (e) => {
+                        if (isFormVisible && !editingSource) {
+                            setFormData((prev) => ({
+                                ...prev,
+                                latitude: e.lngLat.lat.toFixed(6),
+                                longitude: e.lngLat.lng.toFixed(6),
+                            }));
+                        }
+                    });
+                });
+
+                map.current?.on('error', (err) => {
+                    console.error('Mapbox error:', err);
+                    setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
+                    setMapLoaded(false);
+                });
+            } catch (error) {
+                console.error('Mapbox initialization error:', error);
                 setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
                 setMapLoaded(false);
-            });
-        } catch (error) {
-            console.error('Mapbox initialization error:', error);
-            setMapError('Failed to initialize map. WebGL may not be supported in your browser.');
-            setMapLoaded(false);
-        }
+            }
 
-        return () => {
-            map.current?.remove();
-            map.current = null;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+            return () => {
+                map.current?.remove();
+                map.current = null;
+            };
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
 
     // Fetch sources on mount
     useEffect(() => {
