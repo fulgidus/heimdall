@@ -22,7 +22,10 @@ interface AuthStore {
 }
 
 // API Gateway configuration (reads from .env)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative path by default (proxied through Nginx in Docker)
+// In development, Vite proxy handles /api/* requests
+// In production, Nginx forwards /api/* to api-gateway service
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';

@@ -7,7 +7,7 @@ WORKDIR /app
 COPY . .
 
 # Build arguments for environment variables (can be overridden at build time)
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=/api
 ARG VITE_API_TIMEOUT=10000
 ARG VITE_ENV=production
 ARG VITE_ENABLE_ANALYTICS=true
@@ -19,7 +19,7 @@ ARG VITE_ADMIN_EMAIL=admin@heimdall.local
 ARG VITE_ADMIN_PASSWORD=admin
 ARG VITE_AUTH_TOKEN_KEY=heimdall_auth_token
 ARG VITE_SESSION_TIMEOUT=3600000
-ARG VITE_SOCKET_URL=ws://localhost:8000/ws
+ARG VITE_SOCKET_URL=/ws
 ARG VITE_MAPBOX_TOKEN
 
 # Set environment variables for build
@@ -82,8 +82,8 @@ RUN chmod +x /docker-entrypoint.sh
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://127.0.0.1:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD sh -c 'exec 3<>/dev/tcp/127.0.0.1/3000 && echo -e "GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" >&3 && timeout 1 cat <&3 | head -n 1 | grep -q "HTTP" || exit 1'
 
 # Start nginx with environment variable injection
 ENTRYPOINT ["/docker-entrypoint.sh"]

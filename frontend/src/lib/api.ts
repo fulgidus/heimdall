@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { useAuthStore } from '../store';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative path by default (proxied through Nginx in Docker)
+// In development, Vite proxy handles /api/* requests
+// In production, Nginx forwards /api/* to api-gateway service
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // DEBUG: Log della configurazione API
 console.log('🔧 API Configuration:', {

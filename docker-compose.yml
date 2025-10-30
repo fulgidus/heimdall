@@ -437,7 +437,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://api-gateway:${API_GATEWAY_PORT:-8000}
+        VITE_API_URL: /api
         VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
         VITE_ENV: ${VITE_ENV:-development}
         VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
@@ -449,11 +449,11 @@ services:
         VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
         VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
         VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-        VITE_SOCKET_URL: ws://api-gateway:${API_GATEWAY_PORT:-8000}/ws
+        VITE_SOCKET_URL: /ws
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     container_name: heimdall-frontend
     environment:
-      VITE_API_URL: http://api-gateway:${API_GATEWAY_PORT:-8000}
+      VITE_API_URL: /api
       VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
       VITE_ENV: ${VITE_ENV:-development}
       VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
@@ -465,7 +465,7 @@ services:
       VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
       VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
       VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-      VITE_SOCKET_URL: ws://api-gateway:${API_GATEWAY_PORT:-8000}/ws
+      VITE_SOCKET_URL: /ws
       VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     ports:
       - "3000:3000"
