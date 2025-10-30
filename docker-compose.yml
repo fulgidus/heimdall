@@ -437,35 +437,35 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
+        VITE_API_URL: http://api-gateway:${API_GATEWAY_PORT:-8000}
         VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
         VITE_ENV: ${VITE_ENV:-development}
         VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
         VITE_ENABLE_DEBUG: ${VITE_ENABLE_DEBUG:-false}
-        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://keycloak:8080}
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-heimdall}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
         VITE_ADMIN_EMAIL: ${VITE_ADMIN_EMAIL:-admin@heimdall.local}
         VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
         VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
         VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-        VITE_SOCKET_URL: ws://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/ws
+        VITE_SOCKET_URL: ws://api-gateway:${API_GATEWAY_PORT:-8000}/ws
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     container_name: heimdall-frontend
     environment:
-      VITE_API_URL: http://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}
+      VITE_API_URL: http://api-gateway:${API_GATEWAY_PORT:-8000}
       VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
       VITE_ENV: ${VITE_ENV:-development}
       VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
       VITE_ENABLE_DEBUG: ${VITE_ENABLE_DEBUG:-false}
-      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://localhost:8080}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL:-http://keycloak:8080}
       VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-heimdall}
       VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-heimdall-frontend}
       VITE_ADMIN_EMAIL: ${VITE_ADMIN_EMAIL:-admin@heimdall.local}
       VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
       VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
       VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-      VITE_SOCKET_URL: ws://${DOCKER_HOST:-localhost}:${API_GATEWAY_PORT:-8000}/ws
+      VITE_SOCKET_URL: ws://api-gateway:${API_GATEWAY_PORT:-8000}/ws
       VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     ports:
       - "3000:3000"
@@ -473,7 +473,7 @@ services:
       api-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://${DOCKER_HOST:-localhost}:3000/"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
       interval: 30s
       timeout: 3s
       start_period: 10s
