@@ -406,3 +406,31 @@ textarea:focus-visible {
     margin: 0.75rem auto;
   }
 }
+
+/* ===========================
+   WIDGET HEIGHT UTILITIES
+   =========================== */
+
+.widget-height-small .card-body {
+  min-height: 200px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.widget-height-medium .card-body {
+  min-height: 350px;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.widget-height-large .card-body {
+  min-height: 500px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.widget-height-xlarge .card-body {
+  min-height: 700px;
+  max-height: 700px;
+  overflow-y: auto;
+}
