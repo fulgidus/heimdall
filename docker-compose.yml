@@ -472,6 +472,7 @@ services:
     container_name: heimdall-keycloak
     command:
       - start-dev
+      - --import-realm
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
