@@ -60,7 +60,7 @@ export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
                                             </Link>
                                         </div>
                                         <div className="small text-muted">
-                                            {(session.frequency_mhz || 0).toFixed(2)} MHz • {session.duration_seconds}s
+                                            {session.source_frequency ? (session.source_frequency / 1e6).toFixed(2) : '0.00'} MHz • {session.duration_seconds}s
                                         </div>
                                         <div className="small text-muted">
                                             {new Date(session.created_at).toLocaleString()}

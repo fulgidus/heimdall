@@ -123,7 +123,7 @@ export async function listSessions(params: {
     status?: string;
     approval_status?: string;
 }): Promise<SessionListResponse> {
-    const response = await api.get('/v1/sessions', { params });
+    const response = await api.get('/api/v1/sessions', { params });
 
     // Validate response with Zod
     const validated = SessionListResponseSchema.parse(response.data);
@@ -145,7 +145,7 @@ export async function getSession(sessionId: string): Promise<RecordingSessionWit
  * Create a new recording session
  */
 export async function createSession(session: RecordingSessionCreate): Promise<RecordingSession> {
-    const response = await api.post('/v1/sessions', session);
+    const response = await api.post('/api/v1/sessions', session);
 
     // Validate response with Zod
     const validated = RecordingSessionSchema.parse(response.data);
@@ -194,7 +194,7 @@ export async function updateSessionStatus(
  * Update session approval status
  */
 export async function updateSessionApproval(
-    sessionId: number,
+    sessionId: string,
     approvalStatus: 'pending' | 'approved' | 'rejected'
 ): Promise<RecordingSession> {
     const response = await api.patch(
@@ -215,7 +215,7 @@ export async function updateSessionApproval(
 /**
  * Delete a recording session
  */
-export async function deleteSession(sessionId: number): Promise<void> {
+export async function deleteSession(sessionId: string): Promise<void> {
     await api.delete(`/api/v1/sessions/${sessionId}`);
 }
 
@@ -223,7 +223,7 @@ export async function deleteSession(sessionId: number): Promise<void> {
  * Get session analytics
  */
 export async function getSessionAnalytics(): Promise<SessionAnalytics> {
-    const response = await api.get('/v1/sessions/analytics');
+    const response = await api.get('/api/v1/sessions/analytics');
 
     // Validate response with Zod
     const validated = SessionAnalyticsSchema.parse(response.data);
@@ -234,7 +234,7 @@ export async function getSessionAnalytics(): Promise<SessionAnalytics> {
  * List all known RF sources
  */
 export async function listKnownSources(): Promise<KnownSource[]> {
-    const response = await api.get('/v1/sessions/known-sources');
+    const response = await api.get('/api/v1/sessions/known-sources');
 
     // Validate response with Zod
     const validated = z.array(KnownSourceSchema).parse(response.data);
@@ -253,7 +253,7 @@ export async function getKnownSource(sourceId: string): Promise<KnownSource> {
  * Create a new known RF source
  */
 export async function createKnownSource(source: KnownSourceCreate): Promise<KnownSource> {
-    const response = await api.post<KnownSource>('/v1/sessions/known-sources', source);
+    const response = await api.post<KnownSource>('/api/v1/sessions/known-sources', source);
     return response.data;
 }
 

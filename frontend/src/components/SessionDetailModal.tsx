@@ -22,7 +22,7 @@ import type { RecordingSessionWithDetails } from '@/services/api/session';
 interface SessionDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
-    sessionId: number | null;
+    sessionId: string | null;
 }
 
 // Mock WebSDR data - in Phase 8, this will come from the session metadata

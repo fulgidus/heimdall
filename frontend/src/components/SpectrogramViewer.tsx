@@ -11,7 +11,7 @@ import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface SpectrogramViewerProps {
-    sessionId?: number;
+    sessionId?: string;
     websdrId?: number;
     websdrName?: string;
     snr?: number;

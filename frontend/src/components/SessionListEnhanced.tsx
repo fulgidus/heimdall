@@ -45,7 +45,7 @@ export const SessionListEnhanced: React.FC<SessionListEnhancedProps> = ({
         previousPage,
     } = useSessions();
 
-    const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
     const [showDetailModal, setShowDetailModal] = useState(false);
 
     // Initial load
@@ -63,7 +63,7 @@ export const SessionListEnhanced: React.FC<SessionListEnhancedProps> = ({
         }
     }, [autoRefresh, fetchSessions]);
 
-    const handleSessionClick = (sessionId: number) => {
+    const handleSessionClick = (sessionId: string) => {
         setSelectedSessionId(sessionId);
         setShowDetailModal(true);
     };
