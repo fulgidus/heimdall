@@ -198,6 +198,7 @@ async def check_websdrs_health():
     try:
         from ..storage.db_manager import DatabaseManager
         from ..tasks.uptime_monitor import calculate_uptime_percentage
+        from .websocket import manager as ws_manager
         
         # Get WebSDR configs
         websdrs_config = get_websdrs_config()
@@ -223,7 +224,9 @@ async def check_websdrs_health():
             ws_id = ws_config['id']
             ws_uuid = ws_config['uuid']  # Use UUID as key for frontend
             # IMPORTANT: Celery serializes dict keys as strings!
-            is_online = result.get(str(ws_id), False)
+            health_info = result.get(str(ws_id), {'online': False, 'response_time_ms': None})
+            is_online = health_info.get('online', False)
+            response_time_ms = health_info.get('response_time_ms', None)
             
             # Get SNR and uptime from stats
             sdr_stats = snr_stats.get(ws_id, {}) if snr_stats else {}
@@ -237,6 +240,7 @@ async def check_websdrs_health():
                 'name': ws_config['name'],
                 'status': 'online' if is_online else 'offline',
                 'last_check': check_time,
+                'response_time_ms': response_time_ms,
                 'uptime': round(uptime, 1),
                 'avg_snr': round(avg_snr, 2) if avg_snr is not None else None,
             }
@@ -245,10 +249,20 @@ async def check_websdrs_health():
                 health_status[ws_uuid]['error_message'] = 'Health check failed or timed out'
         
         logger.info(f"Health check response ready with metrics")
+        
+        # Broadcast WebSDR health update via WebSocket
+        await ws_manager.broadcast({
+            'event': 'websdrs_update',
+            'timestamp': check_time,
+            'data': health_status
+        })
+        logger.debug(f"Broadcasted WebSDR health update to {len(ws_manager.active_connections)} WebSocket clients")
+        
         return health_status
     
     except Exception as e:
         logger.exception("Error checking WebSDR health: %s", str(e))
+        from .websocket import manager as ws_manager
         
         # Return offline status for all WebSDRs on error
         websdrs_config = get_websdrs_config()
@@ -256,13 +270,22 @@ async def check_websdrs_health():
         
         health_status = {}
         for ws_config in websdrs_config:
-            health_status[ws_config['id']] = {
-                'websdr_id': ws_config['id'],
+            ws_uuid = ws_config['uuid']  # Use UUID for consistency
+            health_status[ws_uuid] = {
+                'websdr_id': ws_uuid,
                 'name': ws_config['name'],
                 'status': 'offline',
                 'last_check': check_time,
+                'response_time_ms': None,
                 'error_message': f'Health check error: {str(e)}'
             }
+        
+        # Broadcast error status via WebSocket
+        await ws_manager.broadcast({
+            'event': 'websdrs_update',
+            'timestamp': check_time,
+            'data': health_status
+        })
         
         return health_status
 

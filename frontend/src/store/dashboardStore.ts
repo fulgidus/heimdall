@@ -23,7 +23,7 @@ interface DashboardMetrics {
 
 interface DashboardData {
     websdrs: WebSDRConfig[];
-    websdrsHealth: Record<number, WebSDRHealthStatus>;
+    websdrsHealth: Record<string, WebSDRHealthStatus>;  // UUID keys from backend
     modelInfo: ModelInfo | null;
     servicesHealth: Record<string, ServiceHealth>;
 }
