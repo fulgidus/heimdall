@@ -93,6 +93,12 @@ export interface RecordingSessionCreate {
     notes?: string;
 }
 
+export interface RecordingSessionUpdate {
+    session_name?: string;
+    notes?: string;
+    approval_status?: 'pending' | 'approved' | 'rejected';
+}
+
 export interface SessionListResponse {
     sessions: RecordingSessionWithDetails[];
     total: number;
@@ -146,6 +152,20 @@ export async function createSession(session: RecordingSessionCreate): Promise<Re
     
     // Validate response with Zod
     const validated = RecordingSessionSchema.parse(response.data);
+    return validated;
+}
+
+/**
+ * Update session metadata (session_name, notes, approval_status)
+ */
+export async function updateSession(
+    sessionId: number,
+    sessionUpdate: RecordingSessionUpdate
+): Promise<RecordingSessionWithDetails> {
+    const response = await api.patch(`/api/v1/sessions/${sessionId}`, sessionUpdate);
+    
+    // Validate response with Zod
+    const validated = RecordingSessionWithDetailsSchema.parse(response.data);
     return validated;
 }
 
@@ -259,6 +279,7 @@ const sessionService = {
     listSessions,
     getSession,
     createSession,
+    updateSession,
     updateSessionStatus,
     updateSessionApproval,
     deleteSession,
