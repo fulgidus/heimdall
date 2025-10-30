@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { RecordingSessionWithDetails } from '@/services/api/session';
 
 interface SessionEditModalProps {
@@ -131,7 +131,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
                                         className="form-select"
                                         id="approvalStatus"
                                         value={approvalStatus}
-                                        onChange={(e) => setApprovalStatus(e.target.value)}
+                                        onChange={(e) => setApprovalStatus(e.target.value as 'pending' | 'approved' | 'rejected')}
                                         disabled={isSaving}
                                     >
                                         <option value="pending">Pending</option>
@@ -159,15 +159,14 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
                                         <div className="col-6">
                                             <small className="text-muted d-block">Status</small>
                                             <span
-                                                className={`badge ${
-                                                    session.status === 'completed'
-                                                        ? 'bg-light-success'
-                                                        : session.status === 'in_progress'
+                                                className={`badge ${session.status === 'completed'
+                                                    ? 'bg-light-success'
+                                                    : session.status === 'in_progress'
                                                         ? 'bg-light-primary'
                                                         : session.status === 'failed'
-                                                        ? 'bg-light-danger'
-                                                        : 'bg-light-warning'
-                                                }`}
+                                                            ? 'bg-light-danger'
+                                                            : 'bg-light-warning'
+                                                    }`}
                                             >
                                                 {session.status}
                                             </span>

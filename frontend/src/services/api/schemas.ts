@@ -157,19 +157,18 @@ export const SystemMetricsSchema = z.object({
 // ============================================================================
 
 export const RecordingSessionSchema = z.object({
-    id: z.number(),
+    id: z.string().uuid(),  // Backend sends UUID as string, not number
+    known_source_id: z.string().uuid(),
     session_name: z.string(),
-    frequency_mhz: z.number().positive(),
-    duration_seconds: z.number().positive(),
-    status: z.enum(['pending', 'in_progress', 'processing', 'completed', 'failed']),
+    session_start: z.string().datetime(),
+    session_end: z.string().datetime().nullable().optional(),
+    duration_seconds: z.number().positive().nullable().optional(),  // Can be null/undefined
     celery_task_id: z.string().nullable().optional(),
-    result_metadata: z.record(z.string(), z.unknown()).nullable().optional(),
-    minio_path: z.string().nullable().optional(),
-    error_message: z.string().nullable().optional(),
-    created_at: z.string(),
-    started_at: z.string().nullable().optional(),
-    completed_at: z.string().nullable().optional(),
-    websdrs_enabled: z.number().optional(),
+    status: z.enum(['pending', 'in_progress', 'processing', 'completed', 'failed']),
+    approval_status: z.enum(['pending', 'approved', 'rejected']).optional(),
+    notes: z.string().nullable().optional(),
+    created_at: z.string().datetime(),
+    updated_at: z.string().datetime(),
 });
 
 export const RecordingSessionWithDetailsSchema = RecordingSessionSchema.extend({
