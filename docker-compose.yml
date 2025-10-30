@@ -438,6 +438,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
+        VITE_AUTH_API_URL: ${VITE_AUTH_API_URL:-http://api-gateway:8000}
         VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
         VITE_ENV: ${VITE_ENV:-development}
         VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}
@@ -454,6 +455,7 @@ services:
     container_name: heimdall-frontend
     environment:
       VITE_API_URL: /api
+      VITE_AUTH_API_URL: ${VITE_AUTH_API_URL:-http://api-gateway:8000}
       VITE_API_TIMEOUT: ${VITE_API_TIMEOUT:-10000}
       VITE_ENV: ${VITE_ENV:-development}
       VITE_ENABLE_ANALYTICS: ${VITE_ENABLE_ANALYTICS:-true}

@@ -112,7 +112,7 @@ export async function listSessions(params: {
     status?: string;
     approval_status?: string;
 }): Promise<SessionListResponse> {
-    const response = await api.get<SessionListResponse>('/api/v1/sessions', { params });
+    const response = await api.get<SessionListResponse>('/v1/sessions', { params });
     return response.data;
 }
 
@@ -128,7 +128,7 @@ export async function getSession(sessionId: number): Promise<RecordingSessionWit
  * Create a new recording session
  */
 export async function createSession(session: RecordingSessionCreate): Promise<RecordingSession> {
-    const response = await api.post<RecordingSession>('/api/v1/sessions', session);
+    const response = await api.post<RecordingSession>('/v1/sessions', session);
     return response.data;
 }
 
@@ -183,7 +183,7 @@ export async function deleteSession(sessionId: number): Promise<void> {
  * Get session analytics
  */
 export async function getSessionAnalytics(): Promise<SessionAnalytics> {
-    const response = await api.get<SessionAnalytics>('/api/v1/sessions/analytics');
+    const response = await api.get<SessionAnalytics>('/v1/sessions/analytics');
     return response.data;
 }
 
@@ -191,7 +191,7 @@ export async function getSessionAnalytics(): Promise<SessionAnalytics> {
  * List all known RF sources
  */
 export async function listKnownSources(): Promise<KnownSource[]> {
-    const response = await api.get<KnownSource[]>('/api/v1/sessions/known-sources');
+    const response = await api.get<KnownSource[]>('/v1/sessions/known-sources');
     return response.data;
 }
 
@@ -207,7 +207,7 @@ export async function getKnownSource(sourceId: string): Promise<KnownSource> {
  * Create a new known RF source
  */
 export async function createKnownSource(source: KnownSourceCreate): Promise<KnownSource> {
-    const response = await api.post<KnownSource>('/api/v1/sessions/known-sources', source);
+    const response = await api.post<KnownSource>('/v1/sessions/known-sources', source);
     return response.data;
 }
 

@@ -21,7 +21,7 @@ export async function triggerAcquisition(
     request: AcquisitionRequest
 ): Promise<AcquisitionTaskResponse> {
     const response = await api.post<AcquisitionTaskResponse>(
-        '/api/v1/acquisition/acquire',
+        '/v1/acquisition/acquire',
         request
     );
     return response.data;

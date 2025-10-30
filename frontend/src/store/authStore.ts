@@ -22,10 +22,9 @@ interface AuthStore {
 }
 
 // API Gateway configuration (reads from .env)
-// Use relative path by default (proxied through Nginx in Docker)
-// In development, Vite proxy handles /api/* requests
-// In production, Nginx forwards /api/* to api-gateway service
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Use the same API URL as other calls (proxied through Nginx)
+// In development: Vite proxy handles /api/*
+// In production: Nginx forwards /api/* to api-gateway
 
 // Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';
@@ -40,11 +39,8 @@ export const useAuthStore = create<AuthStore>()(
 
             login: async (email: string, password: string) => {
                 try {
-                    // Use API Gateway as proxy to Keycloak (CORS-enabled)
-                    // This avoids direct CORS requests to Keycloak
-                    // Endpoint: POST /api/v1/auth/login (proxies to Keycloak internally)
-                    // Base URL comes from VITE_API_URL environment variable
-                    const tokenUrl = `${API_URL}/api/v1/auth/login`;
+                    // Use relative path for auth (proxied through Nginx in production, Vite proxy in dev)
+                    const tokenUrl = '/api/v1/auth/login';
 
                     const params = new URLSearchParams();
                     params.append('grant_type', 'password');
@@ -134,7 +130,7 @@ export const useAuthStore = create<AuthStore>()(
                 }
 
                 try {
-                    const refreshUrl = `${API_URL}/api/v1/auth/refresh`;
+                    const refreshUrl = '/api/v1/auth/refresh';
 
                     const response = await fetch(refreshUrl, {
                         method: 'POST',

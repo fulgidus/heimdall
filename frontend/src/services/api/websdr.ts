@@ -15,7 +15,7 @@ import type { WebSDRConfig, WebSDRHealthStatus } from './types';
  */
 export async function getWebSDRs(): Promise<WebSDRConfig[]> {
     console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs-all');
-    const response = await api.get<WebSDRConfig[]>('/api/v1/acquisition/websdrs-all');
+    const response = await api.get<WebSDRConfig[]>('/v1/acquisition/websdrs-all');
     console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');
     return response.data;
 }
@@ -25,7 +25,7 @@ export async function getWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function checkWebSDRHealth(): Promise<Record<string, WebSDRHealthStatus>> {
     console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');
-    const response = await api.get<Record<string, WebSDRHealthStatus>>('/api/v1/acquisition/websdrs/health');
+    const response = await api.get<Record<string, WebSDRHealthStatus>>('/v1/acquisition/websdrs/health');
     console.log('✅ WebSDRService.checkWebSDRHealth(): ricevuto health status');
     return response.data;
 }
@@ -57,7 +57,7 @@ export async function getActiveWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function createWebSDR(data: Omit<WebSDRConfig, 'id'>): Promise<WebSDRConfig> {
     console.log('➕ WebSDRService.createWebSDR():', data.name);
-    const response = await api.post<WebSDRConfig>('/api/v1/acquisition/websdrs', data);
+    const response = await api.post<WebSDRConfig>('/v1/acquisition/websdrs', data);
     console.log('✅ WebSDRService.createWebSDR(): created', response.data.name);
     return response.data;
 }

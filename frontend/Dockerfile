@@ -8,6 +8,7 @@ COPY . .
 
 # Build arguments for environment variables (can be overridden at build time)
 ARG VITE_API_URL=/api
+ARG VITE_AUTH_API_URL=http://api-gateway:8000
 ARG VITE_API_TIMEOUT=10000
 ARG VITE_ENV=production
 ARG VITE_ENABLE_ANALYTICS=true
@@ -24,6 +25,7 @@ ARG VITE_MAPBOX_TOKEN
 
 # Set environment variables for build
 ENV VITE_API_URL=$VITE_API_URL \
+    VITE_AUTH_API_URL=$VITE_AUTH_API_URL \
     VITE_API_TIMEOUT=$VITE_API_TIMEOUT \
     VITE_ENV=$VITE_ENV \
     VITE_ENABLE_ANALYTICS=$VITE_ENABLE_ANALYTICS \
