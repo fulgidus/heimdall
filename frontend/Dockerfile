@@ -38,7 +38,9 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_SOCKET_URL=$VITE_SOCKET_URL \
     VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 
-# Install dependencies and build
+# Install dependencies (including devDependencies for build) and build
+# Set NODE_ENV to development to ensure devDependencies are installed
+ENV NODE_ENV=development
 RUN npm install --legacy-peer-deps && npm run build
 
 # Runtime stage - Using nginx for better performance
