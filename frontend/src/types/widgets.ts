@@ -18,6 +18,8 @@ export interface WidgetConfig {
     title: string;
     size: 'small' | 'medium' | 'large';
     position: number;
+    width?: number; // Custom width in Bootstrap columns (1-12), overrides size
+    height?: 'auto' | 'small' | 'medium' | 'large' | 'xlarge'; // Custom height
 }
 
 export interface WidgetDefinition {
@@ -79,4 +81,13 @@ export const SIZE_TO_COLUMNS: Record<WidgetConfig['size'], number> = {
     small: 4,
     medium: 6,
     large: 12,
+};
+
+// Height class mapping
+export const HEIGHT_TO_CLASS: Record<Exclude<WidgetConfig['height'], undefined>, string> = {
+    auto: '',
+    small: 'widget-height-small',
+    medium: 'widget-height-medium',
+    large: 'widget-height-large',
+    xlarge: 'widget-height-xlarge',
 };
