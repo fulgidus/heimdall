@@ -40,7 +40,7 @@ describe('useMapbox', () => {
         vi.clearAllMocks();
         
         // Set a valid token to avoid error state
-        import.meta.env.VITE_MAPBOX_TOKEN = 'pk.test_token_12345';
+        vi.stubEnv('VITE_MAPBOX_TOKEN', 'pk.test_token_12345');
     });
 
     afterEach(() => {
@@ -92,7 +92,7 @@ describe('useMapbox', () => {
     });
 
     it('should set error when token is missing', () => {
-        import.meta.env.VITE_MAPBOX_TOKEN = '';
+        vi.stubEnv('VITE_MAPBOX_TOKEN', '');
 
         const { result } = renderHook(() =>
             useMapbox({
@@ -106,7 +106,7 @@ describe('useMapbox', () => {
     });
 
     it('should set error when token is placeholder', () => {
-        import.meta.env.VITE_MAPBOX_TOKEN = 'your_mapbox_api_token_here';
+        vi.stubEnv('VITE_MAPBOX_TOKEN', 'your_mapbox_api_token_here');
 
         const { result } = renderHook(() =>
             useMapbox({
