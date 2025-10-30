@@ -15,7 +15,7 @@ import type { LocalizationResult } from '@/services/api/types';
 
 export interface MapContainerProps {
     websdrs: WebSDRConfig[];
-    healthStatus: Record<number, WebSDRHealthStatus>;
+    healthStatus: Record<string, WebSDRHealthStatus>;  // UUID string keys
     localizations: LocalizationResult[];
     onLocalizationClick?: (localization: LocalizationResult) => void;
     style?: React.CSSProperties;
