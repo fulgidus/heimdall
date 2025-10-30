@@ -38,8 +38,12 @@ ENV VITE_API_URL=$VITE_API_URL \
     VITE_SOCKET_URL=$VITE_SOCKET_URL \
     VITE_MAPBOX_TOKEN=$VITE_MAPBOX_TOKEN
 
-# Install dependencies and build
-RUN npm install --legacy-peer-deps && npm run build
+# Install dependencies (including devDependencies for build) and build
+# Set NODE_ENV to development to ensure devDependencies are installed
+ENV NODE_ENV=development
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+# Use npx to ensure binaries from node_modules are found
+RUN npx tsc -b && npx vite build
 
 # Runtime stage - Using nginx for better performance
 FROM nginx:alpine
