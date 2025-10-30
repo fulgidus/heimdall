@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2025-10-30
+
+### Added
+- **Automated Release Workflow** (2025-10-30)
+  - Created GitHub Actions workflow for automatic release creation and publishing
+  - Triggered by version tags pushed to `develop` (format: `v*`)
+  - Automatically extracts changelog content from CHANGELOG.md
+  - Creates GitHub Release with changelog as description
+  - Merges `develop` into `main` after release is published
+  - Updates version numbers in pyproject.toml and frontend/package.json for next development cycle
+  - Regenerates CHANGELOG.md with new [Unreleased] section
+  - No manual intervention needed: tag → release → merge → version bump
+
+---
+
 ## [0.2.0] - 2025-10-30
 
 ### Added
