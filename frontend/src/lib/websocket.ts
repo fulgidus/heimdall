@@ -118,7 +118,7 @@ export class WebSocketManager {
      */
     public disconnect(): void {
         // Guard: Don't disconnect if already disconnected or never connected
-        if (!this.ws && this.state === ConnectionState.DISCONNECTED) {
+        if (!this.ws || this.state === ConnectionState.DISCONNECTED) {
             console.log('[WebSocket] Already disconnected, skipping');
             return;
         }

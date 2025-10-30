@@ -315,7 +315,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         const { wsManager, wsConnectionState } = get();
         
         // Guard: Don't disconnect if already disconnected
-        if (!wsManager && wsConnectionState === ConnectionState.DISCONNECTED) {
+        if (!wsManager || wsConnectionState === ConnectionState.DISCONNECTED) {
             console.log('[Dashboard] Already disconnected, skipping');
             return;
         }
