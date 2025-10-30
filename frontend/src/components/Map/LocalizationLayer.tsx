@@ -83,9 +83,12 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
 }) => {
     const popupsRef = useRef<mapboxgl.Popup[]>([]);
     const layersInitialized = useRef(false);
+    const clickHandlerRef = useRef<((e: mapboxgl.MapLayerMouseEvent) => void) | null>(null);
+    const mouseEnterHandlerRef = useRef<(() => void) | null>(null);
+    const mouseLeaveHandlerRef = useRef<(() => void) | null>(null);
 
     /**
-     * Initialize map layers for ellipses and points
+     * Initialize map layers and sources (once only)
      */
     const initializeLayers = useCallback(() => {
         // Add ellipses source
@@ -164,9 +167,29 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
                 },
             });
         }
+    }, [map]);
 
-        // Add click handler for points
-        map.on('click', LAYER_IDS.POINTS, (e) => {
+    /**
+     * Setup event handlers for map interactions
+     */
+    useEffect(() => {
+        if (!layersInitialized.current) {
+            return;
+        }
+
+        // Remove old handlers if they exist
+        if (clickHandlerRef.current) {
+            map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+        }
+        if (mouseEnterHandlerRef.current) {
+            map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+        }
+        if (mouseLeaveHandlerRef.current) {
+            map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
+        }
+
+        // Create new click handler with current localizations and callback
+        clickHandlerRef.current = (e: mapboxgl.MapLayerMouseEvent) => {
             if (e.features && e.features.length > 0) {
                 const feature = e.features[0];
                 const localizationId = feature.properties?.id;
@@ -190,16 +213,34 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
                     }
                 }
             }
-        });
+        };
 
-        // Change cursor on hover
-        map.on('mouseenter', LAYER_IDS.POINTS, () => {
+        // Create cursor change handlers
+        mouseEnterHandlerRef.current = () => {
             map.getCanvas().style.cursor = 'pointer';
-        });
+        };
 
-        map.on('mouseleave', LAYER_IDS.POINTS, () => {
+        mouseLeaveHandlerRef.current = () => {
             map.getCanvas().style.cursor = '';
-        });
+        };
+
+        // Attach new handlers
+        map.on('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+        map.on('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+        map.on('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
+
+        // Cleanup on unmount or when dependencies change
+        return () => {
+            if (clickHandlerRef.current) {
+                map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+            }
+            if (mouseEnterHandlerRef.current) {
+                map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+            }
+            if (mouseLeaveHandlerRef.current) {
+                map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
+            }
+        };
     }, [map, localizations, onLocalizationClick]);
 
     /**
@@ -278,22 +319,28 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
         }
     }, [map, localizations, maxPoints]);
 
+    // Initialize layers once when map is ready
     useEffect(() => {
-        // Initialize layers once
         if (!layersInitialized.current) {
             initializeLayers();
             layersInitialized.current = true;
         }
+    }, [initializeLayers]);
 
-        // Update data
-        updateLocalizationData();
+    // Update data when localizations change
+    useEffect(() => {
+        if (layersInitialized.current) {
+            updateLocalizationData();
+        }
+    }, [updateLocalizationData]);
 
-        // Cleanup popups on unmount
+    // Cleanup popups on unmount
+    useEffect(() => {
         return () => {
             popupsRef.current.forEach((popup) => popup.remove());
             popupsRef.current = [];
         };
-    }, [initializeLayers, updateLocalizationData]);
+    }, []);
 
     return null; // This component doesn't render anything directly
 };

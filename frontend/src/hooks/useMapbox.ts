@@ -35,12 +35,15 @@ export function useMapbox(config: MapConfig): UseMapboxResult {
     const mapRef = useRef<mapboxgl.Map | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const initializationAttempted = useRef(false);
 
     useEffect(() => {
-        // Don't initialize if container is not ready
-        if (!config.container) {
+        // Don't initialize if container is not ready or already initialized
+        if (!config.container || initializationAttempted.current) {
             return;
         }
+
+        initializationAttempted.current = true;
 
         // Get access token from environment or config
         const token = config.accessToken || import.meta.env.VITE_MAPBOX_TOKEN;
@@ -93,13 +96,18 @@ export function useMapbox(config: MapConfig): UseMapboxResult {
                     mapRef.current = null;
                 }
                 setIsLoaded(false);
+                initializationAttempted.current = false;
             };
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to initialize map';
             setError(errorMessage);
             console.error('Failed to initialize Mapbox:', err);
+            initializationAttempted.current = false;
         }
-    }, [config.container, config.style, config.center, config.zoom, config.accessToken]);
+        // Only depend on container - style, center, zoom, and accessToken are captured at initialization
+        // and don't need to trigger map recreation
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [config.container]);
 
     return {
         map: mapRef.current,
