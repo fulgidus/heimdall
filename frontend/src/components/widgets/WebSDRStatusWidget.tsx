@@ -21,8 +21,10 @@ export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = () => {
         return () => clearInterval(interval);
     }, [fetchWebSDRs, checkHealth]);
 
-    const onlineCount = Object.values(healthStatus).filter(h => h.status === 'online').length;
-    const totalCount = websdrs.length;
+    // Defensive: ensure websdrs is an array
+    const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
+    const onlineCount = Object.values(healthStatus).filter(h => h?.status === 'online').length;
+    const totalCount = safeWebsdrs.length;
 
     return (
         <div className="widget-content">
@@ -40,20 +42,20 @@ export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = () => {
                             <p className="text-muted small mb-0">Receivers Online</p>
                         </div>
                         <div className={`badge ${onlineCount === totalCount ? 'bg-success' : 'bg-warning'} fs-6`}>
-                            {Math.round((onlineCount / totalCount) * 100)}%
+                            {totalCount > 0 ? Math.round((onlineCount / totalCount) * 100) : 0}%
                         </div>
                     </div>
 
                     <div className="list-group list-group-flush">
-                        {websdrs.slice(0, 7).map((sdr) => {
+                        {safeWebsdrs.slice(0, 7).map((sdr) => {
                             const health = healthStatus[sdr.id];
                             const isOnline = health?.status === 'online';
-                            
+
                             return (
                                 <div key={sdr.id} className="list-group-item px-0 py-2">
                                     <div className="d-flex align-items-center justify-content-between">
                                         <div className="d-flex align-items-center gap-2">
-                                            <i 
+                                            <i
                                                 className={`ph ph-radio-button ${isOnline ? 'text-success' : 'text-danger'}`}
                                                 aria-hidden="true"
                                             />

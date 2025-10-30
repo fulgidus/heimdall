@@ -16,6 +16,13 @@ import type { WebSDRConfig, WebSDRHealthStatus } from './types';
 export async function getWebSDRs(): Promise<WebSDRConfig[]> {
     console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs-all');
     const response = await api.get<WebSDRConfig[]>('/v1/acquisition/websdrs-all');
+
+    // Ensure response.data is an array
+    if (!Array.isArray(response.data)) {
+        console.error('❌ WebSDRService.getWebSDRs(): Expected array but got:', typeof response.data, response.data);
+        return [];
+    }
+
     console.log('✅ WebSDRService.getWebSDRs(): ricevuti', response.data.length, 'WebSDRs');
     return response.data;
 }
@@ -49,6 +56,11 @@ export async function getWebSDRConfig(id: string): Promise<WebSDRConfig> {
  */
 export async function getActiveWebSDRs(): Promise<WebSDRConfig[]> {
     const websdrs = await getWebSDRs();
+    // Ensure websdrs is an array before filtering
+    if (!Array.isArray(websdrs)) {
+        console.error('❌ getActiveWebSDRs(): websdrs is not an array:', typeof websdrs);
+        return [];
+    }
     return websdrs.filter(w => w.is_active);
 }
 

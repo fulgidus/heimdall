@@ -28,8 +28,8 @@ export const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const servicesList = Object.entries(services);
-    const healthyCount = servicesList.filter(([_, s]) => s.status === 'healthy').length;
+    const servicesList = Object.entries(services || {});
+    const healthyCount = servicesList.filter(([_, s]) => s?.status === 'healthy').length;
     const totalCount = servicesList.length;
 
     const getStatusColor = (status: string) => {

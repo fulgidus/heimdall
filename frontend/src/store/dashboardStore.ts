@@ -82,7 +82,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     // WebSocket state
     wsManager: null,
     wsConnectionState: ConnectionState.DISCONNECTED,
-    wsEnabled: true, // Enable WebSocket by default, fallback to polling if unavailable
+    wsEnabled: false, // DISABLED FOR NOW - use polling only to avoid DOM sync issues
 
     setMetrics: (metrics) => set({ metrics }),
     setLoading: (loading) => set({ isLoading: loading }),
@@ -99,6 +99,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         try {
             // Load WebSDRs FAST - don't wait for health check
             const websdrs = await webSDRService.getWebSDRs();
+
+            // Ensure websdrs is an array (defensive programming)
+            if (!Array.isArray(websdrs)) {
+                console.error('❌ fetchWebSDRs: websdrs is not an array:', typeof websdrs);
+                set({ error: 'Invalid WebSDRs response format' });
+                return;
+            }
 
             set((state) => ({
                 data: {
@@ -238,10 +245,13 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
         }
 
         try {
-            // Use configured WebSocket URL from environment
-            // Construct WebSocket URL based on browser location (proxied through Nginx)
+            // Use configured WebSocket URL from environment or construct from browser location
+            // The frontend is served on port 3000 (internal), but Envoy routes WS traffic on port 80.
+            // We need to connect to the root host (port 80), not port 3000.
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${window.location.host}/ws/updates`;
+            const hostname = window.location.hostname; // localhost
+            // Connect to port 80 (Envoy), not the frontend port
+            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:80/ws`;
             console.log('[Dashboard] Connecting to WebSocket:', wsUrl);
 
             const manager = createWebSocketManager(wsUrl);
