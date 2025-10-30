@@ -97,13 +97,9 @@ async def websocket_endpoint(websocket: WebSocket):
         
         heartbeat_task = asyncio.create_task(send_heartbeat())
         
-        # Welcome message
-        await manager.send_personal(websocket, {
-            "event": "connected",
-            "timestamp": datetime.utcnow().isoformat(),
-            "message": "Connected to Heimdall real-time updates",
-            "version": "1.0"
-        })
+        # NOTE: No welcome message here - wait for client to send first message
+        # This avoids timing issues where the browser isn't ready to receive messages yet
+        # The client will request data via the 'get_data' event
         
         # Listen for client messages
         while True:
@@ -129,6 +125,62 @@ async def websocket_endpoint(websocket: WebSocket):
                         "channels": channels,
                         "timestamp": datetime.utcnow().isoformat()
                     })
+                
+                elif event == "get_data":
+                    # Client requesting initial data
+                    data_type = message.get("data_type", "")
+                    
+                    if data_type == "websdrs":
+                        # Send all WebSDRs configuration
+                        try:
+                            from ..storage.db_manager import get_db_manager
+                            db_manager = get_db_manager()
+                            websdrs = db_manager.get_all_websdrs()
+                            
+                            # Convert to JSON-serializable format
+                            websdrs_data = []
+                            for websdr in websdrs:
+                                created_at = getattr(websdr, 'created_at', None)
+                                updated_at = getattr(websdr, 'updated_at', None)
+                                
+                                websdrs_data.append({
+                                    "id": str(getattr(websdr, 'id', '')),
+                                    "name": getattr(websdr, 'name', ''),
+                                    "url": getattr(websdr, 'url', ''),
+                                    "latitude": float(getattr(websdr, 'latitude', 0)),
+                                    "longitude": float(getattr(websdr, 'longitude', 0)),
+                                    "location_description": getattr(websdr, 'location_description', None),
+                                    "country": getattr(websdr, 'country', None),
+                                    "admin_email": getattr(websdr, 'admin_email', None),
+                                    "altitude_asl": getattr(websdr, 'altitude_asl', None),
+                                    "timeout_seconds": getattr(websdr, 'timeout_seconds', 30),
+                                    "retry_count": getattr(websdr, 'retry_count', 3),
+                                    "is_active": getattr(websdr, 'is_active', True),
+                                    "created_at": created_at.isoformat() if created_at else None,
+                                    "updated_at": updated_at.isoformat() if updated_at else None,
+                                })
+                            
+                            await manager.send_personal(websocket, {
+                                "event": "websdrs_data",
+                                "timestamp": datetime.utcnow().isoformat(),
+                                "data": websdrs_data,
+                                "count": len(websdrs_data)
+                            })
+                            logger.info(f"Sent {len(websdrs_data)} WebSDRs via WebSocket")
+                        except Exception as e:
+                            logger.error(f"Error fetching WebSDRs for WebSocket: {e}")
+                            await manager.send_personal(websocket, {
+                                "event": "error",
+                                "message": f"Failed to fetch WebSDRs: {str(e)}",
+                                "timestamp": datetime.utcnow().isoformat()
+                            })
+                    
+                    else:
+                        await manager.send_personal(websocket, {
+                            "event": "error",
+                            "message": f"Unknown data type: {data_type}",
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
                 
                 else:
                     logger.debug(f"Received unknown event: {event}")

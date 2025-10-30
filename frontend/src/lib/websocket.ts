@@ -30,6 +30,7 @@ interface WebSocketConfig {
     heartbeatInterval?: number;
     maxReconnectDelay?: number;
     initialReconnectDelay?: number;
+    connectTimeout?: number;
 }
 
 export class WebSocketManager {
@@ -40,8 +41,10 @@ export class WebSocketManager {
     private maxReconnectDelay: number;
     private initialReconnectDelay: number;
     private heartbeatInterval: number;
+    private connectTimeout: number;
     private heartbeatTimer: NodeJS.Timeout | null = null;
     private reconnectTimer: NodeJS.Timeout | null = null;
+    private connectTimer: NodeJS.Timeout | null = null;
     private state: ConnectionState = ConnectionState.DISCONNECTED;
     private subscribers: Map<string, Set<EventCallback>> = new Map();
     private stateChangeCallbacks: Set<(state: ConnectionState) => void> = new Set();
@@ -52,6 +55,7 @@ export class WebSocketManager {
         this.heartbeatInterval = config.heartbeatInterval ?? 30000; // 30 seconds
         this.maxReconnectDelay = config.maxReconnectDelay ?? 30000; // 30 seconds max
         this.initialReconnectDelay = config.initialReconnectDelay ?? 1000; // 1 second initial
+        this.connectTimeout = config.connectTimeout ?? 5000; // 5 seconds to connect
     }
 
     /**
@@ -78,8 +82,21 @@ export class WebSocketManager {
                 console.log(`[WebSocket] Connecting to ${this.url}`);
                 this.ws = new WebSocket(this.url);
 
+                // Set up connection timeout
+                this.connectTimer = setTimeout(() => {
+                    console.warn('[WebSocket] Connection timeout');
+                    if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+                        this.ws.close();
+                        reject(new Error('Connection timeout'));
+                    }
+                }, this.connectTimeout);
+
                 this.ws.onopen = () => {
                     console.log('[WebSocket] Connected');
+                    if (this.connectTimer) {
+                        clearTimeout(this.connectTimer);
+                        this.connectTimer = null;
+                    }
                     this.reconnectAttempts = 0;
                     this.reconnectDelay = this.initialReconnectDelay;
                     this.setState(ConnectionState.CONNECTED);
@@ -93,11 +110,19 @@ export class WebSocketManager {
 
                 this.ws.onerror = (error) => {
                     console.error('[WebSocket] Error:', error);
+                    if (this.connectTimer) {
+                        clearTimeout(this.connectTimer);
+                        this.connectTimer = null;
+                    }
                     reject(error);
                 };
 
                 this.ws.onclose = (event) => {
                     console.log('[WebSocket] Connection closed', event.code, event.reason);
+                    if (this.connectTimer) {
+                        clearTimeout(this.connectTimer);
+                        this.connectTimer = null;
+                    }
                     this.stopHeartbeat();
                     this.setState(ConnectionState.DISCONNECTED);
 
@@ -107,6 +132,10 @@ export class WebSocketManager {
                 };
             } catch (error) {
                 console.error('[WebSocket] Connection error:', error);
+                if (this.connectTimer) {
+                    clearTimeout(this.connectTimer);
+                    this.connectTimer = null;
+                }
                 this.setState(ConnectionState.DISCONNECTED);
                 reject(error);
             }

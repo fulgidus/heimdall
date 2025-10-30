@@ -31,31 +31,43 @@ const WebSDRManagement: React.FC = () => {
     const [deletingWebSDR, setDeletingWebSDR] = useState<WebSDRConfig | null>(null);
 
     useEffect(() => {
-        // Initial data load
-        const loadData = async () => {
-            await fetchWebSDRs();
-            await checkHealth();
-        };
-        loadData();
-
         // Setup WebSocket for real-time updates
+        // Connect directly to Envoy on port 80, not to the frontend on port 3000
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const hostname = window.location.hostname;
-        const port = window.location.port || (protocol === 'wss' ? '443' : '80');
-        const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:${port}/ws`;
-        
+        const wsUrl = `${protocol}://localhost/ws`;
+
+        console.log('[WebSDRManagement] WebSocket URL:', wsUrl);
+
         const manager = createWebSocketManager(wsUrl);
-        
+
+        // Connect WebSocket and request initial data
+        manager.connect().then(() => {
+            console.log('[WebSDRManagement] WebSocket connected, requesting WebSDR data');
+            // Request WebSDR list via WebSocket
+            manager.send('get_data', { data_type: 'websdrs' });
+        }).catch((error) => {
+            console.error('[WebSDRManagement] WebSocket connection failed:', error);
+            // Fallback: Load via REST API if WebSocket fails
+            console.log('[WebSDRManagement] Using REST API fallback');
+            fetchWebSDRs();
+            checkHealth();
+        });
+
+        // Subscribe to WebSDR data updates
+        manager.subscribe('websdrs_data', (data) => {
+            console.log('[WebSDRManagement] Received WebSDR data via WebSocket:', data);
+            if (Array.isArray(data)) {
+                useWebSDRStore.setState({ websdrs: data });
+            } else if (data && Array.isArray(data.data)) {
+                useWebSDRStore.setState({ websdrs: data.data });
+            }
+        });
+
         // Subscribe to WebSDR health updates
         manager.subscribe('websdrs_update', (data) => {
             console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
             // Update health status in store directly from WebSocket
             useWebSDRStore.setState({ healthStatus: data });
-        });
-
-        // Connect WebSocket
-        manager.connect().catch((error) => {
-            console.error('[WebSDRManagement] WebSocket connection failed:', error);
         });
 
         // Fallback: Auto-refresh health every 30 seconds if WebSocket fails

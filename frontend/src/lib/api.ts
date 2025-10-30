@@ -1,10 +1,22 @@
 import axios from 'axios';
 import { useAuthStore } from '../store';
 
-// Use relative path by default (proxied through Nginx in Docker)
-// In development, Vite proxy handles /api/* requests
-// In production, Nginx forwards /api/* to api-gateway service
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Use absolute URL to connect directly to Envoy API Gateway
+// Never proxy through frontend Nginx (that would be circular)
+// Browser connects directly to http://localhost/api (port 80)
+const getAPIBaseURL = () => {
+    // If environment variable is set, use it
+    if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.startsWith('/')) {
+        return import.meta.env.VITE_API_URL;
+    }
+
+    // Otherwise, construct URL to connect directly to API Gateway on port 80
+    const protocol = window.location.protocol; // http: or https:
+    const host = window.location.hostname; // localhost, hostname, etc.
+    return `${protocol}//${host}/api`;
+};
+
+const API_BASE_URL = getAPIBaseURL();
 
 // DEBUG: Log della configurazione API
 console.log('🔧 API Configuration:', {
