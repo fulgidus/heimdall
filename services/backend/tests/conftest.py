@@ -1,5 +1,5 @@
 """
-pytest configuration for rf-acquisition service tests
+pytest configuration for backend service tests
 Fixes Python import paths
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 def pytest_configure(config):
     """Add src/ to Python path before tests run"""
     
-    # Get the root of the rf-acquisition service
+    # Get the root of the backend service
     service_root = Path(__file__).parent.parent
     src_path = service_root / "src"
     

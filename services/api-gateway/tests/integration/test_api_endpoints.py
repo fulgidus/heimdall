@@ -131,7 +131,7 @@ class TestProxyEndpoints:
     """Test proxy functionality to backend services."""
     
     def test_sessions_proxy(self, authenticated_client):
-        """Test proxying to rf-acquisition service for sessions."""
+        """Test proxying to backend service for sessions."""
         # This will proxy to the actual backend service if running
         response = authenticated_client.get("/api/v1/sessions")
         

@@ -11,7 +11,7 @@ def client():
 def test_root(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json()["service"] == "rf-acquisition"
+    assert response.json()["service"] == "backend"
 
 
 def test_health(client):
@@ -20,7 +20,7 @@ def test_health(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "rf-acquisition"
+    assert data["service"] == "backend"
 
 
 def test_health_detailed(client):

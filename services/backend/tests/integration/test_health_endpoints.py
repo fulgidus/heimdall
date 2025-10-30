@@ -26,7 +26,7 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
-        assert data["service"] == "rf-acquisition"
+        assert data["service"] == "backend"
         assert "version" in data
         assert "timestamp" in data
     
@@ -194,7 +194,7 @@ class TestReadinessProbe:
         
         data = response.json()
         assert "service" in data
-        assert data["service"] == "rf-acquisition"
+        assert data["service"] == "backend"
     
     @patch("services.common.dependency_checkers.check_postgresql")
     @patch("services.common.dependency_checkers.check_redis")

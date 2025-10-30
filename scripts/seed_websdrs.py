@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import os
 
-# Set working directory to services/rf-acquisition/src
-src_dir = Path(__file__).parent.parent / "services" / "rf-acquisition" / "src"
+# Set working directory to services/backend/src
+src_dir = Path(__file__).parent.parent / "services" / "backend" / "src"
 if src_dir.exists():
     os.chdir(src_dir)
     sys.path.insert(0, str(src_dir))

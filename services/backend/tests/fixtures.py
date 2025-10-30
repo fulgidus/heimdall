@@ -1,4 +1,4 @@
-"""Test fixtures for rf-acquisition service."""
+"""Test fixtures for backend service."""
 
 import sys
 from pathlib import Path

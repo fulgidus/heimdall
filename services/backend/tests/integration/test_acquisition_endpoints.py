@@ -25,7 +25,7 @@ def test_acquisition_health():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "rf-acquisition"
+    assert data["service"] == "backend"
     assert "version" in data
 
 
@@ -35,7 +35,7 @@ def test_acquisition_config():
     
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "rf-acquisition"
+    assert data["service"] == "backend"
     assert "capabilities" in data
     assert "simultaneous-acquisition" in data["capabilities"]
     assert data["default_sample_rate_khz"] == 12.5
@@ -150,7 +150,7 @@ def test_root_endpoint():
     
     assert response.status_code == 200
     data = response.json()
-    assert data["service"] == "rf-acquisition"
+    assert data["service"] == "backend"
     assert data["status"] == "running"
     assert "timestamp" in data
 
