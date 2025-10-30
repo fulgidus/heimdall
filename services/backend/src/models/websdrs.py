@@ -211,6 +211,54 @@ class WebSDRUpdateRequest(BaseModel):
         }
 
 
+class WebSDRFetchInfoRequest(BaseModel):
+    """Request to fetch WebSDR information from URL."""
+    
+    url: str = Field(..., description="WebSDR base URL to fetch info from")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "url": "http://websdr.example.com:8073"
+            }
+        }
+
+
+class WebSDRFetchInfoResponse(BaseModel):
+    """Response containing WebSDR information fetched from URL."""
+    
+    receiver_name: Optional[str] = Field(None, description="Receiver name from status.json")
+    location: Optional[str] = Field(None, description="Location from status.json")
+    latitude: Optional[float] = Field(None, description="GPS latitude")
+    longitude: Optional[float] = Field(None, description="GPS longitude")
+    altitude_asl: Optional[int] = Field(None, description="Altitude ASL in meters")
+    admin_email: Optional[str] = Field(None, description="Administrator email")
+    frequency_min_hz: Optional[int] = Field(None, description="Minimum frequency in Hz")
+    frequency_max_hz: Optional[int] = Field(None, description="Maximum frequency in Hz")
+    sdr_count: int = Field(default=0, description="Number of SDR devices")
+    profile_count: int = Field(default=0, description="Total number of profiles")
+    success: bool = Field(..., description="Whether fetch was successful")
+    error_message: Optional[str] = Field(None, description="Error message if fetch failed")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "receiver_name": "IW2MXM Milano",
+                "location": "Milano, Italy",
+                "latitude": 45.464,
+                "longitude": 9.188,
+                "altitude_asl": 120,
+                "admin_email": "admin@example.com",
+                "frequency_min_hz": 144000000,
+                "frequency_max_hz": 146000000,
+                "sdr_count": 2,
+                "profile_count": 4,
+                "success": True,
+                "error_message": None
+            }
+        }
+
+
 class WebSDRResponse(BaseModel):
     """Response model for WebSDR station."""
     
@@ -223,6 +271,8 @@ class WebSDRResponse(BaseModel):
     country: Optional[str] = Field(None, description="Country")
     admin_email: Optional[str] = Field(None, description="Administrator email")
     altitude_asl: Optional[int] = Field(None, description="Altitude ASL")
+    frequency_min_hz: Optional[int] = Field(None, description="Minimum frequency in Hz")
+    frequency_max_hz: Optional[int] = Field(None, description="Maximum frequency in Hz")
     timeout_seconds: int = Field(default=30, description="Connection timeout")
     retry_count: Optional[int] = Field(default=None, description="Retry count")
     is_active: bool = Field(..., description="Active status")
@@ -247,6 +297,8 @@ class WebSDRResponse(BaseModel):
                 "country": "Italy",
                 "admin_email": "admin@iw2mxm.it",
                 "altitude_asl": 120,
+                "frequency_min_hz": 144000000,
+                "frequency_max_hz": 146000000,
                 "timeout_seconds": 30,
                 "retry_count": 3,
                 "is_active": True,

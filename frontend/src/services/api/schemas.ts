@@ -21,11 +21,32 @@ export const WebSDRConfigSchema = z.object({
     altitude_asl: z.number().nullable().optional(),
     latitude: z.number().min(-90).max(90),
     longitude: z.number().min(-180).max(180),
+    frequency_min_hz: z.number().nullable().optional(),
+    frequency_max_hz: z.number().nullable().optional(),
     is_active: z.boolean(),
     timeout_seconds: z.number().positive(),
     retry_count: z.number().nonnegative(),
     created_at: z.string().optional(),
     updated_at: z.string().optional(),
+});
+
+export const WebSDRFetchInfoRequestSchema = z.object({
+    url: z.string().url(),
+});
+
+export const WebSDRFetchInfoResponseSchema = z.object({
+    receiver_name: z.string().nullable().optional(),
+    location: z.string().nullable().optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    altitude_asl: z.number().nullable().optional(),
+    admin_email: z.string().nullable().optional(),
+    frequency_min_hz: z.number().nullable().optional(),
+    frequency_max_hz: z.number().nullable().optional(),
+    sdr_count: z.number().nonnegative(),
+    profile_count: z.number().nonnegative(),
+    success: z.boolean(),
+    error_message: z.string().nullable().optional(),
 });
 
 export const WebSDRHealthStatusSchema = z.object({
@@ -291,6 +312,8 @@ export const DashboardMetricsSchema = z.object({
 
 export type WebSDRConfig = z.infer<typeof WebSDRConfigSchema>;
 export type WebSDRHealthStatus = z.infer<typeof WebSDRHealthStatusSchema>;
+export type WebSDRFetchInfoRequest = z.infer<typeof WebSDRFetchInfoRequestSchema>;
+export type WebSDRFetchInfoResponse = z.infer<typeof WebSDRFetchInfoResponseSchema>;
 export type AcquisitionRequest = z.infer<typeof AcquisitionRequestSchema>;
 export type AcquisitionTaskResponse = z.infer<typeof AcquisitionTaskResponseSchema>;
 export type AcquisitionStatusResponse = z.infer<typeof AcquisitionStatusResponseSchema>;
