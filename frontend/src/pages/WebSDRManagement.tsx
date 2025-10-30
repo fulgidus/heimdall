@@ -50,9 +50,7 @@ const WebSDRManagement: React.FC = () => {
         manager.subscribe('websdrs_update', (data) => {
             console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
             // Update health status in store directly from WebSocket
-            useWebSDRStore.setState(() => ({
-                healthStatus: data,
-            }));
+            useWebSDRStore.setState({ healthStatus: data });
         });
 
         // Connect WebSocket
