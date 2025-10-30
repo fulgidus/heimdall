@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { useWebSDRStore } from '../store/websdrStore';
 import { createWebSocketManager } from '../lib/websocket';
+import { getDetailedHealth } from '../services/api/system';
+import type { DetailedHealthResponse, DependencyHealth } from '../services/api/schemas';
 
 type SessionState = 'idle' | 'ready_to_assign' | 'acquiring' | 'complete' | 'error';
 
