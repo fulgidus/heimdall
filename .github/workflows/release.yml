@@ -88,8 +88,12 @@ jobs:
 
       - name: Merge develop to main
         run: |
+          # Fetch tutti i branch
+          git fetch origin
+          # Checkout main
           git checkout main
-          git merge develop -m "Merge develop into main for release ${{ github.ref_name }}"
+          # Merge origin/develop in main
+          git merge origin/develop -m "Merge develop into main for release ${{ github.ref_name }}"
           git push origin main
 
       - name: Push tag to main
