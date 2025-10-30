@@ -502,3 +502,269 @@ def health_check_websdrs(self):
     logger.info("WebSDR health check: %s", health_status)
     
     return health_status
+
+
+@shared_task(bind=True, base=AcquisitionTask)
+def acquire_iq_chunked(
+    self,
+    frequency_hz: int,
+    duration_seconds: int,
+    session_id: str,
+    websdrs_config_list: List[Dict],
+    sample_rate_khz: float = 12.5,
+):
+    """
+    Acquire IQ data in 1-second chunks for a recording session.
+    
+    This task splits the total duration into 1-second samples,
+    acquiring each as a separate measurement for better training data granularity.
+    
+    Each 1-second chunk is:
+    1. Fetched from all WebSDRs simultaneously
+    2. Processed for signal metrics
+    3. Saved to MinIO individually
+    4. Written to TimescaleDB as separate measurements
+    
+    Args:
+        frequency_hz: Target frequency in Hz
+        duration_seconds: Total duration in seconds (will be split into 1s chunks)
+        session_id: Recording session UUID
+        websdrs_config_list: List of WebSDR config dicts
+        sample_rate_khz: Sample rate in kHz
+    
+    Returns:
+        Dict with chunked acquisition results
+    """
+    try:
+        frequency_mhz = frequency_hz / 1e6
+        
+        self.update_state(
+            state='PROGRESS',
+            meta={
+                'current': 0,
+                'total': duration_seconds,
+                'status': f'Starting chunked acquisition: {duration_seconds} x 1s samples'
+            }
+        )
+        
+        logger.info(
+            "Starting chunked acquisition: %d x 1s chunks at %.2f MHz for session %s",
+            duration_seconds,
+            frequency_mhz,
+            session_id
+        )
+        
+        # Parse WebSDR configs
+        websdrs = [WebSDRConfig(**cfg) for cfg in websdrs_config_list]
+        
+        all_measurements = []
+        all_errors = []
+        successful_chunks = 0
+        
+        import asyncio
+        
+        # Acquire each 1-second chunk
+        for chunk_idx in range(duration_seconds):
+            chunk_start_time = datetime.utcnow().isoformat()
+            
+            logger.info(f"Acquiring chunk {chunk_idx + 1}/{duration_seconds}")
+            
+            async def fetch_and_process_chunk():
+                fetcher = OpenWebRXFetcher(
+                    websdrs=websdrs,
+                    timeout=30,
+                    retry_count=3,
+                    concurrent_limit=7
+                )
+                
+                # Fetch 1-second sample from all WebSDRs
+                iq_data_dict = await fetcher.fetch_iq_simultaneous(
+                    frequency_mhz=frequency_mhz,
+                    duration_seconds=1.0,  # 1-second chunks
+                    sample_rate_khz=sample_rate_khz
+                )
+                
+                chunk_measurements = []
+                chunk_errors = []
+                
+                # Process results for this chunk
+                for websdr_id, (iq_data, error) in iq_data_dict.items():
+                    if error:
+                        chunk_errors.append(f"Chunk {chunk_idx+1}, WebSDR {websdr_id}: {error}")
+                        logger.warning("Chunk %d WebSDR %d failed: %s", chunk_idx+1, websdr_id, error)
+                    elif iq_data is not None:
+                        try:
+                            # Compute metrics
+                            metrics = IQProcessor.compute_metrics(
+                                iq_data=iq_data,
+                                sample_rate_hz=int(sample_rate_khz * 1e3),
+                                target_frequency_hz=int(frequency_mhz * 1e6),
+                                noise_bandwidth_hz=10000
+                            )
+                            
+                            # Create measurement record with chunk info
+                            measurement = {
+                                'websdr_id': websdr_id,
+                                'frequency_mhz': frequency_mhz,
+                                'sample_rate_khz': sample_rate_khz,
+                                'samples_count': len(iq_data),
+                                'timestamp_utc': chunk_start_time,
+                                'chunk_index': chunk_idx,
+                                'chunk_duration': 1.0,
+                                'session_id': session_id,
+                                'metrics': metrics.dict(),
+                                'iq_data_path': f's3://heimdall-raw-iq/sessions/{session_id}/chunk_{chunk_idx:03d}_websdr_{websdr_id}.npy',
+                                'iq_data': iq_data.tolist(),
+                            }
+                            chunk_measurements.append(measurement)
+                            
+                            logger.debug(
+                                "Chunk %d WebSDR %d - SNR: %.2f dB, Offset: %.2f Hz",
+                                chunk_idx+1,
+                                websdr_id,
+                                metrics.snr_db,
+                                metrics.frequency_offset_hz
+                            )
+                        except Exception as e:
+                            error_msg = f"Chunk {chunk_idx+1} processing error for WebSDR {websdr_id}: {str(e)}"
+                            chunk_errors.append(error_msg)
+                            logger.exception(error_msg)
+                
+                return chunk_measurements, chunk_errors
+            
+            # Run async chunk acquisition
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            chunk_measurements, chunk_errors = loop.run_until_complete(fetch_and_process_chunk())
+            
+            all_measurements.extend(chunk_measurements)
+            all_errors.extend(chunk_errors)
+            
+            if chunk_measurements:
+                successful_chunks += 1
+            
+            # Update progress
+            progress = ((chunk_idx + 1) / duration_seconds) * 100
+            self.update_state(
+                state='PROGRESS',
+                meta={
+                    'current': chunk_idx + 1,
+                    'total': duration_seconds,
+                    'successful_chunks': successful_chunks,
+                    'total_measurements': len(all_measurements),
+                    'status': f'Acquired chunk {chunk_idx + 1}/{duration_seconds}',
+                    'progress': progress
+                }
+            )
+            
+            # Broadcast progress via WebSocket
+            try:
+                from ..routers.websocket import manager
+                import asyncio
+                
+                asyncio.create_task(manager.broadcast({
+                    "event": "session:progress",
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "data": {
+                        "session_id": session_id,
+                        "chunk": chunk_idx + 1,
+                        "total_chunks": duration_seconds,
+                        "progress": progress,
+                        "measurements_count": len(all_measurements),
+                    }
+                }))
+            except Exception as e:
+                logger.warning(f"Failed to broadcast progress: {e}")
+        
+        # Prepare result summary (without iq_data for JSON serialization)
+        measurements_summary = [
+            {k: v for k, v in m.items() if k != 'iq_data'}
+            for m in all_measurements
+        ]
+        
+        result = {
+            'task_id': self.request.id,
+            'session_id': session_id,
+            'status': 'SUCCESS' if successful_chunks == duration_seconds else 'PARTIAL_FAILURE',
+            'measurements': measurements_summary,
+            'total_chunks': duration_seconds,
+            'successful_chunks': successful_chunks,
+            'measurements_count': len(all_measurements),
+            'errors': all_errors,
+            'frequency_mhz': frequency_mhz,
+            'duration_seconds': duration_seconds,
+            'end_time': datetime.utcnow().isoformat(),
+        }
+        
+        logger.info(
+            "Chunked acquisition complete: %d/%d chunks successful, %d total measurements",
+            successful_chunks,
+            duration_seconds,
+            len(all_measurements)
+        )
+        
+        # Update session status in database
+        try:
+            from ..db import get_pool
+            import asyncio
+            from uuid import UUID
+            
+            async def update_session():
+                pool = await get_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        UPDATE heimdall.recording_sessions
+                        SET status = $1, 
+                            session_end = NOW(),
+                            duration_seconds = $2,
+                            updated_at = NOW()
+                        WHERE id = $3
+                        """,
+                        'completed' if successful_chunks == duration_seconds else 'failed',
+                        duration_seconds,
+                        UUID(session_id),
+                    )
+            
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(update_session())
+            
+            logger.info(f"Updated session {session_id} status to completed")
+        except Exception as e:
+            logger.error(f"Failed to update session status: {e}")
+        
+        return result
+    
+    except Exception as e:
+        logger.exception("Chunked acquisition task failed: %s", str(e))
+        
+        # Update session to failed
+        try:
+            from ..db import get_pool
+            import asyncio
+            from uuid import UUID
+            
+            async def fail_session():
+                pool = await get_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        UPDATE heimdall.recording_sessions
+                        SET status = 'failed', 
+                            session_end = NOW(),
+                            updated_at = NOW()
+                        WHERE id = $1
+                        """,
+                        UUID(session_id),
+                    )
+            
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(fail_session())
+        except Exception as db_error:
+            logger.error(f"Failed to update session to failed status: {db_error}")
+        
+        raise

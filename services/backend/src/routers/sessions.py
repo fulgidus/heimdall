@@ -629,3 +629,195 @@ async def delete_known_source(source_id: UUID):
             raise HTTPException(status_code=404, detail="Known source not found")
         
         return None
+
+
+# WebSocket handlers for real-time session management
+async def handle_session_start_ws(session_data: dict):
+    """Handle session start command via WebSocket"""
+    pool = await get_pool()
+    
+    session_name = session_data.get("session_name")
+    frequency_mhz = session_data.get("frequency_mhz")
+    duration_seconds = session_data.get("duration_seconds")
+    notes = session_data.get("notes", "")
+    
+    if not session_name or not frequency_mhz or not duration_seconds:
+        raise ValueError("Missing required fields: session_name, frequency_mhz, duration_seconds")
+    
+    # Create "unknown" source if it doesn't exist
+    async with pool.acquire() as conn:
+        unknown_source_id = await conn.fetchval(
+            """
+            INSERT INTO heimdall.known_sources 
+            (name, description, is_validated, error_margin_meters)
+            VALUES ('Unknown', 'Placeholder for unknown sources', false, 1000.0)
+            ON CONFLICT (name) DO UPDATE SET updated_at = NOW()
+            RETURNING id
+            """
+        )
+        
+        # Create session with unknown source initially
+        query = """
+            INSERT INTO heimdall.recording_sessions 
+            (known_source_id, session_name, session_start, status, approval_status, notes)
+            VALUES ($1, $2, $3, 'recording', 'pending', $4)
+            RETURNING 
+                id, known_source_id, session_name, session_start, session_end,
+                duration_seconds, celery_task_id, status, approval_status,
+                notes, created_at, updated_at
+        """
+        
+        row = await conn.fetchrow(
+            query,
+            unknown_source_id,
+            session_name,
+            datetime.utcnow(),
+            notes,
+        )
+        
+        session = RecordingSession(**dict(row))
+        
+        return {
+            "session_id": str(session.id),
+            "session_name": session.session_name,
+            "status": session.status,
+            "frequency_mhz": frequency_mhz,
+            "duration_seconds": duration_seconds,
+        }
+
+
+async def handle_session_assign_source_ws(assignment_data: dict):
+    """Handle source assignment via WebSocket"""
+    pool = await get_pool()
+    
+    session_id = assignment_data.get("session_id")
+    source_id = assignment_data.get("source_id")
+    
+    if not session_id:
+        raise ValueError("Missing required field: session_id")
+    
+    # If source_id is "unknown" or not provided, use the unknown source
+    if not source_id or source_id == "unknown":
+        async with pool.acquire() as conn:
+            source_id = await conn.fetchval(
+                "SELECT id FROM heimdall.known_sources WHERE name = 'Unknown'"
+            )
+            
+            if not source_id:
+                raise ValueError("Unknown source not found in database")
+    
+    async with pool.acquire() as conn:
+        # Verify source exists
+        source_exists = await conn.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
+            UUID(source_id) if isinstance(source_id, str) else source_id
+        )
+        
+        if not source_exists:
+            raise ValueError("Source not found")
+        
+        # Update session with source
+        query = """
+            UPDATE heimdall.recording_sessions
+            SET known_source_id = $1, 
+                status = 'source_assigned',
+                updated_at = NOW()
+            WHERE id = $2
+            RETURNING 
+                id, known_source_id, session_name, session_start, session_end,
+                duration_seconds, celery_task_id, status, approval_status,
+                notes, created_at, updated_at
+        """
+        
+        row = await conn.fetchrow(
+            query,
+            UUID(source_id) if isinstance(source_id, str) else source_id,
+            UUID(session_id) if isinstance(session_id, str) else session_id
+        )
+        
+        if not row:
+            raise ValueError("Session not found")
+        
+        session = RecordingSession(**dict(row))
+        
+        return {
+            "session_id": str(session.id),
+            "source_id": str(session.known_source_id),
+            "status": session.status,
+        }
+
+
+async def handle_session_complete_ws(complete_data: dict):
+    """Handle session completion and trigger acquisition via WebSocket"""
+    pool = await get_pool()
+    
+    session_id = complete_data.get("session_id")
+    frequency_hz = complete_data.get("frequency_hz")
+    duration_seconds = complete_data.get("duration_seconds")
+    
+    if not session_id or not frequency_hz or not duration_seconds:
+        raise ValueError("Missing required fields: session_id, frequency_hz, duration_seconds")
+    
+    async with pool.acquire() as conn:
+        # Update session status to in_progress
+        query = """
+            UPDATE heimdall.recording_sessions
+            SET status = 'in_progress', updated_at = NOW()
+            WHERE id = $1
+            RETURNING 
+                id, known_source_id, session_name, session_start, session_end,
+                duration_seconds, celery_task_id, status, approval_status,
+                notes, created_at, updated_at
+        """
+        
+        row = await conn.fetchrow(query, UUID(session_id) if isinstance(session_id, str) else session_id)
+        
+        if not row:
+            raise ValueError("Session not found")
+        
+        session = RecordingSession(**dict(row))
+    
+    # Trigger RF acquisition with 1-second chunking
+    # Each second will be acquired as a separate sample
+    from ..tasks.acquire_iq import acquire_iq_chunked
+    from ..routers.acquisition import get_websdrs_config
+    
+    try:
+        websdrs_config = get_websdrs_config()
+        
+        if not websdrs_config:
+            raise ValueError("No active WebSDRs available")
+        
+        # Queue chunked acquisition task (splits into 1-second samples)
+        task = acquire_iq_chunked.delay(
+            frequency_hz=frequency_hz,
+            duration_seconds=duration_seconds,
+            session_id=str(session_id),
+            websdrs_config_list=websdrs_config,
+        )
+        
+        # Update session with task ID
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE heimdall.recording_sessions
+                SET celery_task_id = $1, updated_at = NOW()
+                WHERE id = $2
+                """,
+                task.id,
+                UUID(session_id) if isinstance(session_id, str) else session_id,
+            )
+        
+        logger.info(f"Started chunked acquisition for session {session_id}, task_id={task.id}")
+        
+        return {
+            "session_id": str(session.id),
+            "task_id": task.id,
+            "status": "in_progress",
+            "chunks": duration_seconds,  # Number of 1-second chunks
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start acquisition for session {session_id}: {e}")
+        await update_session_to_failed(pool, UUID(session_id) if isinstance(session_id, str) else session_id)
+        raise

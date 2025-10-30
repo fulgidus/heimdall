@@ -1,92 +1,186 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { useWebSDRStore } from '../store/websdrStore';
-import { acquisitionService } from '../services/api';
-import type { AcquisitionStatusResponse } from '../services/api/types';
+import { createWebSocketManager } from '../lib/websocket';
+
+type SessionState = 'idle' | 'recording' | 'assigning_source' | 'acquiring' | 'complete' | 'error';
 
 const RecordingSession: React.FC = () => {
     const {
         knownSources,
         fetchKnownSources,
-        createSession,
         error: sessionError,
     } = useSessionStore();
 
     const { healthStatus, fetchWebSDRs } = useWebSDRStore();
 
     const [formData, setFormData] = useState({
-        knownSourceId: '',
         sessionName: '',
         frequency: '',
-        duration: 60,
+        duration: 15,
         notes: '',
     });
 
-    const [acquisitionStatus, setAcquisitionStatus] = useState<AcquisitionStatusResponse | null>(null);
-    const [isAcquiring, setIsAcquiring] = useState(false);
-    const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+    const [sessionState, setSessionState] = useState<SessionState>('idle');
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+    const [selectedSourceId, setSelectedSourceId] = useState<string>('');
+    const [progress, setProgress] = useState(0);
+    const [currentChunk, setCurrentChunk] = useState(0);
+    const [totalChunks, setTotalChunks] = useState(0);
+    const [measurementsCount, setMeasurementsCount] = useState(0);
+    const [statusMessage, setStatusMessage] = useState('');
+    const [ws, setWs] = useState<ReturnType<typeof createWebSocketManager> | null>(null);
 
     useEffect(() => {
         fetchKnownSources();
         fetchWebSDRs();
+        
+        // Initialize WebSocket connection
+        const wsUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:80/ws';
+        const websocket = createWebSocketManager(wsUrl);
+        
+        // Subscribe to session events
+        websocket.subscribe('session:started', handleSessionStarted);
+        websocket.subscribe('session:source_assigned', handleSourceAssigned);
+        websocket.subscribe('session:completed', handleSessionCompleted);
+        websocket.subscribe('session:progress', handleSessionProgress);
+        websocket.subscribe('session:error', handleSessionError);
+        
+        // Connect
+        websocket.connect().catch((error) => {
+            console.error('Failed to connect to WebSocket:', error);
+        });
+        
+        setWs(websocket);
+        
+        return () => {
+            websocket.unsubscribe('session:started', handleSessionStarted);
+            websocket.unsubscribe('session:source_assigned', handleSourceAssigned);
+            websocket.unsubscribe('session:completed', handleSessionCompleted);
+            websocket.unsubscribe('session:progress', handleSessionProgress);
+            websocket.unsubscribe('session:error', handleSessionError);
+            websocket.disconnect();
+        };
     }, [fetchKnownSources, fetchWebSDRs]);
 
-    const selectedSource = knownSources.find(s => s.id === formData.knownSourceId);
     const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
 
-    const handleStartAcquisition = async () => {
-        if (!formData.knownSourceId || !formData.sessionName || !formData.frequency) {
-            alert('Please select a source, enter a session name, and specify frequency');
+    // WebSocket event handlers
+    const handleSessionStarted = (data: any) => {
+        console.log('Session started:', data);
+        setCurrentSessionId(data.session_id);
+        setSessionState('recording');
+        setStatusMessage('Recording session started. Now assign a source.');
+    };
+
+    const handleSourceAssigned = (data: any) => {
+        console.log('Source assigned:', data);
+        setSessionState('assigning_source');
+        setStatusMessage('Source assigned. Ready to start acquisition.');
+    };
+
+    const handleSessionCompleted = (data: any) => {
+        console.log('Session completed:', data);
+        setSessionState('acquiring');
+        setTotalChunks(data.chunks || 0);
+        setStatusMessage(`Acquiring ${data.chunks} 1-second samples...`);
+    };
+
+    const handleSessionProgress = (data: any) => {
+        console.log('Session progress:', data);
+        setCurrentChunk(data.chunk || 0);
+        setTotalChunks(data.total_chunks || 0);
+        setProgress(data.progress || 0);
+        setMeasurementsCount(data.measurements_count || 0);
+        setStatusMessage(`Chunk ${data.chunk}/${data.total_chunks} acquired`);
+        
+        if (data.chunk === data.total_chunks) {
+            setSessionState('complete');
+            setStatusMessage('Acquisition complete!');
+        }
+    };
+
+    const handleSessionError = (data: any) => {
+        console.error('Session error:', data);
+        setSessionState('error');
+        setStatusMessage(`Error: ${data.error}`);
+    };
+
+    // Step 1: Start recording session
+    const handleStartRecording = () => {
+        if (!formData.sessionName || !formData.frequency) {
+            alert('Please enter a session name and specify frequency');
             return;
         }
 
-        try {
-            setIsAcquiring(true);
-
-            // Create session in database with correct field names
-            await createSession({
-                known_source_id: formData.knownSourceId,
-                session_name: formData.sessionName,
-                frequency_hz: Math.round(parseFloat(formData.frequency) * 1e6), // Convert MHz to Hz
-                duration_seconds: formData.duration,
-                notes: formData.notes,
-            });
-
-            // Trigger acquisition
-            const acquisitionResponse = await acquisitionService.triggerAcquisition({
-                frequency_mhz: parseFloat(formData.frequency),
-                duration_seconds: formData.duration,
-            });
-
-            setCurrentTaskId(acquisitionResponse.task_id);
-
-            // Poll status
-            const finalStatus = await acquisitionService.pollAcquisitionStatus(
-                acquisitionResponse.task_id,
-                (status) => {
-                    setAcquisitionStatus(status);
-                }
-            );
-
-            setAcquisitionStatus(finalStatus);
-        } catch (error) {
-            console.error('Acquisition failed:', error);
-            alert('Failed to start acquisition');
-        } finally {
-            setIsAcquiring(false);
+        if (!ws || !ws.isConnected()) {
+            alert('WebSocket not connected. Please wait and try again.');
+            return;
         }
+
+        // Send start command via WebSocket
+        ws.send('session:start', {
+            session_name: formData.sessionName,
+            frequency_mhz: parseFloat(formData.frequency),
+            duration_seconds: formData.duration,
+            notes: formData.notes,
+        });
+    };
+
+    // Step 2: Assign source
+    const handleAssignSource = () => {
+        if (!currentSessionId) {
+            alert('No active session');
+            return;
+        }
+
+        if (!ws || !ws.isConnected()) {
+            alert('WebSocket not connected. Please wait and try again.');
+            return;
+        }
+
+        // Send assign source command via WebSocket
+        ws.send('session:assign_source', {
+            session_id: currentSessionId,
+            source_id: selectedSourceId || 'unknown',
+        });
+    };
+
+    // Step 3: Complete and start acquisition
+    const handleCompleteAndAcquire = () => {
+        if (!currentSessionId) {
+            alert('No active session');
+            return;
+        }
+
+        if (!ws || !ws.isConnected()) {
+            alert('WebSocket not connected. Please wait and try again.');
+            return;
+        }
+
+        // Send complete command via WebSocket
+        ws.send('session:complete', {
+            session_id: currentSessionId,
+            frequency_hz: Math.round(parseFloat(formData.frequency) * 1e6), // Convert MHz to Hz
+            duration_seconds: formData.duration,
+        });
     };
 
     const handleReset = () => {
         setFormData({
-            knownSourceId: '',
             sessionName: '',
             frequency: '',
-            duration: 60,
+            duration: 15,
             notes: '',
         });
-        setAcquisitionStatus(null);
-        setCurrentTaskId(null);
+        setSessionState('idle');
+        setCurrentSessionId(null);
+        setSelectedSourceId('');
+        setProgress(0);
+        setCurrentChunk(0);
+        setTotalChunks(0);
+        setMeasurementsCount(0);
+        setStatusMessage('');
     };
 
     return (
@@ -128,28 +222,11 @@ const RecordingSession: React.FC = () => {
                         </div>
                         <div className="card-body">
                             <div className="row g-3">
+                                {/* Step 1: Basic Info */}
                                 <div className="col-12">
-                                    <label className="form-label">Known Source *</label>
-                                    <select
-                                        className="form-select"
-                                        value={formData.knownSourceId}
-                                        onChange={(e) => {
-                                            const source = knownSources.find(s => s.id === e.target.value);
-                                            setFormData({
-                                                ...formData,
-                                                knownSourceId: e.target.value,
-                                                frequency: source?.frequency_hz ? (source.frequency_hz / 1e6).toString() : '',
-                                            });
-                                        }}
-                                        disabled={isAcquiring}
-                                    >
-                                        <option value="">Select a source...</option>
-                                        {knownSources.map((source) => (
-                                            <option key={source.id} value={source.id}>
-                                                {source.name}{source.frequency_hz ? ` - ${(source.frequency_hz / 1e6).toFixed(3)} MHz` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="alert alert-info">
+                                        <strong>Step 1:</strong> Configure session and start recording
+                                    </div>
                                 </div>
 
                                 <div className="col-md-6">
@@ -159,8 +236,8 @@ const RecordingSession: React.FC = () => {
                                         className="form-control"
                                         value={formData.sessionName}
                                         onChange={(e) => setFormData({ ...formData, sessionName: e.target.value })}
-                                        placeholder="e.g., Beacon Recording 2024-10-23"
-                                        disabled={isAcquiring}
+                                        placeholder="e.g., Beacon Recording 2024-10-30"
+                                        disabled={sessionState !== 'idle'}
                                     />
                                 </div>
 
@@ -174,26 +251,30 @@ const RecordingSession: React.FC = () => {
                                         step="0.001"
                                         min="144"
                                         max="148"
-                                        disabled={isAcquiring}
+                                        disabled={sessionState !== 'idle'}
                                     />
                                 </div>
 
                                 <div className="col-12">
-                                    <label className="form-label">Duration (seconds)</label>
+                                    <label className="form-label">Duration (seconds) - {formData.duration} samples</label>
                                     <input
                                         type="range"
                                         className="form-range"
-                                        min="10"
-                                        max="300"
-                                        step="10"
+                                        min="1"
+                                        max="30"
+                                        step="1"
                                         value={formData.duration}
                                         onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                                        disabled={isAcquiring}
+                                        disabled={sessionState !== 'idle'}
                                     />
                                     <div className="d-flex justify-content-between">
-                                        <span className="f-12 text-muted">10s</span>
-                                        <span className="badge bg-primary">{formData.duration}s</span>
-                                        <span className="f-12 text-muted">300s (5min)</span>
+                                        <span className="f-12 text-muted">1s (1 sample)</span>
+                                        <span className="badge bg-primary">{formData.duration}s = {formData.duration} samples</span>
+                                        <span className="f-12 text-muted">30s (30 samples)</span>
+                                    </div>
+                                    <div className="f-12 text-muted mt-1">
+                                        <i className="ph ph-info me-1"></i>
+                                        Each second is recorded as a separate 1s sample for better training granularity
                                     </div>
                                 </div>
 
@@ -201,69 +282,104 @@ const RecordingSession: React.FC = () => {
                                     <label className="form-label">Notes (Optional)</label>
                                     <textarea
                                         className="form-control"
-                                        rows={3}
+                                        rows={2}
                                         value={formData.notes}
                                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                         placeholder="Additional notes about this recording session..."
-                                        disabled={isAcquiring}
+                                        disabled={sessionState !== 'idle'}
                                     ></textarea>
                                 </div>
 
-                                {selectedSource && (
+                                {/* Step 2: Source Assignment */}
+                                {sessionState === 'recording' && (
+                                    <>
+                                        <div className="col-12">
+                                            <div className="alert alert-warning">
+                                                <strong>Step 2:</strong> Assign a source (or select "Unknown")
+                                            </div>
+                                        </div>
+
+                                        <div className="col-12">
+                                            <label className="form-label">Select Source</label>
+                                            <select
+                                                className="form-select"
+                                                value={selectedSourceId}
+                                                onChange={(e) => setSelectedSourceId(e.target.value)}
+                                            >
+                                                <option value="unknown">Unknown Source</option>
+                                                {knownSources.filter(s => s.name !== 'Unknown').map((source) => (
+                                                    <option key={source.id} value={source.id}>
+                                                        {source.name}
+                                                        {source.frequency_hz ? ` - ${(source.frequency_hz / 1e6).toFixed(3)} MHz` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Step 3: Ready to Acquire */}
+                                {sessionState === 'assigning_source' && (
                                     <div className="col-12">
-                                        <div className="alert alert-info">
-                                            <h6 className="mb-2">Source Information</h6>
-                                            <table className="table table-sm table-borderless mb-0">
-                                                <tbody>
-                                                    <tr>
-                                                        <td className="text-muted">Name:</td>
-                                                        <td>{selectedSource.name}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="text-muted">Location:</td>
-                                                        <td>
-                                                            {selectedSource.latitude != null && selectedSource.longitude != null
-                                                                ? `${selectedSource.latitude.toFixed(4)}, ${selectedSource.longitude.toFixed(4)}`
-                                                                : 'N/A'}
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="text-muted">Power:</td>
-                                                        <td>{selectedSource.power_dbm ? `${selectedSource.power_dbm} dBm` : 'N/A'}</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                        <div className="alert alert-success">
+                                            <strong>Step 3:</strong> Source assigned. Ready to start acquisition!
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
                         <div className="card-footer">
-                            <button
-                                className="btn btn-primary"
-                                onClick={handleStartAcquisition}
-                                disabled={isAcquiring || !formData.knownSourceId || !formData.sessionName}
-                            >
-                                {isAcquiring ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm me-2"></span>
-                                        Acquiring...
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="ph ph-record me-2"></i>
-                                        Start Acquisition
-                                    </>
-                                )}
-                            </button>
-                            <button
-                                className="btn btn-outline-secondary ms-2"
-                                onClick={handleReset}
-                                disabled={isAcquiring}
-                            >
-                                <i className="ph ph-arrow-counter-clockwise me-2"></i>
-                                Reset
-                            </button>
+                            {sessionState === 'idle' && (
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleStartRecording}
+                                    disabled={!formData.sessionName || !formData.frequency}
+                                >
+                                    <i className="ph ph-play me-2"></i>
+                                    Start Recording Session
+                                </button>
+                            )}
+
+                            {sessionState === 'recording' && (
+                                <button
+                                    className="btn btn-warning"
+                                    onClick={handleAssignSource}
+                                >
+                                    <i className="ph ph-check me-2"></i>
+                                    Assign Source
+                                </button>
+                            )}
+
+                            {sessionState === 'assigning_source' && (
+                                <button
+                                    className="btn btn-success"
+                                    onClick={handleCompleteAndAcquire}
+                                >
+                                    <i className="ph ph-rocket-launch me-2"></i>
+                                    Start Acquisition
+                                </button>
+                            )}
+
+                            {(sessionState === 'acquiring' || sessionState === 'complete') && (
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleReset}
+                                    disabled={sessionState === 'acquiring'}
+                                >
+                                    <i className="ph ph-plus me-2"></i>
+                                    New Session
+                                </button>
+                            )}
+
+                            {sessionState !== 'idle' && sessionState !== 'acquiring' && (
+                                <button
+                                    className="btn btn-outline-secondary ms-2"
+                                    onClick={handleReset}
+                                >
+                                    <i className="ph ph-x me-2"></i>
+                                    Cancel
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -293,59 +409,79 @@ const RecordingSession: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Acquisition Status */}
-                    {acquisitionStatus && (
+                    {/* Session Status */}
+                    {sessionState !== 'idle' && (
                         <div className="card">
                             <div className="card-header">
-                                <h5 className="mb-0">Acquisition Status</h5>
+                                <h5 className="mb-0">Session Status</h5>
                             </div>
                             <div className="card-body">
                                 <div className="d-flex align-items-center mb-3">
-                                    <div className={`avtar avtar-s ${acquisitionStatus.status === 'SUCCESS'
-                                        ? 'bg-light-success'
-                                        : acquisitionStatus.status === 'FAILURE'
-                                            ? 'bg-light-danger'
-                                            : 'bg-light-primary'
-                                        }`}>
-                                        <i className={`ph ${acquisitionStatus.status === 'SUCCESS'
-                                            ? 'ph-check-circle'
-                                            : acquisitionStatus.status === 'FAILURE'
-                                                ? 'ph-x-circle'
-                                                : 'ph-hourglass'
-                                            }`}></i>
+                                    <div className={`avtar avtar-s ${
+                                        sessionState === 'complete'
+                                            ? 'bg-light-success'
+                                            : sessionState === 'error'
+                                                ? 'bg-light-danger'
+                                                : 'bg-light-primary'
+                                    }`}>
+                                        <i className={`ph ${
+                                            sessionState === 'complete'
+                                                ? 'ph-check-circle'
+                                                : sessionState === 'error'
+                                                    ? 'ph-x-circle'
+                                                    : sessionState === 'acquiring'
+                                                        ? 'ph-spinner'
+                                                        : 'ph-record'
+                                        }`}></i>
                                     </div>
                                     <div className="ms-3 flex-grow-1">
                                         <h6 className="mb-0">
-                                            {acquisitionStatus.status === 'SUCCESS'
-                                                ? 'Completed'
-                                                : acquisitionStatus.status === 'FAILURE'
-                                                    ? 'Failed'
-                                                    : 'In Progress'}
+                                            {sessionState === 'recording' && 'Recording'}
+                                            {sessionState === 'assigning_source' && 'Source Assigned'}
+                                            {sessionState === 'acquiring' && 'Acquiring Data'}
+                                            {sessionState === 'complete' && 'Complete'}
+                                            {sessionState === 'error' && 'Error'}
                                         </h6>
                                         <p className="text-muted f-12 mb-0">
-                                            {acquisitionStatus.message || 'Processing...'}
+                                            {statusMessage || 'Processing...'}
                                         </p>
                                     </div>
                                 </div>
 
-                                {acquisitionStatus.progress !== undefined && (
-                                    <div className="mb-3">
-                                        <div className="d-flex justify-content-between mb-1">
-                                            <span className="f-12">Progress</span>
-                                            <span className="f-12">{Math.round(acquisitionStatus.progress * 100)}%</span>
+                                {/* Progress for acquisition */}
+                                {sessionState === 'acquiring' && totalChunks > 0 && (
+                                    <>
+                                        <div className="mb-3">
+                                            <div className="d-flex justify-content-between mb-1">
+                                                <span className="f-12">Samples Acquired</span>
+                                                <span className="f-12">{currentChunk}/{totalChunks}</span>
+                                            </div>
+                                            <div className="progress" style={{ height: '8px' }}>
+                                                <div
+                                                    className="progress-bar bg-primary progress-bar-striped progress-bar-animated"
+                                                    style={{ width: `${progress}%` }}
+                                                ></div>
+                                            </div>
                                         </div>
-                                        <div className="progress" style={{ height: '6px' }}>
-                                            <div
-                                                className="progress-bar bg-primary"
-                                                style={{ width: `${acquisitionStatus.progress * 100}%` }}
-                                            ></div>
+
+                                        <div className="d-flex justify-content-between mb-2">
+                                            <span className="f-12 text-muted">Total Measurements</span>
+                                            <span className="badge bg-light-info">{measurementsCount}</span>
                                         </div>
+                                    </>
+                                )}
+
+                                {/* Summary for completed */}
+                                {sessionState === 'complete' && (
+                                    <div className="alert alert-success mb-0">
+                                        <i className="ph ph-check-circle me-2"></i>
+                                        Acquired {totalChunks} samples ({measurementsCount} total measurements)
                                     </div>
                                 )}
 
-                                {currentTaskId && (
-                                    <div className="f-12 text-muted">
-                                        Task ID: <code>{currentTaskId}</code>
+                                {currentSessionId && (
+                                    <div className="f-12 text-muted mt-2">
+                                        Session ID: <code>{currentSessionId.substring(0, 8)}...</code>
                                     </div>
                                 )}
                             </div>
