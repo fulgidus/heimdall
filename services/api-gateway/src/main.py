@@ -68,7 +68,7 @@ SERVICE_PORT = 8000
 RF_ACQUISITION_URL = settings.rf_acquisition_url
 INFERENCE_URL = settings.inference_url
 TRAINING_URL = settings.training_url
-DATA_INGESTION_URL = settings.data_ingestion_url
+# DATA_INGESTION_URL removed - functionality moved to RF_ACQUISITION_URL
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
@@ -100,17 +100,9 @@ if HEALTH_CHECKER_ENABLED:
             if response.status_code != 200:
                 raise Exception(f"Training unhealthy: {response.status_code}")
     
-    async def check_data_ingestion():
-        """Check data ingestion service connectivity."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{DATA_INGESTION_URL}/health")
-            if response.status_code != 200:
-                raise Exception(f"Data Ingestion unhealthy: {response.status_code}")
-    
     health_checker.register_dependency("rf-acquisition", check_rf_acquisition)
     health_checker.register_dependency("inference", check_inference)
     health_checker.register_dependency("training", check_training)
-    health_checker.register_dependency("data-ingestion", check_data_ingestion)
 
 
 async def proxy_request(request: Request, target_url: str):

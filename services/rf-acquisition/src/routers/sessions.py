@@ -4,7 +4,7 @@ Recording sessions and known sources management API endpoints.Recording sessions
 
 
 
-Migrated from data-ingestion-web service.Migrated from data-ingestion-web service.
+Sessions management functionality for RF acquisition service.
 
 """"""
 

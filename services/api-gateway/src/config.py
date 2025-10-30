@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     rf_acquisition_url: str = "http://rf-acquisition:8001"
     inference_url: str = "http://inference:8003"
     training_url: str = "http://training:8002"
-    data_ingestion_url: str = "http://data-ingestion-web:8004"
     api_gateway_url: str = "http://localhost:8000"
     
     class Config:

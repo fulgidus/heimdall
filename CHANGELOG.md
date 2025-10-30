@@ -350,7 +350,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile templates (multi-stage builds with healthchecks)
 - Common requirements.txt for shared dependencies
 - docker compose.services.yml for service orchestration
-- Service containers: rf-acquisition, training, inference, data-ingestion-web, api-gateway
+- Service containers: rf-acquisition, training, inference, api-gateway
 - Structured logging via structlog for all services
 
 ### Changed

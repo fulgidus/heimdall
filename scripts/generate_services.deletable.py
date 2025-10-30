@@ -3,8 +3,8 @@
 
 from pathlib import Path
 
-services = ["rf-acquisition", "training", "inference", "data-ingestion-web", "api-gateway"]
-ports = {"rf-acquisition": 8001, "training": 8002, "inference": 8003, "data-ingestion-web": 8004, "api-gateway": 8000}
+services = ["rf-acquisition", "training", "inference", "api-gateway"]
+ports = {"rf-acquisition": 8001, "training": 8002, "inference": 8003, "api-gateway": 8000}
 
 for service_name in services:
     try:

@@ -21,7 +21,7 @@ export async function checkServiceHealth(serviceName: string): Promise<ServiceHe
  * Check health of all services
  */
 export async function checkAllServicesHealth(): Promise<Record<string, ServiceHealth>> {
-    const services = ['api-gateway', 'rf-acquisition', 'training', 'inference', 'data-ingestion-web'];
+    const services = ['api-gateway', 'rf-acquisition', 'training', 'inference'];
     const healthChecks = await Promise.allSettled(
         services.map(async (service) => {
             try {

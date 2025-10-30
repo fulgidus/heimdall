@@ -140,7 +140,6 @@ describe('Dashboard - Real API Integration', () => {
                         'rf-acquisition': { status: 'healthy', service: 'rf-acquisition', version: '0.1.0', timestamp: new Date().toISOString() },
                         'training': { status: 'degraded', service: 'training', version: '0.1.0', timestamp: new Date().toISOString() },
                         'inference': { status: 'unhealthy', service: 'inference', version: '0.1.0', timestamp: new Date().toISOString() },
-                        'data-ingestion-web': { status: 'healthy', service: 'data-ingestion-web', version: '0.1.0', timestamp: new Date().toISOString() },
                     },
                     websdrs: [],
                     websdrsHealth: {},
@@ -162,7 +161,6 @@ describe('Dashboard - Real API Integration', () => {
             const inferenceElements = screen.getAllByText(/inference/i);
             expect(inferenceElements.length).toBeGreaterThan(0);
 
-            // data-ingestion-web is transformed to "data ingestion web"
             const dataIngestionElements = screen.getAllByText(/data ingestion web/i);
             expect(dataIngestionElements.length).toBeGreaterThan(0);
 
