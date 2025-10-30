@@ -182,6 +182,93 @@ async def websocket_endpoint(websocket: WebSocket):
                             "timestamp": datetime.utcnow().isoformat()
                         })
                 
+                elif event == "session:start":
+                    # Start a new recording session
+                    session_data = message.get("data", {})
+                    logger.info(f"Received session:start command: {session_data}")
+                    
+                    try:
+                        from ..routers.sessions import handle_session_start_ws
+                        result = await handle_session_start_ws(session_data)
+                        
+                        await manager.send_personal(websocket, {
+                            "event": "session:started",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                        
+                        # Broadcast to all clients
+                        await manager.broadcast({
+                            "event": "session:status_update",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                    except Exception as e:
+                        logger.error(f"Error starting session: {e}", exc_info=True)
+                        await manager.send_personal(websocket, {
+                            "event": "session:error",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": {"error": str(e)}
+                        })
+                
+                elif event == "session:assign_source":
+                    # Assign source to a recording session
+                    assignment_data = message.get("data", {})
+                    logger.info(f"Received session:assign_source command: {assignment_data}")
+                    
+                    try:
+                        from ..routers.sessions import handle_session_assign_source_ws
+                        result = await handle_session_assign_source_ws(assignment_data)
+                        
+                        await manager.send_personal(websocket, {
+                            "event": "session:source_assigned",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                        
+                        # Broadcast to all clients
+                        await manager.broadcast({
+                            "event": "session:status_update",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                    except Exception as e:
+                        logger.error(f"Error assigning source: {e}", exc_info=True)
+                        await manager.send_personal(websocket, {
+                            "event": "session:error",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": {"error": str(e)}
+                        })
+                
+                elif event == "session:complete":
+                    # Complete a recording session and trigger acquisition
+                    complete_data = message.get("data", {})
+                    logger.info(f"Received session:complete command: {complete_data}")
+                    
+                    try:
+                        from ..routers.sessions import handle_session_complete_ws
+                        result = await handle_session_complete_ws(complete_data)
+                        
+                        await manager.send_personal(websocket, {
+                            "event": "session:completed",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                        
+                        # Broadcast to all clients
+                        await manager.broadcast({
+                            "event": "session:status_update",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": result
+                        })
+                    except Exception as e:
+                        logger.error(f"Error completing session: {e}", exc_info=True)
+                        await manager.send_personal(websocket, {
+                            "event": "session:error",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "data": {"error": str(e)}
+                        })
+                
                 else:
                     logger.debug(f"Received unknown event: {event}")
             
