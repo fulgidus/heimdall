@@ -3,6 +3,7 @@ import { useWebSDRStore } from '../store/websdrStore';
 import WebSDRModal from '../components/WebSDRModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import type { WebSDRConfig } from '@/services/api/types';
+import { createWebSocketManager } from '@/lib/websocket';
 
 const WebSDRManagement: React.FC = () => {
     const {
@@ -37,12 +38,40 @@ const WebSDRManagement: React.FC = () => {
         };
         loadData();
 
-        // Auto-refresh health every 30 seconds
+        // Setup WebSocket for real-time updates
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const hostname = window.location.hostname;
+        const port = window.location.port || (protocol === 'wss' ? '443' : '80');
+        const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:${port}/ws`;
+        
+        const manager = createWebSocketManager(wsUrl);
+        
+        // Subscribe to WebSDR health updates
+        manager.subscribe('websdrs_update', (data) => {
+            console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
+            // Update health status in store directly from WebSocket
+            useWebSDRStore.setState({ healthStatus: data });
+        });
+
+        // Connect WebSocket
+        manager.connect().catch((error) => {
+            console.error('[WebSDRManagement] WebSocket connection failed:', error);
+        });
+
+        // Fallback: Auto-refresh health every 30 seconds if WebSocket fails
         const interval = setInterval(() => {
-            checkHealth();
+            if (!manager.isConnected()) {
+                console.log('[WebSDRManagement] WebSocket disconnected, using fallback polling');
+                checkHealth();
+            }
         }, 30000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            if (manager) {
+                manager.disconnect();
+            }
+        };
     }, [fetchWebSDRs, checkHealth]);
 
     const handleRefresh = async () => {

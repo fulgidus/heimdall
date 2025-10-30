@@ -23,7 +23,7 @@ interface DashboardMetrics {
 
 interface DashboardData {
     websdrs: WebSDRConfig[];
-    websdrsHealth: Record<number, WebSDRHealthStatus>;
+    websdrsHealth: Record<string, WebSDRHealthStatus>;  // UUID keys from backend
     modelInfo: ModelInfo | null;
     servicesHealth: Record<string, ServiceHealth>;
 }
@@ -273,7 +273,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
                 }));
             });
 
-            manager.subscribe('websdrs:status', (data) => {
+            manager.subscribe('websdrs_update', (data) => {
                 console.log('[Dashboard] Received WebSDR status update:', data);
                 set((state) => ({
                     data: {

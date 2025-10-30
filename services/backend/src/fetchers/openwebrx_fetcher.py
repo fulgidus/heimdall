@@ -414,29 +414,34 @@ class OpenWebRXFetcher:
             
             return None, "Failed without specific error"
     
-    async def health_check(self) -> Dict[int, bool]:
+    async def health_check(self) -> Dict[int, dict]:
         """
         Check connectivity to all OpenWebRX receivers.
         
         Returns:
-            Dict mapping WebSDR ID to True if reachable, False otherwise
+            Dict mapping WebSDR ID to health info dict with 'online' (bool) and 'response_time_ms' (float)
         """
-        async def check_single(websdr_id: int, websdr_cfg: WebSDRConfig) -> Tuple[int, bool]:
+        async def check_single(websdr_id: int, websdr_cfg: WebSDRConfig) -> Tuple[int, dict]:
             """Check if a single OpenWebRX is online."""
             try:
                 logger.debug(f"Health check for WebSDR {websdr_id}: {websdr_cfg.url}")
                 
+                # Measure response time
+                import time
+                start_time = time.time()
+                
                 # Try to connect via WebSocket
                 async with OpenWebRXClient(websdr_cfg, timeout=5) as client:
-                    logger.info(f"WebSDR {websdr_id} ({websdr_cfg.name}) is ONLINE")
-                    return websdr_id, True
+                    response_time_ms = (time.time() - start_time) * 1000
+                    logger.info(f"WebSDR {websdr_id} ({websdr_cfg.name}) is ONLINE (response: {response_time_ms:.1f}ms)")
+                    return websdr_id, {'online': True, 'response_time_ms': round(response_time_ms, 1)}
                     
             except asyncio.TimeoutError:
                 logger.warning(f"Health check timeout for WebSDR {websdr_id} - marking OFFLINE")
-                return websdr_id, False
+                return websdr_id, {'online': False, 'response_time_ms': None}
             except Exception as e:
                 logger.warning(f"Health check error for WebSDR {websdr_id}: {type(e).__name__}: {e} - marking OFFLINE")
-                return websdr_id, False
+                return websdr_id, {'online': False, 'response_time_ms': None}
         
         tasks = [
             check_single(wsid, wscfg)
