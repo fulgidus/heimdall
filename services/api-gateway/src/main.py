@@ -411,13 +411,13 @@ async def proxy_to_sessions(
     path: str,
     user: User = Depends(get_current_user)
 ):
-    """Proxy requests to RF Acquisition service for sessions management (requires authentication)."""
+    """Proxy requests to Data Ingestion service for sessions management (requires authentication)."""
     if request.method == "OPTIONS":
         return Response(status_code=200)
     if AUTH_ENABLED and not user.is_operator:
         raise HTTPException(status_code=403, detail="Operator access required")
     logger.debug(f"💾 Sessions route matched: path={path} (user={user.username})")
-    return await proxy_request(request, RF_ACQUISITION_URL)
+    return await proxy_request(request, DATA_INGESTION_URL)
 
 
 # =============================================================================

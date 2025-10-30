@@ -1,0 +1,658 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, fix/*]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # Job 1: Backend Code Quality
+  backend-quality:
+    name: Backend Quality (Linting & Type Checking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-quality-${{ hashFiles('**/requirements*.txt', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-quality-
+            ${{ runner.os }}-pip-
+
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install black ruff mypy pytest pytest-cov pytest-asyncio
+
+      - name: Install service dependencies
+        run: |
+          # Install common dependencies
+          if [ -f services/common/requirements-base.txt ]; then
+            pip install -r services/common/requirements-base.txt || true
+          fi
+
+          # Install each service's dependencies for complete type checking
+          for service_dir in services/*/; do
+            service_name=$(basename "$service_dir")
+            if [ -f "$service_dir/requirements.txt" ]; then
+              echo "Installing $service_name dependencies..."
+              pip install -r "$service_dir/requirements.txt" || echo "Warning: Some deps for $service_name failed"
+            fi
+          done
+
+      - name: Black formatting check
+        id: black
+        continue-on-error: true
+        run: |
+          echo "## Black Formatting Check" >> $GITHUB_STEP_SUMMARY
+          black --check services/ scripts/ 2>&1 | tee black-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **Black formatting: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            error_count=$(grep -c "would reformat" black-output.txt || echo "0")
+            echo "❌ **Black formatting: FAIL** ($error_count files)" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: Ruff linting check
+        id: ruff
+        continue-on-error: true
+        run: |
+          echo "## Ruff Linting Check" >> $GITHUB_STEP_SUMMARY
+          ruff check services/ scripts/ --output-format=json > ruff-report.json 2>&1 || true
+          ruff check services/ scripts/ 2>&1 | tee ruff-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **Ruff linting: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            error_count=$(cat ruff-report.json | grep -o '"code":' | wc -l || echo "0")
+            echo "❌ **Ruff linting: FAIL** ($error_count issues)" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: mypy type checking
+        id: mypy
+        continue-on-error: true
+        run: |
+          echo "## mypy Type Checking" >> $GITHUB_STEP_SUMMARY
+          mypy services/ scripts/ --config-file=pyproject.toml 2>&1 | tee mypy-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **mypy type check: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            error_count=$(grep -c "error:" mypy-output.txt || echo "0")
+            echo "❌ **mypy type check: FAIL** ($error_count errors)" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-quality-reports
+          path: |
+            black-output.txt
+            ruff-output.txt
+            ruff-report.json
+            mypy-output.txt
+
+      - name: Check quality status
+        if: always()
+        run: |
+          if [ "${{ steps.black.outcome }}" != "success" ] || \
+             [ "${{ steps.ruff.outcome }}" != "success" ] || \
+             [ "${{ steps.mypy.outcome }}" != "success" ]; then
+            echo "❌ Backend quality checks failed"
+            exit 1
+          fi
+          echo "✅ All backend quality checks passed"
+
+  # Job 2: Frontend Code Quality
+  frontend-quality:
+    name: Frontend Quality (Linting & Type Checking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint check
+        id: eslint
+        continue-on-error: true
+        run: |
+          echo "## ESLint Check" >> $GITHUB_STEP_SUMMARY
+          npm run lint 2>&1 | tee eslint-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **ESLint: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            error_count=$(grep -c "error" eslint-output.txt || echo "0")
+            echo "❌ **ESLint: FAIL** ($error_count errors)" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: TypeScript compile check
+        id: typescript
+        continue-on-error: true
+        run: |
+          echo "## TypeScript Compile Check" >> $GITHUB_STEP_SUMMARY
+          npm run type-check 2>&1 | tee typescript-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **TypeScript: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            error_count=$(grep -c "error TS" typescript-output.txt || echo "0")
+            echo "❌ **TypeScript: FAIL** ($error_count errors)" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: Prettier format check
+        id: prettier
+        continue-on-error: true
+        run: |
+          echo "## Prettier Format Check" >> $GITHUB_STEP_SUMMARY
+          npm run format:check 2>&1 | tee prettier-output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "✅ **Prettier: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Prettier: FAIL**" >> $GITHUB_STEP_SUMMARY
+          fi
+          exit $exit_code
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-quality-reports
+          path: |
+            frontend/eslint-output.txt
+            frontend/typescript-output.txt
+            frontend/prettier-output.txt
+
+      - name: Check quality status
+        if: always()
+        run: |
+          if [ "${{ steps.eslint.outcome }}" != "success" ] || \
+             [ "${{ steps.typescript.outcome }}" != "success" ] || \
+             [ "${{ steps.prettier.outcome }}" != "success" ]; then
+            echo "❌ Frontend quality checks failed"
+            exit 1
+          fi
+          echo "✅ All frontend quality checks passed"
+
+  # Job 3: Backend Unit Tests
+  backend-tests:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend-quality]
+
+    env:
+      POSTGRES_DB: heimdall_test
+      POSTGRES_USER: heimdall_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      PYTHONPATH: ${{ github.workspace }}
+      TESTING: "true"
+      LOG_LEVEL: "WARNING"
+      CELERY_ALWAYS_EAGER: "true"
+      CELERY_EAGER_PROPAGATES_EXCEPTIONS: "true"
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_DB: heimdall_test
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd "pg_isready -U heimdall_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+          - 15672:15672
+
+    strategy:
+      matrix:
+        service: [api-gateway, rf-acquisition, inference, training, data-ingestion-web]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.service }}-${{ hashFiles('services/${{ matrix.service }}/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.service }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install pytest pytest-cov pytest-asyncio pytest-timeout
+
+      - name: Install service dependencies
+        run: |
+          cd services/${{ matrix.service }}
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt --timeout=120
+          fi
+          if [ -f requirements-test.txt ]; then
+            pip install -r requirements-test.txt --timeout=120
+          fi
+
+      - name: Run unit tests
+        run: |
+          cd services/${{ matrix.service }}
+          export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
+
+          if [ ! -d tests ]; then
+            echo "No tests directory"
+            exit 0
+          fi
+
+          pytest tests/ \
+            -v --tb=short --timeout=120 \
+            --cov=src --cov-report=xml --cov-report=term \
+            -k "not e2e and not integration" --maxfail=3 || \
+            (exit_code=$?; if [ $exit_code -eq 5 ]; then exit 0; else exit $exit_code; fi)
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: services/${{ matrix.service }}/coverage.xml
+          flags: backend-${{ matrix.service }}
+          name: backend-${{ matrix.service }}
+          fail_ci_if_error: false
+
+  # Job 4: Frontend Unit Tests
+  frontend-tests:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [frontend-quality]
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/coverage-final.json
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+
+      - name: Build frontend
+        run: npm run build
+
+  # Job 5: Integration Tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend-tests]
+
+    env:
+      POSTGRES_DB: heimdall
+      POSTGRES_USER: heimdall_user
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      MINIO_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      PYTHONPATH: ${{ github.workspace }}
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_DB: heimdall
+          POSTGRES_USER: heimdall_user
+          POSTGRES_PASSWORD: changeme
+        options: >-
+          --health-cmd "pg_isready -U heimdall_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start MinIO
+        run: |
+          NETWORK=$(docker network ls --format '{{.Name}}' | grep github || echo "bridge")
+          docker run -d \
+            --name minio \
+            --network "$NETWORK" \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            -p 9000:9000 \
+            -p 9001:9001 \
+            minio/minio:latest \
+            server /data --console-address ":9001"
+          timeout 60 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 2; done'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pytest-asyncio httpx
+
+          for service in api-gateway data-ingestion-web rf-acquisition inference training; do
+            if [ -f services/$service/requirements.txt ]; then
+              pip install -r services/$service/requirements.txt
+            fi
+          done
+
+      - name: Initialize database
+        run: |
+          export PGPASSWORD=changeme
+          psql -h localhost -U heimdall_user -d heimdall -f db/01-init.sql
+
+      - name: Run integration tests
+        run: |
+          for service in api-gateway data-ingestion-web rf-acquisition; do
+            if [ -d services/$service/tests/integration ]; then
+              echo "Running integration tests for $service"
+              cd services/$service
+              pytest tests/integration/ -v --cov=src --cov-report=xml
+              cd ../..
+            fi
+          done
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop minio 2>/dev/null || true
+          docker rm minio 2>/dev/null || true
+
+  # Job 6: E2E Tests
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [frontend-tests, integration-tests]
+
+    env:
+      BASE_URL: http://localhost:3001
+      TEST_BACKEND_ORIGIN: http://localhost:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo docker image prune -af
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start backend services
+        run: |
+          docker compose up -d postgres redis
+          docker compose build api-gateway rf-acquisition data-ingestion-web inference
+          docker compose up -d api-gateway rf-acquisition data-ingestion-web inference
+
+      - name: Wait for backend
+        run: |
+          timeout 300 bash -c 'until curl -sf http://localhost:8000/health; do sleep 5; done'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Install Playwright
+        run: |
+          cd frontend
+          npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Start frontend
+        run: |
+          cd frontend
+          npm run dev &
+          timeout 60 bash -c 'until curl -sf http://localhost:3001; do sleep 2; done'
+
+      - name: Run E2E tests
+        run: |
+          cd frontend
+          npx playwright test --reporter=html,json,list
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          TEST_BACKEND_ORIGIN: ${{ env.TEST_BACKEND_ORIGIN }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+  # Job 7: Summary
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [backend-quality, frontend-quality, backend-tests, frontend-tests, integration-tests, e2e-tests]
+    if: always()
+
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Check results
+        run: |
+          echo "Backend Quality: ${{ needs.backend-quality.result }}"
+          echo "Frontend Quality: ${{ needs.frontend-quality.result }}"
+          echo "Backend Tests: ${{ needs.backend-tests.result }}"
+          echo "Frontend Tests: ${{ needs.frontend-tests.result }}"
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
+          echo "E2E Tests: ${{ needs.e2e-tests.result }}"
+
+          if [ "${{ needs.backend-quality.result }}" != "success" ] || \
+             [ "${{ needs.frontend-quality.result }}" != "success" ] || \
+             [ "${{ needs.backend-tests.result }}" != "success" ] || \
+             [ "${{ needs.frontend-tests.result }}" != "success" ] || \
+             [ "${{ needs.integration-tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e-tests.result }}" != "success" ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ CI FAILED"
+            exit 1
+          else
+            echo "status=passed" >> $GITHUB_OUTPUT
+            echo "✅ CI PASSED"
+            exit 0
+          fi
+
+      - name: Comment on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const backendQuality = '${{ needs.backend-quality.result }}';
+            const frontendQuality = '${{ needs.frontend-quality.result }}';
+            const backendTests = '${{ needs.backend-tests.result }}';
+            const frontendTests = '${{ needs.frontend-tests.result }}';
+            const integrationTests = '${{ needs.integration-tests.result }}';
+            const e2eTests = '${{ needs.e2e-tests.result }}';
+
+            const icon = (status) => status === 'success' ? '✅' : '❌';
+
+            const comment = `## 🔬 CI Results
+
+            ### Code Quality
+            ${icon(backendQuality)} **Backend Quality**: ${backendQuality}
+            ${icon(frontendQuality)} **Frontend Quality**: ${frontendQuality}
+
+            ### Tests
+            ${icon(backendTests)} **Backend Unit Tests**: ${backendTests}
+            ${icon(frontendTests)} **Frontend Unit Tests**: ${frontendTests}
+            ${icon(integrationTests)} **Integration Tests**: ${integrationTests}
+            ${icon(e2eTests)} **E2E Tests**: ${e2eTests}
+
+            ---
+            📋 [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
