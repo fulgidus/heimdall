@@ -4,7 +4,7 @@
 
 export const mockServiceHealth = {
     'api-gateway': { status: 'healthy', version: '1.0.0', latency_ms: 10 },
-    'rf-acquisition': { status: 'healthy', version: '1.0.0', latency_ms: 50 },
+    'backend': { status: 'healthy', version: '1.0.0', latency_ms: 50 },
     'inference': { status: 'healthy', version: '1.0.0', latency_ms: 30 },
     'training': { status: 'healthy', version: '1.0.0', latency_ms: 100 },
     : { status: 'healthy', version: '1.0.0', latency_ms: 20 },
@@ -12,7 +12,7 @@ export const mockServiceHealth = {
 
 export const mockServiceHealthUnhealthy = {
     'api-gateway': { status: 'unhealthy', version: '1.0.0', latency_ms: 10 },
-    'rf-acquisition': { status: 'degraded', version: '1.0.0', latency_ms: 250 },
+    'backend': { status: 'degraded', version: '1.0.0', latency_ms: 250 },
     'inference': { status: 'healthy', version: '1.0.0', latency_ms: 30 },
 };
 

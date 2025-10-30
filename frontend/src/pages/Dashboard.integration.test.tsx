@@ -117,7 +117,7 @@ describe('Dashboard - Real API Integration', () => {
                 data: {
                     servicesHealth: {
                         'api-gateway': { status: 'healthy', service: 'api-gateway', version: '0.1.0', timestamp: new Date().toISOString() },
-                        'rf-acquisition': { status: 'healthy', service: 'rf-acquisition', version: '0.1.0', timestamp: new Date().toISOString() },
+                        'backend': { status: 'healthy', service: 'backend', version: '0.1.0', timestamp: new Date().toISOString() },
                     },
                     websdrs: [],
                     websdrsHealth: {},
@@ -125,7 +125,7 @@ describe('Dashboard - Real API Integration', () => {
                 },
             });
 
-            // Services should be visible (names are transformed: api-gateway -> api gateway, rf-acquisition -> rf acquisition)
+            // Services should be visible (names are transformed: api-gateway -> api gateway, backend -> rf acquisition)
             expect(screen.getByText(/api gateway/i)).toBeInTheDocument();
             expect(screen.getByText(/rf acquisition/i)).toBeInTheDocument();
         });
@@ -137,7 +137,7 @@ describe('Dashboard - Real API Integration', () => {
                 data: {
                     servicesHealth: {
                         'api-gateway': { status: 'healthy', service: 'api-gateway', version: '0.1.0', timestamp: new Date().toISOString() },
-                        'rf-acquisition': { status: 'healthy', service: 'rf-acquisition', version: '0.1.0', timestamp: new Date().toISOString() },
+                        'backend': { status: 'healthy', service: 'backend', version: '0.1.0', timestamp: new Date().toISOString() },
                         'training': { status: 'degraded', service: 'training', version: '0.1.0', timestamp: new Date().toISOString() },
                         'inference': { status: 'unhealthy', service: 'inference', version: '0.1.0', timestamp: new Date().toISOString() },
                     },

@@ -92,7 +92,7 @@ const SystemStatus: React.FC = () => {
                                             <i className="ph ph-database f-40 text-warning mb-2"></i>
                                             <h6 className="mb-0">RF Acquisition</h6>
                                             <h3 className="mb-0 mt-2">
-                                                {data.servicesHealth['rf-acquisition']?.status === 'healthy' ? 'Online' : 'Offline'}
+                                                {data.servicesHealth['backend']?.status === 'healthy' ? 'Online' : 'Offline'}
                                             </h3>
                                             <p className="text-muted f-12 mb-0">Status</p>
                                         </div>

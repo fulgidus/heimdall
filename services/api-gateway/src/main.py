@@ -286,19 +286,41 @@ async def api_gateway_health_public():
     )
 
 
-@app.get("/api/v1/rf-acquisition/health")
-async def rf_acquisition_health_public():
-    """Health check endpoint for RF Acquisition service - maps to backend /health."""
-    logger.debug(f"📡 RF Acquisition health check: /api/v1/rf-acquisition/health")
+@app.get("/api/v1/backend/health")
+async def backend_health_public():
+    """Health check endpoint for Backend service."""
+    logger.debug(f"🔧 Backend health check: /api/v1/backend/health")
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            response = await client.get(f"{RF_ACQUISITION_URL}/health")
+            response = await client.get(f"{BACKEND_URL}/health")
             if response.status_code == 200:
                 return response.json()
             else:
+                return HealthResponse(status="unhealthy", service="backend", version="unknown", timestamp=datetime.utcnow())
+        except Exception as e:
+            logger.warning(f"⚠️ Could not reach backend health: {str(e)}")
+            return HealthResponse(status="unhealthy", service="backend", version="unknown", timestamp=datetime.utcnow())
+
+
+@app.get("/api/v1/rf-acquisition/health")
+async def rf_acquisition_health_public():
+    """
+    Health check endpoint for RF Acquisition service - maps to backend /health.
+    DEPRECATED: Use /api/v1/backend/health instead.
+    """
+    logger.debug(f"📡 RF Acquisition health check (DEPRECATED): /api/v1/rf-acquisition/health")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            response = await client.get(f"{BACKEND_URL}/health")
+            if response.status_code == 200:
+                # Return response with rf-acquisition as service name for backward compatibility
+                data = response.json()
+                data["service"] = "rf-acquisition"  # Override service name for compatibility
+                return data
+            else:
                 return HealthResponse(status="unhealthy", service="rf-acquisition", version="unknown", timestamp=datetime.utcnow())
         except Exception as e:
-            logger.warning(f"⚠️ Could not reach rf-acquisition health: {str(e)}")
+            logger.warning(f"⚠️ Could not reach backend health: {str(e)}")
             return HealthResponse(status="unhealthy", service="rf-acquisition", version="unknown", timestamp=datetime.utcnow())
 
 
