@@ -7,23 +7,37 @@
  * - Make predictions
  */
 
+import { z } from 'zod';
 import api from '@/lib/api';
-import type { ModelInfo, ModelPerformanceMetrics, LocalizationResult } from './types';
+import { 
+    ModelInfoSchema, 
+    ModelPerformanceMetricsSchema, 
+    LocalizationResultSchema,
+    PredictionResponseSchema,
+    BatchPredictionResponseSchema 
+} from './schemas';
+import type { ModelInfo, ModelPerformanceMetrics, LocalizationResult } from './schemas';
 
 /**
  * Get information about the active model
  */
 export async function getModelInfo(): Promise<ModelInfo> {
-    const response = await api.get<ModelInfo>('/v1/analytics/model/info');
-    return response.data;
+    const response = await api.get('/v1/analytics/model/info');
+    
+    // Validate response with Zod
+    const validated = ModelInfoSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Get model performance metrics
  */
 export async function getModelPerformance(): Promise<ModelPerformanceMetrics> {
-    const response = await api.get<ModelPerformanceMetrics>('/v1/analytics/model/performance');
-    return response.data;
+    const response = await api.get('/v1/analytics/model/performance');
+    
+    // Validate response with Zod
+    const validated = ModelPerformanceMetricsSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -61,8 +75,11 @@ export interface PredictionResponse {
  * Make a single localization prediction
  */
 export async function predictLocalization(request: PredictionRequest): Promise<PredictionResponse> {
-    const response = await api.post<PredictionResponse>('/v1/inference/predict', request);
-    return response.data;
+    const response = await api.post('/v1/inference/predict', request);
+    
+    // Validate response with Zod
+    const validated = PredictionResponseSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -85,18 +102,24 @@ export interface BatchPredictionResponse {
  * Make batch localization predictions
  */
 export async function predictLocalizationBatch(request: BatchPredictionRequest): Promise<BatchPredictionResponse> {
-    const response = await api.post<BatchPredictionResponse>('/v1/inference/predict/batch', request);
-    return response.data;
+    const response = await api.post('/v1/inference/predict/batch', request);
+    
+    // Validate response with Zod
+    const validated = BatchPredictionResponseSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Get recent localization results
  */
 export async function getRecentLocalizations(limit: number = 10): Promise<LocalizationResult[]> {
-    const response = await api.get<LocalizationResult[]>('/v1/analytics/localizations/recent', {
+    const response = await api.get('/v1/analytics/localizations/recent', {
         params: { limit }
     });
-    return response.data;
+    
+    // Validate response with Zod
+    const validated = z.array(LocalizationResultSchema).parse(response.data);
+    return validated;
 }
 
 const inferenceService = {

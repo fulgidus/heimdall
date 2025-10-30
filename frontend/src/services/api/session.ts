@@ -10,7 +10,15 @@
  * - Manage known sources
  */
 
+import { z } from 'zod';
 import api from '@/lib/api';
+import {
+    RecordingSessionSchema,
+    RecordingSessionWithDetailsSchema,
+    SessionListResponseSchema,
+    KnownSourceSchema,
+    SessionAnalyticsSchema
+} from './schemas';
 
 export interface KnownSource {
     id: string;
@@ -112,24 +120,33 @@ export async function listSessions(params: {
     status?: string;
     approval_status?: string;
 }): Promise<SessionListResponse> {
-    const response = await api.get<SessionListResponse>('/v1/sessions', { params });
-    return response.data;
+    const response = await api.get('/v1/sessions', { params });
+    
+    // Validate response with Zod
+    const validated = SessionListResponseSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Get a specific session by ID
  */
 export async function getSession(sessionId: number): Promise<RecordingSessionWithDetails> {
-    const response = await api.get<RecordingSessionWithDetails>(`/api/v1/sessions/${sessionId}`);
-    return response.data;
+    const response = await api.get(`/api/v1/sessions/${sessionId}`);
+    
+    // Validate response with Zod
+    const validated = RecordingSessionWithDetailsSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Create a new recording session
  */
 export async function createSession(session: RecordingSessionCreate): Promise<RecordingSession> {
-    const response = await api.post<RecordingSession>('/v1/sessions', session);
-    return response.data;
+    const response = await api.post('/v1/sessions', session);
+    
+    // Validate response with Zod
+    const validated = RecordingSessionSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -140,7 +157,7 @@ export async function updateSessionStatus(
     status: string,
     celeryTaskId?: string
 ): Promise<RecordingSession> {
-    const response = await api.patch<RecordingSession>(
+    const response = await api.patch(
         `/api/v1/sessions/${sessionId}/status`,
         null,
         {
@@ -150,7 +167,10 @@ export async function updateSessionStatus(
             },
         }
     );
-    return response.data;
+    
+    // Validate response with Zod
+    const validated = RecordingSessionSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -160,7 +180,7 @@ export async function updateSessionApproval(
     sessionId: number,
     approvalStatus: 'pending' | 'approved' | 'rejected'
 ): Promise<RecordingSession> {
-    const response = await api.patch<RecordingSession>(
+    const response = await api.patch(
         `/api/v1/sessions/${sessionId}/approval`,
         null,
         {
@@ -169,7 +189,10 @@ export async function updateSessionApproval(
             },
         }
     );
-    return response.data;
+    
+    // Validate response with Zod
+    const validated = RecordingSessionSchema.parse(response.data);
+    return validated;
 }
 
 /**
@@ -183,16 +206,22 @@ export async function deleteSession(sessionId: number): Promise<void> {
  * Get session analytics
  */
 export async function getSessionAnalytics(): Promise<SessionAnalytics> {
-    const response = await api.get<SessionAnalytics>('/v1/sessions/analytics');
-    return response.data;
+    const response = await api.get('/v1/sessions/analytics');
+    
+    // Validate response with Zod
+    const validated = SessionAnalyticsSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * List all known RF sources
  */
 export async function listKnownSources(): Promise<KnownSource[]> {
-    const response = await api.get<KnownSource[]>('/v1/sessions/known-sources');
-    return response.data;
+    const response = await api.get('/v1/sessions/known-sources');
+    
+    // Validate response with Zod
+    const validated = z.array(KnownSourceSchema).parse(response.data);
+    return validated;
 }
 
 /**

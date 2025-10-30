@@ -82,7 +82,7 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
     // WebSocket state
     wsManager: null,
     wsConnectionState: ConnectionState.DISCONNECTED,
-    wsEnabled: false, // DISABLED FOR NOW - use polling only to avoid DOM sync issues
+    wsEnabled: true, // WebSocket enabled for real-time updates
 
     setMetrics: (metrics) => set({ metrics }),
     setLoading: (loading) => set({ isLoading: loading }),
@@ -246,12 +246,12 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
 
         try {
             // Use configured WebSocket URL from environment or construct from browser location
-            // The frontend is served on port 3000 (internal), but Envoy routes WS traffic on port 80.
-            // We need to connect to the root host (port 80), not port 3000.
+            // Envoy proxies WebSocket requests to backend service at /ws
             const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const hostname = window.location.hostname; // localhost
-            // Connect to port 80 (Envoy), not the frontend port
-            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:80/ws`;
+            const hostname = window.location.hostname;
+            const port = window.location.port || (protocol === 'wss' ? '443' : '80');
+            // WebSocket endpoint: Envoy routes /ws to backend /ws
+            const wsUrl = import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:${port}/ws`;
             console.log('[Dashboard] Connecting to WebSocket:', wsUrl);
 
             const manager = createWebSocketManager(wsUrl);
