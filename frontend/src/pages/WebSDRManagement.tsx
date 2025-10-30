@@ -4,7 +4,6 @@ import WebSDRModal from '../components/WebSDRModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import type { WebSDRConfig } from '@/services/api/types';
 import { createWebSocketManager } from '@/lib/websocket';
-import type { WebSocketManager } from '@/lib/websocket';
 
 const WebSDRManagement: React.FC = () => {
     const {
@@ -23,7 +22,6 @@ const WebSDRManagement: React.FC = () => {
 
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [selectedWebSDR, setSelectedWebSDR] = useState<string | null>(null);
-    const [wsManager, setWsManager] = useState<WebSocketManager | null>(null);
 
     // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -52,7 +50,7 @@ const WebSDRManagement: React.FC = () => {
         manager.subscribe('websdrs_update', (data) => {
             console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
             // Update health status in store directly from WebSocket
-            useWebSDRStore.setState((state) => ({
+            useWebSDRStore.setState(() => ({
                 healthStatus: data,
             }));
         });
@@ -61,8 +59,6 @@ const WebSDRManagement: React.FC = () => {
         manager.connect().catch((error) => {
             console.error('[WebSDRManagement] WebSocket connection failed:', error);
         });
-        
-        setWsManager(manager);
 
         // Fallback: Auto-refresh health every 30 seconds if WebSocket fails
         const interval = setInterval(() => {
