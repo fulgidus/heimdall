@@ -3,9 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-    branches:
-      - develop
+      - "v*"
 
 permissions:
   contents: write
@@ -16,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     # Solo se è un tag su develop
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +33,7 @@ jobs:
         id: changelog
         run: |
           VERSION=${{ steps.version.outputs.version_without_v }}
-          
+
           # Estrae il contenuto tra [VERSION] e il prossimo [VERSION]
           # Usa awk per trovare la sezione
           CHANGELOG=$(awk -v ver="$VERSION" '
@@ -44,7 +42,7 @@ jobs:
             flag && /^\[/ { flag=0 }
             flag { print }
           ' CHANGELOG.md)
-          
+
           # Se vuoto, usa tutta la sezione fino al prossimo heading
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG=$(awk -v ver="$VERSION" '
@@ -53,7 +51,7 @@ jobs:
               flag { print }
             ' CHANGELOG.md)
           fi
-          
+
           # Escapa per usare in GitHub Actions
           CHANGELOG="${CHANGELOG//'%'/'%25'}"
           CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
@@ -75,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: create-release
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -105,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: merge-to-main
     if: startsWith(github.ref, 'refs/tags/v')
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -119,16 +117,16 @@ jobs:
         run: |
           CURRENT=${{ github.ref_name }}
           CURRENT_WITHOUT_V=${CURRENT#v}
-          
+
           # Incrementa la patch version per il prossimo rilascio
           # es: v0.2.0 -> v0.2.1-dev
           MAJOR=$(echo $CURRENT_WITHOUT_V | cut -d. -f1)
           MINOR=$(echo $CURRENT_WITHOUT_V | cut -d. -f2)
           PATCH=$(echo $CURRENT_WITHOUT_V | cut -d. -f3)
-          
+
           NEW_PATCH=$((PATCH + 1))
           NEXT_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-          
+
           echo "next_version=${NEXT_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Configure Git
@@ -178,14 +176,3 @@ jobs:
           git add pyproject.toml frontend/package.json CHANGELOG.md
           git commit -m "chore: bump version to ${{ steps.next_version.outputs.next_version }} [skip ci]" || echo "No changes to commit"
           git push origin develop
-
-      - name: Create next version task
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `🚀 Release ${{ github.ref_name }} published!\n\nNext development version: ${{ steps.next_version.outputs.next_version }}`
-            })
