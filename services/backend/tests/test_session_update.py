@@ -9,6 +9,8 @@ To run these tests, you need:
 - Backend service fixtures (conftest.py)
 """
 import pytest
+from uuid import uuid4
+from fastapi import status
 
 
 @pytest.mark.skip(reason="Requires running PostgreSQL and backend fixtures")
