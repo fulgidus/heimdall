@@ -26,14 +26,7 @@ export default defineConfig({
             '/api': {
                 target: 'http://localhost:8000',
                 changeOrigin: true,
-                rewrite: (path) => {
-                    // Don't rewrite /api/v1/auth/* - pass directly to backend
-                    if (path.startsWith('/api/v1/auth')) {
-                        return path;
-                    }
-                    // Rewrite other /api/* by removing /api prefix
-                    return path.replace(/^\/api/, '');
-                },
+                // Don't rewrite paths - API Gateway expects /api/v1/* paths
             },
         },
     },
