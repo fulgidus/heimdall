@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y gcc postgresql-client ca-certificates
 
 # Copy centralized requirements and service-specific requirements
 COPY services/requirements/ ./requirements/
-COPY services/rf-acquisition/requirements.txt .
+COPY services/backend/requirements.txt .
 
 # Using locked versions for reproducibility
 # Install from centralized lock files first, then service-specific
@@ -30,8 +30,8 @@ COPY --from=builder /root/.local /home/appuser/.local
 COPY --chown=appuser:appuser services/common/ ./common/
 
 # Copy application code
-COPY --chown=appuser:appuser services/rf-acquisition/src/ ./src/
-COPY --chown=appuser:appuser services/rf-acquisition/entrypoint.py ./entrypoint.py
+COPY --chown=appuser:appuser services/backend/src/ ./src/
+COPY --chown=appuser:appuser services/backend/entrypoint.py ./entrypoint.py
 
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1

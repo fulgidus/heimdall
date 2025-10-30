@@ -65,10 +65,11 @@ SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8000
 
 # Backend service URLs - from settings
-RF_ACQUISITION_URL = settings.rf_acquisition_url
+BACKEND_URL = settings.backend_url  # Renamed from rf_acquisition_url
 INFERENCE_URL = settings.inference_url
 TRAINING_URL = settings.training_url
-# DATA_INGESTION_URL removed - functionality moved to RF_ACQUISITION_URL
+# Legacy alias for backward compatibility
+RF_ACQUISITION_URL = BACKEND_URL
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
@@ -79,12 +80,12 @@ if HEALTH_CHECKER_ENABLED:
     health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)
     
     # Register backend service health checks
-    async def check_rf_acquisition():
-        """Check RF acquisition service connectivity."""
+    async def check_backend():
+        """Check backend service connectivity."""
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{RF_ACQUISITION_URL}/health")
+            response = await client.get(f"{BACKEND_URL}/health")
             if response.status_code != 200:
-                raise Exception(f"RF Acquisition unhealthy: {response.status_code}")
+                raise Exception(f"Backend unhealthy: {response.status_code}")
     
     async def check_inference():
         """Check inference service connectivity."""
@@ -100,7 +101,7 @@ if HEALTH_CHECKER_ENABLED:
             if response.status_code != 200:
                 raise Exception(f"Training unhealthy: {response.status_code}")
     
-    health_checker.register_dependency("rf-acquisition", check_rf_acquisition)
+    health_checker.register_dependency("backend", check_backend)
     health_checker.register_dependency("inference", check_inference)
     health_checker.register_dependency("training", check_training)
 
@@ -334,8 +335,25 @@ async def acquisition_health_deprecated(request: Request):
 
 
 # =============================================================================
+# PROTECTED BACKEND ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# =============================================================================
+
+@app.api_route("/api/v1/backend/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def proxy_to_backend(
+    request: Request,
+    path: str,
+    user: User = Depends(get_current_user)
+):
+    """Proxy requests to Backend service (requires authentication)."""
+    if AUTH_ENABLED and not user.is_operator:
+        raise HTTPException(status_code=403, detail="Operator access required")
+    logger.debug(f"🔧 Backend route matched: path={path} (user={user.username})")
+    return await proxy_request(request, BACKEND_URL)
+
+
 # =============================================================================
 # PROTECTED ACQUISITION ENDPOINTS - Requires auth (falls back to anonymous if disabled)
+# DEPRECATED: Use /api/v1/backend instead
 # =============================================================================
 
 @app.api_route("/api/v1/acquisition/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
@@ -344,11 +362,14 @@ async def proxy_to_rf_acquisition(
     path: str,
     user: User = Depends(get_current_user)
 ):
-    """Proxy requests to RF Acquisition service (requires authentication)."""
+    """
+    Proxy requests to Backend service (requires authentication).
+    DEPRECATED: Use /api/v1/backend instead.
+    """
     if AUTH_ENABLED and not user.is_operator:
         raise HTTPException(status_code=403, detail="Operator access required")
-    logger.debug(f"📡 Acquisition route matched: path={path} (user={user.username})")
-    return await proxy_request(request, RF_ACQUISITION_URL)
+    logger.debug(f"📡 Acquisition route matched (DEPRECATED): path={path} (user={user.username})")
+    return await proxy_request(request, BACKEND_URL)
 
 
 # =============================================================================
@@ -403,13 +424,13 @@ async def proxy_to_sessions(
     path: str,
     user: User = Depends(get_current_user)
 ):
-    """Proxy requests to RF Acquisition service for sessions management (requires authentication)."""
+    """Proxy requests to Backend service for sessions management (requires authentication)."""
     if request.method == "OPTIONS":
         return Response(status_code=200)
     if AUTH_ENABLED and not user.is_operator:
         raise HTTPException(status_code=403, detail="Operator access required")
     logger.debug(f"💾 Sessions route matched: path={path} (user={user.username})")
-    return await proxy_request(request, RF_ACQUISITION_URL)
+    return await proxy_request(request, BACKEND_URL)
 
 
 # =============================================================================
@@ -735,7 +756,7 @@ async def get_system_status():
     services_health = []
     service_urls = {
         "api-gateway": settings.api_gateway_url,
-        "rf-acquisition": RF_ACQUISITION_URL,
+        "backend": BACKEND_URL,
         "inference": INFERENCE_URL,
         "training": TRAINING_URL,
     }
