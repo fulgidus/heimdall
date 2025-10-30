@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDashboardStore } from '../store';
 import { useWidgetStore } from '../store/widgetStore';
 import { ConnectionState } from '../lib/websocket';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import {
     WidgetContainer,
     WebSDRStatusWidget,
@@ -20,44 +21,94 @@ const Dashboard: React.FC = () => {
         error,
         fetchDashboardData,
         lastUpdate,
-        wsConnectionState,
-        wsEnabled,
-        connectWebSocket,
-        disconnectWebSocket,
     } = useDashboardStore();
 
     const { widgets, resetToDefault } = useWidgetStore();
+    const { connectionState, isConnected, connect, subscribe } = useWebSocket();
     const [showWidgetPicker, setShowWidgetPicker] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const isMountedRef = useRef(true);
 
     useEffect(() => {
+        isMountedRef.current = true;
+
         // Fetch initial data
         fetchDashboardData();
 
-        // Try to connect WebSocket for real-time updates
-        connectWebSocket();
-
-        // Setup polling fallback (only if WebSocket disabled)
+        // Setup polling fallback (only if WebSocket not connected)
         const interval = setInterval(() => {
-            if (!wsEnabled || wsConnectionState !== ConnectionState.CONNECTED) {
+            if (!isConnected && isMountedRef.current) {
                 fetchDashboardData();
             }
         }, 30000); // Poll every 30 seconds as fallback
 
         return () => {
+            isMountedRef.current = false;
             clearInterval(interval);
-            // Don't disconnect WebSocket here - let component unmount handle it
-            // This prevents issues with React StrictMode double mounting
         };
-    }, [fetchDashboardData, connectWebSocket, wsEnabled, wsConnectionState]);
+    }, [fetchDashboardData, isConnected]);
 
-    // Separate effect for WebSocket cleanup on actual unmount
+    // Subscribe to WebSocket events
     useEffect(() => {
-        return () => {
-            // Only disconnect on actual unmount (not during StrictMode remount)
-            disconnectWebSocket();
+        if (!isMountedRef.current) return;
+
+        const handleServicesHealth = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[Dashboard] Received services health update:', data);
+            useDashboardStore.setState((state) => ({
+                data: {
+                    ...state.data,
+                    servicesHealth: data,
+                },
+                lastUpdate: new Date(),
+            }));
         };
-    }, [disconnectWebSocket]);
+
+        const handleWebSDRUpdate = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[Dashboard] Received WebSDR status update:', data);
+            useDashboardStore.setState((state) => ({
+                data: {
+                    ...state.data,
+                    websdrsHealth: data,
+                },
+                lastUpdate: new Date(),
+            }));
+        };
+
+        const handleSignalDetected = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[Dashboard] Received signal detection:', data);
+            useDashboardStore.setState((state) => ({
+                metrics: {
+                    ...state.metrics,
+                    signalDetections: (state.metrics.signalDetections || 0) + 1,
+                },
+                lastUpdate: new Date(),
+            }));
+        };
+
+        const handleLocalizationUpdate = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[Dashboard] Received localization update:', data);
+            useDashboardStore.setState({ lastUpdate: new Date() });
+        };
+
+        // Subscribe to events and store unsubscribe functions
+        const unsubscribeServicesHealth = subscribe('services:health', handleServicesHealth);
+        const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
+        const unsubscribeSignalDetected = subscribe('signals:detected', handleSignalDetected);
+        const unsubscribeLocalizationUpdate = subscribe('localizations:updated', handleLocalizationUpdate);
+
+        // Cleanup: unsubscribe from all events
+        return () => {
+            isMountedRef.current = false;
+            unsubscribeServicesHealth();
+            unsubscribeWebSDRUpdate();
+            unsubscribeSignalDetected();
+            unsubscribeLocalizationUpdate();
+        };
+    }, [subscribe]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -66,12 +117,12 @@ const Dashboard: React.FC = () => {
     };
 
     const handleReconnect = async () => {
-        await connectWebSocket();
+        await connect();
     };
 
     // Get connection status display
     const getConnectionStatus = () => {
-        switch (wsConnectionState) {
+        switch (connectionState) {
             case ConnectionState.CONNECTED:
                 return { text: 'Connected', color: 'success', icon: 'ph-check-circle' };
             case ConnectionState.CONNECTING:
@@ -80,7 +131,7 @@ const Dashboard: React.FC = () => {
                 return { text: 'Reconnecting...', color: 'warning', icon: 'ph-arrows-clockwise' };
             case ConnectionState.DISCONNECTED:
             default:
-                return { text: wsEnabled ? 'Disconnected' : 'Polling Mode', color: 'danger', icon: 'ph-x-circle' };
+                return { text: 'Disconnected', color: 'danger', icon: 'ph-x-circle' };
         }
     };
 
@@ -143,10 +194,10 @@ const Dashboard: React.FC = () => {
                                 {/* Connection Status & Actions */}
                                 <div className="d-flex align-items-center gap-2">
                                     <span className={`badge bg-light-${connectionStatus.color} d-flex align-items-center gap-1`}>
-                                        <i className={`ph ${connectionStatus.icon} ${wsConnectionState === ConnectionState.CONNECTING || wsConnectionState === ConnectionState.RECONNECTING ? 'spin' : ''}`}></i>
+                                        <i className={`ph ${connectionStatus.icon} ${connectionState === ConnectionState.CONNECTING || connectionState === ConnectionState.RECONNECTING ? 'spin' : ''}`}></i>
                                         {connectionStatus.text}
                                     </span>
-                                    {wsConnectionState === ConnectionState.DISCONNECTED && wsEnabled && (
+                                    {connectionState === ConnectionState.DISCONNECTED && (
                                         <button
                                             className="btn btn-sm btn-outline-primary"
                                             onClick={handleReconnect}

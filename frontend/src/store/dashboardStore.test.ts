@@ -87,11 +87,8 @@ describe('Dashboard Store (Zustand)', () => {
     });
 
     afterEach(() => {
-        // Clean up WebSocket connections
-        const state = useDashboardStore.getState();
-        if (state.wsManager) {
-            state.disconnectWebSocket();
-        }
+        // Cleanup is now handled by WebSocketContext
+        vi.clearAllMocks();
     });
 
     describe('Store Initialization', () => {
@@ -104,8 +101,6 @@ describe('Dashboard Store (Zustand)', () => {
             expect(state.error).toBe(null);
             expect(state.retryCount).toBe(0);
             expect(state.retryDelay).toBe(1000);
-            expect(state.wsConnectionState).toBe(ConnectionState.DISCONNECTED);
-            expect(state.wsEnabled).toBe(true);
         });
 
         it('should have all required actions', () => {
@@ -120,9 +115,6 @@ describe('Dashboard Store (Zustand)', () => {
             expect(typeof state.fetchModelInfo).toBe('function');
             expect(typeof state.fetchServicesHealth).toBe('function');
             expect(typeof state.refreshAll).toBe('function');
-            expect(typeof state.connectWebSocket).toBe('function');
-            expect(typeof state.disconnectWebSocket).toBe('function');
-            expect(typeof state.setWebSocketState).toBe('function');
         });
     });
 
@@ -156,13 +148,7 @@ describe('Dashboard Store (Zustand)', () => {
             expect(useDashboardStore.getState().error).toBe(null);
         });
 
-        it('should update WebSocket state via setWebSocketState', () => {
-            useDashboardStore.getState().setWebSocketState(ConnectionState.CONNECTING);
-            expect(useDashboardStore.getState().wsConnectionState).toBe(ConnectionState.CONNECTING);
-
-            useDashboardStore.getState().setWebSocketState(ConnectionState.CONNECTED);
-            expect(useDashboardStore.getState().wsConnectionState).toBe(ConnectionState.CONNECTED);
-        });
+        // WebSocket state management moved to WebSocketContext - no longer in store
     });
 
     describe('Retry Logic', () => {

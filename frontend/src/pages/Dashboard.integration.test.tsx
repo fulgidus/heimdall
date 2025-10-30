@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { WebSocketProvider } from '@/contexts/WebSocketContext';
 import Dashboard from './Dashboard';
 
 // Mock the stores
@@ -93,9 +94,11 @@ describe('Dashboard - Real API Integration', () => {
 
         return render(
             <BrowserRouter>
-                <SidebarProvider>
-                    <Dashboard />
-                </SidebarProvider>
+                <WebSocketProvider autoConnect={false}>
+                    <SidebarProvider>
+                        <Dashboard />
+                    </SidebarProvider>
+                </WebSocketProvider>
             </BrowserRouter>
         );
     };

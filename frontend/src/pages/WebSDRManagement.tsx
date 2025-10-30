@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useWebSDRStore } from '../store/websdrStore';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import WebSDRModal from '../components/WebSDRModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import type { WebSDRConfig } from '@/services/api/types';
-import { createWebSocketManager } from '@/lib/websocket';
 
 const WebSDRManagement: React.FC = () => {
     const {
@@ -20,8 +20,10 @@ const WebSDRManagement: React.FC = () => {
         deleteWebSDR,
     } = useWebSDRStore();
 
+    const { isConnected, subscribe, manager } = useWebSocket();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [selectedWebSDR, setSelectedWebSDR] = useState<string | null>(null);
+    const isMountedRef = useRef(true);
 
     // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -31,60 +33,62 @@ const WebSDRManagement: React.FC = () => {
     const [deletingWebSDR, setDeletingWebSDR] = useState<WebSDRConfig | null>(null);
 
     useEffect(() => {
-        // Setup WebSocket for real-time updates
-        // Connect directly to Envoy on port 80, not to the frontend on port 3000
-        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${protocol}://localhost/ws`;
+        isMountedRef.current = true;
 
-        console.log('[WebSDRManagement] WebSocket URL:', wsUrl);
+        // Load initial data via REST API
+        fetchWebSDRs();
+        checkHealth();
 
-        const manager = createWebSocketManager(wsUrl);
-
-        // Connect WebSocket and request initial data
-        manager.connect().then(() => {
+        // Request initial data via WebSocket if connected
+        if (isConnected && manager) {
             console.log('[WebSDRManagement] WebSocket connected, requesting WebSDR data');
-            // Request WebSDR list via WebSocket
             manager.send('get_data', { data_type: 'websdrs' });
-        }).catch((error) => {
-            console.error('[WebSDRManagement] WebSocket connection failed:', error);
-            // Fallback: Load via REST API if WebSocket fails
-            console.log('[WebSDRManagement] Using REST API fallback');
-            fetchWebSDRs();
-            checkHealth();
-        });
+        }
 
-        // Subscribe to WebSDR data updates
-        manager.subscribe('websdrs_data', (data) => {
-            console.log('[WebSDRManagement] Received WebSDR data via WebSocket:', data);
-            if (Array.isArray(data)) {
-                useWebSDRStore.setState({ websdrs: data });
-            } else if (data && Array.isArray(data.data)) {
-                useWebSDRStore.setState({ websdrs: data.data });
-            }
-        });
-
-        // Subscribe to WebSDR health updates
-        manager.subscribe('websdrs_update', (data) => {
-            console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
-            // Update health status in store directly from WebSocket
-            useWebSDRStore.setState({ healthStatus: data });
-        });
-
-        // Fallback: Auto-refresh health every 30 seconds if WebSocket fails
+        // Fallback: Auto-refresh health every 30 seconds if WebSocket not connected
         const interval = setInterval(() => {
-            if (!manager.isConnected()) {
+            if (!isConnected && isMountedRef.current) {
                 console.log('[WebSDRManagement] WebSocket disconnected, using fallback polling');
                 checkHealth();
             }
         }, 30000);
 
         return () => {
+            isMountedRef.current = false;
             clearInterval(interval);
-            if (manager) {
-                manager.disconnect();
+        };
+    }, [fetchWebSDRs, checkHealth, isConnected, manager]);
+
+    // Subscribe to WebSocket events
+    useEffect(() => {
+        if (!isMountedRef.current) return;
+
+        const handleWebSDRData = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[WebSDRManagement] Received WebSDR data via WebSocket:', data);
+            if (Array.isArray(data)) {
+                useWebSDRStore.setState({ websdrs: data });
+            } else if (data && Array.isArray(data.data)) {
+                useWebSDRStore.setState({ websdrs: data.data });
             }
         };
-    }, [fetchWebSDRs, checkHealth]);
+
+        const handleWebSDRUpdate = (data: any) => {
+            if (!isMountedRef.current) return;
+            console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
+            useWebSDRStore.setState({ healthStatus: data });
+        };
+
+        // Subscribe to events and store unsubscribe functions
+        const unsubscribeWebSDRData = subscribe('websdrs_data', handleWebSDRData);
+        const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
+
+        return () => {
+            isMountedRef.current = false;
+            unsubscribeWebSDRData();
+            unsubscribeWebSDRUpdate();
+        };
+    }, [subscribe]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
