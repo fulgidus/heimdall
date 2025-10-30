@@ -183,6 +183,24 @@ export async function deleteWebSDR(id: string, hardDelete: boolean = false): Pro
     console.log('✅ WebSDRService.deleteWebSDR(): deleted');
 }
 
+/**
+ * Fetch WebSDR information from its status.json endpoint
+ */
+export async function fetchWebSDRInfo(url: string): Promise<import('./schemas').WebSDRFetchInfoResponse> {
+    console.log('🔍 WebSDRService.fetchWebSDRInfo():', url);
+    
+    const response = await api.post('/v1/acquisition/websdrs/fetch-info', { url });
+    
+    // Handle potential response wrapping
+    let responseData = response.data;
+    if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        responseData = responseData.data;
+    }
+    
+    console.log('✅ WebSDRService.fetchWebSDRInfo(): received', responseData.success ? 'success' : 'failure');
+    return responseData;
+}
+
 const webSDRService = {
     getWebSDRs,
     checkWebSDRHealth,
@@ -191,6 +209,7 @@ const webSDRService = {
     createWebSDR,
     updateWebSDR,
     deleteWebSDR,
+    fetchWebSDRInfo,
 };
 
 export default webSDRService;
