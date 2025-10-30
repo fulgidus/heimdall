@@ -7,6 +7,22 @@ import type { KnownSource, KnownSourceCreate, KnownSourceUpdate } from '../servi
 // Set Mapbox access token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+// Add pulse animation for temporary marker
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+`;
+document.head.appendChild(style);
+
 interface SourceFormData {
     name: string;
     description: string;
@@ -34,6 +50,7 @@ const SourcesManagement: React.FC = () => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<mapboxgl.Map | null>(null);
     const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
+    const tempMarker = useRef<mapboxgl.Marker | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
 
     const [isFormVisible, setIsFormVisible] = useState(false);
@@ -71,11 +88,31 @@ const SourcesManagement: React.FC = () => {
             // Add click handler for setting new source location
             map.current?.on('click', (e) => {
                 if (isFormVisible && !editingSource) {
+                    // Remove previous temp marker
+                    if (tempMarker.current) {
+                        tempMarker.current.remove();
+                    }
+
+                    // Update form data
                     setFormData((prev) => ({
                         ...prev,
                         latitude: e.lngLat.lat.toFixed(6),
                         longitude: e.lngLat.lng.toFixed(6),
                     }));
+
+                    // Create temporary marker
+                    const el = document.createElement('div');
+                    el.style.width = '30px';
+                    el.style.height = '30px';
+                    el.style.borderRadius = '50%';
+                    el.style.backgroundColor = '#3b82f6';
+                    el.style.border = '3px solid white';
+                    el.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5)';
+                    el.style.animation = 'pulse 2s infinite';
+
+                    tempMarker.current = new mapboxgl.Marker({ element: el })
+                        .setLngLat([e.lngLat.lng, e.lngLat.lat])
+                        .addTo(map.current!);
                 }
             });
         });
@@ -103,6 +140,11 @@ const SourcesManagement: React.FC = () => {
 
             // Add new markers
             knownSources.forEach((source) => {
+                // Skip sources without coordinates
+                if (source.latitude == null || source.longitude == null) {
+                    return;
+                }
+
                 // Create marker element
                 const el = document.createElement('div');
                 el.className = 'source-marker';
@@ -122,13 +164,17 @@ const SourcesManagement: React.FC = () => {
                     .setLngLat([source.longitude, source.latitude])
                     .addTo(map.current!);
 
-                // Add popup
+                // Add popup with conditional frequency display
+                const frequencyHtml = source.frequency_hz 
+                    ? `<p style="margin: 4px 0; font-size: 12px;">
+                           <strong>Frequency:</strong> ${(source.frequency_hz / 1e6).toFixed(3)} MHz
+                       </p>`
+                    : '';
+                
                 const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
                     <div style="padding: 8px;">
                         <h6 style="margin: 0 0 8px 0; font-weight: bold;">${source.name}</h6>
-                        <p style="margin: 4px 0; font-size: 12px;">
-                            <strong>Frequency:</strong> ${(source.frequency_hz / 1e6).toFixed(3)} MHz
-                        </p>
+                        ${frequencyHtml}
                         <p style="margin: 4px 0; font-size: 12px;">
                             <strong>Location:</strong> ${source.latitude.toFixed(4)}, ${source.longitude.toFixed(4)}
                         </p>
@@ -143,10 +189,12 @@ const SourcesManagement: React.FC = () => {
                 // Handle marker click
                 el.addEventListener('click', () => {
                     setSelectedSource(source);
-                    map.current?.flyTo({
-                        center: [source.longitude, source.latitude],
-                        zoom: 10,
-                    });
+                    if (source.longitude != null && source.latitude != null) {
+                        map.current?.flyTo({
+                            center: [source.longitude, source.latitude],
+                            zoom: 10,
+                        });
+                    }
                 });
 
                 // Handle marker drag
@@ -162,7 +210,9 @@ const SourcesManagement: React.FC = () => {
                     } catch (error) {
                         console.error('Failed to update source location:', error);
                         showNotification('error', 'Failed to update source location');
-                        marker.setLngLat([source.longitude, source.latitude]);
+                        if (source.longitude != null && source.latitude != null) {
+                            marker.setLngLat([source.longitude, source.latitude]);
+                        }
                     }
                 });
 
@@ -229,24 +279,44 @@ const SourcesManagement: React.FC = () => {
             errors.name = 'Name is required';
         }
 
-        const freq = parseFloat(formData.frequency_hz);
-        if (!formData.frequency_hz || isNaN(freq) || freq <= 0) {
-            errors.frequency_hz = 'Valid frequency is required';
+        // Frequency is optional, but if provided must be valid
+        if (formData.frequency_hz) {
+            const freq = parseFloat(formData.frequency_hz);
+            if (isNaN(freq) || freq <= 0) {
+                errors.frequency_hz = 'Frequency must be a positive number';
+            }
         }
 
-        const lat = parseFloat(formData.latitude);
-        if (!formData.latitude || isNaN(lat) || lat < -90 || lat > 90) {
-            errors.latitude = 'Valid latitude (-90 to 90) is required';
+        // Coordinates are optional, but if one is provided, both must be valid
+        const hasLat = formData.latitude.trim() !== '';
+        const hasLon = formData.longitude.trim() !== '';
+
+        if (hasLat || hasLon) {
+            if (!hasLat) {
+                errors.latitude = 'Latitude required when longitude is provided';
+            } else {
+                const lat = parseFloat(formData.latitude);
+                if (isNaN(lat) || lat < -90 || lat > 90) {
+                    errors.latitude = 'Latitude must be between -90 and 90';
+                }
+            }
+
+            if (!hasLon) {
+                errors.longitude = 'Longitude required when latitude is provided';
+            } else {
+                const lon = parseFloat(formData.longitude);
+                if (isNaN(lon) || lon < -180 || lon > 180) {
+                    errors.longitude = 'Longitude must be between -180 and 180';
+                }
+            }
         }
 
-        const lon = parseFloat(formData.longitude);
-        if (!formData.longitude || isNaN(lon) || lon < -180 || lon > 180) {
-            errors.longitude = 'Valid longitude (-180 to 180) is required';
-        }
-
-        const errorMargin = parseFloat(formData.error_margin_meters);
-        if (!formData.error_margin_meters || isNaN(errorMargin) || errorMargin <= 0) {
-            errors.error_margin_meters = 'Error margin must be greater than 0';
+        // Error margin validation
+        if (formData.error_margin_meters) {
+            const errorMargin = parseFloat(formData.error_margin_meters);
+            if (isNaN(errorMargin) || errorMargin <= 0) {
+                errors.error_margin_meters = 'Error margin must be greater than 0';
+            }
         }
 
         setFormErrors(errors);
@@ -262,16 +332,16 @@ const SourcesManagement: React.FC = () => {
         }
 
         try {
-            const sourceData = {
+            const sourceData: KnownSourceCreate | KnownSourceUpdate = {
                 name: formData.name.trim(),
                 description: formData.description.trim() || undefined,
-                frequency_hz: parseInt(formData.frequency_hz),
-                latitude: parseFloat(formData.latitude),
-                longitude: parseFloat(formData.longitude),
+                frequency_hz: formData.frequency_hz ? parseInt(formData.frequency_hz) : undefined,
+                latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
+                longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
                 power_dbm: formData.power_dbm ? parseFloat(formData.power_dbm) : undefined,
                 source_type: formData.source_type || undefined,
                 is_validated: formData.is_validated,
-                error_margin_meters: parseFloat(formData.error_margin_meters),
+                error_margin_meters: formData.error_margin_meters ? parseFloat(formData.error_margin_meters) : undefined,
             };
 
             if (editingSource) {
@@ -280,6 +350,12 @@ const SourcesManagement: React.FC = () => {
             } else {
                 await createKnownSource(sourceData as KnownSourceCreate);
                 showNotification('success', 'Source created successfully');
+            }
+
+            // Remove temp marker on successful creation
+            if (tempMarker.current) {
+                tempMarker.current.remove();
+                tempMarker.current = null;
             }
 
             handleCancelForm();
@@ -298,9 +374,9 @@ const SourcesManagement: React.FC = () => {
         setFormData({
             name: source.name,
             description: source.description || '',
-            frequency_hz: source.frequency_hz.toString(),
-            latitude: source.latitude.toString(),
-            longitude: source.longitude.toString(),
+            frequency_hz: source.frequency_hz?.toString() || '',
+            latitude: source.latitude?.toString() || '',
+            longitude: source.longitude?.toString() || '',
             power_dbm: source.power_dbm?.toString() || '',
             source_type: source.source_type || 'beacon',
             is_validated: source.is_validated,
@@ -341,6 +417,12 @@ const SourcesManagement: React.FC = () => {
             error_margin_meters: '50',
         });
         setFormErrors({});
+        
+        // Remove temp marker
+        if (tempMarker.current) {
+            tempMarker.current.remove();
+            tempMarker.current = null;
+        }
     };
 
     return (
@@ -401,9 +483,18 @@ const SourcesManagement: React.FC = () => {
                                     <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#f59e0b', border: '2px solid white' }}></div>
                                     <span className="f-12">Unvalidated</span>
                                 </div>
+                                {isFormVisible && !editingSource && (
+                                    <div className="d-flex align-items-center gap-2">
+                                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#3b82f6', border: '2px solid white' }}></div>
+                                        <span className="f-12">New (temp)</span>
+                                    </div>
+                                )}
                                 <div className="ms-auto text-muted f-12">
                                     <i className="ph ph-info me-1"></i>
-                                    Click map to set location, drag markers to update
+                                    {isFormVisible && !editingSource 
+                                        ? 'Click map to set location for new source'
+                                        : 'Drag markers to update position'
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -441,52 +532,58 @@ const SourcesManagement: React.FC = () => {
                                     </div>
 
                                     <div className="mb-3">
-                                        <label className="form-label">Frequency (Hz) *</label>
+                                        <label className="form-label">Frequency (Hz)</label>
                                         <input
                                             type="number"
                                             className={`form-control ${formErrors.frequency_hz ? 'is-invalid' : ''}`}
                                             value={formData.frequency_hz}
                                             onChange={(e) => setFormData({ ...formData, frequency_hz: e.target.value })}
+                                            placeholder="Optional - e.g., 144800000"
                                         />
                                         {formErrors.frequency_hz && <div className="invalid-feedback">{formErrors.frequency_hz}</div>}
-                                        <small className="text-muted">e.g., 144800000 for 144.8 MHz</small>
+                                        <small className="text-muted">Optional - Can be unknown for amateur stations</small>
                                     </div>
 
                                     <div className="mb-3">
-                                        <label className="form-label">Latitude *</label>
+                                        <label className="form-label">Latitude</label>
                                         <input
                                             type="number"
                                             step="0.000001"
                                             className={`form-control ${formErrors.latitude ? 'is-invalid' : ''}`}
                                             value={formData.latitude}
                                             onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                                            placeholder="Click map to set"
                                         />
                                         {formErrors.latitude && <div className="invalid-feedback">{formErrors.latitude}</div>}
+                                        <small className="text-muted">Optional - Click map to select location</small>
                                     </div>
 
                                     <div className="mb-3">
-                                        <label className="form-label">Longitude *</label>
+                                        <label className="form-label">Longitude</label>
                                         <input
                                             type="number"
                                             step="0.000001"
                                             className={`form-control ${formErrors.longitude ? 'is-invalid' : ''}`}
                                             value={formData.longitude}
                                             onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                                            placeholder="Click map to set"
                                         />
                                         {formErrors.longitude && <div className="invalid-feedback">{formErrors.longitude}</div>}
+                                        <small className="text-muted">Optional - Click map to select location</small>
                                     </div>
 
                                     <div className="mb-3">
-                                        <label className="form-label">Error Margin (meters) *</label>
+                                        <label className="form-label">Error Margin (meters)</label>
                                         <input
                                             type="number"
                                             step="0.1"
                                             className={`form-control ${formErrors.error_margin_meters ? 'is-invalid' : ''}`}
                                             value={formData.error_margin_meters}
                                             onChange={(e) => setFormData({ ...formData, error_margin_meters: e.target.value })}
+                                            placeholder="50"
                                         />
                                         {formErrors.error_margin_meters && <div className="invalid-feedback">{formErrors.error_margin_meters}</div>}
-                                        <small className="text-muted">Visualized as circle on map</small>
+                                        <small className="text-muted">Uncertainty radius (default: 50m)</small>
                                     </div>
 
                                     <div className="mb-3">
@@ -577,10 +674,12 @@ const SourcesManagement: React.FC = () => {
                                                 className={`list-group-item list-group-item-action ${selectedSource?.id === source.id ? 'active' : ''}`}
                                                 onClick={() => {
                                                     setSelectedSource(source);
-                                                    map.current?.flyTo({
-                                                        center: [source.longitude, source.latitude],
-                                                        zoom: 10,
-                                                    });
+                                                    if (source.latitude != null && source.longitude != null) {
+                                                        map.current?.flyTo({
+                                                            center: [source.longitude, source.latitude],
+                                                            zoom: 10,
+                                                        });
+                                                    }
                                                 }}
                                                 style={{ cursor: 'pointer' }}
                                             >
@@ -591,15 +690,22 @@ const SourcesManagement: React.FC = () => {
                                                             {source.is_validated && (
                                                                 <span className="badge bg-success ms-2">Validated</span>
                                                             )}
+                                                            {!source.latitude && !source.longitude && (
+                                                                <span className="badge bg-secondary ms-2">No Location</span>
+                                                            )}
                                                         </h6>
-                                                        <p className="mb-1 f-12">
-                                                            <i className="ph ph-radio-button me-1"></i>
-                                                            {(source.frequency_hz / 1e6).toFixed(3)} MHz
-                                                        </p>
-                                                        <p className="mb-1 f-12">
-                                                            <i className="ph ph-map-pin me-1"></i>
-                                                            {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
-                                                        </p>
+                                                        {source.frequency_hz && (
+                                                            <p className="mb-1 f-12">
+                                                                <i className="ph ph-radio-button me-1"></i>
+                                                                {(source.frequency_hz / 1e6).toFixed(3)} MHz
+                                                            </p>
+                                                        )}
+                                                        {source.latitude != null && source.longitude != null && (
+                                                            <p className="mb-1 f-12">
+                                                                <i className="ph ph-map-pin me-1"></i>
+                                                                {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
+                                                            </p>
+                                                        )}
                                                         <p className="mb-1 f-12">
                                                             <i className="ph ph-circle me-1"></i>
                                                             ±{source.error_margin_meters}m
