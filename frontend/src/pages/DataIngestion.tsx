@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { useAuthStore } from '../store/authStore';
 
 const DataIngestion: React.FC = () => {
+    const { isAuthenticated } = useAuthStore();
     const {
         knownSources,
         sessions,
         analytics,
-        isLoading,
         error,
         fetchKnownSources,
         fetchSessions,
@@ -15,15 +16,23 @@ const DataIngestion: React.FC = () => {
     } = useSessionStore();
 
     const [activeTab, setActiveTab] = useState<'sources' | 'sessions'>('sources');
+    const [pageLoading, setPageLoading] = useState(true);
 
     useEffect(() => {
+        if (!isAuthenticated) return;
+
         // Load data on mount
         const loadData = async () => {
-            await Promise.all([
-                fetchKnownSources(),
-                fetchSessions(),
-                fetchAnalytics(),
-            ]);
+            setPageLoading(true);
+            try {
+                await Promise.all([
+                    fetchKnownSources(),
+                    fetchSessions(),
+                    fetchAnalytics(),
+                ]);
+            } finally {
+                setPageLoading(false);
+            }
         };
         loadData();
 
@@ -34,14 +43,19 @@ const DataIngestion: React.FC = () => {
         }, 60000);
 
         return () => clearInterval(interval);
-    }, [fetchKnownSources, fetchSessions, fetchAnalytics]);
+    }, [isAuthenticated, fetchKnownSources, fetchSessions, fetchAnalytics]);
 
     const handleRefresh = async () => {
-        await Promise.all([
-            fetchKnownSources(),
-            fetchSessions(),
-            fetchAnalytics(),
-        ]);
+        setPageLoading(true);
+        try {
+            await Promise.all([
+                fetchKnownSources(),
+                fetchSessions(),
+                fetchAnalytics(),
+            ]);
+        } finally {
+            setPageLoading(false);
+        }
     };
 
     // Calculate statistics
@@ -50,6 +64,30 @@ const DataIngestion: React.FC = () => {
     const pendingSessions = sessions.filter(s => s.status === 'pending').length;
     const completedSessions = sessions.filter(s => s.status === 'completed').length;
     const successRate = analytics?.success_rate || 0;
+
+    if (!isAuthenticated) {
+        return (
+            <div className="container-fluid">
+                <div className="row justify-content-center">
+                    <div className="col-md-6">
+                        <div className="card">
+                            <div className="card-body text-center py-5">
+                                <i className="ph ph-lock f-40 text-muted mb-3"></i>
+                                <h4 className="mb-3">Authentication Required</h4>
+                                <p className="text-muted mb-4">
+                                    You need to be logged in to access the Data Ingestion page.
+                                </p>
+                                <a href="/login" className="btn btn-primary">
+                                    <i className="ph ph-sign-in me-2"></i>
+                                    Go to Login
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -232,7 +270,7 @@ const DataIngestion: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {isLoading ? (
+                                    {pageLoading ? (
                                         <div className="text-center py-5">
                                             <div className="spinner-border text-primary" role="status">
                                                 <span className="visually-hidden">Loading...</span>
@@ -314,7 +352,7 @@ const DataIngestion: React.FC = () => {
                                         </button>
                                     </div>
 
-                                    {isLoading ? (
+                                    {pageLoading ? (
                                         <div className="text-center py-5">
                                             <div className="spinner-border text-primary" role="status">
                                                 <span className="visually-hidden">Loading...</span>
