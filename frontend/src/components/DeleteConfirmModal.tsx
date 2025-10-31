@@ -4,7 +4,8 @@
  * Bootstrap 5 modal for confirming WebSDR deletion
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { WebSDRConfig } from '@/services/api/types';
 
 interface DeleteConfirmModalProps {
@@ -17,6 +18,25 @@ interface DeleteConfirmModalProps {
 const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ show, onHide, onConfirm, websdr }) => {
     const [hardDelete, setHardDelete] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [modalRoot] = useState(() => document.createElement('div'));
+
+    // Mount and unmount the modal root element
+    useEffect(() => {
+        if (show) {
+            document.body.appendChild(modalRoot);
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+
+            return () => {
+                // Restore body scroll
+                document.body.style.overflow = '';
+                // Clean up: remove the modal root from DOM
+                if (modalRoot.parentNode) {
+                    modalRoot.parentNode.removeChild(modalRoot);
+                }
+            };
+        }
+    }, [show, modalRoot]);
 
     const handleConfirm = async () => {
         setIsDeleting(true);
@@ -32,7 +52,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ show, onHide, o
 
     if (!show || !websdr) return null;
 
-    return (
+    return createPortal(
         <>
             {/* Modal Backdrop */}
             <div className="modal-backdrop fade show" onClick={onHide}></div>
@@ -133,7 +153,8 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ show, onHide, o
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        modalRoot
     );
 };
 
