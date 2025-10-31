@@ -17,6 +17,7 @@ const ModalStressTest: React.FC = () => {
 
     const mockSession: RecordingSessionWithDetails = {
         id: '123',
+        known_source_id: '456',
         session_name: 'Test Session',
         notes: 'Testing rapid modal operations',
         approval_status: 'pending',
@@ -25,7 +26,8 @@ const ModalStressTest: React.FC = () => {
         source_frequency: 145000000,
         measurements_count: 10,
         created_at: '2024-01-01T00:00:00Z',
-        started_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        session_start: '2024-01-01T00:00:00Z',
         duration_seconds: 60,
     };
 

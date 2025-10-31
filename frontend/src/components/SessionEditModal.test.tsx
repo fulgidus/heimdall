@@ -6,6 +6,7 @@ import type { RecordingSessionWithDetails } from '@/services/api/session';
 describe('SessionEditModal', () => {
     const mockSession: RecordingSessionWithDetails = {
         id: '123',
+        known_source_id: '456',
         session_name: 'Test Session',
         notes: 'Test notes',
         approval_status: 'pending',
@@ -14,7 +15,8 @@ describe('SessionEditModal', () => {
         source_frequency: 145000000,
         measurements_count: 10,
         created_at: '2024-01-01T00:00:00Z',
-        started_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        session_start: '2024-01-01T00:00:00Z',
         duration_seconds: 60,
     };
 
