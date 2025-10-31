@@ -23,6 +23,14 @@ CREATE TABLE IF NOT EXISTS websdr_stations (
     frequency_min_hz BIGINT,
     frequency_max_hz BIGINT,
     is_active BOOLEAN DEFAULT TRUE,
+    api_type VARCHAR(50) DEFAULT 'http',
+    rate_limit_ms INTEGER DEFAULT 1000,
+    timeout_seconds INTEGER DEFAULT 30,
+    retry_count INTEGER DEFAULT 3,
+    admin_email VARCHAR(255),
+    location_description TEXT,
+    altitude_asl INTEGER,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -162,6 +170,29 @@ CREATE INDEX IF NOT EXISTS idx_inference_requests_model ON inference_requests(mo
 
 CREATE INDEX IF NOT EXISTS idx_inference_requests_time ON inference_requests(timestamp DESC);
 
+-- Table: websdrs_uptime_history - Track WebSDR online/offline status over time
+CREATE TABLE IF NOT EXISTS websdrs_uptime_history (
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    id UUID DEFAULT uuid_generate_v4(),
+    websdr_id INT NOT NULL,
+    websdr_name VARCHAR(255),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('online', 'offline')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (timestamp, id)
+);
+
+-- Convert to TimescaleDB hypertable for efficient time-series queries
+SELECT
+    create_hypertable(
+        'websdrs_uptime_history',
+        'timestamp',
+        if_not_exists = > TRUE
+    );
+
+CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(websdr_id, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_timestamp ON websdrs_uptime_history(timestamp DESC);
+
 -- Grants
 GRANT CONNECT ON DATABASE heimdall TO heimdall_user;
 
@@ -172,3 +203,95 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA heimdall TO heimdall_user;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA heimdall TO heimdall_user;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA heimdall TO heimdall_user;
+
+-- Seed Italian WebSDR stations
+INSERT INTO
+    websdr_stations (
+        name,
+        url,
+        country,
+        latitude,
+        longitude,
+        is_active,
+        timeout_seconds,
+        retry_count,
+        location_description
+    )
+VALUES
+    (
+        'Aquila di Giaveno',
+        'http://sdr1.ik1jns.it:8076',
+        'Italy',
+        45.03,
+        7.27,
+        TRUE,
+        30,
+        3,
+        'Aquila, Giaveno, Turin'
+    ),
+    (
+        'Montanaro',
+        'http://cbfenis.ddns.net:43510',
+        'Italy',
+        45.234,
+        7.857,
+        TRUE,
+        30,
+        3,
+        'Montanaro, Italy'
+    ),
+    (
+        'Torino',
+        'http://vst-aero.it:8073',
+        'Italy',
+        45.044,
+        7.672,
+        TRUE,
+        30,
+        3,
+        'Torino, Italy'
+    ),
+    (
+        'Coazze',
+        'http://94.247.189.130:8076',
+        'Italy',
+        45.03,
+        7.27,
+        TRUE,
+        30,
+        3,
+        'Coazze, Italy'
+    ),
+    (
+        'Passo del Giovi',
+        'http://iz1mlt.ddns.net:8074',
+        'Italy',
+        44.561,
+        8.956,
+        TRUE,
+        30,
+        3,
+        'Passo del Giovi, Italy'
+    ),
+    (
+        'Genova',
+        'http://iq1zw.ddns.net:42154',
+        'Italy',
+        44.395,
+        8.956,
+        TRUE,
+        30,
+        3,
+        'Genova, Italy'
+    ),
+    (
+        'Milano - Baggio',
+        'http://iu2mch.duckdns.org:8073',
+        'Italy',
+        45.478,
+        9.123,
+        TRUE,
+        30,
+        3,
+        'Milano (Baggio), Italy'
+    ) ON CONFLICT (name) DO NOTHING;

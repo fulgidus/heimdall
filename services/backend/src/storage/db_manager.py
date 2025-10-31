@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from typing import List, Dict, Any, Optional, Generator, Tuple
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, select, func, and_, desc
+from sqlalchemy import create_engine, select, func, and_, desc, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.pool import NullPool
@@ -57,6 +57,15 @@ class DatabaseManager:
                 poolclass=poolclass,
                 connect_args=connect_args if connect_args else {}
             )
+            
+            # Set search_path for PostgreSQL to use heimdall schema by default
+            if "postgresql" in self.database_url or "postgres" in self.database_url:
+                @event.listens_for(self.engine, "connect")
+                def set_search_path(dbapi_conn, connection_record):
+                    cursor = dbapi_conn.cursor()
+                    cursor.execute("SET search_path TO heimdall, public")
+                    cursor.close()
+            
             self.SessionLocal = sessionmaker(
                 bind=self.engine,
                 expire_on_commit=False,
