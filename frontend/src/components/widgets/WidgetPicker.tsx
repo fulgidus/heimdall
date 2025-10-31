@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AVAILABLE_WIDGETS } from '@/types/widgets';
 import { useWidgetStore } from '@/store/widgetStore';
 
@@ -9,6 +10,25 @@ interface WidgetPickerProps {
 
 export const WidgetPicker: React.FC<WidgetPickerProps> = ({ show, onClose }) => {
     const { addWidget } = useWidgetStore();
+    const [modalRoot] = useState(() => document.createElement('div'));
+
+    // Mount and unmount the modal root element
+    useEffect(() => {
+        if (show) {
+            document.body.appendChild(modalRoot);
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+
+            return () => {
+                // Restore body scroll
+                document.body.style.overflow = '';
+                // Clean up: remove the modal root from DOM
+                if (modalRoot.parentNode) {
+                    modalRoot.parentNode.removeChild(modalRoot);
+                }
+            };
+        }
+    }, [show, modalRoot]);
 
     const handleAddWidget = (widgetType: string) => {
         addWidget(widgetType as any);
@@ -17,7 +37,7 @@ export const WidgetPicker: React.FC<WidgetPickerProps> = ({ show, onClose }) => 
 
     if (!show) return null;
 
-    return (
+    return createPortal(
         <>
             <div className="modal show d-block" tabIndex={-1}>
                 <div className="modal-dialog modal-dialog-centered">
@@ -62,6 +82,7 @@ export const WidgetPicker: React.FC<WidgetPickerProps> = ({ show, onClose }) => 
                 </div>
             </div>
             <div className="modal-backdrop fade show" onClick={onClose} />
-        </>
+        </>,
+        modalRoot
     );
 };
