@@ -12,6 +12,7 @@ structlog==24.1.0
 # HTTP clients
 httpx==0.27.0
 aiohttp==3.9.0
+requests==2.31.0
 
 # Database
 psycopg2-binary==2.9.9
