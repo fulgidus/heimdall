@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     def get_cors_headers_list(self) -> List[str]:
         """Parse comma-separated CORS headers into a list."""
         return [header.strip() for header in self.cors_allow_headers.split(",") if header.strip()]
+    
+    def get_cors_expose_headers_list(self) -> List[str]:
+        """Parse comma-separated CORS expose headers into a list."""
+        if self.cors_expose_headers == "*":
+            return ["*"]
+        return [header.strip() for header in self.cors_expose_headers.split(",") if header.strip()]
 
 
 settings = Settings()

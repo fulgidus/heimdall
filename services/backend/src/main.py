@@ -48,7 +48,7 @@ app.add_middleware(
     allow_credentials=settings.cors_allow_credentials,
     allow_methods=settings.get_cors_methods_list(),
     allow_headers=settings.get_cors_headers_list(),
-    expose_headers=["*"] if settings.cors_expose_headers == "*" else settings.cors_expose_headers.split(","),
+    expose_headers=settings.get_cors_expose_headers_list(),
     max_age=settings.cors_max_age,
 )
 
