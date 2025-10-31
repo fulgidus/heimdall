@@ -7,8 +7,8 @@
  */
 
 import api from '@/lib/api';
-import { ServiceHealthSchema } from './schemas';
-import type { ServiceHealth } from './schemas';
+import { ServiceHealthSchema, DetailedHealthResponseSchema } from './schemas';
+import type { ServiceHealth, DetailedHealthResponse } from './schemas';
 
 /**
  * Check health of a specific service
@@ -72,10 +72,22 @@ export async function getAPIGatewayStatus(): Promise<Record<string, unknown>> {
     return response.data;
 }
 
+/**
+ * Get detailed health check with dependency status for backend service
+ */
+export async function getDetailedHealth(): Promise<DetailedHealthResponse> {
+    const response = await api.get('/api/v1/backend/health/detailed');
+    
+    // Validate response with Zod
+    const validated = DetailedHealthResponseSchema.parse(response.data);
+    return validated;
+}
+
 const systemService = {
     checkServiceHealth,
     checkAllServicesHealth,
     getAPIGatewayStatus,
+    getDetailedHealth,
 };
 
 export default systemService;

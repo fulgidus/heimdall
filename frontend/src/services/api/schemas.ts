@@ -163,6 +163,23 @@ export const ServiceHealthSchema = z.object({
     details: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const DependencyHealthSchema = z.object({
+    name: z.string(),
+    status: z.enum(['up', 'down', 'degraded', 'unknown']),
+    response_time_ms: z.string(), // Backend returns as string formatted number
+    error_message: z.string().nullable().optional(),
+});
+
+export const DetailedHealthResponseSchema = z.object({
+    status: z.enum(['up', 'down', 'degraded', 'unknown']),
+    service_name: z.string(),
+    version: z.string(),
+    timestamp: z.string(),
+    uptime_seconds: z.number().nonnegative(),
+    dependencies: z.array(DependencyHealthSchema),
+    ready: z.boolean(),
+});
+
 export const SystemMetricsSchema = z.object({
     cpu_percent: z.number().min(0).max(100),
     memory_percent: z.number().min(0).max(100),
@@ -320,6 +337,8 @@ export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 export type ModelPerformanceMetrics = z.infer<typeof ModelPerformanceMetricsSchema>;
 export type PredictionResponse = z.infer<typeof PredictionResponseSchema>;
 export type ServiceHealth = z.infer<typeof ServiceHealthSchema>;
+export type DependencyHealth = z.infer<typeof DependencyHealthSchema>;
+export type DetailedHealthResponse = z.infer<typeof DetailedHealthResponseSchema>;
 export type RecordingSession = z.infer<typeof RecordingSessionSchema>;
 export type RecordingSessionWithDetails = z.infer<typeof RecordingSessionWithDetailsSchema>;
 export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
