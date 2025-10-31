@@ -99,6 +99,7 @@ npm run build:app
 - **[API Reference](https://fulgidus.github.io/heimdall/API.html)** - REST endpoints
 - **[Architecture](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)** - System design
 - **[Training Guide](https://fulgidus.github.io/heimdall/TRAINING.html)** - ML model training
+- **[Tauri Desktop Integration](https://fulgidus.github.io/heimdall/TAURI_INTEGRATION.html)** - Desktop app development
 
 **Project**:
 - **[Contributing](CONTRIBUTING.md)** - How to contribute
