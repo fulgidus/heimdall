@@ -1,28 +1,30 @@
 {
-  "name": "heimdall",
-  "version": "0.3.1",
-  "description": "Real-time radio source localization platform with desktop support",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
-    "tauri:build:training": "tauri build --config tauri/tauri.conf.training.json",
-    "tauri:build:inference": "tauri build --config tauri/tauri.conf.inference.json",
-    "build:app": "npm run build:frontend && npm run tauri:build",
-    "build:app:training": "npm run build:frontend && npm run tauri:build:training",
-    "build:app:inference": "npm run build:frontend && npm run tauri:build:inference",
-    "build:frontend": "cd frontend && npm run build",
-    "dev:frontend": "cd frontend && npm run dev",
-    "install:frontend": "cd frontend && npm install",
-    "install:all": "npm install && npm run install:frontend"
-  },
-  "devDependencies": {
-    "@tauri-apps/cli": "^2.9.2"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  }
+    "name": "heimdall",
+    "version": "0.3.1",
+    "description": "Real-time radio source localization platform with desktop support",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "tauri": "tauri",
+        "dev": "concurrently \"pnpm dev:frontend\" \"pnpm tauri:dev\"",
+        "tauri:dev": "tauri dev",
+        "tauri:build": "tauri build",
+        "tauri:build:training": "tauri build --config tauri/tauri.conf.training.json",
+        "tauri:build:inference": "tauri build --config tauri/tauri.conf.inference.json",
+        "build:app": "pnpm build:frontend && pnpm tauri:build",
+        "build:app:training": "pnpm build:frontend && pnpm tauri:build:training",
+        "build:app:inference": "pnpm build:frontend && pnpm tauri:build:inference",
+        "build:frontend": "cd frontend && pnpm build",
+        "dev:frontend": "cd frontend && pnpm dev",
+        "install:frontend": "cd frontend && pnpm i",
+        "install:all": "pnpm i && pnpm install:frontend"
+    },
+    "devDependencies": {
+        "@tauri-apps/cli": "^2.9.2",
+        "concurrently": "^8.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "pnpm": ">=7.0.0"
+    }
 }
