@@ -17,7 +17,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             api_url: "http://localhost:8000".to_string(),
-            websocket_url: "ws://localhost:80/ws".to_string(),
+            websocket_url: "ws://localhost:8000/ws".to_string(),
             mapbox_token: String::new(),
             auto_start_backend: false,
             backend_port: 8000,

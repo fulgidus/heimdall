@@ -4,7 +4,6 @@ import { isTauriEnvironment, tauriAPI } from '../lib/tauri-bridge';
 const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'general' | 'api' | 'notifications' | 'advanced'>('general');
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
     const isDesktop = isTauriEnvironment();
 
     // Settings state (TODO: Connect to backend settings API)
@@ -42,7 +41,6 @@ const Settings: React.FC = () => {
 
     const loadDesktopSettings = async () => {
         try {
-            setIsLoading(true);
             const desktopSettings = await tauriAPI.settings.load();
             // Merge desktop settings with existing state
             setSettings(prev => ({
@@ -52,8 +50,6 @@ const Settings: React.FC = () => {
             }));
         } catch (error) {
             console.error('Failed to load desktop settings:', error);
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -67,7 +63,7 @@ const Settings: React.FC = () => {
             if (isDesktop) {
                 await tauriAPI.settings.save({
                     api_url: 'http://localhost:8000',
-                    websocket_url: 'ws://localhost:80/ws',
+                    websocket_url: 'ws://localhost:8000/ws',
                     mapbox_token: '',
                     auto_start_backend: false,
                     backend_port: 8000,
