@@ -58,12 +58,33 @@ make health-check
 | **Backend**        | Python (FastAPI + Celery)   | Microservices        |
 | **ML Pipeline**    | PyTorch Lightning + MLflow  | Training & Inference |
 | **Frontend**       | React + TypeScript + Mapbox | Web UI               |
+| **Desktop App**    | Tauri + Rust                | Desktop wrapper      |
 | **Storage**        | PostgreSQL + TimescaleDB    | Time-series data     |
 | **Queue**          | RabbitMQ                    | Task orchestration   |
 | **Object Storage** | MinIO (S3-compatible)       | IQ data & models     |
 | **Deployment**     | Kubernetes + Helm           | Production           |
 
 → **[Architecture Deep-Dive](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)**
+
+### 🖥️ Desktop Application
+
+Heimdall is also available as a **native desktop application** using Tauri:
+
+```bash
+# Development mode (with hot reload)
+npm run tauri:dev
+
+# Build production executable
+npm run build:app
+```
+
+**Desktop Features**:
+- Native GPU detection and monitoring
+- Local settings persistence
+- Direct backend process management (optional)
+- Full web functionality + desktop integration
+
+**Platform Support**: Windows 10/11, macOS 10.13+, Linux (AppImage)
 
 ---
 
