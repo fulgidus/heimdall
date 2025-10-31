@@ -378,14 +378,7 @@ docker compose exec redis redis-cli FLUSHALL
 
 **Solution**:
 
-See the comprehensive [GitHub Actions Service Containers Troubleshooting Guide](agents/github_actions_service_containers_troubleshooting.md) for detailed solutions including:
-- Service container limitations and workarounds
-- Manual container startup patterns
-- Network discovery for service communication
-- Health check implementation
-- Cleanup procedures
-
-For the specific MinIO and Keycloak fix, see [Integration Tests Fix Documentation](agents/20251024_235900_integration_tests_fix.md).
+Service containers have limitations. Instead, start containers manually:
 
 **Quick Fix Pattern**:
 ```yaml
@@ -533,4 +526,4 @@ grep -v PASSWORD .env | grep -v SECRET | grep -v API_KEY >> diagnostics.txt
 
 ---
 
-**Related**: [FAQ](./faqs.md) | [Support](../README.md)
+**Related**: [FAQ](./FAQ.md) | [Support](../README.md)

@@ -47,7 +47,7 @@ make health-check
 
 **Done!** Open http://localhost:3000
 
-→ **[Full Installation Guide](docs/QUICK_START.md)**
+→ **[Full Installation Guide](https://fulgidus.github.io/heimdall/QUICK_START.html)**
 
 ---
 
@@ -63,29 +63,28 @@ make health-check
 | **Object Storage** | MinIO (S3-compatible)       | IQ data & models     |
 | **Deployment**     | Kubernetes + Helm           | Production           |
 
-→ **[Architecture Deep-Dive](docs/ARCHITECTURE.md)**
+→ **[Architecture Deep-Dive](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)**
 
 ---
 
 ## 📚 Documentation
 
 **Getting Started**:
-- **[Quick Start](docs/QUICK_START.md)** - Setup in 5 minutes
-- **[Development Guide](docs/DEVELOPMENT.md)** - Contributing and local setup
-- **[FAQ](docs/FAQ.md)** - Common questions
+- **[Quick Start](https://fulgidus.github.io/heimdall/QUICK_START.html)** - Setup in 5 minutes
+- **[Development Guide](https://fulgidus.github.io/heimdall/DEVELOPMENT.html)** - Contributing and local setup
+- **[FAQ](https://fulgidus.github.io/heimdall/FAQ.html)** - Common questions
 
 **Reference**:
-- **[API Reference](docs/api_reference.md)** - REST endpoints
-- **[Architecture](docs/ARCHITECTURE.md)** - System design
-- **[Health Checks](docs/HEALTH_CHECKS.md)** - Service health monitoring
-- **[Deployment](docs/deployment_instructions.md)** - Production setup
+- **[API Reference](https://fulgidus.github.io/heimdall/API.html)** - REST endpoints
+- **[Architecture](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)** - System design
+- **[Training Guide](https://fulgidus.github.io/heimdall/TRAINING.html)** - ML model training
 
 **Project**:
 - **[Contributing](CONTRIBUTING.md)** - How to contribute
 - **[Roadmap](AGENTS.md)** - Development phases
 - **[Changelog](CHANGELOG.md)** - Version history
 
-→ **[Full Documentation Index](docs/index.md)**
+→ **[Full Documentation Index](https://fulgidus.github.io/heimdall/)**
 
 ---
 
@@ -104,8 +103,6 @@ make health-check
 - Concurrent capacity: **50 simultaneous tasks**
 - Success rate: **100%**
 - Container memory: **100-300MB per service**
-
-→ **[Performance Report](docs/agents/20251022_080000_phase4_completion_final.md)**
 
 ---
 
@@ -143,8 +140,6 @@ cd frontend && pnpm test
 **Coverage**: >80% across all services  
 **E2E Tests**: 42 tests, 100% real HTTP calls
 
-→ **[Testing Guide](docs/testing_strategies.md)**
-
 ---
 
 ## 🤝 Contributing
@@ -157,7 +152,7 @@ We welcome contributions! See **[Contributing Guidelines](CONTRIBUTING.md)** for
 3. Make your changes with tests
 4. Submit a pull request
 
-→ **[Development Setup](docs/DEVELOPMENT.md)**
+→ **[Development Setup](https://fulgidus.github.io/heimdall/DEVELOPMENT.html)**
 
 ---
 

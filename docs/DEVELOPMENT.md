@@ -432,7 +432,7 @@ pnpm store prune
 ## Getting Help
 
 - **Documentation**: Check [docs/index.md](index.md)
-- **FAQ**: See [FAQ](faqs.md)
+- **FAQ**: See [FAQ](FAQ.md)
 - **Issues**: Search [GitHub Issues](https://github.com/fulgidus/heimdall/issues)
 - **Discussions**: Use [GitHub Discussions](https://github.com/fulgidus/heimdall/discussions)
 - **Email**: alessio.corsi@gmail.com
@@ -440,7 +440,5 @@ pnpm store prune
 ## Additional Resources
 
 - [Architecture Guide](ARCHITECTURE.md) - System design deep-dive
-- [API Reference](api_reference.md) - REST API documentation
+- [API Reference](API.md) - REST API documentation
 - [Contributing Guidelines](../CONTRIBUTING.md) - How to contribute
-- [Project Standards](standards/PROJECT_STANDARDS.md) - Coding standards
-- [Documentation Standards](standards/DOCUMENTATION_STANDARDS.md) - Doc guidelines
