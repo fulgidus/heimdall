@@ -18,6 +18,7 @@ from .models.health import HealthResponse
 from .routers.acquisition import router as acquisition_router
 from .routers.sessions import router as sessions_router
 from .routers.websocket import router as websocket_router
+from .routers.import_export import router as import_export_router
 
 # Import common health utilities
 from common.health import HealthChecker
@@ -181,6 +182,7 @@ async def shutdown_event():
 app.include_router(acquisition_router)
 app.include_router(sessions_router)
 app.include_router(websocket_router)
+app.include_router(import_export_router)
 
 # Initialize health checker
 health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)

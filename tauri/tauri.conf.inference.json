@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Heimdall SDR",
+  "productName": "Heimdall SDR Inference",
   "version": "0.3.1",
-  "identifier": "com.heimdall.sdr",
+  "identifier": "com.heimdall.sdr.inference",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:3001",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Heimdall SDR - Radio Source Localization",
+        "title": "Heimdall SDR - Inference Mode",
         "width": 1400,
         "height": 900,
         "minWidth": 1024,
@@ -36,8 +36,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "longDescription": "Heimdall SDR is a real-time radio source localization platform using triangulation from geographically distributed WebSDR receivers.",
-    "shortDescription": "Real-time radio source localization platform",
+    "longDescription": "Heimdall SDR Inference Mode - Lightweight version for inference-only operations in radio source localization.",
+    "shortDescription": "Radio localization platform - Inference Mode",
     "fileAssociations": [
       {
         "ext": ["heimdall"],

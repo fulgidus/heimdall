@@ -1,6 +1,7 @@
 mod commands;
 
-use commands::{data_collection, training, gpu, settings};
+use commands::{data_collection, training, gpu, settings, import_export};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -9,9 +10,31 @@ pub fn run() {
       .level(log::LevelFilter::Info)
       .build())
     .plugin(tauri_plugin_shell::init())
-    .setup(|_app| {
+    .setup(|app| {
       log::info!("Heimdall SDR Desktop starting...");
       log::info!("Application running in {} mode", if cfg!(debug_assertions) { "debug" } else { "release" });
+      
+      // Check for command-line arguments (file path from OS file association)
+      let args: Vec<String> = std::env::args().collect();
+      log::info!("Application started with {} arguments", args.len());
+      
+      // If launched with a .heimdall file, emit event to frontend
+      if args.len() > 1 {
+        for arg in args.iter().skip(1) {
+          if arg.ends_with(".heimdall") && std::path::Path::new(arg).exists() {
+            log::info!("Detected .heimdall file from command line: {}", arg);
+            let file_path = arg.clone();
+            let app_handle = app.handle();
+            
+            // Emit event to frontend after a short delay to ensure UI is ready
+            std::thread::spawn(move || {
+              std::thread::sleep(std::time::Duration::from_millis(1000));
+              let _ = app_handle.emit("open-heimdall-file", file_path);
+            });
+            break;
+          }
+        }
+      }
       
       Ok(())
     })
@@ -31,6 +54,12 @@ pub fn run() {
       settings::load_settings,
       settings::save_settings,
       settings::reset_settings,
+      // Import/Export commands
+      import_export::save_heimdall_file,
+      import_export::load_heimdall_file,
+      import_export::load_heimdall_file_from_path,
+      import_export::save_heimdall_file_to_path,
+      import_export::get_default_export_path,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
