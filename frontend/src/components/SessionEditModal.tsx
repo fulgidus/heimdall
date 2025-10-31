@@ -3,7 +3,7 @@ import type { RecordingSessionWithDetails } from '@/services/api/session';
 
 interface SessionEditModalProps {
     session: RecordingSessionWithDetails;
-    onSave: (sessionId: number, updates: {
+    onSave: (sessionId: string, updates: {
         session_name?: string;
         notes?: string;
         approval_status?: 'pending' | 'approved' | 'rejected';
