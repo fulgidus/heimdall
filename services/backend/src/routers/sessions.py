@@ -5,7 +5,7 @@ Recording sessions API endpoints
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Path
 import asyncpg
 import logging
 
@@ -176,8 +176,10 @@ async def get_session_analytics():
 
 
 @router.get("/{session_id}", response_model=RecordingSessionWithDetails)
-async def get_session(session_id: UUID):
+async def get_session(session_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", description="Session ID as UUID")):
     """Get a specific recording session by ID"""
+    # Convert to UUID
+    session_uuid = UUID(session_id)
     pool = get_pool()
     
     query = """
@@ -208,7 +210,7 @@ async def get_session(session_id: UUID):
     """
     
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(query, session_id)
+        row = await conn.fetchrow(query, session_uuid)
         
         if not row:
             raise HTTPException(status_code=404, detail="Session not found")
@@ -235,8 +237,12 @@ async def get_session(session_id: UUID):
 
 
 @router.patch("/{session_id}", response_model=RecordingSessionWithDetails)
-async def update_session(session_id: UUID, session_update: RecordingSessionUpdate):
+async def update_session(
+    session_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"),
+    session_update: RecordingSessionUpdate = ...,
+):
     """Update recording session metadata (session_name, notes, approval_status)"""
+    session_uuid = UUID(session_id)
     pool = await get_pool()
     
     # Build dynamic update query based on provided fields
@@ -450,11 +456,12 @@ async def create_session(
 
 @router.patch("/{session_id}/status")
 async def update_session_status(
-    session_id: UUID,
-    status: str,
+    session_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"),
+    status: str = ...,
     celery_task_id: Optional[str] = None,
 ):
     """Update session status"""
+    session_uuid = UUID(session_id)
     pool = get_pool()
     
     # Validate status
@@ -492,8 +499,12 @@ async def update_session_status(
 
 
 @router.patch("/{session_id}/approval")
-async def update_session_approval(session_id: UUID, approval_status: str):
+async def update_session_approval(
+    session_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"),
+    approval_status: str = ...,
+):
     """Update session approval status"""
+    session_uuid = UUID(session_id)
     pool = get_pool()
     
     # Validate approval status
@@ -524,14 +535,15 @@ async def update_session_approval(session_id: UUID, approval_status: str):
 
 
 @router.delete("/{session_id}", status_code=204)
-async def delete_session(session_id: UUID):
+async def delete_session(session_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")):
     """Delete a recording session"""
+    session_uuid = UUID(session_id)
     pool = get_pool()
     
     async with pool.acquire() as conn:
         result = await conn.execute(
             "DELETE FROM heimdall.recording_sessions WHERE id = $1",
-            session_id
+            session_uuid
         )
         
         if result == "DELETE 0":
@@ -540,7 +552,7 @@ async def delete_session(session_id: UUID):
         return None
 
 
-@router.get("/known-sources", response_model=List[KnownSource])
+@router.get("/sources", response_model=List[KnownSource])
 async def list_known_sources():
     """List all known RF sources"""
     pool = get_pool()
@@ -557,9 +569,17 @@ async def list_known_sources():
         return [KnownSource(**dict(row)) for row in rows]
 
 
+# Alias for backward compatibility - /known-sources also works
+@router.get("/known-sources", response_model=List[KnownSource])
+async def list_known_sources_compat():
+    """List all known RF sources (alias for /sources for backward compatibility)"""
+    return await list_known_sources()
+
+
 @router.get("/known-sources/{source_id}", response_model=KnownSource)
-async def get_known_source(source_id: UUID):
+async def get_known_source(source_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")):
     """Get a specific known RF source"""
+    source_uuid = UUID(source_id)
     pool = get_pool()
     
     query = """
@@ -570,7 +590,7 @@ async def get_known_source(source_id: UUID):
     """
     
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(query, source_id)
+        row = await conn.fetchrow(query, source_uuid)
         
         if not row:
             raise HTTPException(status_code=404, detail="Known source not found")
@@ -614,8 +634,12 @@ async def create_known_source(source: KnownSourceCreate):
 
 
 @router.put("/known-sources/{source_id}", response_model=KnownSource)
-async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
+async def update_known_source(
+    source_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"),
+    source: KnownSourceUpdate = ...,
+):
     """Update a known RF source"""
+    source_uuid = UUID(source_id)
     pool = get_pool()
     
     # Build dynamic update query based on provided fields
@@ -669,7 +693,7 @@ async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
     # Always update updated_at
     update_fields.append("updated_at = NOW()")
     
-    params.append(source_id)
+    params.append(source_uuid)
     
     query = f"""
         UPDATE heimdall.known_sources
@@ -695,15 +719,16 @@ async def update_known_source(source_id: UUID, source: KnownSourceUpdate):
 
 
 @router.delete("/known-sources/{source_id}", status_code=204)
-async def delete_known_source(source_id: UUID):
+async def delete_known_source(source_id: str = Path(..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")):
     """Delete a known RF source"""
+    source_uuid = UUID(source_id)
     pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if source is in use by any recording sessions
         usage_check = await conn.fetchval(
             "SELECT COUNT(*) FROM heimdall.recording_sessions WHERE known_source_id = $1",
-            source_id
+            source_uuid
         )
         
         if usage_check > 0:
@@ -714,7 +739,7 @@ async def delete_known_source(source_id: UUID):
         
         result = await conn.execute(
             "DELETE FROM heimdall.known_sources WHERE id = $1",
-            source_id
+            source_uuid
         )
         
         if result == "DELETE 0":

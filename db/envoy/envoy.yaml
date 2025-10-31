@@ -45,10 +45,10 @@ static_resources:
                         
                         # API Gateway routes - all /api/v1 goes to backend
                         - match:
-                            prefix: "/api/v1"
+                            prefix: "/api/v1/"
                           route:
                             cluster: backend_cluster
-                            prefix_rewrite: "/api/v1"
+                            prefix_rewrite: "/api/v1/"
                             timeout: 30s
                           name: "api_v1"
                         
@@ -61,6 +61,14 @@ static_resources:
                             upgrade_configs:
                               - upgrade_type: websocket
                           name: "websocket"
+                        
+                        # Health check routes - should go to backend
+                        - match:
+                            prefix: "/health"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/health"
+                          name: "health_checks"
                         
                         # Frontend static files and SPA
                         - match:

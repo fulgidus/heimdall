@@ -14,8 +14,9 @@ import type { ServiceHealth, DetailedHealthResponse } from './schemas';
  * Check health of a specific service
  */
 export async function checkServiceHealth(serviceName: string): Promise<ServiceHealth> {
-    const response = await api.get(`/api/v1/${serviceName}/health`);
-    
+    // Health endpoints are served at root level, not under /api/v1
+    const response = await api.get(`/${serviceName}/health`);
+
     // Validate response with Zod
     const validated = ServiceHealthSchema.parse(response.data);
     return validated;
@@ -76,8 +77,9 @@ export async function getAPIGatewayStatus(): Promise<Record<string, unknown>> {
  * Get detailed health check with dependency status for backend service
  */
 export async function getDetailedHealth(): Promise<DetailedHealthResponse> {
-    const response = await api.get('/api/v1/backend/health/detailed');
-    
+    // Health endpoints are served at root level, not under /api/v1
+    const response = await api.get('/health/detailed');
+
     // Validate response with Zod
     const validated = DetailedHealthResponseSchema.parse(response.data);
     return validated;
