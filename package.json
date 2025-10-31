@@ -1,0 +1,24 @@
+{
+  "name": "heimdall",
+  "version": "0.3.1",
+  "description": "Real-time radio source localization platform with desktop support",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "build:app": "npm run build:frontend && npm run tauri:build",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:frontend": "cd frontend && npm install",
+    "install:all": "npm install && npm run install:frontend"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

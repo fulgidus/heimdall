@@ -8,6 +8,16 @@ node_modules/
 dist/
 build/
 
+# Tauri
+tauri/target/
+tauri/Cargo.lock
+*.dmg
+*.app
+*.exe
+*.msi
+*.deb
+*.AppImage
+
 # Python
 venv
 __pycache__/
