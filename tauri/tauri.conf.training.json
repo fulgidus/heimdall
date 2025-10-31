@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Heimdall SDR Training",
+  "version": "0.3.1",
+  "identifier": "com.heimdall.sdr.training",
+  "build": {
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:3001",
+    "beforeBuildCommand": "npm run build:frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Heimdall SDR - Training Mode",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 768,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "longDescription": "Heimdall SDR Training Mode - Full featured version with local training capabilities for radio source localization.",
+    "shortDescription": "Radio localization platform - Training Mode"
+  },
+  "plugins": {
+    "log": {
+      "level": "info"
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}
