@@ -41,20 +41,28 @@ class Settings(BaseSettings):
     
     def get_cors_origins_list(self) -> List[str]:
         """Parse comma-separated CORS origins into a list."""
+        if not self.cors_origins:
+            return []
         if self.cors_origins == "*":
             return ["*"]
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
     
     def get_cors_methods_list(self) -> List[str]:
         """Parse comma-separated CORS methods into a list."""
+        if not self.cors_allow_methods:
+            return []
         return [method.strip() for method in self.cors_allow_methods.split(",") if method.strip()]
     
     def get_cors_headers_list(self) -> List[str]:
         """Parse comma-separated CORS headers into a list."""
+        if not self.cors_allow_headers:
+            return []
         return [header.strip() for header in self.cors_allow_headers.split(",") if header.strip()]
     
     def get_cors_expose_headers_list(self) -> List[str]:
         """Parse comma-separated CORS expose headers into a list."""
+        if not self.cors_expose_headers:
+            return []
         if self.cors_expose_headers == "*":
             return ["*"]
         return [header.strip() for header in self.cors_expose_headers.split(",") if header.strip()]
