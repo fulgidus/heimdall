@@ -9,7 +9,7 @@ pub fn run() {
       .level(log::LevelFilter::Info)
       .build())
     .plugin(tauri_plugin_shell::init())
-    .setup(|app| {
+    .setup(|_app| {
       log::info!("Heimdall SDR Desktop starting...");
       log::info!("Application running in {} mode", if cfg!(debug_assertions) { "debug" } else { "release" });
       
