@@ -68,6 +68,18 @@ Each section can be independently included or excluded:
 
 ### Desktop Application (Tauri)
 
+#### File Association
+
+When you install the Heimdall SDR desktop application, it automatically registers as the default application for `.heimdall` files with your operating system.
+
+**Opening .heimdall Files:**
+- **Double-click** any `.heimdall` file in your file explorer
+- The application will launch automatically
+- You'll be taken directly to the **Import/Export** page
+- The file will be loaded and ready for import
+
+This makes it easy to share configurations with colleagues or restore backups - just double-click the file!
+
 #### Exporting Data
 
 1. Navigate to **Settings** → **Import/Export**
@@ -86,6 +98,7 @@ Each section can be independently included or excluded:
 
 #### Importing Data
 
+**Method 1: Via Application**
 1. Navigate to **Settings** → **Import/Export**
 2. Click **Open .heimdall File**
 3. Select file from file dialog
@@ -94,6 +107,15 @@ Each section can be independently included or excluded:
 6. Choose whether to overwrite existing data
 7. Click **Confirm Import**
 8. Review import results
+
+**Method 2: Double-Click File (Recommended)**
+1. Double-click the `.heimdall` file in your file explorer
+2. Application opens to Import/Export page with file pre-loaded
+3. Review file metadata and available sections
+4. Select sections to import
+5. Choose whether to overwrite existing data
+6. Click **Confirm Import**
+7. Review import results
 
 ### Web Application (Docker)
 
@@ -266,6 +288,63 @@ const result = await invoke('load_heimdall_file_from_path', {
 const result = await invoke('save_heimdall_file_to_path', {
   content: JSON.stringify(heimdallFile),
   path: '/path/to/file.heimdall',
+});
+```
+
+## File Association Implementation
+
+### OS Registration
+
+The application registers itself as the default handler for `.heimdall` files through Tauri's bundle configuration:
+
+```json
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["heimdall"],
+        "name": "Heimdall Export File",
+        "description": "Heimdall SDR configuration and data export file",
+        "role": "Editor",
+        "mimeType": "application/x-heimdall"
+      }
+    ]
+  }
+}
+```
+
+This configuration is included in all build modes (standard, training, inference).
+
+### Command-Line Handling
+
+When the OS launches the application with a `.heimdall` file, Tauri captures the file path as a command-line argument:
+
+1. Application starts with file path as argument
+2. Backend detects `.heimdall` file in arguments
+3. Emits `open-heimdall-file` event to frontend
+4. Frontend listens for event and automatically:
+   - Navigates to Import/Export page
+   - Loads the file content
+   - Displays import preview
+
+### Event Flow
+
+```typescript
+// Backend (Rust) - lib.rs
+if arg.ends_with(".heimdall") {
+  app_handle.emit("open-heimdall-file", file_path);
+}
+
+// Frontend (TypeScript) - App.tsx
+listen('open-heimdall-file', (event) => {
+  navigate('/import-export');
+});
+
+// Frontend (TypeScript) - ImportExport.tsx
+listen('open-heimdall-file', async (event) => {
+  const filePath = event.payload;
+  const result = await invoke('load_heimdall_file_from_path', { path: filePath });
+  // Load and display file for import
 });
 ```
 

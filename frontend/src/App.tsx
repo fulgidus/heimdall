@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
 import { useAuthStore } from './store';
 import DattaLayout from './components/layout/DattaLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -54,6 +54,33 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <DattaLayout>{children}</DattaLayout>;
 };
 
+// Component to handle file open navigation
+const FileOpenHandler: React.FC = () => {
+    const navigate = useNavigate();
+    const isTauriApp = '__TAURI__' in window;
+
+    useEffect(() => {
+        if (!isTauriApp) return;
+
+        const setupFileOpenNavigation = async () => {
+            try {
+                const { listen } = await import('@tauri-apps/api/event');
+                const unlisten = await listen<string>('open-heimdall-file', () => {
+                    console.log('Navigating to import/export page due to file open event');
+                    navigate('/import-export');
+                });
+                return unlisten;
+            } catch (error) {
+                console.error('Failed to setup file open navigation:', error);
+            }
+        };
+
+        setupFileOpenNavigation();
+    }, [navigate, isTauriApp]);
+
+    return null;
+};
+
 function App() {
     // Enable automatic token refresh
     useTokenRefresh();
@@ -62,6 +89,7 @@ function App() {
         <ErrorBoundary>
             <WebSocketProvider autoConnect={true}>
                 <Router>
+                    <FileOpenHandler />
                     <Suspense fallback={<LoadingFallback />}>
                         <Routes>
                             {/* Public Routes */}

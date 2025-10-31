@@ -53,7 +53,49 @@ const ImportExport: React.FC = () => {
 
   useEffect(() => {
     loadMetadata();
-  }, []);
+    
+    // Listen for file open event from Tauri (when app opened with .heimdall file)
+    if (isTauriApp) {
+      const setupFileOpenListener = async () => {
+        try {
+          const { listen } = await import('@tauri-apps/api/event');
+          const unlisten = await listen<string>('open-heimdall-file', async (event) => {
+            const filePath = event.payload;
+            console.log('Received open-heimdall-file event:', filePath);
+            setImportStatus(`Loading file: ${filePath}...`);
+            
+            try {
+              const result = await invoke<{ success: boolean; content?: string; message: string }>(
+                'load_heimdall_file_from_path',
+                { path: filePath }
+              );
+              
+              if (result.success && result.content) {
+                const heimdallFile = parseHeimdallFile(result.content);
+                if (validateHeimdallFile(heimdallFile)) {
+                  setImportedFile(heimdallFile);
+                  setImportStatus(`✅ File loaded from: ${filePath}\nReview and confirm import below.`);
+                } else {
+                  setImportStatus(`❌ Invalid .heimdall file format: ${filePath}`);
+                }
+              } else {
+                setImportStatus(`❌ Failed to load file: ${result.message}`);
+              }
+            } catch (error) {
+              console.error('Failed to load file from path:', error);
+              setImportStatus(`❌ Failed to load file: ${error}`);
+            }
+          });
+          
+          return unlisten;
+        } catch (error) {
+          console.error('Failed to setup file open listener:', error);
+        }
+      };
+      
+      setupFileOpenListener();
+    }
+  }, [isTauriApp]);
 
   const loadMetadata = async () => {
     try {

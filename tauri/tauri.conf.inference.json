@@ -37,7 +37,16 @@
       "icons/icon.ico"
     ],
     "longDescription": "Heimdall SDR Inference Mode - Lightweight version for inference-only operations in radio source localization.",
-    "shortDescription": "Radio localization platform - Inference Mode"
+    "shortDescription": "Radio localization platform - Inference Mode",
+    "fileAssociations": [
+      {
+        "ext": ["heimdall"],
+        "name": "Heimdall Export File",
+        "description": "Heimdall SDR configuration and data export file",
+        "role": "Editor",
+        "mimeType": "application/x-heimdall"
+      }
+    ]
   },
   "plugins": {
     "log": {

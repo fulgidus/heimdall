@@ -37,7 +37,16 @@
       "icons/icon.ico"
     ],
     "longDescription": "Heimdall SDR Training Mode - Full featured version with local training capabilities for radio source localization.",
-    "shortDescription": "Radio localization platform - Training Mode"
+    "shortDescription": "Radio localization platform - Training Mode",
+    "fileAssociations": [
+      {
+        "ext": ["heimdall"],
+        "name": "Heimdall Export File",
+        "description": "Heimdall SDR configuration and data export file",
+        "role": "Editor",
+        "mimeType": "application/x-heimdall"
+      }
+    ]
   },
   "plugins": {
     "log": {

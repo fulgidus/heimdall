@@ -37,7 +37,16 @@
       "icons/icon.ico"
     ],
     "longDescription": "Heimdall SDR is a real-time radio source localization platform using triangulation from geographically distributed WebSDR receivers.",
-    "shortDescription": "Real-time radio source localization platform"
+    "shortDescription": "Real-time radio source localization platform",
+    "fileAssociations": [
+      {
+        "ext": ["heimdall"],
+        "name": "Heimdall Export File",
+        "description": "Heimdall SDR configuration and data export file",
+        "role": "Editor",
+        "mimeType": "application/x-heimdall"
+      }
+    ]
   },
   "plugins": {
     "log": {
