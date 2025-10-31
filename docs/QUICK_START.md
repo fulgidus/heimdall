@@ -45,10 +45,8 @@ make health-check
 - http://localhost:3000
 
 **Service UIs:**
-- Grafana (monitoring): http://localhost:3000 - `admin` / `admin`
 - RabbitMQ management: http://localhost:15672 - `guest` / `guest`
 - MinIO console: http://localhost:9001 - `minioadmin` / `minioadmin`
-- pgAdmin (database): http://localhost:5050 - `admin@pg.com` / `admin`
 
 ## Verify Installation
 
@@ -72,13 +70,9 @@ All services use default development credentials:
 | PostgreSQL | heimdall_user | changeme | 5432 |
 | RabbitMQ | guest | guest | 5672 |
 | MinIO | minioadmin | minioadmin | 9000 |
-| Redis | (no auth) | changeme | 6379 |
-| pgAdmin | admin@pg.com | admin | 5050 |
-| Grafana | admin | admin | 3000 |
+| Redis | (requires password) | changeme | 6379 |
 
 ⚠️ **Security Warning:** These credentials are for **development only**. Never use these in production!
-
-See [Development Credentials Guide](dev-credentials.md) for complete documentation.
 
 ## Next Steps
 
@@ -164,13 +158,12 @@ lsof -i :5432  # Replace 5432 with conflicting port
 
 - **Documentation**: [Full Documentation](index.md)
 - **Troubleshooting**: [Troubleshooting Guide](troubleshooting_guide.md)
-- **FAQ**: [Frequently Asked Questions](faqs.md)
+- **FAQ**: [Frequently Asked Questions](FAQ.md)
 - **Issues**: [GitHub Issues](https://github.com/fulgidus/heimdall/issues)
 - **Email**: alessio.corsi@gmail.com
 
 ## What's Next?
 
-- **For Users**: See [Usage Guide](usage.md) to learn how to use Heimdall
 - **For Developers**: See [Development Guide](DEVELOPMENT.md) to contribute
-- **For Deployers**: See [Deployment Guide](deployment_instructions.md) for production setup
 - **Architecture**: See [Architecture Guide](ARCHITECTURE.md) to understand the system design
+- **Training**: See [Training Guide](TRAINING.md) to train ML models
