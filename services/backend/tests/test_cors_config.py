@@ -67,30 +67,36 @@ def test_cors_exposed_headers(client):
     )
     assert response.status_code == 200
     
-    # CORS middleware should add expose-headers
+    # CORS middleware should add expose-headers when configured
     headers = response.headers
     # FastAPI's CORSMiddleware adds this header when expose_headers is configured
-    assert "access-control-expose-headers" in headers or response.status_code == 200
+    # Note: The header may not always be present depending on the CORS middleware implementation
+    if "access-control-expose-headers" in headers:
+        assert headers["access-control-expose-headers"] in ["*", "*"]
 
 
 def test_cors_methods_allowed(client):
-    """Test that all required HTTP methods are allowed."""
+    """Test that all required HTTP methods are allowed via pre-flight."""
+    # Use the /health endpoint which definitely exists
     response = client.options(
-        "/api/v1/sessions",
+        "/health",
         headers={
             "Origin": "http://localhost:3000",
-            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Method": "GET",
             "Access-Control-Request-Headers": "Content-Type"
         }
     )
     
-    # Should allow the pre-flight request
-    assert response.status_code in [200, 404]  # 404 if route doesn't exist, but CORS should still work
+    # Pre-flight should succeed
+    assert response.status_code == 200
     
-    if response.status_code == 200:
-        headers = response.headers
-        allowed_methods = headers.get("access-control-allow-methods", "")
-        assert "POST" in allowed_methods or "GET" in allowed_methods
+    headers = response.headers
+    allowed_methods = headers.get("access-control-allow-methods", "").upper()
+    
+    # Verify that all expected methods are allowed
+    required_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    for method in required_methods:
+        assert method in allowed_methods, f"Method {method} not found in allowed methods: {allowed_methods}"
 
 
 def test_cors_with_authorization_header(client):
