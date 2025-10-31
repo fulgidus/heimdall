@@ -57,7 +57,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - ✅ Documentation comprehensive and clear
 - ✅ CI/CD pipeline active
 
-→ [Phase 0 Details](docs/agents/20251022_080000_phase0_index.md)
+**Phase Details**: See commit history and pull requests for implementation details.
 
 ---
 
@@ -81,7 +81,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - ✅ Message queue operational with exchanges/queues
 - ✅ Monitoring dashboards accessible
 
-→ [Phase 1 Details](docs/agents/20251022_080000_phase1_index.md)
+**Phase Details**: Infrastructure setup documented in docker-compose.yml and db/ directory.
 
 ---
 
@@ -106,7 +106,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - ✅ Services connect to infrastructure
 - ✅ Health checks respond correctly
 
-→ [Phase 2 Details](docs/agents/20251022_080000_phase2_complete.md)
+**Phase Details**: Service scaffolding in services/ directory structure.
 
 ---
 
@@ -135,7 +135,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Retry logic: Exponential backoff with 3 attempts
 - Partial failure handling: Graceful degradation
 
-→ [Phase 3 Details](docs/agents/20251022_080000_phase3_index.md)
+**Phase Details**: RF acquisition implementation in services/backend/.
 
 ---
 
@@ -164,7 +164,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Message queue routing: <100ms
 - Memory per service: 100-300MB (stable)
 
-→ [Phase 4 Details](docs/agents/20251022_080000_phase4_index.md)
+**Phase Details**: Integration tests in tests/ directory.
 
 ---
 
@@ -194,7 +194,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Gaussian NLL loss for uncertainty quantification
 - Mel-spectrogram features (128 bins) for input
 
-→ [Phase 5 Details](docs/agents/20251022_080000_phase5_document_index.md)
+**Phase Details**: Training pipeline in services/training/. See [Training Guide](docs/TRAINING.md).
 
 ---
 
@@ -224,7 +224,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Cache hit rate: >80% (production validated)
 - ONNX speedup: 1.5-2.5x faster than PyTorch
 
-→ [Phase 6 Details](docs/agents/20251023_153000_phase6_index.md)
+**Phase Details**: Inference service in services/inference/.
 
 ---
 
@@ -257,7 +257,7 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Real-time localization updates functional
 - Mobile responsive design verified
 
-→ [Phase 7 Details](docs/agents/20251023_153000_phase7_index.md)
+**Phase Details**: Frontend in frontend/ and desktop app in tauri/. See [Tauri Integration Guide](docs/TAURI_INTEGRATION.md).
 
 ---
 
@@ -330,24 +330,22 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 
 ### Context Preservation
 - All agents should reference `/docs/` as the canonical documentation location
-- Phase-specific details in `/docs/agents/PHASE_X_INDEX.md`
-- Session work tracked in `/docs/agents/YYYYMMDD_HHMMSS_session_report.md`
+- Implementation details tracked in commit history and pull requests
+- Architecture documented in [Architecture Guide](docs/ARCHITECTURE.md)
 
 ### Critical Knowledge Areas
-- **WebSDR Integration**: API quirks, frequency offsets, retry strategies
-- **ML Architecture**: CNN design, Gaussian NLL loss, mel-spectrogram features
-- **Deployment**: Microservices patterns, caching, monitoring
-
-→ [Full Knowledge Base](docs/standards/KNOWLEDGE_BASE.md)
+- **WebSDR Integration**: API quirks, frequency offsets, retry strategies - see WEBSDRS.md
+- **ML Architecture**: CNN design, Gaussian NLL loss, mel-spectrogram features - see [Training Guide](docs/TRAINING.md)
+- **Deployment**: Microservices patterns, caching, monitoring - see [Architecture Guide](docs/ARCHITECTURE.md)
+- **Hybrid Architecture**: Docker + Tauri desktop - see [Quick Start](docs/QUICK_START.md)
 
 ### Handoff Protocols
 When transitioning between phases:
 1. Complete all checkpoints in current phase
 2. Document any deviations from original plan
-3. Update `.copilot-instructions` with new learnings
+3. Update documentation in `/docs/` as needed
 4. Ensure all artifacts are properly versioned and accessible
-
-→ [Agent Handoff Protocol](docs/agents/20251022_080000_handoff_protocol.md)
+5. Update this roadmap with progress
 
 ---
 
@@ -385,9 +383,9 @@ When transitioning between phases:
 - **[Contributing](CONTRIBUTING.md)** - How to contribute
 
 ### Standards & Guidelines
-- **[Project Standards](docs/standards/PROJECT_STANDARDS.md)** - Coding conventions
-- **[Documentation Standards](docs/standards/DOCUMENTATION_STANDARDS.md)** - Doc guidelines
-- **[Knowledge Base](docs/standards/KNOWLEDGE_BASE.md)** - Critical knowledge
+- **Code Quality**: See pre-commit hooks and CI workflows in .github/workflows/
+- **Documentation**: See docs/ directory for all documentation
+- **Testing**: Maintain >80% coverage, see pytest.ini and test structure
 
 ### Additional Resources
 - **[Full Documentation Portal](docs/index.md)** - Complete documentation index

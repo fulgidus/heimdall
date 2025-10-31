@@ -51,24 +51,22 @@ make health-check
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Hybrid Architecture
 
-| Component          | Technology                  | Purpose              |
-| ------------------ | --------------------------- | -------------------- |
-| **Backend**        | Python (FastAPI + Celery)   | Microservices        |
-| **ML Pipeline**    | PyTorch Lightning + MLflow  | Training & Inference |
-| **Frontend**       | React + TypeScript + Mapbox | Web UI               |
-| **Desktop App**    | Tauri + Rust                | Desktop wrapper      |
-| **Storage**        | PostgreSQL + TimescaleDB    | Time-series data     |
-| **Queue**          | RabbitMQ                    | Task orchestration   |
-| **Object Storage** | MinIO (S3-compatible)       | IQ data & models     |
-| **Deployment**     | Kubernetes + Helm           | Production           |
+Heimdall supports **two deployment modes** with the same codebase:
 
-→ **[Architecture Deep-Dive](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)**
+### 🐳 Docker Deployment (For Servers)
 
-### 🖥️ Desktop Application
+Full containerized stack for production and development:
 
-Heimdall is also available as a **native desktop application** using Tauri:
+```bash
+docker-compose up -d
+# Access at http://localhost:3000
+```
+
+### 🖥️ Native Desktop Application
+
+Tauri-based native app with enhanced features:
 
 ```bash
 # Development mode (with hot reload)
@@ -78,13 +76,29 @@ npm run tauri:dev
 npm run build:app
 ```
 
-**Desktop Features**:
-- Native GPU detection and monitoring
-- Local settings persistence
-- Direct backend process management (optional)
-- Full web functionality + desktop integration
+**Desktop-Exclusive Features**:
+- 🎮 Native GPU detection and monitoring (NVIDIA)
+- 💾 Local settings persistence (OS-native)
+- 📁 Native file dialogs for import/export
+- 🔌 Offline operation capability
+- ⚡ Direct GPU access for ML training
 
 **Platform Support**: Windows 10/11, macOS 10.13+, Linux (AppImage)
+
+### Core Technology Stack
+
+| Component          | Technology                  | Purpose              |
+| ------------------ | --------------------------- | -------------------- |
+| **Backend**        | Python (FastAPI + Celery)   | Microservices        |
+| **ML Pipeline**    | PyTorch Lightning + MLflow  | Training & Inference |
+| **Frontend**       | React + TypeScript + Mapbox | Web UI               |
+| **Desktop Wrapper**| Tauri + Rust                | Native app layer     |
+| **Storage**        | PostgreSQL + TimescaleDB    | Time-series data     |
+| **Queue**          | RabbitMQ                    | Task orchestration   |
+| **Object Storage** | MinIO (S3-compatible)       | IQ data & models     |
+| **Deployment**     | Docker Compose / Kubernetes | Container orchestration |
+
+→ **[Architecture Deep-Dive](https://fulgidus.github.io/heimdall/ARCHITECTURE.html)**
 
 ---
 
