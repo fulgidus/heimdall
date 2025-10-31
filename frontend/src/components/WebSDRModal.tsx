@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { WebSDRConfig } from '@/services/api/types';
 
 interface WebSDRModalProps {
@@ -56,6 +57,25 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
     const [isSaving, setIsSaving] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
+    const [modalRoot] = useState(() => document.createElement('div'));
+
+    // Mount and unmount the modal root element
+    useEffect(() => {
+        if (show) {
+            document.body.appendChild(modalRoot);
+            // Prevent body scroll when modal is open
+            document.body.style.overflow = 'hidden';
+
+            return () => {
+                // Restore body scroll
+                document.body.style.overflow = '';
+                // Clean up: remove the modal root from DOM
+                if (modalRoot.parentNode) {
+                    modalRoot.parentNode.removeChild(modalRoot);
+                }
+            };
+        }
+    }, [show, modalRoot]);
 
     // Populate form when editing
     useEffect(() => {
@@ -273,7 +293,7 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
 
     if (!show) return null;
 
-    return (
+    return createPortal(
         <>
             {/* Modal Backdrop */}
             <div className="modal-backdrop fade show" onClick={onHide}></div>
@@ -628,7 +648,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        modalRoot
     );
 };
 

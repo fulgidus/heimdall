@@ -37,6 +37,7 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 - **[Contributing Guidelines](../CONTRIBUTING.md)** - How to contribute
 - **[Changelog](../CHANGELOG.md)** - Version history
 - **[WebSDR Configuration](../WEBSDRS.md)** - Receiver network setup
+- **[Release Workflow](RELEASE_WORKFLOW.md)** - How to create releases
 
 ---
 

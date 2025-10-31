@@ -180,6 +180,13 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
+      # CORS configuration
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:8000}
+      CORS_ALLOW_CREDENTIALS: ${CORS_ALLOW_CREDENTIALS:-true}
+      CORS_ALLOW_METHODS: ${CORS_ALLOW_METHODS:-GET,POST,PUT,DELETE,PATCH,OPTIONS}
+      CORS_ALLOW_HEADERS: ${CORS_ALLOW_HEADERS:-Authorization,Content-Type,Accept,Origin,X-Requested-With}
+      CORS_EXPOSE_HEADERS: ${CORS_EXPOSE_HEADERS:-*}
+      CORS_MAX_AGE: ${CORS_MAX_AGE:-3600}
     ports:
       - "${BACKEND_PORT:-8001}:${BACKEND_PORT:-8001}"
     depends_on:

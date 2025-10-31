@@ -147,6 +147,8 @@ const Localization: React.FC = () => {
                                 localizations={recentLocalizations}
                                 onLocalizationClick={(loc) => setSelectedResultState(loc.id)}
                                 style={{ height: '500px' }}
+                                mapStyle="mapbox://styles/mapbox/dark-v11"
+                                fitBoundsOnLoad={true}
                             />
                         </div>
                     </div>

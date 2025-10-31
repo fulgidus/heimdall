@@ -74,7 +74,7 @@ SELECT
     create_hypertable(
         'measurements',
         'timestamp',
-        if_not_exists = > TRUE
+        if_not_exists => TRUE
     );
 
 CREATE INDEX IF NOT EXISTS idx_measurements_websdr_station ON measurements(websdr_station_id, timestamp DESC);
@@ -163,7 +163,7 @@ SELECT
     create_hypertable(
         'inference_requests',
         'timestamp',
-        if_not_exists = > TRUE
+        if_not_exists => TRUE
     );
 
 CREATE INDEX IF NOT EXISTS idx_inference_requests_model ON inference_requests(model_id, timestamp DESC);

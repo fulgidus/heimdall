@@ -52,6 +52,7 @@ const SourcesManagement: React.FC = () => {
     const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
     const tempMarker = useRef<mapboxgl.Marker | null>(null);
     const [mapLoaded, setMapLoaded] = useState(false);
+    const mapClickHandlerRef = useRef<((e: mapboxgl.MapMouseEvent) => void) | null>(null);
 
     const [isFormVisible, setIsFormVisible] = useState(false);
     const [editingSource, setEditingSource] = useState<KnownSource | null>(null);
@@ -86,37 +87,6 @@ const SourcesManagement: React.FC = () => {
 
             map.current.on('load', () => {
                 setMapLoaded(true);
-
-                // Add click handler for setting new source location
-                map.current?.on('click', (e) => {
-                    if (isFormVisible && !editingSource) {
-                        // Remove previous temp marker
-                        if (tempMarker.current) {
-                            tempMarker.current.remove();
-                        }
-
-                        // Update form data
-                        setFormData((prev) => ({
-                            ...prev,
-                            latitude: e.lngLat.lat.toFixed(6),
-                            longitude: e.lngLat.lng.toFixed(6),
-                        }));
-
-                        // Create temporary marker
-                        const el = document.createElement('div');
-                        el.style.width = '30px';
-                        el.style.height = '30px';
-                        el.style.borderRadius = '50%';
-                        el.style.backgroundColor = '#3b82f6';
-                        el.style.border = '3px solid white';
-                        el.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5)';
-                        el.style.animation = 'pulse 2s infinite';
-
-                        tempMarker.current = new mapboxgl.Marker({ element: el })
-                            .setLngLat([e.lngLat.lng, e.lngLat.lat])
-                            .addTo(map.current!);
-                    }
-                });
             });
 
             map.current?.on('error', (err) => {
@@ -141,6 +111,60 @@ const SourcesManagement: React.FC = () => {
     useEffect(() => {
         fetchKnownSources();
     }, [fetchKnownSources]);
+
+    // Handle map click for adding new source location
+    useEffect(() => {
+        if (!map.current || !mapLoaded) return;
+
+        // Remove old handler if exists
+        if (mapClickHandlerRef.current) {
+            map.current.off('click', mapClickHandlerRef.current);
+        }
+
+        // Create new handler with current state
+        const handleMapClick = (e: mapboxgl.MapMouseEvent) => {
+            if (isFormVisible && !editingSource) {
+                // Remove previous temp marker
+                if (tempMarker.current) {
+                    tempMarker.current.remove();
+                }
+
+                // Update form data
+                setFormData((prev) => ({
+                    ...prev,
+                    latitude: e.lngLat.lat.toFixed(6),
+                    longitude: e.lngLat.lng.toFixed(6),
+                }));
+
+                // Create temporary marker
+                const el = document.createElement('div');
+                el.style.width = '30px';
+                el.style.height = '30px';
+                el.style.borderRadius = '50%';
+                el.style.backgroundColor = '#3b82f6';
+                el.style.border = '3px solid white';
+                el.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.5)';
+                el.style.animation = 'pulse 2s infinite';
+
+                tempMarker.current = new mapboxgl.Marker({ element: el })
+                    .setLngLat([e.lngLat.lng, e.lngLat.lat])
+                    .addTo(map.current!);
+            }
+        };
+
+        // Store handler reference
+        mapClickHandlerRef.current = handleMapClick;
+
+        // Add new handler
+        map.current.on('click', handleMapClick);
+
+        // Cleanup on unmount or when dependencies change
+        return () => {
+            if (map.current && mapClickHandlerRef.current) {
+                map.current.off('click', mapClickHandlerRef.current);
+            }
+        };
+    }, [mapLoaded, isFormVisible, editingSource]);
 
     // Update markers when sources change
     useEffect(() => {

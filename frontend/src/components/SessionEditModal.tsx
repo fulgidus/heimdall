@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { RecordingSessionWithDetails } from '@/services/api/session';
 
 interface SessionEditModalProps {
     session: RecordingSessionWithDetails;
-    onSave: (sessionId: number, updates: {
+    onSave: (sessionId: string, updates: {
         session_name?: string;
         notes?: string;
         approval_status?: 'pending' | 'approved' | 'rejected';
@@ -17,6 +18,23 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
     const [approvalStatus, setApprovalStatus] = useState(session.approval_status || 'pending');
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [modalRoot] = useState(() => document.createElement('div'));
+
+    // Mount and unmount the modal root element
+    useEffect(() => {
+        document.body.appendChild(modalRoot);
+        // Prevent body scroll when modal is open
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            // Restore body scroll
+            document.body.style.overflow = '';
+            // Clean up: remove the modal root from DOM
+            if (modalRoot.parentNode) {
+                modalRoot.parentNode.removeChild(modalRoot);
+            }
+        };
+    }, [modalRoot]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,7 +72,7 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
         }
     };
 
-    return (
+    return createPortal(
         <>
             {/* Modal Backdrop */}
             <div
@@ -210,7 +228,8 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        modalRoot
     );
 };
 

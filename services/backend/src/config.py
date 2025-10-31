@@ -6,7 +6,15 @@ class Settings(BaseSettings):
     service_name: str = "backend"
     service_port: int = 8001
     environment: str = "development"
-    cors_origins: List[str] = ["*"]
+    
+    # CORS configuration
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+    cors_allow_credentials: bool = True
+    cors_allow_methods: str = "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+    cors_allow_headers: str = "Authorization,Content-Type,Accept,Origin,X-Requested-With"
+    cors_expose_headers: str = "*"
+    cors_max_age: int = 3600
+    
     database_url: str = "postgresql://heimdall_user:changeme@postgres:5432/heimdall"
     redis_url: str = "redis://:changeme@redis:6379/0"
     
@@ -30,6 +38,34 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         env_prefix = ""
+    
+    def get_cors_origins_list(self) -> List[str]:
+        """Parse comma-separated CORS origins into a list."""
+        if not self.cors_origins:
+            return []
+        if self.cors_origins == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+    
+    def get_cors_methods_list(self) -> List[str]:
+        """Parse comma-separated CORS methods into a list."""
+        if not self.cors_allow_methods:
+            return []
+        return [method.strip() for method in self.cors_allow_methods.split(",") if method.strip()]
+    
+    def get_cors_headers_list(self) -> List[str]:
+        """Parse comma-separated CORS headers into a list."""
+        if not self.cors_allow_headers:
+            return []
+        return [header.strip() for header in self.cors_allow_headers.split(",") if header.strip()]
+    
+    def get_cors_expose_headers_list(self) -> List[str]:
+        """Parse comma-separated CORS expose headers into a list."""
+        if not self.cors_expose_headers:
+            return []
+        if self.cors_expose_headers == "*":
+            return ["*"]
+        return [header.strip() for header in self.cors_expose_headers.split(",") if header.strip()]
 
 
 settings = Settings()

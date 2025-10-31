@@ -57,10 +57,13 @@ export function useMapbox(config: MapConfig): UseMapboxResult {
         mapboxgl.accessToken = token;
 
         try {
+            // Use provided style or default
+            const mapStyle = config.style !== undefined ? config.style : DEFAULT_STYLE;
+            
             // Initialize map
             const map = new mapboxgl.Map({
                 container: config.container,
-                style: config.style || DEFAULT_STYLE,
+                style: mapStyle,
                 center: config.center || DEFAULT_CENTER,
                 zoom: config.zoom || DEFAULT_ZOOM,
                 attributionControl: true,
@@ -104,10 +107,10 @@ export function useMapbox(config: MapConfig): UseMapboxResult {
             console.error('Failed to initialize Mapbox:', err);
             initializationAttempted.current = false;
         }
-        // Only depend on container - style, center, zoom, and accessToken are captured at initialization
+        // Only depend on container and style - center, zoom, and accessToken are captured at initialization
         // and don't need to trigger map recreation
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [config.container]);
+    }, [config.container, config.style]);
 
     return {
         map: mapRef.current,
