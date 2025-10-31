@@ -5,7 +5,7 @@
   "identifier": "com.heimdall.sdr",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:3000",
+    "devUrl": "http://localhost:3001",
     "beforeBuildCommand": "npm run build:frontend"
   },
   "app": {
