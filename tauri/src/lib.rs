@@ -1,7 +1,7 @@
 mod commands;
 
 use commands::{data_collection, training, gpu, settings, import_export};
-use tauri::Manager;
+use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -10,6 +10,7 @@ pub fn run() {
       .level(log::LevelFilter::Info)
       .build())
     .plugin(tauri_plugin_shell::init())
+    .plugin(tauri_plugin_dialog::init())
     .setup(|app| {
       log::info!("Heimdall SDR Desktop starting...");
       log::info!("Application running in {} mode", if cfg!(debug_assertions) { "debug" } else { "release" });
@@ -24,7 +25,7 @@ pub fn run() {
           if arg.ends_with(".heimdall") && std::path::Path::new(arg).exists() {
             log::info!("Detected .heimdall file from command line: {}", arg);
             let file_path = arg.clone();
-            let app_handle = app.handle();
+            let app_handle = app.handle().clone();
             
             // Emit event to frontend after a short delay to ensure UI is ready
             std::thread::spawn(move || {
