@@ -1,6 +1,6 @@
 mod commands;
 
-use commands::{data_collection, training, gpu, settings};
+use commands::{data_collection, training, gpu, settings, import_export};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -31,6 +31,12 @@ pub fn run() {
       settings::load_settings,
       settings::save_settings,
       settings::reset_settings,
+      // Import/Export commands
+      import_export::save_heimdall_file,
+      import_export::load_heimdall_file,
+      import_export::load_heimdall_file_from_path,
+      import_export::save_heimdall_file_to_path,
+      import_export::get_default_export_path,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

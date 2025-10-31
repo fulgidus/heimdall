@@ -27,3 +27,4 @@ tauri-plugin-shell = "2"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1.0"
 dirs = "5.0"
+chrono = "0.4"

@@ -19,6 +19,7 @@ const WebSDRManagement = lazy(() => import('./pages/WebSDRManagement'));
 const SystemStatus = lazy(() => import('./pages/SystemStatus'));
 const DataIngestion = lazy(() => import('./pages/DataIngestion'));
 const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
+const ImportExport = lazy(() => import('./pages/ImportExport'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -152,6 +153,14 @@ function App() {
                                 element={
                                     <ProtectedRoute>
                                         <SourcesManagement />
+                                    </ProtectedRoute>
+                                }
+                            />
+                            <Route
+                                path="/import-export"
+                                element={
+                                    <ProtectedRoute>
+                                        <ImportExport />
                                     </ProtectedRoute>
                                 }
                             />
