@@ -57,6 +57,7 @@ const DattaLayout: React.FC<DattaLayoutProps> = ({ children }) => {
             items: [
                 { label: 'Settings', path: '/settings', icon: 'ph-gear-six' },
                 { label: 'Profile', path: '/profile', icon: 'ph-user-circle' },
+                { label: 'Import/Export', path: '/import-export', icon: 'ph-download' },
             ]
         },
     ];
