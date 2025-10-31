@@ -34,6 +34,16 @@ static_resources:
                     - name: backend
                       domains:
                         - "*"
+                      # CORS policy for all routes
+                      cors:
+                        allow_origin_string_match:
+                          - safe_regex:
+                              regex: ".*"
+                        allow_methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+                        allow_headers: "Authorization, Content-Type, Accept, Origin, X-Requested-With, X-Request-ID"
+                        expose_headers: "Content-Length, Content-Type, Authorization, X-Request-ID"
+                        max_age: "3600"
+                        allow_credentials: true
                       routes:
                         # Keycloak auth routes - /auth/* goes to keycloak
                         - match:
@@ -79,6 +89,11 @@ static_resources:
                           name: "frontend"
                 
                 http_filters:
+                  # CORS filter for pre-flight and response headers
+                  - name: envoy.filters.http.cors
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+                  
                   - name: envoy.filters.http.router
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router

@@ -41,12 +41,15 @@ app = FastAPI(
     description="RF data acquisition service for Heimdall SDR platform"
 )
 
+# Configure CORS with environment-based settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_origins=settings.get_cors_origins_list(),
+    allow_credentials=settings.cors_allow_credentials,
+    allow_methods=settings.get_cors_methods_list(),
+    allow_headers=settings.get_cors_headers_list(),
+    expose_headers=["*"] if settings.cors_expose_headers == "*" else settings.cors_expose_headers.split(","),
+    max_age=settings.cors_max_age,
 )
 
 # Initialize Celery
