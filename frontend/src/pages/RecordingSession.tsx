@@ -32,10 +32,29 @@ const RecordingSession: React.FC = () => {
     const [measurementsCount, setMeasurementsCount] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
     const [ws, setWs] = useState<ReturnType<typeof createWebSocketManager> | null>(null);
+    const [detailedHealth, setDetailedHealth] = useState<DetailedHealthResponse | null>(null);
+    const [healthLoading, setHealthLoading] = useState(true);
 
     useEffect(() => {
         fetchKnownSources();
         fetchWebSDRs();
+
+        // Fetch detailed health status
+        const loadDetailedHealth = async () => {
+            try {
+                setHealthLoading(true);
+                const health = await getDetailedHealth();
+                setDetailedHealth(health);
+            } catch (error) {
+                console.error('Failed to fetch detailed health:', error);
+            } finally {
+                setHealthLoading(false);
+            }
+        };
+        loadDetailedHealth();
+
+        // Refresh health status every 30 seconds
+        const healthInterval = setInterval(loadDetailedHealth, 30000);
 
         // Initialize WebSocket connection
         const wsUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:80/ws';
@@ -55,6 +74,7 @@ const RecordingSession: React.FC = () => {
         setWs(websocket);
 
         return () => {
+            clearInterval(healthInterval);
             websocket.unsubscribe('session:started', handleSessionStarted);
             websocket.unsubscribe('session:completed', handleSessionCompleted);
             websocket.unsubscribe('session:progress', handleSessionProgress);
@@ -357,20 +377,87 @@ const RecordingSession: React.FC = () => {
                             <h5 className="mb-0">System Status</h5>
                         </div>
                         <div className="card-body">
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <span>WebSDR Receivers</span>
-                                <span className="badge bg-light-primary">{onlineWebSDRs}/7 Online</span>
-                            </div>
-                            <div className="d-flex justify-content-between align-items-center mb-3">
-                                <span>Known Sources</span>
-                                <span className="badge bg-light-info">{knownSources.length}</span>
-                            </div>
-                            <div className="d-flex justify-content-between align-items-center">
-                                <span>System Ready</span>
-                                <span className={`badge ${onlineWebSDRs > 0 ? 'bg-light-success' : 'bg-light-danger'}`}>
-                                    {onlineWebSDRs > 0 ? 'Yes' : 'No'}
-                                </span>
-                            </div>
+                            {healthLoading ? (
+                                <div className="text-center py-3">
+                                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span className="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p className="text-muted f-12 mt-2 mb-0">Checking system components...</p>
+                                </div>
+                            ) : detailedHealth ? (
+                                <>
+                                    {/* Component Status */}
+                                    {detailedHealth.dependencies.map((dep) => {
+                                        const statusColors = {
+                                            up: 'bg-light-success',
+                                            down: 'bg-light-danger',
+                                            degraded: 'bg-light-warning',
+                                            unknown: 'bg-light-secondary',
+                                        };
+                                        const statusIcons = {
+                                            up: 'ph-check-circle',
+                                            down: 'ph-x-circle',
+                                            degraded: 'ph-warning-circle',
+                                            unknown: 'ph-question',
+                                        };
+                                        const statusColor = statusColors[dep.status] || 'bg-light-secondary';
+                                        const statusIcon = statusIcons[dep.status] || 'ph-question';
+                                        
+                                        return (
+                                            <div key={dep.name} className="d-flex justify-content-between align-items-center mb-3">
+                                                <div className="d-flex align-items-center">
+                                                    <i className={`ph ${statusIcon} me-2`}></i>
+                                                    <span className="text-capitalize">{dep.name}</span>
+                                                </div>
+                                                <div className="d-flex align-items-center">
+                                                    <span className={`badge ${statusColor}`}>
+                                                        {dep.status.toUpperCase()}
+                                                    </span>
+                                                    {dep.status === 'up' && (
+                                                        <span className="f-12 text-muted ms-2">
+                                                            {parseFloat(dep.response_time_ms).toFixed(0)}ms
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    
+                                    <hr className="my-3" />
+                                    
+                                    {/* WebSDR Status */}
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <span>WebSDR Receivers</span>
+                                        <span className="badge bg-light-primary">{onlineWebSDRs}/7 Online</span>
+                                    </div>
+                                    
+                                    {/* Known Sources */}
+                                    <div className="d-flex justify-content-between align-items-center mb-3">
+                                        <span>Known Sources</span>
+                                        <span className="badge bg-light-info">{knownSources.length}</span>
+                                    </div>
+                                    
+                                    {/* Overall System Ready */}
+                                    <div className="d-flex justify-content-between align-items-center">
+                                        <span className="fw-bold">System Ready</span>
+                                        <span className={`badge ${detailedHealth.ready ? 'bg-success' : 'bg-danger'}`}>
+                                            {detailedHealth.ready ? 'YES' : 'NO'}
+                                        </span>
+                                    </div>
+                                    
+                                    {!detailedHealth.ready && (
+                                        <div className="alert alert-danger mt-3 mb-0" role="alert">
+                                            <i className="ph ph-warning me-2"></i>
+                                            Some components are not ready. Check statuses above.
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="alert alert-warning mb-0" role="alert">
+                                    <i className="ph ph-warning me-2"></i>
+                                    Unable to check system status
+                                </div>
+                            )}
                         </div>
                     </div>
 
