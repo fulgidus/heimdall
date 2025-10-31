@@ -72,7 +72,7 @@ def test_cors_exposed_headers(client):
     # FastAPI's CORSMiddleware adds this header when expose_headers is configured
     # Note: The header may not always be present depending on the CORS middleware implementation
     if "access-control-expose-headers" in headers:
-        assert headers["access-control-expose-headers"] in ["*", "*"]
+        assert headers["access-control-expose-headers"] == "*"
 
 
 def test_cors_methods_allowed(client):
