@@ -1,15 +1,45 @@
 # Quick Start Guide
 
-Get Heimdall running in under 5 minutes!
+Get Heimdall running in under 5 minutes! Choose between Docker deployment or native desktop application.
 
-## Prerequisites
+---
 
-- **Docker** (with Docker Compose)
+## Deployment Options
+
+Heimdall is available in two deployment modes:
+
+### 🐳 Docker Deployment (Recommended for Servers)
+
+Run the full stack in Docker containers - perfect for:
+- Server deployments
+- Team collaboration
+- Production environments
+- Development with hot-reload
+
+**Prerequisites:**
+- **Docker** 20.10+ with Docker Compose
 - **Git**
 - **8GB RAM** minimum (16GB recommended)
 - **20GB disk space**
 
-## Installation Steps
+### 🖥️ Desktop Application (Native)
+
+Native Tauri desktop app with enhanced features - perfect for:
+- Local GPU-accelerated training
+- Portable installations
+- Offline operation
+- Desktop integration
+
+**Prerequisites:**
+- **Windows 10/11**, **macOS 10.13+**, or **Linux**
+- **8GB RAM** minimum (16GB for training)
+- **GPU recommended** for training mode
+
+**[→ Skip to Desktop Installation](#desktop-application-installation)**
+
+---
+
+## Docker Installation Steps
 
 ### 1. Clone Repository
 
@@ -162,8 +192,66 @@ lsof -i :5432  # Replace 5432 with conflicting port
 - **Issues**: [GitHub Issues](https://github.com/fulgidus/heimdall/issues)
 - **Email**: alessio.corsi@gmail.com
 
+---
+
+## Desktop Application Installation
+
+### Download
+
+Get the latest release for your platform:
+
+- **Windows**: Download `.msi` installer
+- **macOS**: Download `.dmg` installer  
+- **Linux**: Download `.AppImage`
+
+[→ Latest Releases](https://github.com/fulgidus/heimdall/releases)
+
+### Install and Run
+
+**Windows:**
+1. Double-click the `.msi` installer
+2. Follow installation wizard
+3. Launch from Start Menu
+
+**macOS:**
+1. Open the `.dmg` file
+2. Drag Heimdall to Applications folder
+3. Launch from Applications (may require security approval on first run)
+
+**Linux:**
+1. Make AppImage executable: `chmod +x heimdall-*.AppImage`
+2. Run: `./heimdall-*.AppImage`
+
+### First Launch
+
+1. Application opens to Dashboard
+2. GPU detection runs automatically (if available)
+3. Configure settings as needed
+4. Start collecting data!
+
+### Desktop-Specific Features
+
+- **GPU Monitoring**: Real-time NVIDIA GPU stats
+- **Native File Dialogs**: For import/export
+- **Desktop Integration**: System tray, notifications
+- **Offline Mode**: Works without network (for inference)
+
+See **[Tauri Integration Guide](TAURI_INTEGRATION.md)** for complete desktop app documentation.
+
+---
+
 ## What's Next?
 
-- **For Developers**: See [Development Guide](DEVELOPMENT.md) to contribute
+### For Docker Users
+- **Explore**: View WebSDR status at http://localhost:3000
+- **API Docs**: http://localhost:8000/docs for interactive API
+- **Development**: See [Development Guide](DEVELOPMENT.md)
+
+### For Desktop Users
+- **Settings**: Configure API endpoints and GPU options
+- **Import/Export**: Transfer configurations between machines
+- **Training**: See [Training Guide](TRAINING.md) for ML models
+
+### Everyone
 - **Architecture**: See [Architecture Guide](ARCHITECTURE.md) to understand the system design
-- **Training**: See [Training Guide](TRAINING.md) to train ML models
+- **Features**: See [Import/Export Guide](IMPORT_EXPORT.md) to save your configurations

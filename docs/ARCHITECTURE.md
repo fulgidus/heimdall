@@ -4,6 +4,40 @@
 
 Heimdall is a distributed Software-Defined Radio (SDR) monitoring and analysis platform designed to aggregate data from multiple WebSDR receivers across Europe, detect radio frequency anomalies using machine learning, and provide real-time visualization capabilities.
 
+**Heimdall implements a hybrid architecture** supporting both containerized deployment (Docker) and native desktop applications (Tauri), sharing the same backend services and frontend codebase while offering deployment flexibility.
+
+## Hybrid Architecture
+
+### Deployment Modes
+
+Heimdall can be deployed in two primary modes:
+
+1. **🐳 Docker Deployment** - Full containerized stack
+   - Backend microservices in containers
+   - Frontend served via web server
+   - Database, message queue, storage in containers
+   - Ideal for: servers, production, team collaboration
+
+2. **🖥️ Desktop Application (Tauri)** - Native application
+   - React frontend wrapped in Tauri (Rust)
+   - Backend services run locally or connect to remote
+   - Native OS integration (file dialogs, system tray)
+   - Ideal for: local GPU training, portable installations
+
+Both modes share:
+- Same React + TypeScript frontend codebase
+- Same Python FastAPI backend services
+- Same ML models and inference pipeline
+- Same data formats and APIs
+
+### Why Hybrid?
+
+- **Flexibility**: Deploy where it makes sense (cloud, edge, desktop)
+- **GPU Access**: Desktop mode provides direct GPU access for training
+- **Portability**: Desktop app works offline for inference
+- **Scalability**: Docker mode scales horizontally
+- **Code Reuse**: Single codebase, multiple deployment targets
+
 ## Architectural Principles
 
 ### 1. Microservices Architecture
@@ -11,6 +45,7 @@ Heimdall is a distributed Software-Defined Radio (SDR) monitoring and analysis p
 - **Fault Tolerance**: Service failures don't cascade to other components
 - **Scalability**: Individual services can be scaled based on demand
 - **Technology Diversity**: Services can use different technologies optimized for their purpose
+- **Deployment Flexibility**: Services run in containers or as local processes
 
 ### 2. Event-Driven Design
 - **Asynchronous Processing**: Non-blocking operations for real-time performance
@@ -23,6 +58,7 @@ Heimdall is a distributed Software-Defined Radio (SDR) monitoring and analysis p
 - **Layered Caching**: Redis for performance optimization
 - **Data Lake**: MinIO for large-scale signal data storage
 - **Stream Processing**: Real-time data transformation pipelines
+- **Import/Export**: Portable data format for cross-deployment migration
 
 ## System Overview
 
@@ -693,6 +729,90 @@ export const SignalVisualization: React.FC<SignalVisualizationProps> = ({
 ```
 
 ## Deployment Architecture
+
+### Docker Deployment
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────┐
+│           Docker Compose Stack              │
+├─────────────────────────────────────────────┤
+│  Frontend (React + Vite)                    │
+│  ├─ nginx:alpine (web server)               │
+│  └─ http://localhost:3000                   │
+├─────────────────────────────────────────────┤
+│  Backend Microservices                      │
+│  ├─ rf-acquisition (FastAPI)                │
+│  ├─ training (PyTorch Lightning)            │
+│  ├─ inference (ONNX Runtime)                │
+│  └─ api-gateway (FastAPI)                   │
+├─────────────────────────────────────────────┤
+│  Infrastructure                             │
+│  ├─ PostgreSQL + TimescaleDB + PostGIS      │
+│  ├─ RabbitMQ (message queue)                │
+│  ├─ Redis (cache)                           │
+│  ├─ MinIO (S3 object storage)               │
+│  ├─ Envoy (API gateway)                     │
+│  └─ Prometheus + Grafana (monitoring)       │
+└─────────────────────────────────────────────┘
+```
+
+**Start:**
+```bash
+docker-compose up -d
+```
+
+**Advantages:**
+- Easy multi-service orchestration
+- Consistent development/production environments
+- Isolated service dependencies
+- Simple networking and service discovery
+
+### Tauri Desktop Deployment
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────┐
+│         Native Desktop Application          │
+├─────────────────────────────────────────────┤
+│  Tauri Window (Rust + WebView)             │
+│  ├─ React Frontend (same codebase)          │
+│  ├─ IPC Bridge (TypeScript ↔ Rust)         │
+│  └─ Native APIs (GPU, File System, etc.)    │
+├─────────────────────────────────────────────┤
+│  Backend Options                            │
+│  ├─ Option A: Local Backend Processes       │
+│  │   └─ Bundled Python services            │
+│  └─ Option B: Remote Backend Connection     │
+│      └─ Connect to Docker deployment        │
+├─────────────────────────────────────────────┤
+│  Native Features                            │
+│  ├─ NVIDIA GPU Detection (nvidia-smi)       │
+│  ├─ Local File Dialogs                      │
+│  ├─ Settings Persistence (OS-specific)      │
+│  └─ .heimdall File Association              │
+└─────────────────────────────────────────────┘
+```
+
+**Build:**
+```bash
+# Development
+npm run tauri:dev
+
+# Production
+npm run build:app
+```
+
+**Advantages:**
+- Native performance and GPU access
+- Offline capability (with local backend)
+- Desktop OS integration
+- Portable executable (no Docker required)
+
+**Platform Support:**
+- Windows 10/11 (.msi installer)
+- macOS 10.13+ (.dmg bundle)
+- Linux (.AppImage)
 
 ### Kubernetes Configuration
 

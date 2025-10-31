@@ -55,28 +55,60 @@ cd frontend
 # Install dependencies (use pnpm, not npm!)
 pnpm install
 
-# Start development server
+# Start development server (web mode)
 pnpm dev
 
 # Runs on http://localhost:5173
 ```
+
+### Desktop Development Environment
+
+```bash
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install Tauri CLI
+cargo install tauri-cli
+
+# Install system dependencies (Linux only)
+# Ubuntu/Debian:
+sudo apt-get install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+# Start desktop app in dev mode (hot reload)
+npm run tauri:dev
+
+# Build production desktop executable
+npm run build:app
+
+# Output in tauri/target/release/bundle/
+```
+
+**Platform Requirements:**
+- **Windows**: Microsoft Visual C++ 2015-2022 Redistributable + WebView2
+- **macOS**: Xcode Command Line Tools
+- **Linux**: WebKit2GTK development libraries
 
 ## Project Structure
 
 ```
 heimdall/
 ├── services/           # Backend microservices
-│   ├── rf-acquisition/ # WebSDR data fetching
+│   ├── backend/        # Main backend (RF acquisition + CRUD)
 │   ├── training/       # ML model training
 │   ├── inference/      # Real-time inference
-│   ├── rf-acquisition/      # RF data acquisition + sessions management
 │   └── api-gateway/    # API gateway
 ├── frontend/           # React + TypeScript UI
-├── db/                 # Database scripts and migrations
-├── docs/               # Documentation
-├── scripts/            # Utility scripts
-├── tests/              # Integration tests
-└── docker-compose.yml  # Local development infrastructure
+│   ├── src/           # React components and pages
+│   └── public/        # Static assets
+├── tauri/             # Desktop application (Rust)
+│   ├── src/           # Rust backend for desktop features
+│   ├── icons/         # Application icons
+│   └── Cargo.toml     # Rust dependencies
+├── db/                # Database scripts and migrations
+├── docs/              # Documentation
+├── scripts/           # Utility scripts
+├── tests/             # Integration tests
+└── docker-compose.yml # Local development infrastructure
 ```
 
 ## Development Workflow
