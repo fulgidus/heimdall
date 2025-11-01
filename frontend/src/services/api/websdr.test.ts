@@ -41,30 +41,28 @@ describe('WebSDR API Service', () => {
         it('should fetch all WebSDRs successfully', async () => {
             const mockWebSDRs: WebSDRConfig[] = [
                 {
-                    id: 1,
+                    id: '550e8400-e29b-41d4-a716-446655440001',
                     name: 'WebSDR Torino',
                     url: 'http://websdr-torino.example.com',
-                    location_name: 'Torino, Italy',
                     latitude: 45.0703,
                     longitude: 7.6869,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
                 {
-                    id: 2,
+                    id: '550e8400-e29b-41d4-a716-446655440002',
                     name: 'WebSDR Genova',
                     url: 'http://websdr-genova.example.com',
-                    location_name: 'Genova, Italy',
                     latitude: 44.4056,
                     longitude: 8.9463,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
             ];
 
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
             const result = await getWebSDRs();
 
@@ -74,7 +72,7 @@ describe('WebSDR API Service', () => {
         });
 
         it('should return empty array when no WebSDRs', async () => {
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, []);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, []);
 
             const result = await getWebSDRs();
 
@@ -83,7 +81,7 @@ describe('WebSDR API Service', () => {
         });
 
         it('should handle 500 error', async () => {
-            mock.onGet('/api/v1/acquisition/websdrs').reply(500, {
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(500, {
                 detail: 'Internal server error',
             });
 
@@ -91,7 +89,7 @@ describe('WebSDR API Service', () => {
         });
 
         it('should handle network error', async () => {
-            mock.onGet('/api/v1/acquisition/websdrs').networkError();
+            mock.onGet('/api/v1/acquisition/websdrs-all').networkError();
 
             await expect(getWebSDRs()).rejects.toThrow();
         });
@@ -99,18 +97,26 @@ describe('WebSDR API Service', () => {
 
     describe('checkWebSDRHealth', () => {
         it('should check WebSDR health successfully', async () => {
-            const mockHealth: Record<number, WebSDRHealthStatus> = {
-                1: {
+            const mockHealth: Record<string, WebSDRHealthStatus> = {
+                '550e8400-e29b-41d4-a716-446655440001': {
+                    websdr_id: '550e8400-e29b-41d4-a716-446655440001',
+                    name: 'WebSDR 1',
                     status: 'online',
                     response_time_ms: 150,
+                    last_check: '2024-11-01T00:00:00Z',
                 },
-                2: {
+                '550e8400-e29b-41d4-a716-446655440002': {
+                    websdr_id: '550e8400-e29b-41d4-a716-446655440002',
+                    name: 'WebSDR 2',
                     status: 'online',
                     response_time_ms: 180,
+                    last_check: '2024-11-01T00:00:00Z',
                 },
-                3: {
+                '550e8400-e29b-41d4-a716-446655440003': {
+                    websdr_id: '550e8400-e29b-41d4-a716-446655440003',
+                    name: 'WebSDR 3',
                     status: 'offline',
-                    response_time_ms: null,
+                    last_check: '2024-11-01T00:00:00Z',
                 },
             };
 
@@ -119,8 +125,8 @@ describe('WebSDR API Service', () => {
             const result = await checkWebSDRHealth();
 
             expect(result).toEqual(mockHealth);
-            expect(result[1].status).toBe('online');
-            expect(result[3].status).toBe('offline');
+            expect(result['550e8400-e29b-41d4-a716-446655440001'].status).toBe('online');
+            expect(result['550e8400-e29b-41d4-a716-446655440003'].status).toBe('offline');
         });
 
         it('should return empty object when no health data', async () => {
@@ -143,54 +149,52 @@ describe('WebSDR API Service', () => {
     describe('getWebSDRConfig', () => {
         const mockWebSDRs: WebSDRConfig[] = [
             {
-                id: 1,
+                id: '550e8400-e29b-41d4-a716-446655440003',
                 name: 'WebSDR 1',
                 url: 'http://websdr1.example.com',
-                location_name: 'Location 1',
                 latitude: 45.0,
                 longitude: 7.0,
                 is_active: true,
-                frequency_min_mhz: 140,
-                frequency_max_mhz: 450,
+                timeout_seconds: 30,
+                retry_count: 3,
             },
             {
-                id: 2,
+                id: '550e8400-e29b-41d4-a716-446655440004',
                 name: 'WebSDR 2',
                 url: 'http://websdr2.example.com',
-                location_name: 'Location 2',
                 latitude: 44.0,
                 longitude: 8.0,
                 is_active: false,
-                frequency_min_mhz: 140,
-                frequency_max_mhz: 450,
+                timeout_seconds: 30,
+                retry_count: 3,
             },
         ];
 
         beforeEach(() => {
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
         });
 
         it('should get specific WebSDR config by id', async () => {
-            const result = await getWebSDRConfig(1);
+            const result = await getWebSDRConfig('550e8400-e29b-41d4-a716-446655440003');
 
             expect(result).toEqual(mockWebSDRs[0]);
-            expect(result.id).toBe(1);
+            expect(result.id).toBe('550e8400-e29b-41d4-a716-446655440003');
             expect(result.name).toBe('WebSDR 1');
         });
 
         it('should get second WebSDR config', async () => {
-            const result = await getWebSDRConfig(2);
+            const result = await getWebSDRConfig('550e8400-e29b-41d4-a716-446655440004');
 
             expect(result).toEqual(mockWebSDRs[1]);
-            expect(result.id).toBe(2);
+            expect(result.id).toBe('550e8400-e29b-41d4-a716-446655440004');
         });
 
         it('should throw error when WebSDR not found', async () => {
-            await expect(getWebSDRConfig(999)).rejects.toThrow('WebSDR with id 999 not found');
+            await expect(getWebSDRConfig('550e8400-e29b-41d4-a716-446655449999')).rejects.toThrow('WebSDR with id 550e8400-e29b-41d4-a716-446655449999 not found');
         });
 
-        it('should throw error when id is 0', async () => {
-            await expect(getWebSDRConfig(0)).rejects.toThrow('WebSDR with id 0 not found');
+        it('should throw error when id is invalid', async () => {
+            await expect(getWebSDRConfig('invalid-uuid')).rejects.toThrow('WebSDR with id invalid-uuid not found');
         });
     });
 
@@ -198,41 +202,38 @@ describe('WebSDR API Service', () => {
         it('should filter active WebSDRs only', async () => {
             const mockWebSDRs: WebSDRConfig[] = [
                 {
-                    id: 1,
+                    id: '550e8400-e29b-41d4-a716-446655440005',
                     name: 'Active 1',
                     url: 'http://active1.example.com',
-                    location_name: 'Location 1',
                     latitude: 45.0,
                     longitude: 7.0,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
                 {
-                    id: 2,
+                    id: '550e8400-e29b-41d4-a716-446655440006',
                     name: 'Inactive 1',
                     url: 'http://inactive1.example.com',
-                    location_name: 'Location 2',
                     latitude: 44.0,
                     longitude: 8.0,
                     is_active: false,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
                 {
-                    id: 3,
+                    id: '550e8400-e29b-41d4-a716-446655440007',
                     name: 'Active 2',
                     url: 'http://active2.example.com',
-                    location_name: 'Location 3',
                     latitude: 43.0,
                     longitude: 9.0,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
             ];
 
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
             const result = await getActiveWebSDRs();
 
@@ -245,19 +246,18 @@ describe('WebSDR API Service', () => {
         it('should return empty array when no active WebSDRs', async () => {
             const mockWebSDRs: WebSDRConfig[] = [
                 {
-                    id: 1,
+                    id: '550e8400-e29b-41d4-a716-446655440008',
                     name: 'Inactive 1',
                     url: 'http://inactive1.example.com',
-                    location_name: 'Location 1',
                     latitude: 45.0,
                     longitude: 7.0,
                     is_active: false,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
             ];
 
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
             const result = await getActiveWebSDRs();
 
@@ -267,30 +267,28 @@ describe('WebSDR API Service', () => {
         it('should return all WebSDRs when all are active', async () => {
             const mockWebSDRs: WebSDRConfig[] = [
                 {
-                    id: 1,
+                    id: '550e8400-e29b-41d4-a716-446655440009',
                     name: 'Active 1',
                     url: 'http://active1.example.com',
-                    location_name: 'Location 1',
                     latitude: 45.0,
                     longitude: 7.0,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
                 {
-                    id: 2,
+                    id: '550e8400-e29b-41d4-a716-446655440010',
                     name: 'Active 2',
                     url: 'http://active2.example.com',
-                    location_name: 'Location 2',
                     latitude: 44.0,
                     longitude: 8.0,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
             ];
 
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
             const result = await getActiveWebSDRs();
 
@@ -303,33 +301,32 @@ describe('WebSDR API Service', () => {
         it('should handle concurrent WebSDR requests', async () => {
             const mockWebSDRs: WebSDRConfig[] = [
                 {
-                    id: 1,
+                    id: '550e8400-e29b-41d4-a716-446655440011',
                     name: 'WebSDR 1',
                     url: 'http://websdr1.example.com',
-                    location_name: 'Location 1',
                     latitude: 45.0,
                     longitude: 7.0,
                     is_active: true,
-                    frequency_min_mhz: 140,
-                    frequency_max_mhz: 450,
+                    timeout_seconds: 30,
+                    retry_count: 3,
                 },
             ];
 
-            mock.onGet('/api/v1/acquisition/websdrs').reply(200, mockWebSDRs);
+            mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
             const [result1, result2, result3] = await Promise.all([
                 getWebSDRs(),
                 getActiveWebSDRs(),
-                getWebSDRConfig(1),
+                getWebSDRConfig('550e8400-e29b-41d4-a716-446655440011'),
             ]);
 
             expect(result1).toHaveLength(1);
             expect(result2).toHaveLength(1);
-            expect(result3.id).toBe(1);
+            expect(result3.id).toBe('550e8400-e29b-41d4-a716-446655440011');
         });
 
         it('should handle timeout error', async () => {
-            mock.onGet('/api/v1/acquisition/websdrs').timeout();
+            mock.onGet('/api/v1/acquisition/websdrs-all').timeout();
 
             await expect(getWebSDRs()).rejects.toThrow();
         });

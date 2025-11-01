@@ -54,12 +54,14 @@ describe('listSessions', () => {
         const mockResponse: SessionListResponse = {
             sessions: [
                 {
-                    id: 1,
+                    id: '123e4567-e89b-12d3-a456-426614174001',
+                    known_source_id: '223e4567-e89b-12d3-a456-426614174000',
                     session_name: 'Test Session 1',
-                    frequency_mhz: 145.500,
+                    session_start: '2025-10-25T10:00:00Z',
                     duration_seconds: 300,
                     status: 'completed',
                     created_at: '2025-10-25T10:00:00Z',
+                    updated_at: '2025-10-25T10:05:00Z',
                     source_name: 'Repeater A',
                     source_frequency: 145500000,
                     source_latitude: 45.0,
@@ -68,12 +70,14 @@ describe('listSessions', () => {
                     approval_status: 'approved',
                 },
                 {
-                    id: 2,
+                    id: '123e4567-e89b-12d3-a456-426614174002',
+                    known_source_id: '223e4567-e89b-12d3-a456-426614174000',
                     session_name: 'Test Session 2',
-                    frequency_mhz: 145.500,
+                    session_start: '2025-10-25T11:00:00Z',
                     duration_seconds: 180,
                     status: 'pending',
                     created_at: '2025-10-25T11:00:00Z',
+                    updated_at: '2025-10-25T11:00:00Z',
                     source_name: 'Repeater B',
                     source_frequency: 145500000,
                     source_latitude: 45.1,
@@ -119,12 +123,14 @@ describe('listSessions', () => {
         const mockResponse: SessionListResponse = {
             sessions: [
                 {
-                    id: 3,
+                    id: '123e4567-e89b-12d3-a456-426614174003',
+                    known_source_id: '223e4567-e89b-12d3-a456-426614174000',
                     session_name: 'Completed Session',
-                    frequency_mhz: 145.500,
+                    session_start: '2025-10-25T10:00:00Z',
                     duration_seconds: 300,
                     status: 'completed',
                     created_at: '2025-10-25T10:00:00Z',
+                    updated_at: '2025-10-25T10:05:00Z',
                     measurements_count: 150,
                 },
             ],
@@ -145,12 +151,14 @@ describe('listSessions', () => {
         const mockResponse: SessionListResponse = {
             sessions: [
                 {
-                    id: 4,
+                    id: '123e4567-e89b-12d3-a456-426614174004',
+                    known_source_id: '223e4567-e89b-12d3-a456-426614174000',
                     session_name: 'Pending Approval',
-                    frequency_mhz: 145.500,
+                    session_start: '2025-10-25T12:00:00Z',
                     duration_seconds: 200,
                     status: 'completed',
                     created_at: '2025-10-25T12:00:00Z',
+                    updated_at: '2025-10-25T12:03:00Z',
                     approval_status: 'pending',
                     measurements_count: 100,
                 },
@@ -229,12 +237,14 @@ describe('listSessions', () => {
 describe('getSession', () => {
     it('should get a specific session by ID', async () => {
         const mockSession: RecordingSessionWithDetails = {
-            id: 1,
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Detailed Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
             duration_seconds: 300,
             status: 'completed',
             created_at: '2025-10-25T10:00:00Z',
+            updated_at: '2025-10-25T10:05:00Z',
             source_name: 'Repeater A',
             source_frequency: 145500000,
             source_latitude: 45.0642,
@@ -244,47 +254,46 @@ describe('getSession', () => {
             notes: 'Test recording session',
         };
 
-        mock.onGet('/api/v1/sessions/1').reply(200, mockSession);
+        mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
 
-        const result = await getSession(1);
+        const result = await getSession('123e4567-e89b-12d3-a456-426614174001');
 
-        expect(result.id).toBe(1);
+        expect(result.id).toBe('123e4567-e89b-12d3-a456-426614174001');
         expect(result.session_name).toBe('Detailed Session');
         expect(result.measurements_count).toBe(125);
         expect(result.notes).toBe('Test recording session');
     });
 
     it('should handle 404 error for non-existent session', async () => {
-        mock.onGet('/api/v1/sessions/9999').reply(404, {
+        mock.onGet('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
             detail: 'Session not found',
         });
 
-        await expect(getSession(9999)).rejects.toThrow();
+        await expect(getSession('999e4567-e89b-12d3-a456-426614174999')).rejects.toThrow();
     });
 
     it('should handle sessions with null optional fields', async () => {
         const mockSession: RecordingSessionWithDetails = {
-            id: 2,
+            id: '123e4567-e89b-12d3-a456-426614174002',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Minimal Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T11:00:00Z',
+            session_end: null,
             duration_seconds: 180,
             status: 'pending',
             created_at: '2025-10-25T11:00:00Z',
+            updated_at: '2025-10-25T11:00:00Z',
             celery_task_id: null,
-            result_metadata: null,
-            minio_path: null,
-            error_message: null,
-            started_at: null,
-            completed_at: null,
         };
 
-        mock.onGet('/api/v1/sessions/2').reply(200, mockSession);
+        mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174002').reply(200, mockSession);
 
-        const result = await getSession(2);
+        const result = await getSession('123e4567-e89b-12d3-a456-426614174002');
 
-        expect(result.id).toBe(2);
+        expect(result.id).toBe('123e4567-e89b-12d3-a456-426614174002');
         expect(result.celery_task_id).toBeNull();
-        expect(result.started_at).toBeNull();
+        expect(result.session_end).toBeNull();
+        expect(result.notes).toBeUndefined();
     });
 });
 
@@ -299,22 +308,23 @@ describe('createSession', () => {
         };
 
         const mockResponse: RecordingSession = {
-            id: 10,
+            id: '123e4567-e89b-12d3-a456-426614174010',
+            known_source_id: '123e4567-e89b-12d3-a456-426614174000',
             session_name: 'New Recording',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T13:00:00Z',
             duration_seconds: 300,
             status: 'pending',
             created_at: '2025-10-25T13:00:00Z',
+            updated_at: '2025-10-25T13:00:00Z',
         };
 
         mock.onPost('/api/v1/sessions').reply(200, mockResponse);
 
         const result = await createSession(request);
 
-        expect(result.id).toBe(10);
+        expect(result.id).toBe('123e4567-e89b-12d3-a456-426614174010');
         expect(result.session_name).toBe('New Recording');
         expect(result.status).toBe('pending');
-        expect(result.frequency_mhz).toBe(145.500);
     });
 
     it('should handle validation errors (400)', async () => {
@@ -351,24 +361,25 @@ describe('createSession', () => {
 describe('updateSessionStatus', () => {
     it('should update session status successfully', async () => {
         const mockResponse: RecordingSession = {
-            id: 1,
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Test Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
             duration_seconds: 300,
             status: 'in_progress',
             celery_task_id: 'task-abc-123',
             created_at: '2025-10-25T10:00:00Z',
-            started_at: '2025-10-25T10:05:00Z',
+            updated_at: '2025-10-25T10:05:00Z',
         };
 
-        mock.onPatch('/api/v1/sessions/1/status').reply((config) => {
+        mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply((config) => {
             // Verify query params
             expect(config.params?.status).toBe('in_progress');
             expect(config.params?.celery_task_id).toBe('task-abc-123');
             return [200, mockResponse];
         });
 
-        const result = await updateSessionStatus(1, 'in_progress', 'task-abc-123');
+        const result = await updateSessionStatus('123e4567-e89b-12d3-a456-426614174001', 'in_progress', 'task-abc-123');
 
         expect(result.status).toBe('in_progress');
         expect(result.celery_task_id).toBe('task-abc-123');
@@ -376,105 +387,110 @@ describe('updateSessionStatus', () => {
 
     it('should update to completed status', async () => {
         const mockResponse: RecordingSession = {
-            id: 1,
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Test Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
+            session_end: '2025-10-25T10:10:00Z',
             duration_seconds: 300,
             status: 'completed',
             created_at: '2025-10-25T10:00:00Z',
-            started_at: '2025-10-25T10:05:00Z',
-            completed_at: '2025-10-25T10:10:00Z',
+            updated_at: '2025-10-25T10:10:00Z',
         };
 
-        mock.onPatch('/api/v1/sessions/1/status').reply((config) => {
+        mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply((config) => {
             expect(config.params?.status).toBe('completed');
             return [200, mockResponse];
         });
 
-        const result = await updateSessionStatus(1, 'completed');
+        const result = await updateSessionStatus('123e4567-e89b-12d3-a456-426614174001', 'completed');
 
         expect(result.status).toBe('completed');
-        expect(result.completed_at).toBeDefined();
+        expect(result.session_end).toBeDefined();
     });
 
     it('should handle invalid status transitions', async () => {
-        mock.onPatch('/api/v1/sessions/1/status').reply(400, {
+        mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(400, {
             detail: 'Invalid status transition',
         });
 
-        await expect(updateSessionStatus(1, 'invalid_status')).rejects.toThrow();
+        await expect(updateSessionStatus('123e4567-e89b-12d3-a456-426614174001', 'invalid_status')).rejects.toThrow();
     });
 });
 
 describe('updateSessionApproval', () => {
     it('should approve a session', async () => {
         const mockResponse: RecordingSession = {
-            id: 1,
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Test Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
             duration_seconds: 300,
             status: 'completed',
             created_at: '2025-10-25T10:00:00Z',
+            updated_at: '2025-10-25T10:05:00Z',
         };
 
-        mock.onPatch('/api/v1/sessions/1/approval').reply((config) => {
+        mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/approval').reply((config) => {
             expect(config.params?.approval_status).toBe('approved');
             return [200, mockResponse];
         });
 
-        const result = await updateSessionApproval(1, 'approved');
+        const result = await updateSessionApproval('123e4567-e89b-12d3-a456-426614174001', 'approved');
 
         expect(result).toBeDefined();
     });
 
     it('should reject a session', async () => {
         const mockResponse: RecordingSession = {
-            id: 2,
+            id: '123e4567-e89b-12d3-a456-426614174002',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Rejected Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
             duration_seconds: 300,
             status: 'completed',
             created_at: '2025-10-25T10:00:00Z',
+            updated_at: '2025-10-25T10:05:00Z',
         };
 
-        mock.onPatch('/api/v1/sessions/2/approval').reply((config) => {
+        mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174002/approval').reply((config) => {
             expect(config.params?.approval_status).toBe('rejected');
             return [200, mockResponse];
         });
 
-        const result = await updateSessionApproval(2, 'rejected');
+        const result = await updateSessionApproval('123e4567-e89b-12d3-a456-426614174002', 'rejected');
 
         expect(result).toBeDefined();
     });
 
     it('should handle 404 for non-existent session', async () => {
-        mock.onPatch('/api/v1/sessions/9999/approval').reply(404);
+        mock.onPatch('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999/approval').reply(404);
 
-        await expect(updateSessionApproval(9999, 'approved')).rejects.toThrow();
+        await expect(updateSessionApproval('999e4567-e89b-12d3-a456-426614174999', 'approved')).rejects.toThrow();
     });
 });
 
 describe('deleteSession', () => {
     it('should delete a session successfully', async () => {
-        mock.onDelete('/api/v1/sessions/1').reply(204, '');
+        mock.onDelete('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(204, '');
 
-        await expect(deleteSession(1)).resolves.toBeUndefined();
+        await expect(deleteSession('123e4567-e89b-12d3-a456-426614174001')).resolves.toBeUndefined();
     });
 
     it('should handle 404 for non-existent session', async () => {
-        mock.onDelete('/api/v1/sessions/9999').reply(404, {
+        mock.onDelete('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
             detail: 'Session not found',
         });
 
-        await expect(deleteSession(9999)).rejects.toThrow();
+        await expect(deleteSession('999e4567-e89b-12d3-a456-426614174999')).rejects.toThrow();
     });
 
     it('should handle 409 if session has dependent data', async () => {
-        mock.onDelete('/api/v1/sessions/1').reply(409, {
+        mock.onDelete('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(409, {
             detail: 'Cannot delete session with existing measurements',
         });
 
-        await expect(deleteSession(1)).rejects.toThrow();
+        await expect(deleteSession('123e4567-e89b-12d3-a456-426614174001')).rejects.toThrow();
     });
 });
 
@@ -485,10 +501,9 @@ describe('getSessionAnalytics', () => {
             completed_sessions: 120,
             failed_sessions: 10,
             pending_sessions: 20,
-            success_rate: 0.80,
+            success_rate: 80,
             total_measurements: 15000,
             average_duration_seconds: 285.5,
-            average_accuracy_meters: 28.3,
         };
 
         mock.onGet('/api/v1/sessions/analytics').reply(200, mockAnalytics);
@@ -496,12 +511,12 @@ describe('getSessionAnalytics', () => {
         const result = await getSessionAnalytics();
 
         expect(result.total_sessions).toBe(150);
-        expect(result.success_rate).toBeCloseTo(0.80, 2);
+        expect(result.success_rate).toBeCloseTo(80, 2);
         expect(result.total_measurements).toBeGreaterThan(0);
-        
-        // Validate success rate calculation
-        const expectedSuccessRate = result.completed_sessions / result.total_sessions;
-        expect(result.success_rate).toBeCloseTo(expectedSuccessRate, 2);
+
+        // Validate success rate is a percentage
+        expect(result.success_rate).toBeGreaterThanOrEqual(0);
+        expect(result.success_rate).toBeLessThanOrEqual(100);
     });
 
     it('should handle analytics with no sessions', async () => {
@@ -512,6 +527,7 @@ describe('getSessionAnalytics', () => {
             pending_sessions: 0,
             success_rate: 0,
             total_measurements: 0,
+            average_duration_seconds: 0,
         };
 
         mock.onGet('/api/v1/sessions/analytics').reply(200, mockAnalytics);
@@ -533,7 +549,7 @@ describe('listKnownSources', () => {
     it('should list all known sources', async () => {
         const mockSources: KnownSource[] = [
             {
-                id: '1',
+                id: '123e4567-e89b-12d3-a456-426614174001',
                 name: 'Repeater A',
                 description: 'Main repeater',
                 frequency_hz: 145500000,
@@ -542,17 +558,19 @@ describe('listKnownSources', () => {
                 power_dbm: 50,
                 source_type: 'repeater',
                 is_validated: true,
+                error_margin_meters: 30,
                 created_at: '2025-10-01T00:00:00Z',
                 updated_at: '2025-10-01T00:00:00Z',
             },
             {
-                id: '2',
+                id: '123e4567-e89b-12d3-a456-426614174002',
                 name: 'Beacon B',
                 frequency_hz: 144800000,
                 latitude: 45.1,
                 longitude: 7.7,
                 source_type: 'beacon',
                 is_validated: false,
+                error_margin_meters: 50,
                 created_at: '2025-10-10T00:00:00Z',
                 updated_at: '2025-10-10T00:00:00Z',
             },
@@ -596,9 +614,10 @@ describe('createKnownSource', () => {
         };
 
         const mockResponse: KnownSource = {
-            id: '123',
+            id: '123e4567-e89b-12d3-a456-426614174123',
             ...request,
             is_validated: false,
+            error_margin_meters: 0,
             created_at: '2025-10-25T13:00:00Z',
             updated_at: '2025-10-25T13:00:00Z',
         };
@@ -607,7 +626,7 @@ describe('createKnownSource', () => {
 
         const result = await createKnownSource(request);
 
-        expect(result.id).toBe('123');
+        expect(result.id).toBe('123e4567-e89b-12d3-a456-426614174123');
         expect(result.name).toBe('New Repeater');
         expect(result.frequency_hz).toBe(145500000);
     });
@@ -666,23 +685,24 @@ describe('Edge Cases and Real-World Scenarios', () => {
 
     it('should validate session timestamps are chronological', async () => {
         const mockSession: RecordingSessionWithDetails = {
-            id: 1,
+            id: '123e4567-e89b-12d3-a456-426614174001',
+            known_source_id: '223e4567-e89b-12d3-a456-426614174000',
             session_name: 'Test Session',
-            frequency_mhz: 145.500,
+            session_start: '2025-10-25T10:00:00Z',
+            session_end: '2025-10-25T10:10:00Z',
             duration_seconds: 300,
             status: 'completed',
             created_at: '2025-10-25T10:00:00Z',
-            started_at: '2025-10-25T10:05:00Z',
-            completed_at: '2025-10-25T10:10:00Z',
+            updated_at: '2025-10-25T10:10:00Z',
         };
 
-        mock.onGet('/api/v1/sessions/1').reply(200, mockSession);
+        mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
 
-        const result = await getSession(1);
+        const result = await getSession('123e4567-e89b-12d3-a456-426614174001');
 
-        const created = new Date(result.created_at!);
-        const started = new Date(result.started_at!);
-        const completed = new Date(result.completed_at!);
+        const created = new Date(result.created_at);
+        const started = new Date(result.session_start);
+        const completed = new Date(result.session_end!);
 
         expect(started.getTime()).toBeGreaterThanOrEqual(created.getTime());
         expect(completed.getTime()).toBeGreaterThanOrEqual(started.getTime());

@@ -17,7 +17,7 @@ import type { WebSDRConfig, WebSDRHealthStatus } from './schemas';
  */
 export async function getWebSDRs(): Promise<WebSDRConfig[]> {
     console.log('📡 WebSDRService.getWebSDRs(): calling GET /api/v1/acquisition/websdrs-all');
-    const response = await api.get('/v1/acquisition/websdrs-all');
+    const response = await api.get('/api/v1/acquisition/websdrs-all');
 
     console.log('📊 Raw response data:', response.data, 'Type:', typeof response.data);
 
@@ -62,7 +62,7 @@ export async function getWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function checkWebSDRHealth(): Promise<Record<string, WebSDRHealthStatus>> {
     console.log('🏥 WebSDRService.checkWebSDRHealth(): calling GET /api/v1/acquisition/websdrs/health');
-    const response = await api.get('/v1/acquisition/websdrs/health');
+    const response = await api.get('/api/v1/acquisition/websdrs/health');
 
     console.log('📊 Raw health response data:', response.data, 'Type:', typeof response.data);
 
@@ -123,7 +123,7 @@ export async function getActiveWebSDRs(): Promise<WebSDRConfig[]> {
  */
 export async function createWebSDR(data: Omit<WebSDRConfig, 'id'>): Promise<WebSDRConfig> {
     console.log('➕ WebSDRService.createWebSDR():', data.name);
-    const response = await api.post('/v1/acquisition/websdrs', data);
+    const response = await api.post('/api/v1/acquisition/websdrs', data);
 
     // Handle potential response wrapping
     let responseData = response.data;
@@ -150,7 +150,7 @@ export async function createWebSDR(data: Omit<WebSDRConfig, 'id'>): Promise<WebS
  */
 export async function updateWebSDR(id: string, data: Partial<WebSDRConfig>): Promise<WebSDRConfig> {
     console.log('✏️ WebSDRService.updateWebSDR():', id);
-    const response = await api.put(`/v1/acquisition/websdrs/${id}`, data);
+    const response = await api.put(`/api/v1/acquisition/websdrs/${id}`, data);
 
     // Handle potential response wrapping
     let responseData = response.data;
@@ -177,7 +177,7 @@ export async function updateWebSDR(id: string, data: Partial<WebSDRConfig>): Pro
  */
 export async function deleteWebSDR(id: string, hardDelete: boolean = false): Promise<void> {
     console.log('🗑️ WebSDRService.deleteWebSDR():', id, hardDelete ? '(HARD DELETE)' : '(soft delete)');
-    await api.delete(`/v1/acquisition/websdrs/${id}`, {
+    await api.delete(`/api/v1/acquisition/websdrs/${id}`, {
         params: { hard_delete: hardDelete }
     });
     console.log('✅ WebSDRService.deleteWebSDR(): deleted');
@@ -188,8 +188,8 @@ export async function deleteWebSDR(id: string, hardDelete: boolean = false): Pro
  */
 export async function fetchWebSDRInfo(url: string): Promise<import('./schemas').WebSDRFetchInfoResponse> {
     console.log('🔍 WebSDRService.fetchWebSDRInfo():', url);
-    
-    const response = await api.post('/v1/acquisition/websdrs/fetch-info', { url });
+
+    const response = await api.post('/api/v1/acquisition/websdrs/fetch-info', { url });
     
     // Handle potential response wrapping
     let responseData = response.data;

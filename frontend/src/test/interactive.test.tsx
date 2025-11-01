@@ -1,7 +1,7 @@
 /**
  * Interactive Features Validation Tests
  * Phase 7: Testing & Validation
- * 
+ *
  * Tests user interactions, form submissions, navigation, and UI interactions
  */
 
@@ -10,8 +10,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 
-// Mock stores before importing
-vi.mock('../store');
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
 
 // Components
 import { Button, Input, Select, Textarea, Badge, Modal, Table } from '../components';
