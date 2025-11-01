@@ -146,7 +146,7 @@ describe('Acquisition API Service', () => {
             const taskId = 'task-abc123';
             const expectedStatus: AcquisitionStatusResponse = {
                 task_id: taskId,
-                status: 'IN_PROGRESS',
+                status: 'PROGRESS',
                 progress: 50,
                 message: 'Processing WebSDR data',
                 measurements_collected: 3,
@@ -158,7 +158,7 @@ describe('Acquisition API Service', () => {
 
             expect(result).toEqual(expectedStatus);
             expect(result.task_id).toBe(taskId);
-            expect(result.status).toBe('IN_PROGRESS');
+            expect(result.status).toBe('PROGRESS');
             expect(result.progress).toBe(50);
         });
 
@@ -255,7 +255,7 @@ describe('Acquisition API Service', () => {
                 } else if (callCount === 2) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 50,
                         message: 'Processing',
                         measurements_collected: 3,
@@ -298,7 +298,7 @@ describe('Acquisition API Service', () => {
                 if (callCount === 1) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 30,
                         message: 'Processing',
                         measurements_collected: 2,
@@ -334,7 +334,7 @@ describe('Acquisition API Service', () => {
                 if (callCount === 1) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 10,
                         message: 'Starting',
                         measurements_collected: 0,
@@ -370,7 +370,7 @@ describe('Acquisition API Service', () => {
                 if (callCount === 1) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 25,
                         message: 'Progress 1',
                         measurements_collected: 1,
@@ -378,7 +378,7 @@ describe('Acquisition API Service', () => {
                 } else if (callCount === 2) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 75,
                         message: 'Progress 2',
                         measurements_collected: 5,
@@ -418,7 +418,7 @@ describe('Acquisition API Service', () => {
                 if (callCount === 1) {
                     return [200, {
                         task_id: taskId,
-                        status: 'IN_PROGRESS',
+                        status: 'PROGRESS',
                         progress: 50,
                         message: 'Processing',
                         measurements_collected: 3,

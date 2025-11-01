@@ -287,7 +287,7 @@ jobs:
 
     strategy:
       matrix:
-        service: [api-gateway, backend, inference, training]
+        service: [backend, inference, training]
       fail-fast: false
 
     steps:
@@ -476,7 +476,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest pytest-cov pytest-asyncio httpx
 
-          for service in api-gateway backend inference training; do
+          for service in backend inference training; do
             if [ -f services/$service/requirements.txt ]; then
               pip install -r services/$service/requirements.txt
             fi
@@ -489,7 +489,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          for service in api-gateway backend; do
+          for service in backend; do
             if [ -d services/$service/tests/integration ]; then
               echo "Running integration tests for $service"
               cd services/$service
@@ -529,9 +529,9 @@ jobs:
 
       - name: Start backend services
         run: |
-          docker compose up -d postgres redis
-          docker compose build api-gateway backend inference
-          docker compose up -d api-gateway backend inference
+          docker compose up -d postgres redis rabbitmq
+          docker compose build backend inference
+          docker compose up -d backend inference
 
       - name: Wait for backend
         run: |
