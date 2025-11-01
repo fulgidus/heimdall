@@ -840,7 +840,7 @@ async def handle_session_assign_source_ws(assignment_data: dict):
 
         row = await conn.fetchrow(
             query,
-            UUID(source_id) if isinstance(source_id, str) else source_id,
+            UUID(source_id) if source_id and isinstance(source_id, str) else source_id,
             UUID(session_id) if isinstance(session_id, str) else session_id,
         )
 
