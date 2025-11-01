@@ -381,3 +381,120 @@ async def broadcast_update(event_type: str, data: dict):
 def get_connection_count() -> int:
     """Get current number of active WebSocket connections"""
     return len(manager.active_connections)
+
+
+# Training-specific WebSocket endpoint
+@router.websocket("/ws/training/{job_id}")
+async def training_websocket(websocket: WebSocket, job_id: str):
+    """
+    WebSocket endpoint for real-time training progress updates.
+
+    Provides live updates for a specific training job:
+    - Epoch progress (current/total epochs)
+    - Loss values (train/val)
+    - Accuracy metrics
+    - Learning rate changes
+    - Best model updates
+    - Completion status
+
+    Message formats:
+    - training_progress: Current epoch status
+    - epoch_complete: End of epoch metrics
+    - training_complete: Job finished (success/failure)
+    """
+    await websocket.accept()
+    logger.info(f"Training WebSocket connected for job {job_id}")
+
+    try:
+        # Send initial connection confirmation
+        await websocket.send_json({
+            "event": "connected",
+            "job_id": job_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": f"Connected to training job {job_id}",
+        })
+
+        # Keep connection alive and listen for updates
+        # The training task will broadcast updates via Redis pub/sub or direct DB polling
+        while True:
+            # Wait for client ping or server-side updates
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                message = json.loads(data)
+
+                if message.get("event") == "ping":
+                    await websocket.send_json({
+                        "event": "pong",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    })
+
+            except asyncio.TimeoutError:
+                # Check for updates from database
+                try:
+                    from ..storage.db_manager import get_db_manager
+                    db_manager = get_db_manager()
+
+                    # Query training job status
+                    with db_manager.get_session() as session:
+                        result = session.execute(
+                            """
+                            SELECT status, current_epoch, total_epochs, progress_percent,
+                                   train_loss, val_loss, train_accuracy, val_accuracy,
+                                   learning_rate, error_message
+                            FROM heimdall.training_jobs
+                            WHERE id = :job_id
+                            """,
+                            {"job_id": job_id}
+                        ).fetchone()
+
+                        if result:
+                            # Send status update
+                            await websocket.send_json({
+                                "event": "training_status",
+                                "job_id": job_id,
+                                "status": result[0],
+                                "current_epoch": result[1],
+                                "total_epochs": result[2],
+                                "progress_percent": result[3],
+                                "metrics": {
+                                    "train_loss": result[4],
+                                    "val_loss": result[5],
+                                    "train_accuracy": result[6],
+                                    "val_accuracy": result[7],
+                                    "learning_rate": result[8],
+                                },
+                                "error_message": result[9],
+                                "timestamp": datetime.utcnow().isoformat(),
+                            })
+
+                            # If job completed or failed, close connection
+                            if result[0] in ["completed", "failed", "cancelled"]:
+                                logger.info(f"Training job {job_id} finished with status {result[0]}")
+                                break
+
+                except Exception as e:
+                    logger.error(f"Error querying training job status: {e}")
+
+    except WebSocketDisconnect:
+        logger.info(f"Training WebSocket disconnected for job {job_id}")
+    except Exception as e:
+        logger.error(f"Training WebSocket error for job {job_id}: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+# Broadcast training update to all clients monitoring a specific job
+async def broadcast_training_update(job_id: str, update: dict):
+    """
+    Broadcast training update to all clients monitoring this job.
+
+    Args:
+        job_id: Training job UUID
+        update: Update payload (progress, metrics, completion)
+    """
+    # For now, we store updates in DB and clients poll via WebSocket
+    # Future enhancement: Use Redis pub/sub for true push notifications
+    logger.debug(f"Training update for job {job_id}: {update.get('event', 'unknown')}")
