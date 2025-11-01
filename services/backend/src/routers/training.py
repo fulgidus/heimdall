@@ -58,7 +58,7 @@ async def create_training_job(request: TrainingJobRequest):
                     job_name, status, config, total_epochs, model_architecture
                 )
                 VALUES (
-                    :job_name, :status, :config::jsonb, :total_epochs, :model_architecture
+                    :job_name, :status, CAST(:config AS jsonb), :total_epochs, :model_architecture
                 )
                 RETURNING id, created_at
             """)
@@ -179,8 +179,6 @@ async def list_training_jobs(
             # Convert to response models
             jobs = []
             for row in results:
-                import json
-
                 jobs.append(
                     TrainingJobResponse(
                         id=row[0],
@@ -189,7 +187,7 @@ async def list_training_jobs(
                         created_at=row[3],
                         started_at=row[4],
                         completed_at=row[5],
-                        config=json.loads(row[6]) if row[6] else {},
+                        config=row[6] if row[6] else {},
                         current_epoch=row[7] or 0,
                         total_epochs=row[8],
                         progress_percent=row[9] or 0.0,
@@ -251,8 +249,6 @@ async def get_training_job(job_id: UUID):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
 
-            import json
-
             job = TrainingJobResponse(
                 id=result[0],
                 job_name=result[1],
@@ -260,7 +256,7 @@ async def get_training_job(job_id: UUID):
                 created_at=result[3],
                 started_at=result[4],
                 completed_at=result[5],
-                config=json.loads(result[6]) if result[6] else {},
+                config=result[6] if result[6] else {},
                 current_epoch=result[7] or 0,
                 total_epochs=result[8],
                 progress_percent=result[9] or 0.0,
