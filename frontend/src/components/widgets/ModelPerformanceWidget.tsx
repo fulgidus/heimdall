@@ -11,21 +11,30 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchModelInfo = async () => {
       try {
         const info = await inferenceService.getModelInfo();
-        setModelInfo(info);
+        if (isMounted) {
+          setModelInfo(info);
+        }
       } catch (error) {
         console.error('Failed to fetch model info:', error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchModelInfo();
     const interval = setInterval(fetchModelInfo, 30000); // Refresh every 30s
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (isLoading) {
