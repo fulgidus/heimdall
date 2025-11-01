@@ -9,7 +9,6 @@ Tasks:
 """
 
 import uuid
-from datetime import datetime, timezone
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
 
@@ -144,8 +143,11 @@ def generate_synthetic_data_task(self, job_id: str):
         import sys
         import os
         
-        # Add training service to path (hacky but works for Phase 5)
-        training_path = "/home/runner/work/heimdall/heimdall/services/training/src"
+        # Add training service to path using environment variable or relative path
+        training_path = os.environ.get('TRAINING_SERVICE_PATH')
+        if not training_path:
+            # Fallback to relative path from this file
+            training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
         if training_path not in sys.path:
             sys.path.insert(0, training_path)
         

@@ -12,7 +12,7 @@ import torch
 import numpy as np
 import structlog
 from torch.utils.data import Dataset, DataLoader
-from typing import List, Dict, Tuple
+from typing import List, Dict
 import json
 
 logger = structlog.get_logger(__name__)

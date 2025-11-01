@@ -208,7 +208,7 @@ def get_italian_receivers() -> List[ReceiverLocation]:
         ReceiverLocation("Aquila di Giaveno", 45.03, 7.27, 600),
         ReceiverLocation("Montanaro", 45.234, 7.857, 300),
         ReceiverLocation("Torino", 45.044, 7.672, 250),
-        ReceiverLocation("Coazze", 45.03, 7.27, 700),
+        ReceiverLocation("Coazze", 45.048, 7.238, 700),
         ReceiverLocation("Passo del Giovi", 44.561, 8.956, 480),
         ReceiverLocation("Genova", 44.395, 8.956, 100),
         ReceiverLocation("Milano - Baggio", 45.478, 9.123, 120),

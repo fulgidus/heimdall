@@ -14,7 +14,6 @@ Loss: Gaussian Negative Log-Likelihood (penalizes overconfidence)
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -159,7 +158,7 @@ class AttentionAggregator(nn.Module):
         num_valid = torch.clamp(num_valid, min=1.0)  # Avoid division by zero
         
         # Mean pooling
-        mean_features = attn_output_masked.sum(dim=1) / num_valid  # (batch_size, embed_dim)
+        mean_features = attn_output_masked.sum(dim=1) / num_valid.expand(-1, attn_output_masked.size(2))  # (batch_size, embed_dim)
         
         # Max pooling
         attn_output_masked_max = attn_output_masked.masked_fill(mask_expanded, -1e9)

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
-from .config import TrainingConfig, ReceiverLocation
+from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
 from .terrain import TerrainLookup
 

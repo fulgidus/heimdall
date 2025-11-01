@@ -494,7 +494,7 @@ async def generate_synthetic_data(request: Any):
         
         # Queue Celery task
         from ..tasks.training_task import generate_synthetic_data_task
-        task = generate_synthetic_data_task.delay(str(job_id))
+        generate_synthetic_data_task.delay(str(job_id))
         
         return {
             "job_id": job_id,
@@ -682,24 +682,39 @@ async def list_models(
     
     try:
         with db_manager.get_session() as session:
-            where_clause = "WHERE is_active = TRUE" if active_only else ""
+            # Build query and parameters safely
+            params = {"limit": limit, "offset": offset}
+            if active_only:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id
+                    FROM heimdall.models
+                    WHERE is_active = :is_active
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                params["is_active"] = True
+                count_query = text("SELECT COUNT(*) FROM heimdall.models WHERE is_active = :is_active")
+                count_params = {"is_active": True}
+            else:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id
+                    FROM heimdall.models
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                count_query = text("SELECT COUNT(*) FROM heimdall.models")
+                count_params = {}
             
-            query = text(f"""
-                SELECT id, model_name, version, model_type, synthetic_dataset_id,
-                       mlflow_run_id, mlflow_experiment_id, onnx_model_location,
-                       pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
-                       loss_value, epoch, is_active, is_production, hyperparameters,
-                       training_metrics, test_metrics, created_at, trained_by_job_id
-                FROM heimdall.models
-                {where_clause}
-                ORDER BY created_at DESC
-                LIMIT :limit OFFSET :offset
-            """)
-            
-            results = session.execute(query, {"limit": limit, "offset": offset}).fetchall()
-            
-            count_query = text(f"SELECT COUNT(*) FROM heimdall.models {where_clause}")
-            total = session.execute(count_query).scalar() or 0
+            results = session.execute(query, params).fetchall()
+            total = session.execute(count_query, count_params).scalar() or 0
             
             import json
             models = []

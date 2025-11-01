@@ -11,7 +11,7 @@ Implements physics-based propagation model:
 import math
 import numpy as np
 import structlog
-from typing import Tuple, Optional
+from typing import Tuple
 
 logger = structlog.get_logger(__name__)
 
@@ -124,6 +124,9 @@ class RFPropagationModel:
         """
         # Rayleigh fading in linear scale
         fading_linear = np.random.rayleigh(scale=self.fading_scale_db / (math.sqrt(2)))
+        # Clamp to minimum positive value to avoid log10(0) or log10(negative)
+        if fading_linear <= 0:
+            fading_linear = 1e-12
         # Convert to dB (relative to mean)
         fading_db = 20 * math.log10(fading_linear / (self.fading_scale_db / math.sqrt(2)))
         return fading_db

@@ -8,7 +8,7 @@ Future: Full SRTM tile download and interpolation.
 
 import structlog
 from functools import lru_cache
-from typing import Optional, Tuple
+from typing import Tuple
 import numpy as np
 
 logger = structlog.get_logger(__name__)
@@ -66,8 +66,10 @@ class TerrainLookup:
         # Base elevation from latitude (Alps in north)
         base_elevation = 200 + (lat - 44.0) * 300  # 200m at 44°N, 500m at 45°N
         
-        # Add some noise for realistic variation
-        noise = np.random.uniform(-50, 50)
+        # Add some noise for realistic variation (deterministic per coordinate)
+        seed = hash((round(lat, 6), round(lon, 6)))  # rounding to avoid floating point artifacts
+        rng = np.random.default_rng(seed)
+        noise = rng.uniform(-50, 50)
         
         elevation = max(50.0, base_elevation + noise)  # Minimum 50m
         return elevation
