@@ -18,10 +18,12 @@ const SessionHistory: React.FC = () => {
     setStatusFilter,
     clearError,
     updateSession,
+    deleteSession,
   } = useSessionStore();
 
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<number | null>(null);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -54,15 +56,33 @@ const SessionHistory: React.FC = () => {
     });
   };
 
-  const handleSaveSession = async (
-    sessionId: number,
-    updates: {
-      session_name?: string;
-      notes?: string;
-      approval_status?: 'pending' | 'approved' | 'rejected';
-    }
-  ) => {
+  const handleSaveSession = async (sessionId: string, updates: any) => {
     await updateSession(sessionId, updates);
+    setEditingSession(null);
+    // Refresh sessions
+    fetchSessions({
+      page: currentPage,
+      per_page: perPage,
+      status: statusFilter || undefined,
+    });
+  };
+
+  const handleDeleteSession = async () => {
+    if (!deletingSession) return;
+    
+    try {
+      await deleteSession(deletingSession);
+      setDeletingSession(null);
+      // Refresh sessions
+      fetchSessions({
+        page: currentPage,
+        per_page: perPage,
+        status: statusFilter || undefined,
+      });
+      await fetchAnalytics();
+    } catch (err) {
+      console.error('Failed to delete session:', err);
+    }
   };
 
   const totalPages = Math.ceil(totalSessions / perPage);
@@ -331,6 +351,14 @@ const SessionHistory: React.FC = () => {
                                 <button className="btn btn-sm btn-link-secondary" title="Download">
                                   <i className="ph ph-download-simple"></i>
                                 </button>
+                                <button
+                                  className="btn btn-sm btn-link-danger"
+                                  onClick={() => setDeletingSession(session.id)}
+                                  title="Delete Session"
+                                  disabled={deletingSession === session.id}
+                                >
+                                  <i className="ph ph-trash"></i>
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -550,6 +578,50 @@ const SessionHistory: React.FC = () => {
           onSave={handleSaveSession}
           onClose={() => setEditingSession(null)}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingSession && (
+        <div className="modal fade show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Confirm Delete</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setDeletingSession(null)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p>
+                  Are you sure you want to delete this session? This action will also delete all associated measurements and cannot be undone.
+                </p>
+                <div className="alert alert-warning mb-0">
+                  <i className="ph ph-warning-circle me-2"></i>
+                  <strong>Warning:</strong> This will permanently remove the session and all its data.
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setDeletingSession(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDeleteSession}
+                >
+                  <i className="ph ph-trash me-1"></i>
+                  Delete Session
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS measurements (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     websdr_station_id UUID REFERENCES websdr_stations(id) ON DELETE CASCADE,
+    recording_session_id UUID REFERENCES recording_sessions(id) ON DELETE CASCADE,
     frequency_hz BIGINT NOT NULL,
     signal_strength_db FLOAT,
     snr_db FLOAT,
@@ -79,6 +80,8 @@ SELECT
     );
 
 CREATE INDEX IF NOT EXISTS idx_measurements_websdr_station ON measurements(websdr_station_id, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_measurements_recording_session ON measurements(recording_session_id, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_measurements_frequency ON measurements(frequency_hz, timestamp DESC);
 

@@ -173,6 +173,9 @@ class Measurement(Base):
 
     # Foreign key to WebSDR station
     websdr_station_id = Column(PG_UUID(as_uuid=True), nullable=True, index=True)
+    
+    # Foreign key to recording session (for session-linked measurements)
+    recording_session_id = Column(PG_UUID(as_uuid=True), nullable=True, index=True)
 
     # Signal parameters
     frequency_hz = Column(BigInteger, nullable=False)
@@ -253,6 +256,7 @@ class Measurement(Base):
                 timestamp=timestamp,
                 id=str(uuid.uuid4()),
                 websdr_station_id=measurement_dict.get("websdr_station_id"),  # UUID from station lookup
+                recording_session_id=measurement_dict.get("recording_session_id"),
                 frequency_hz=int(measurement_dict.get("frequency_hz", 0)),
                 signal_strength_db=float(measurement_dict.get("signal_strength_db")) if measurement_dict.get("signal_strength_db") is not None else None,
                 snr_db=float(measurement_dict.get("snr_db")) if measurement_dict.get("snr_db") is not None else None,
@@ -273,6 +277,7 @@ class Measurement(Base):
             "id": self.id,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "websdr_station_id": self.websdr_station_id,
+            "recording_session_id": self.recording_session_id,
             "frequency_hz": self.frequency_hz,
             "signal_strength_db": self.signal_strength_db,
             "snr_db": self.snr_db,
