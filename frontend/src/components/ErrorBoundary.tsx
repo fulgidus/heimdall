@@ -42,31 +42,68 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-          <div className="max-w-md w-full">
-            <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6">
-              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 dark:bg-red-900 rounded-full">
-                <i className="ph ph-warning-circle text-red-600 dark:text-red-400 text-2xl"></i>
-              </div>
-              <h1 className="mt-4 text-xl font-semibold text-center text-gray-900 dark:text-gray-100">
-                Something went wrong
-              </h1>
-              <p className="mt-2 text-sm text-center text-gray-600 dark:text-gray-400">
-                {this.state.error?.message || 'An unexpected error occurred'}
-              </p>
-              <div className="mt-6 flex flex-col gap-3">
-                <button
-                  onClick={this.handleReset}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
-                >
-                  Try Again
-                </button>
-                <button
-                  onClick={() => (window.location.href = '/dashboard')}
-                  className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium rounded-md transition-colors"
-                >
-                  Go to Dashboard
-                </button>
+        <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
+          <div className="container">
+            <div className="row justify-content-center">
+              <div className="col-md-6 col-lg-5">
+                <div className="card shadow-lg border-0">
+                  <div className="card-body p-5 text-center">
+                    {/* Error Icon */}
+                    <div className="mb-4">
+                      <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10 p-3">
+                        <i className="ph ph-warning-octagon text-danger" style={{ fontSize: '3rem' }}></i>
+                      </div>
+                    </div>
+
+                    {/* Error Title */}
+                    <h2 className="card-title mb-3 fw-bold text-danger">
+                      Something Went Wrong
+                    </h2>
+
+                    {/* Error Message */}
+                    <div className="alert alert-danger mb-4" role="alert">
+                      <i className="ph ph-info me-2"></i>
+                      <strong>Error:</strong> {this.state.error?.message || 'An unexpected error occurred'}
+                    </div>
+
+                    {/* Error Details (Stack trace in development) */}
+                    {import.meta.env.DEV && this.state.error?.stack && (
+                      <details className="text-start mb-4">
+                        <summary className="btn btn-sm btn-outline-secondary mb-2">
+                          <i className="ph ph-bug me-2"></i>
+                          Show Technical Details
+                        </summary>
+                        <pre className="bg-dark text-light p-3 rounded small" style={{ maxHeight: '200px', overflow: 'auto' }}>
+                          <code>{this.state.error.stack}</code>
+                        </pre>
+                      </details>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="d-grid gap-2">
+                      <button
+                        onClick={this.handleReset}
+                        className="btn btn-primary btn-lg"
+                      >
+                        <i className="ph ph-arrow-clockwise me-2"></i>
+                        Try Again
+                      </button>
+                      <button
+                        onClick={() => (window.location.href = '/dashboard')}
+                        className="btn btn-outline-secondary"
+                      >
+                        <i className="ph ph-house me-2"></i>
+                        Go to Dashboard
+                      </button>
+                    </div>
+
+                    {/* Help Text */}
+                    <div className="mt-4 text-muted small">
+                      <i className="ph ph-lightbulb me-1"></i>
+                      If this problem persists, please contact support or check the browser console for more details.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

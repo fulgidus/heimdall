@@ -32,9 +32,10 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
     return () => {
       // Restore body scroll
       document.body.style.overflow = '';
-      // Clean up: remove the modal root from DOM
-      if (modalRoot.parentNode) {
-        modalRoot.parentNode.removeChild(modalRoot);
+      // Clean up: remove the modal root from DOM using safer approach
+      // Check if element is still in DOM before attempting removal
+      if (document.body.contains(modalRoot)) {
+        document.body.removeChild(modalRoot);
       }
     };
   }, [modalRoot]);
