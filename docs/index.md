@@ -1,6 +1,6 @@
 # 📚 Heimdall Documentation
 
-Welcome to Heimdall - AI-powered radio source localization platform.
+Welcome to Heimdall - AI-powered radio source localization platform available as both a web application and native desktop app.
 
 ---
 
@@ -8,19 +8,37 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 
 **New to Heimdall?** Start here:
 
-1. **[Quick Start (5 min)](QUICK_START.md)** - Installation and setup
+1. **[Quick Start (5 min)](QUICK_START.md)** - Installation and setup for Docker or Desktop
 2. **[Architecture Overview](ARCHITECTURE.md)** - How the system works
 3. **[API Reference](API.md)** - REST endpoints and usage
+
+### Deployment Options
+
+Heimdall offers flexibility in how you deploy and run it:
+
+- **🐳 Docker Deployment** - Full-stack containerized deployment for servers
+- **🖥️ Desktop Application** - Native Tauri app for Windows, macOS, and Linux with GPU support
+
+Choose the option that best fits your workflow! See [Quick Start](QUICK_START.md) for details.
 
 ---
 
 ## 📖 Core Documentation
 
-- **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
-- **[Architecture Guide](ARCHITECTURE.md)** - System design and components
+- **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes (Docker or Desktop)
+- **[Architecture Guide](ARCHITECTURE.md)** - System design and hybrid architecture
 - **[API Reference](API.md)** - Complete REST API documentation
 - **[Training Guide](TRAINING.md)** - Machine learning model training
 - **[Development Guide](DEVELOPMENT.md)** - Contributing and local development
+
+### Desktop Application
+
+- **[Tauri Integration Guide](TAURI_INTEGRATION.md)** - Desktop app features, development, and deployment
+
+### Advanced Features
+
+- **[Import/Export Guide](IMPORT_EXPORT.md)** - Save and restore configurations across installations
+- **[CORS Configuration](CORS_CONFIGURATION.md)** - Cross-origin setup for API access
 
 ---
 

@@ -34,6 +34,7 @@
         "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-tooltip": "^1.2.8",
         "@tanstack/react-query": "^5.90.5",
+        "@tauri-apps/api": "^2.9.0",
         "@types/mapbox-gl": "^3.4.1",
         "autoprefixer": "^10.4.21",
         "axios": "^1.12.2",

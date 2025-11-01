@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { isTauriEnvironment, tauriAPI } from '../lib/tauri-bridge';
 
 const Settings: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'general' | 'api' | 'notifications' | 'advanced'>('general');
     const [isSaving, setIsSaving] = useState(false);
+    const isDesktop = isTauriEnvironment();
 
     // Settings state (TODO: Connect to backend settings API)
     const [settings, setSettings] = useState({
@@ -30,11 +32,50 @@ const Settings: React.FC = () => {
         maxConcurrentRequests: 5,
     });
 
+    // Load settings from Tauri on mount if in desktop mode
+    useEffect(() => {
+        if (isDesktop) {
+            loadDesktopSettings();
+        }
+    }, [isDesktop]);
+
+    const loadDesktopSettings = async () => {
+        try {
+            const desktopSettings = await tauriAPI.settings.load();
+            // Merge desktop settings with existing state
+            setSettings(prev => ({
+                ...prev,
+                theme: desktopSettings.theme || prev.theme,
+                debugMode: desktopSettings.enable_gpu !== undefined ? desktopSettings.enable_gpu : prev.debugMode,
+            }));
+        } catch (error) {
+            console.error('Failed to load desktop settings:', error);
+        }
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
-        // TODO: Save to backend API
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsSaving(false);
+        try {
+            // TODO: Save to backend API
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // If in desktop mode, also save to Tauri settings
+            if (isDesktop) {
+                await tauriAPI.settings.save({
+                    api_url: 'http://localhost:8000',
+                    websocket_url: 'ws://localhost:8000/ws',
+                    mapbox_token: '',
+                    auto_start_backend: false,
+                    backend_port: 8000,
+                    enable_gpu: settings.debugMode,
+                    theme: settings.theme,
+                });
+            }
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -52,7 +93,20 @@ const Settings: React.FC = () => {
                         </div>
                         <div className="col-md-12">
                             <div className="page-header-title">
-                                <h2 className="mb-0">Settings</h2>
+                                <h2 className="mb-0">
+                                    Settings
+                                    {isDesktop && (
+                                        <span className="badge bg-info ms-2" style={{ fontSize: '0.6rem', verticalAlign: 'middle' }}>
+                                            <i className="ph ph-desktop me-1"></i>
+                                            Desktop Mode
+                                        </span>
+                                    )}
+                                </h2>
+                                {isDesktop && (
+                                    <p className="text-muted mb-0 mt-1">
+                                        <small>Settings are stored locally on your device</small>
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>

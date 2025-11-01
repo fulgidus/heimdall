@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore } from '../store';
+import { isTauriEnvironment, tauriAPI, type GpuInfo } from '../lib/tauri-bridge';
 
 const SystemStatus: React.FC = () => {
     const { data, isLoading, fetchDashboardData } = useDashboardStore();
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [gpuInfo, setGpuInfo] = useState<GpuInfo | null>(null);
+    const [gpuLoading, setGpuLoading] = useState(false);
+    const isDesktop = isTauriEnvironment();
 
     useEffect(() => {
         fetchDashboardData();
@@ -11,9 +15,34 @@ const SystemStatus: React.FC = () => {
         return () => clearInterval(interval);
     }, [fetchDashboardData]);
 
+    // Fetch GPU info if in desktop mode
+    useEffect(() => {
+        if (isDesktop) {
+            fetchGPUInfo();
+            const interval = setInterval(fetchGPUInfo, 5000); // Update every 5 seconds
+            return () => clearInterval(interval);
+        }
+    }, [isDesktop]);
+
+    const fetchGPUInfo = async () => {
+        if (!isDesktop) return;
+        try {
+            setGpuLoading(true);
+            const info = await tauriAPI.gpu.check();
+            setGpuInfo(info);
+        } catch (error) {
+            console.error('Failed to fetch GPU info:', error);
+        } finally {
+            setGpuLoading(false);
+        }
+    };
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
-        await fetchDashboardData();
+        await Promise.all([
+            fetchDashboardData(),
+            isDesktop ? fetchGPUInfo() : Promise.resolve()
+        ]);
         setIsRefreshing(false);
     };
 
@@ -292,6 +321,98 @@ const SystemStatus: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* GPU Information (Desktop Only) */}
+                {isDesktop && (
+                    <div className="col-lg-6">
+                        <div className="card">
+                            <div className="card-header">
+                                <h5 className="mb-0">
+                                    <i className="ph ph-gpu me-2"></i>
+                                    GPU Information
+                                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7rem' }}>Desktop</span>
+                                </h5>
+                            </div>
+                            <div className="card-body">
+                                {gpuLoading && !gpuInfo ? (
+                                    <div className="text-center py-5">
+                                        <div className="spinner-border text-primary" role="status">
+                                            <span className="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p className="text-muted mt-2">Detecting GPU...</p>
+                                    </div>
+                                ) : gpuInfo && gpuInfo.available ? (
+                                    <>
+                                        <div className="row mb-3">
+                                            <div className="col-12">
+                                                <p className="text-muted mb-1">GPU Model</p>
+                                                <h6 className="mb-0">{gpuInfo.name}</h6>
+                                            </div>
+                                        </div>
+                                        <hr />
+                                        <div className="row mb-3">
+                                            <div className="col-6">
+                                                <p className="text-muted mb-1">Driver Version</p>
+                                                <h6 className="mb-0">{gpuInfo.driver_version}</h6>
+                                            </div>
+                                            <div className="col-6">
+                                                <p className="text-muted mb-1">CUDA Version</p>
+                                                <h6 className="mb-0">{gpuInfo.cuda_version || 'N/A'}</h6>
+                                            </div>
+                                        </div>
+                                        <hr />
+                                        <div className="row mb-3">
+                                            <div className="col-12">
+                                                <p className="text-muted mb-1">GPU Utilization</p>
+                                                <div className="d-flex align-items-center">
+                                                    <div className="flex-grow-1">
+                                                        <div className="progress" style={{ height: '10px' }}>
+                                                            <div
+                                                                className={`progress-bar ${
+                                                                    gpuInfo.utilization_percent > 80 
+                                                                        ? 'bg-danger' 
+                                                                        : gpuInfo.utilization_percent > 50 
+                                                                        ? 'bg-warning' 
+                                                                        : 'bg-success'
+                                                                }`}
+                                                                role="progressbar"
+                                                                style={{ width: `${gpuInfo.utilization_percent}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="ms-3">
+                                                        <h6 className="mb-0">{gpuInfo.utilization_percent}%</h6>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <hr />
+                                        <div className="row">
+                                            <div className="col-4">
+                                                <p className="text-muted mb-1">Total Memory</p>
+                                                <h6 className="mb-0">{gpuInfo.memory_total_mb} MB</h6>
+                                            </div>
+                                            <div className="col-4">
+                                                <p className="text-muted mb-1">Used</p>
+                                                <h6 className="mb-0 text-warning">{gpuInfo.memory_used_mb} MB</h6>
+                                            </div>
+                                            <div className="col-4">
+                                                <p className="text-muted mb-1">Free</p>
+                                                <h6 className="mb-0 text-success">{gpuInfo.memory_free_mb} MB</h6>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="text-center py-5">
+                                        <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
+                                        <p className="text-muted mb-0">No GPU detected or nvidia-smi not available</p>
+                                        <small className="text-muted">GPU acceleration requires NVIDIA GPU with drivers installed</small>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </>
     );
