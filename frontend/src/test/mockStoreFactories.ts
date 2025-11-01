@@ -67,9 +67,14 @@ export const createMockWebSDRStore = () =>
     },
     isLoading: false,
     error: null,
+    isWebSocketConnected: false,
     fetchWebSDRs: () => {},
     checkHealth: () => {},
     refreshAll: () => {},
+    setWebSocketConnected: () => {},
+    updateWebSDRFromWebSocket: () => {},
+    updateHealthFromWebSocket: () => {},
+    setWebSDRsFromWebSocket: () => {},
     lastHealthCheck: new Date().toISOString(),
   }));
 

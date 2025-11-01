@@ -61,9 +61,14 @@ const mockWebSDRStore = {
   isLoading: false,
   loading: false,
   error: null,
+  isWebSocketConnected: false,
   fetchWebSDRs: vi.fn(),
   checkHealth: vi.fn(),
   refreshAll: vi.fn(),
+  setWebSocketConnected: vi.fn(),
+  updateWebSDRFromWebSocket: vi.fn(),
+  updateHealthFromWebSocket: vi.fn(),
+  setWebSDRsFromWebSocket: vi.fn(),
   lastHealthCheck: new Date().toISOString(),
 };
 
@@ -92,6 +97,7 @@ const mockSessionStore = {
   fetchSessions: vi.fn(),
   fetchAnalytics: vi.fn(),
   clearError: vi.fn(),
+  updateSessionFromWebSocket: vi.fn(),
 };
 
 const mockAuthStore = {
@@ -145,11 +151,14 @@ const mockLocalizationStore = {
 const mockAcquisitionStore = {
   currentTask: null,
   taskHistory: [],
+  activeTasks: new Map(),
+  recentAcquisitions: [],
   isLoading: false,
   error: null,
   triggerAcquisition: vi.fn(),
   pollTaskStatus: vi.fn(),
   clearCurrentTask: vi.fn(),
+  updateTaskFromWebSocket: vi.fn(),
 };
 
 const mockSystemStore = {
