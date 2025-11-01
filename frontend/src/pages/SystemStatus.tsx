@@ -41,7 +41,7 @@ const SystemStatus: React.FC = () => {
             </div>
             <div className="col-md-12">
               <div className="page-header-title">
-                <h2 className="mb-0">System Status</h2>
+                <h2 className="mb-0 text-white">System Status</h2>
               </div>
             </div>
           </div>
