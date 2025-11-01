@@ -26,7 +26,7 @@ export const SpectrogramViewer: React.FC<SpectrogramViewerProps> = ({
   className = '',
 }) => {
   // Placeholder: In Phase 8, this will fetch actual spectrogram from backend
-  // const spectrogramUrl = `/api/v1/sessions/${sessionId}/spectrogram/${websdrId}`;
+  // const spectrogramUrl = `/v1/sessions/${sessionId}/spectrogram/${websdrId}`;
 
   const getSNRColor = (snrValue?: number) => {
     if (!snrValue) return 'text-slate-400';

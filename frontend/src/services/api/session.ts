@@ -123,7 +123,7 @@ export async function listSessions(params: {
   status?: string;
   approval_status?: string;
 }): Promise<SessionListResponse> {
-  const response = await api.get('/api/v1/sessions', { params });
+  const response = await api.get('/v1/sessions', { params });
 
   // Validate response with Zod
   const validated = SessionListResponseSchema.parse(response.data);
@@ -134,7 +134,7 @@ export async function listSessions(params: {
  * Get a specific session by ID
  */
 export async function getSession(sessionId: string): Promise<RecordingSessionWithDetails> {
-  const response = await api.get(`/api/v1/sessions/${sessionId}`);
+  const response = await api.get(`/v1/sessions/${sessionId}`);
 
   // Validate response with Zod
   const validated = RecordingSessionWithDetailsSchema.parse(response.data);
@@ -145,7 +145,7 @@ export async function getSession(sessionId: string): Promise<RecordingSessionWit
  * Create a new recording session
  */
 export async function createSession(session: RecordingSessionCreate): Promise<RecordingSession> {
-  const response = await api.post('/api/v1/sessions', session);
+  const response = await api.post('/v1/sessions', session);
 
   // Validate response with Zod
   const validated = RecordingSessionSchema.parse(response.data);
@@ -159,7 +159,7 @@ export async function updateSession(
   sessionId: string,
   sessionUpdate: RecordingSessionUpdate
 ): Promise<RecordingSessionWithDetails> {
-  const response = await api.patch(`/api/v1/sessions/${sessionId}`, sessionUpdate);
+  const response = await api.patch(`/v1/sessions/${sessionId}`, sessionUpdate);
 
   // Validate response with Zod
   const validated = RecordingSessionWithDetailsSchema.parse(response.data);
@@ -174,7 +174,7 @@ export async function updateSessionStatus(
   status: string,
   celeryTaskId?: string
 ): Promise<RecordingSession> {
-  const response = await api.patch(`/api/v1/sessions/${sessionId}/status`, null, {
+  const response = await api.patch(`/v1/sessions/${sessionId}/status`, null, {
     params: {
       status,
       celery_task_id: celeryTaskId,
@@ -193,7 +193,7 @@ export async function updateSessionApproval(
   sessionId: string,
   approvalStatus: 'pending' | 'approved' | 'rejected'
 ): Promise<RecordingSession> {
-  const response = await api.patch(`/api/v1/sessions/${sessionId}/approval`, null, {
+  const response = await api.patch(`/v1/sessions/${sessionId}/approval`, null, {
     params: {
       approval_status: approvalStatus,
     },
@@ -208,14 +208,14 @@ export async function updateSessionApproval(
  * Delete a recording session
  */
 export async function deleteSession(sessionId: string): Promise<void> {
-  await api.delete(`/api/v1/sessions/${sessionId}`);
+  await api.delete(`/v1/sessions/${sessionId}`);
 }
 
 /**
  * Get session analytics
  */
 export async function getSessionAnalytics(): Promise<SessionAnalytics> {
-  const response = await api.get('/api/v1/sessions/analytics');
+  const response = await api.get('/v1/sessions/analytics');
 
   // Validate response with Zod
   const validated = SessionAnalyticsSchema.parse(response.data);
@@ -226,7 +226,7 @@ export async function getSessionAnalytics(): Promise<SessionAnalytics> {
  * List all known RF sources
  */
 export async function listKnownSources(): Promise<KnownSource[]> {
-  const response = await api.get('/api/v1/sessions/known-sources');
+  const response = await api.get('/v1/sessions/known-sources');
 
   // Validate response with Zod
   const validated = z.array(KnownSourceSchema).parse(response.data);
@@ -237,7 +237,7 @@ export async function listKnownSources(): Promise<KnownSource[]> {
  * Get a specific known RF source
  */
 export async function getKnownSource(sourceId: string): Promise<KnownSource> {
-  const response = await api.get<KnownSource>(`/api/v1/sessions/known-sources/${sourceId}`);
+  const response = await api.get<KnownSource>(`/v1/sessions/known-sources/${sourceId}`);
   return response.data;
 }
 
@@ -245,7 +245,7 @@ export async function getKnownSource(sourceId: string): Promise<KnownSource> {
  * Create a new known RF source
  */
 export async function createKnownSource(source: KnownSourceCreate): Promise<KnownSource> {
-  const response = await api.post<KnownSource>('/api/v1/sessions/known-sources', source);
+  const response = await api.post<KnownSource>('/v1/sessions/known-sources', source);
   return response.data;
 }
 
@@ -256,7 +256,7 @@ export async function updateKnownSource(
   sourceId: string,
   source: KnownSourceUpdate
 ): Promise<KnownSource> {
-  const response = await api.put<KnownSource>(`/api/v1/sessions/known-sources/${sourceId}`, source);
+  const response = await api.put<KnownSource>(`/v1/sessions/known-sources/${sourceId}`, source);
   return response.data;
 }
 
@@ -264,7 +264,7 @@ export async function updateKnownSource(
  * Delete a known RF source
  */
 export async function deleteKnownSource(sourceId: string): Promise<void> {
-  await api.delete(`/api/v1/sessions/known-sources/${sourceId}`);
+  await api.delete(`/v1/sessions/known-sources/${sourceId}`);
 }
 
 const sessionService = {

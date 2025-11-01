@@ -58,7 +58,7 @@ describe('getModelInfo', () => {
       health_status: 'healthy',
     };
 
-    mock.onGet('/api/v1/analytics/model/info').reply(200, mockModelInfo);
+    mock.onGet('/v1/analytics/model/info').reply(200, mockModelInfo);
 
     const result = await getModelInfo();
 
@@ -68,7 +68,7 @@ describe('getModelInfo', () => {
   });
 
   it('should handle 500 error when model info not available', async () => {
-    mock.onGet('/api/v1/analytics/model/info').reply(500, {
+    mock.onGet('/v1/analytics/model/info').reply(500, {
       detail: 'Model not loaded',
     });
 
@@ -76,7 +76,7 @@ describe('getModelInfo', () => {
   });
 
   it('should handle network errors', async () => {
-    mock.onGet('/api/v1/analytics/model/info').networkError();
+    mock.onGet('/v1/analytics/model/info').networkError();
 
     await expect(getModelInfo()).rejects.toThrow();
   });
@@ -99,7 +99,7 @@ describe('getModelPerformance', () => {
       timestamp: '2025-10-25T12:00:00Z',
     };
 
-    mock.onGet('/api/v1/analytics/model/performance').reply(200, mockPerformance);
+    mock.onGet('/v1/analytics/model/performance').reply(200, mockPerformance);
 
     const result = await getModelPerformance();
 
@@ -125,7 +125,7 @@ describe('getModelPerformance', () => {
       timestamp: '2025-10-25T12:00:00Z',
     };
 
-    mock.onGet('/api/v1/analytics/model/performance').reply(200, mockPerformance);
+    mock.onGet('/v1/analytics/model/performance').reply(200, mockPerformance);
 
     const result = await getModelPerformance();
 
@@ -133,7 +133,7 @@ describe('getModelPerformance', () => {
   });
 
   it('should handle 503 error when metrics service unavailable', async () => {
-    mock.onGet('/api/v1/analytics/model/performance').reply(503);
+    mock.onGet('/v1/analytics/model/performance').reply(503);
 
     await expect(getModelPerformance()).rejects.toThrow();
   });
@@ -170,7 +170,7 @@ describe('predictLocalization', () => {
       _cache_hit: false,
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict').reply(200, mockResponse);
 
     const result = await predictLocalization(request);
 
@@ -199,7 +199,7 @@ describe('predictLocalization', () => {
       _cache_hit: true,
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict').reply(200, mockResponse);
 
     const result = await predictLocalization(request);
 
@@ -212,7 +212,7 @@ describe('predictLocalization', () => {
       iq_data: [], // Empty IQ data
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(400, {
+    mock.onPost('/v1/inference/predict').reply(400, {
       detail: 'IQ data is required and must not be empty',
     });
 
@@ -224,7 +224,7 @@ describe('predictLocalization', () => {
       iq_data: [[0.1, 0.2]],
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(500, {
+    mock.onPost('/v1/inference/predict').reply(500, {
       detail: 'Model inference failed',
     });
 
@@ -236,7 +236,7 @@ describe('predictLocalization', () => {
       iq_data: [[0.1, 0.2]],
     };
 
-    mock.onPost('/api/v1/inference/predict').timeout();
+    mock.onPost('/v1/inference/predict').timeout();
 
     await expect(predictLocalization(request)).rejects.toThrow();
   });
@@ -262,7 +262,7 @@ describe('predictLocalization', () => {
       _cache_hit: false,
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict').reply(200, mockResponse);
 
     const result = await predictLocalization(request);
 
@@ -321,7 +321,7 @@ describe('predictLocalizationBatch', () => {
       total_time_ms: 353,
     };
 
-    mock.onPost('/api/v1/inference/predict/batch').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict/batch').reply(200, mockResponse);
 
     const result = await predictLocalizationBatch(request);
 
@@ -339,7 +339,7 @@ describe('predictLocalizationBatch', () => {
       predictions: [],
     };
 
-    mock.onPost('/api/v1/inference/predict/batch').reply(400, {
+    mock.onPost('/v1/inference/predict/batch').reply(400, {
       detail: 'Batch must contain at least one prediction',
     });
 
@@ -352,7 +352,7 @@ describe('predictLocalizationBatch', () => {
     };
 
     // Backend might return 207 Multi-Status or 500 depending on implementation
-    mock.onPost('/api/v1/inference/predict/batch').reply(500, {
+    mock.onPost('/v1/inference/predict/batch').reply(500, {
       detail: 'Some predictions failed',
     });
 
@@ -389,7 +389,7 @@ describe('getRecentLocalizations', () => {
       },
     ];
 
-    mock.onGet('/api/v1/analytics/localizations/recent').reply(200, mockLocalizations);
+    mock.onGet('/v1/analytics/localizations/recent').reply(200, mockLocalizations);
 
     const result = await getRecentLocalizations();
 
@@ -413,7 +413,7 @@ describe('getRecentLocalizations', () => {
     }));
 
     mock
-      .onGet('/api/v1/analytics/localizations/recent', { params: { limit: 5 } })
+      .onGet('/v1/analytics/localizations/recent', { params: { limit: 5 } })
       .reply(200, mockLocalizations);
 
     const result = await getRecentLocalizations(5);
@@ -428,7 +428,7 @@ describe('getRecentLocalizations', () => {
   });
 
   it('should handle empty results (no recent localizations)', async () => {
-    mock.onGet('/api/v1/analytics/localizations/recent').reply(200, []);
+    mock.onGet('/v1/analytics/localizations/recent').reply(200, []);
 
     const result = await getRecentLocalizations();
 
@@ -436,13 +436,13 @@ describe('getRecentLocalizations', () => {
   });
 
   it('should handle 500 error from analytics service', async () => {
-    mock.onGet('/api/v1/analytics/localizations/recent').reply(500);
+    mock.onGet('/v1/analytics/localizations/recent').reply(500);
 
     await expect(getRecentLocalizations()).rejects.toThrow();
   });
 
   it('should handle network errors', async () => {
-    mock.onGet('/api/v1/analytics/localizations/recent').networkError();
+    mock.onGet('/v1/analytics/localizations/recent').networkError();
 
     await expect(getRecentLocalizations()).rejects.toThrow();
   });
@@ -461,7 +461,7 @@ describe('Edge Cases and Real-World Scenarios', () => {
       _cache_hit: false,
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict').reply(200, mockResponse);
 
     const requests = Array.from({ length: 5 }, () =>
       predictLocalization({ iq_data: [[0.1, 0.2]] })
@@ -495,7 +495,7 @@ describe('Edge Cases and Real-World Scenarios', () => {
       _cache_hit: false,
     };
 
-    mock.onPost('/api/v1/inference/predict').reply(200, mockResponse);
+    mock.onPost('/v1/inference/predict').reply(200, mockResponse);
 
     const result = await predictLocalization(request);
 

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
 import { useWebSDRStore } from '../store/websdrStore';
-import { createWebSocketManager } from '../lib/websocket';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import { getDetailedHealth } from '../services/api/system';
 import type { DetailedHealthResponse } from '../services/api/schemas';
 
@@ -27,76 +27,27 @@ const RecordingSession: React.FC = () => {
   const [totalChunks, setTotalChunks] = useState(0);
   const [measurementsCount, setMeasurementsCount] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  const [ws, setWs] = useState<ReturnType<typeof createWebSocketManager> | null>(null);
-  const [detailedHealth, setDetailedHealth] = useState<DetailedHealthResponse | null>(null);
+  const [systemHealth, setSystemHealth] = useState<DetailedHealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
+  
+  const { manager: ws, isConnected } = useWebSocket();
 
-  useEffect(() => {
-    fetchKnownSources();
-    fetchWebSDRs();
-
-    // Fetch detailed health status
-    const loadDetailedHealth = async () => {
-      try {
-        setHealthLoading(true);
-        const health = await getDetailedHealth();
-        setDetailedHealth(health);
-      } catch (error) {
-        console.error('Failed to fetch detailed health:', error);
-      } finally {
-        setHealthLoading(false);
-      }
-    };
-    loadDetailedHealth();
-
-    // Refresh health status every 30 seconds
-    const healthInterval = setInterval(loadDetailedHealth, 30000);
-
-    // Initialize WebSocket connection
-    const wsUrl = import.meta.env.VITE_SOCKET_URL || 'ws://localhost:80/ws';
-    const websocket = createWebSocketManager(wsUrl);
-
-    // Subscribe to session events
-    websocket.subscribe('session:started', handleSessionStarted);
-    websocket.subscribe('session:completed', handleSessionCompleted);
-    websocket.subscribe('session:progress', handleSessionProgress);
-    websocket.subscribe('session:error', handleSessionError);
-
-    // Connect
-    websocket.connect().catch(error => {
-      console.error('Failed to connect to WebSocket:', error);
-    });
-
-    setWs(websocket);
-
-    return () => {
-      clearInterval(healthInterval);
-      websocket.unsubscribe('session:started', handleSessionStarted);
-      websocket.unsubscribe('session:completed', handleSessionCompleted);
-      websocket.unsubscribe('session:progress', handleSessionProgress);
-      websocket.unsubscribe('session:error', handleSessionError);
-      websocket.disconnect();
-    };
-  }, [fetchKnownSources, fetchWebSDRs]);
-
-  const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
-
-  // WebSocket event handlers
-  const handleSessionStarted = (data: any) => {
+  // WebSocket event handlers (defined before useEffect)
+  const handleSessionStarted = useCallback((data: any) => {
     console.log('Session configuration validated:', data);
     setSessionState('ready_to_assign');
     setStatusMessage('Configuration validated. Now select a source.');
-  };
+  }, []);
 
-  const handleSessionCompleted = (data: any) => {
+  const handleSessionCompleted = useCallback((data: any) => {
     console.log('Session created and acquisition started:', data);
     setCurrentSessionId(data.session_id);
     setSessionState('acquiring');
     setTotalChunks(data.chunks || 0);
     setStatusMessage(`Session created! Acquiring ${data.chunks} 1-second samples...`);
-  };
+  }, []);
 
-  const handleSessionProgress = (data: any) => {
+  const handleSessionProgress = useCallback((data: any) => {
     console.log('Session progress:', data);
     setCurrentChunk(data.chunk || 0);
     setTotalChunks(data.total_chunks || 0);
@@ -108,13 +59,60 @@ const RecordingSession: React.FC = () => {
       setSessionState('complete');
       setStatusMessage('Acquisition complete!');
     }
-  };
+  }, []);
 
-  const handleSessionError = (data: any) => {
+  const handleSessionError = useCallback((data: any) => {
     console.error('Session error:', data);
     setSessionState('error');
     setStatusMessage(`Error: ${data.error}`);
-  };
+  }, []);
+
+  // Load system health on mount
+  useEffect(() => {
+    const loadSystemHealth = async () => {
+      try {
+        setHealthLoading(true);
+        const health = await getDetailedHealth();
+        setSystemHealth(health);
+      } catch (error) {
+        console.error('Failed to load system health:', error);
+      } finally {
+        setHealthLoading(false);
+      }
+    };
+    
+    loadSystemHealth();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadSystemHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetchKnownSources();
+    fetchWebSDRs();
+
+    if (!ws || !isConnected) {
+      console.warn('WebSocket not connected, waiting for connection...');
+      return;
+    }
+
+    // Subscribe to session events
+    ws.subscribe('session:started', handleSessionStarted);
+    ws.subscribe('session:completed', handleSessionCompleted);
+    ws.subscribe('session:progress', handleSessionProgress);
+    ws.subscribe('session:error', handleSessionError);
+
+    return () => {
+      ws.unsubscribe('session:started', handleSessionStarted);
+      ws.unsubscribe('session:completed', handleSessionCompleted);
+      ws.unsubscribe('session:progress', handleSessionProgress);
+      ws.unsubscribe('session:error', handleSessionError);
+    };
+  }, [fetchKnownSources, fetchWebSDRs, ws, isConnected, handleSessionStarted, handleSessionCompleted, handleSessionProgress, handleSessionError]);
+
+  const hasHealthData = Object.keys(healthStatus).length > 0;
+  const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
+  const onlineWebSDRsDisplay = hasHealthData ? `${onlineWebSDRs}/7` : '?/7';
 
   // Step 1: Validate configuration
   const handleValidateConfig = () => {
@@ -123,7 +121,7 @@ const RecordingSession: React.FC = () => {
       return;
     }
 
-    if (!ws || !ws.isConnected()) {
+    if (!ws || !isConnected) {
       alert('WebSocket not connected. Please wait and try again.');
       return;
     }
@@ -149,7 +147,7 @@ const RecordingSession: React.FC = () => {
       return;
     }
 
-    if (!ws || !ws.isConnected()) {
+    if (!ws || !isConnected) {
       alert('WebSocket not connected. Please wait and try again.');
       return;
     }
@@ -387,79 +385,82 @@ const RecordingSession: React.FC = () => {
                   <div className="spinner-border spinner-border-sm text-primary" role="status">
                     <span className="visually-hidden">Loading...</span>
                   </div>
-                  <p className="text-muted f-12 mt-2 mb-0">Checking system components...</p>
+                  <p className="text-muted f-12 mt-2 mb-0">Checking system status...</p>
                 </div>
-              ) : detailedHealth ? (
+              ) : systemHealth ? (
                 <>
                   {/* Component Status */}
-                  {detailedHealth.dependencies.map(dep => {
+                  {Object.entries(systemHealth.components).map(([name, component]) => {
                     const statusColors = {
-                      up: 'bg-light-success',
-                      down: 'bg-light-danger',
-                      degraded: 'bg-light-warning',
+                      healthy: 'bg-light-success',
+                      unhealthy: 'bg-light-danger',
+                      warning: 'bg-light-warning',
                       unknown: 'bg-light-secondary',
                     };
                     const statusIcons = {
-                      up: 'ph-check-circle',
-                      down: 'ph-x-circle',
-                      degraded: 'ph-warning-circle',
+                      healthy: 'ph-check-circle',
+                      unhealthy: 'ph-x-circle',
+                      warning: 'ph-warning-circle',
                       unknown: 'ph-question',
                     };
-                    const statusColor = statusColors[dep.status] || 'bg-light-secondary';
-                    const statusIcon = statusIcons[dep.status] || 'ph-question';
+                    const statusColor = statusColors[component.status] || 'bg-light-secondary';
+                    const statusIcon = statusIcons[component.status] || 'ph-question';
 
                     return (
                       <div
-                        key={dep.name}
-                        className="d-flex justify-content-between align-items-center mb-3"
+                        key={name}
+                        className="d-flex justify-content-between align-items-center mb-2"
+                        title={component.message}
                       >
                         <div className="d-flex align-items-center">
-                          <i className={`ph ${statusIcon} me-2`}></i>
-                          <span className="text-capitalize">{dep.name}</span>
+                          <i className={`ph ${statusIcon} me-2 f-14`}></i>
+                          <span className="f-14 text-capitalize">{name.replace('_', ' ')}</span>
                         </div>
-                        <div className="d-flex align-items-center">
-                          <span className={`badge ${statusColor}`}>{dep.status.toUpperCase()}</span>
-                          {dep.status === 'up' && (
-                            <span className="f-12 text-muted ms-2">
-                              {parseFloat(dep.response_time_ms).toFixed(0)}ms
-                            </span>
-                          )}
-                        </div>
+                        <span className={`badge ${statusColor} f-11`}>
+                          {component.status.toUpperCase()}
+                        </span>
                       </div>
                     );
                   })}
 
                   <hr className="my-3" />
 
-                  {/* WebSDR Status */}
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <span>WebSDR Receivers</span>
-                    <span className="badge bg-light-primary">{onlineWebSDRs}/7 Online</span>
+                  {/* Summary */}
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="f-12 text-muted">WebSocket</span>
+                    <span className={`badge ${isConnected ? 'bg-light-success' : 'bg-light-danger'} f-11`}>
+                      {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                    </span>
                   </div>
 
-                  {/* Known Sources */}
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="f-12 text-muted">WebSDR Receivers</span>
+                    <span className="badge bg-light-primary f-11">{onlineWebSDRsDisplay} Online</span>
+                  </div>
+
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <span>Known Sources</span>
-                    <span className="badge bg-light-info">{knownSources.length}</span>
+                    <span className="f-12 text-muted">Known Sources</span>
+                    <span className="badge bg-light-info f-11">{knownSources.length}</span>
                   </div>
 
                   {/* Overall System Ready */}
                   <div className="d-flex justify-content-between align-items-center">
                     <span className="fw-bold">System Ready</span>
-                    <span className={`badge ${detailedHealth.ready ? 'bg-success' : 'bg-danger'}`}>
-                      {detailedHealth.ready ? 'YES' : 'NO'}
+                    <span className={`badge ${systemHealth.ready ? 'bg-success' : 'bg-danger'}`}>
+                      {systemHealth.ready ? 'YES' : 'NO'}
                     </span>
                   </div>
 
-                  {!detailedHealth.ready && (
-                    <div className="alert alert-danger mt-3 mb-0" role="alert">
+                  {!systemHealth.ready && (
+                    <div className="alert alert-warning mt-3 mb-0 f-12" role="alert">
                       <i className="ph ph-warning me-2"></i>
-                      Some components are not ready. Check statuses above.
+                      <strong>{systemHealth.summary.unhealthy}</strong> component(s) unhealthy.
+                      Check statuses above.
                     </div>
                   )}
                 </>
               ) : (
-                <div className="alert alert-warning mb-0" role="alert">
+                <div className="alert alert-danger f-12" role="alert">
                   <i className="ph ph-warning me-2"></i>
                   Unable to check system status
                 </div>

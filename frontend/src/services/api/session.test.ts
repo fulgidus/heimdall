@@ -91,7 +91,7 @@ describe('listSessions', () => {
       per_page: 20,
     };
 
-    mock.onGet('/api/v1/sessions').reply(200, mockResponse);
+    mock.onGet('/v1/sessions').reply(200, mockResponse);
 
     const result = await listSessions({});
 
@@ -109,7 +109,7 @@ describe('listSessions', () => {
       per_page: 10,
     };
 
-    mock.onGet('/api/v1/sessions', { params: { page: 3, per_page: 10 } }).reply(200, mockResponse);
+    mock.onGet('/v1/sessions', { params: { page: 3, per_page: 10 } }).reply(200, mockResponse);
 
     const result = await listSessions({ page: 3, per_page: 10 });
 
@@ -139,7 +139,7 @@ describe('listSessions', () => {
       per_page: 20,
     };
 
-    mock.onGet('/api/v1/sessions', { params: { status: 'completed' } }).reply(200, mockResponse);
+    mock.onGet('/v1/sessions', { params: { status: 'completed' } }).reply(200, mockResponse);
 
     const result = await listSessions({ status: 'completed' });
 
@@ -169,7 +169,7 @@ describe('listSessions', () => {
     };
 
     mock
-      .onGet('/api/v1/sessions', { params: { approval_status: 'pending' } })
+      .onGet('/v1/sessions', { params: { approval_status: 'pending' } })
       .reply(200, mockResponse);
 
     const result = await listSessions({ approval_status: 'pending' });
@@ -187,7 +187,7 @@ describe('listSessions', () => {
     };
 
     mock
-      .onGet('/api/v1/sessions', {
+      .onGet('/v1/sessions', {
         params: {
           status: 'completed',
           approval_status: 'approved',
@@ -215,7 +215,7 @@ describe('listSessions', () => {
       per_page: 20,
     };
 
-    mock.onGet('/api/v1/sessions').reply(200, mockResponse);
+    mock.onGet('/v1/sessions').reply(200, mockResponse);
 
     const result = await listSessions({});
 
@@ -224,7 +224,7 @@ describe('listSessions', () => {
   });
 
   it('should handle 500 error from backend', async () => {
-    mock.onGet('/api/v1/sessions').reply(500, {
+    mock.onGet('/v1/sessions').reply(500, {
       detail: 'Database connection failed',
     });
 
@@ -232,7 +232,7 @@ describe('listSessions', () => {
   });
 
   it('should handle network errors', async () => {
-    mock.onGet('/api/v1/sessions').networkError();
+    mock.onGet('/v1/sessions').networkError();
 
     await expect(listSessions({})).rejects.toThrow();
   });
@@ -258,7 +258,7 @@ describe('getSession', () => {
       notes: 'Test recording session',
     };
 
-    mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
+    mock.onGet('/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
 
     const result = await getSession('123e4567-e89b-12d3-a456-426614174001');
 
@@ -269,7 +269,7 @@ describe('getSession', () => {
   });
 
   it('should handle 404 error for non-existent session', async () => {
-    mock.onGet('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
+    mock.onGet('/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
       detail: 'Session not found',
     });
 
@@ -290,7 +290,7 @@ describe('getSession', () => {
       celery_task_id: null,
     };
 
-    mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174002').reply(200, mockSession);
+    mock.onGet('/v1/sessions/123e4567-e89b-12d3-a456-426614174002').reply(200, mockSession);
 
     const result = await getSession('123e4567-e89b-12d3-a456-426614174002');
 
@@ -322,7 +322,7 @@ describe('createSession', () => {
       updated_at: '2025-10-25T13:00:00Z',
     };
 
-    mock.onPost('/api/v1/sessions').reply(200, mockResponse);
+    mock.onPost('/v1/sessions').reply(200, mockResponse);
 
     const result = await createSession(request);
 
@@ -339,7 +339,7 @@ describe('createSession', () => {
       duration_seconds: 0,
     };
 
-    mock.onPost('/api/v1/sessions').reply(400, {
+    mock.onPost('/v1/sessions').reply(400, {
       detail: 'Invalid session parameters',
     });
 
@@ -354,7 +354,7 @@ describe('createSession', () => {
       duration_seconds: 300,
     };
 
-    mock.onPost('/api/v1/sessions').reply(409, {
+    mock.onPost('/v1/sessions').reply(409, {
       detail: 'Session name already exists',
     });
 
@@ -376,7 +376,7 @@ describe('updateSessionStatus', () => {
       updated_at: '2025-10-25T10:05:00Z',
     };
 
-    mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(config => {
+    mock.onPatch('/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(config => {
       // Verify query params
       expect(config.params?.status).toBe('in_progress');
       expect(config.params?.celery_task_id).toBe('task-abc-123');
@@ -406,7 +406,7 @@ describe('updateSessionStatus', () => {
       updated_at: '2025-10-25T10:10:00Z',
     };
 
-    mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(config => {
+    mock.onPatch('/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(config => {
       expect(config.params?.status).toBe('completed');
       return [200, mockResponse];
     });
@@ -418,7 +418,7 @@ describe('updateSessionStatus', () => {
   });
 
   it('should handle invalid status transitions', async () => {
-    mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(400, {
+    mock.onPatch('/v1/sessions/123e4567-e89b-12d3-a456-426614174001/status').reply(400, {
       detail: 'Invalid status transition',
     });
 
@@ -441,7 +441,7 @@ describe('updateSessionApproval', () => {
       updated_at: '2025-10-25T10:05:00Z',
     };
 
-    mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001/approval').reply(config => {
+    mock.onPatch('/v1/sessions/123e4567-e89b-12d3-a456-426614174001/approval').reply(config => {
       expect(config.params?.approval_status).toBe('approved');
       return [200, mockResponse];
     });
@@ -463,7 +463,7 @@ describe('updateSessionApproval', () => {
       updated_at: '2025-10-25T10:05:00Z',
     };
 
-    mock.onPatch('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174002/approval').reply(config => {
+    mock.onPatch('/v1/sessions/123e4567-e89b-12d3-a456-426614174002/approval').reply(config => {
       expect(config.params?.approval_status).toBe('rejected');
       return [200, mockResponse];
     });
@@ -474,7 +474,7 @@ describe('updateSessionApproval', () => {
   });
 
   it('should handle 404 for non-existent session', async () => {
-    mock.onPatch('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999/approval').reply(404);
+    mock.onPatch('/v1/sessions/999e4567-e89b-12d3-a456-426614174999/approval').reply(404);
 
     await expect(
       updateSessionApproval('999e4567-e89b-12d3-a456-426614174999', 'approved')
@@ -484,13 +484,13 @@ describe('updateSessionApproval', () => {
 
 describe('deleteSession', () => {
   it('should delete a session successfully', async () => {
-    mock.onDelete('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(204, '');
+    mock.onDelete('/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(204, '');
 
     await expect(deleteSession('123e4567-e89b-12d3-a456-426614174001')).resolves.toBeUndefined();
   });
 
   it('should handle 404 for non-existent session', async () => {
-    mock.onDelete('/api/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
+    mock.onDelete('/v1/sessions/999e4567-e89b-12d3-a456-426614174999').reply(404, {
       detail: 'Session not found',
     });
 
@@ -498,7 +498,7 @@ describe('deleteSession', () => {
   });
 
   it('should handle 409 if session has dependent data', async () => {
-    mock.onDelete('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(409, {
+    mock.onDelete('/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(409, {
       detail: 'Cannot delete session with existing measurements',
     });
 
@@ -518,7 +518,7 @@ describe('getSessionAnalytics', () => {
       average_duration_seconds: 285.5,
     };
 
-    mock.onGet('/api/v1/sessions/analytics').reply(200, mockAnalytics);
+    mock.onGet('/v1/sessions/analytics').reply(200, mockAnalytics);
 
     const result = await getSessionAnalytics();
 
@@ -542,7 +542,7 @@ describe('getSessionAnalytics', () => {
       average_duration_seconds: 0,
     };
 
-    mock.onGet('/api/v1/sessions/analytics').reply(200, mockAnalytics);
+    mock.onGet('/v1/sessions/analytics').reply(200, mockAnalytics);
 
     const result = await getSessionAnalytics();
 
@@ -551,7 +551,7 @@ describe('getSessionAnalytics', () => {
   });
 
   it('should handle 503 error when analytics unavailable', async () => {
-    mock.onGet('/api/v1/sessions/analytics').reply(503);
+    mock.onGet('/v1/sessions/analytics').reply(503);
 
     await expect(getSessionAnalytics()).rejects.toThrow();
   });
@@ -588,7 +588,7 @@ describe('listKnownSources', () => {
       },
     ];
 
-    mock.onGet('/api/v1/sessions/known-sources').reply(200, mockSources);
+    mock.onGet('/v1/sessions/known-sources').reply(200, mockSources);
 
     const result = await listKnownSources();
 
@@ -598,7 +598,7 @@ describe('listKnownSources', () => {
   });
 
   it('should handle empty list', async () => {
-    mock.onGet('/api/v1/sessions/known-sources').reply(200, []);
+    mock.onGet('/v1/sessions/known-sources').reply(200, []);
 
     const result = await listKnownSources();
 
@@ -606,7 +606,7 @@ describe('listKnownSources', () => {
   });
 
   it('should handle 500 error', async () => {
-    mock.onGet('/api/v1/sessions/known-sources').reply(500);
+    mock.onGet('/v1/sessions/known-sources').reply(500);
 
     await expect(listKnownSources()).rejects.toThrow();
   });
@@ -634,7 +634,7 @@ describe('createKnownSource', () => {
       updated_at: '2025-10-25T13:00:00Z',
     };
 
-    mock.onPost('/api/v1/sessions/known-sources').reply(200, mockResponse);
+    mock.onPost('/v1/sessions/known-sources').reply(200, mockResponse);
 
     const result = await createKnownSource(request);
 
@@ -651,7 +651,7 @@ describe('createKnownSource', () => {
       longitude: 999, // Invalid longitude
     };
 
-    mock.onPost('/api/v1/sessions/known-sources').reply(400, {
+    mock.onPost('/v1/sessions/known-sources').reply(400, {
       detail: 'Invalid coordinates',
     });
 
@@ -666,7 +666,7 @@ describe('createKnownSource', () => {
       longitude: 7.6,
     };
 
-    mock.onPost('/api/v1/sessions/known-sources').reply(409, {
+    mock.onPost('/v1/sessions/known-sources').reply(409, {
       detail: 'Source name already exists',
     });
 
@@ -683,7 +683,7 @@ describe('Edge Cases and Real-World Scenarios', () => {
       per_page: 20,
     };
 
-    mock.onGet('/api/v1/sessions').reply(200, mockResponse);
+    mock.onGet('/v1/sessions').reply(200, mockResponse);
 
     const requests = Array.from({ length: 5 }, () => listSessions({}));
 
@@ -708,7 +708,7 @@ describe('Edge Cases and Real-World Scenarios', () => {
       updated_at: '2025-10-25T10:10:00Z',
     };
 
-    mock.onGet('/api/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
+    mock.onGet('/v1/sessions/123e4567-e89b-12d3-a456-426614174001').reply(200, mockSession);
 
     const result = await getSession('123e4567-e89b-12d3-a456-426614174001');
 
@@ -728,7 +728,7 @@ describe('Edge Cases and Real-World Scenarios', () => {
       duration_seconds: 300,
     };
 
-    mock.onPost('/api/v1/sessions').timeout();
+    mock.onPost('/v1/sessions').timeout();
 
     await expect(createSession(request)).rejects.toThrow();
   });

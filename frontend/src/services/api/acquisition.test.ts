@@ -54,7 +54,7 @@ describe('Acquisition API Service', () => {
         websdrs_count: 7,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire', request).reply(200, expectedResponse);
+      mock.onPost('/v1/acquisition/acquire', request).reply(200, expectedResponse);
 
       const result = await triggerAcquisition(request);
 
@@ -78,7 +78,7 @@ describe('Acquisition API Service', () => {
         websdrs_count: 7,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire').reply(config => {
+      mock.onPost('/v1/acquisition/acquire').reply(config => {
         const data = JSON.parse(config.data);
         expect(data.known_source_id).toBe(2);
         expect(data.frequency_mhz).toBe(435.0);
@@ -97,7 +97,7 @@ describe('Acquisition API Service', () => {
         duration_seconds: 60,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire').reply(400, {
+      mock.onPost('/v1/acquisition/acquire').reply(400, {
         detail: 'Invalid frequency range',
       });
 
@@ -111,7 +111,7 @@ describe('Acquisition API Service', () => {
         duration_seconds: 60,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire').reply(500, {
+      mock.onPost('/v1/acquisition/acquire').reply(500, {
         detail: 'Internal server error',
       });
 
@@ -125,7 +125,7 @@ describe('Acquisition API Service', () => {
         duration_seconds: 60,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire').networkError();
+      mock.onPost('/v1/acquisition/acquire').networkError();
 
       await expect(triggerAcquisition(request)).rejects.toThrow();
     });
@@ -137,7 +137,7 @@ describe('Acquisition API Service', () => {
         duration_seconds: 60,
       };
 
-      mock.onPost('/api/v1/acquisition/acquire').timeout();
+      mock.onPost('/v1/acquisition/acquire').timeout();
 
       await expect(triggerAcquisition(request)).rejects.toThrow();
     });
@@ -154,7 +154,7 @@ describe('Acquisition API Service', () => {
         measurements_collected: 3,
       };
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
 
       const result = await getAcquisitionStatus(taskId);
 
@@ -174,7 +174,7 @@ describe('Acquisition API Service', () => {
         measurements_collected: 0,
       };
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
 
       const result = await getAcquisitionStatus(taskId);
       expect(result.status).toBe('PENDING');
@@ -191,7 +191,7 @@ describe('Acquisition API Service', () => {
         measurements_collected: 7,
       };
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
 
       const result = await getAcquisitionStatus(taskId);
       expect(result.status).toBe('SUCCESS');
@@ -209,7 +209,7 @@ describe('Acquisition API Service', () => {
         measurements_collected: 2,
       };
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(200, expectedStatus);
 
       const result = await getAcquisitionStatus(taskId);
       expect(result.status).toBe('FAILURE');
@@ -219,7 +219,7 @@ describe('Acquisition API Service', () => {
     it('should handle 404 task not found', async () => {
       const taskId = 'task-notfound';
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(404, {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(404, {
         detail: 'Task not found',
       });
 
@@ -229,7 +229,7 @@ describe('Acquisition API Service', () => {
     it('should handle network error', async () => {
       const taskId = 'task-network-error';
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).networkError();
+      mock.onGet(`/v1/acquisition/status/${taskId}`).networkError();
 
       await expect(getAcquisitionStatus(taskId)).rejects.toThrow();
     });
@@ -244,7 +244,7 @@ describe('Acquisition API Service', () => {
       const taskId = 'task-poll-success';
       let callCount = 0;
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(() => {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(() => {
         callCount++;
         if (callCount === 1) {
           return [
@@ -304,7 +304,7 @@ describe('Acquisition API Service', () => {
       const taskId = 'task-poll-fail';
       let callCount = 0;
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(() => {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(() => {
         callCount++;
         if (callCount === 1) {
           return [
@@ -346,7 +346,7 @@ describe('Acquisition API Service', () => {
       const taskId = 'task-poll-revoked';
       let callCount = 0;
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(() => {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(() => {
         callCount++;
         if (callCount === 1) {
           return [
@@ -388,7 +388,7 @@ describe('Acquisition API Service', () => {
       const progressCallback = vi.fn();
       let callCount = 0;
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(() => {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(() => {
         callCount++;
         if (callCount === 1) {
           return [
@@ -454,7 +454,7 @@ describe('Acquisition API Service', () => {
       const customInterval = 5000;
       let callCount = 0;
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(() => {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(() => {
         callCount++;
         if (callCount === 1) {
           return [
@@ -494,7 +494,7 @@ describe('Acquisition API Service', () => {
     it('should reject on polling error', async () => {
       const taskId = 'task-poll-error';
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).reply(500, {
+      mock.onGet(`/v1/acquisition/status/${taskId}`).reply(500, {
         detail: 'Server error during polling',
       });
 
@@ -504,7 +504,7 @@ describe('Acquisition API Service', () => {
     it('should reject on network error during polling', async () => {
       const taskId = 'task-poll-network-error';
 
-      mock.onGet(`/api/v1/acquisition/status/${taskId}`).networkError();
+      mock.onGet(`/v1/acquisition/status/${taskId}`).networkError();
 
       await expect(pollAcquisitionStatus(taskId)).rejects.toThrow('Network Error');
     });

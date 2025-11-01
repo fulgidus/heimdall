@@ -43,7 +43,7 @@ describe('Analytics API Service', () => {
 
       const result = await getPredictionMetrics('7d');
 
-      expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/predictions/metrics', {
+      expect(api.get).toHaveBeenCalledWith('/v1/analytics/predictions/metrics', {
         params: { time_range: '7d' },
       });
       expect(result).toEqual(mockMetrics);
@@ -62,7 +62,7 @@ describe('Analytics API Service', () => {
 
       await getPredictionMetrics();
 
-      expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/predictions/metrics', {
+      expect(api.get).toHaveBeenCalledWith('/v1/analytics/predictions/metrics', {
         params: { time_range: '7d' },
       });
     });
@@ -89,7 +89,7 @@ describe('Analytics API Service', () => {
 
       for (const range of timeRanges) {
         await getPredictionMetrics(range);
-        expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/predictions/metrics', {
+        expect(api.get).toHaveBeenCalledWith('/v1/analytics/predictions/metrics', {
           params: { time_range: range },
         });
       }
@@ -121,7 +121,7 @@ describe('Analytics API Service', () => {
 
       const result = await getWebSDRPerformance('7d');
 
-      expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/websdr/performance', {
+      expect(api.get).toHaveBeenCalledWith('/v1/analytics/websdr/performance', {
         params: { time_range: '7d' },
       });
       expect(result).toEqual(mockPerformance);
@@ -179,7 +179,7 @@ describe('Analytics API Service', () => {
 
       const result = await getSystemPerformance('7d');
 
-      expect(api.get).toHaveBeenCalledWith('/api/v1/analytics/system/performance', {
+      expect(api.get).toHaveBeenCalledWith('/v1/analytics/system/performance', {
         params: { time_range: '7d' },
       });
       expect(result).toEqual(mockPerformance);
@@ -223,7 +223,7 @@ describe('Analytics API Service', () => {
       const result = await getAccuracyDistribution('7d');
 
       expect(api.get).toHaveBeenCalledWith(
-        '/api/v1/analytics/localizations/accuracy-distribution',
+        '/v1/analytics/localizations/accuracy-distribution',
         {
           params: { time_range: '7d' },
         }

@@ -1,0 +1,237 @@
+"""
+System health check endpoints
+Provides detailed status of all backend components
+"""
+
+import logging
+from typing import Any
+
+from fastapi import APIRouter
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/health", tags=["health"])
+
+
+@router.get("/detailed")
+async def get_detailed_health():
+    """
+    Get detailed health status of all system components
+    
+    Returns:
+        - PostgreSQL/TimescaleDB status
+        - Redis cache status
+        - RabbitMQ message queue status
+        - MinIO object storage status
+        - Celery worker status
+        - WebSDR connectivity
+        - Overall system ready status
+    """
+    components: dict[str, dict[str, Any]] = {}
+    overall_ready = True
+    
+    # Check PostgreSQL/TimescaleDB
+    try:
+        from ..storage.db_manager import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            result = await conn.fetchval("SELECT 1")
+            if result == 1:
+                components["postgresql"] = {
+                    "status": "healthy",
+                    "message": "Database connection OK",
+                    "type": "database"
+                }
+            else:
+                components["postgresql"] = {
+                    "status": "unhealthy",
+                    "message": "Database query failed",
+                    "type": "database"
+                }
+                overall_ready = False
+    except Exception as e:
+        components["postgresql"] = {
+            "status": "unhealthy",
+            "message": f"Database connection failed: {str(e)}",
+            "type": "database"
+        }
+        overall_ready = False
+    
+    # Check Redis
+    try:
+        import redis
+        import os
+        redis_host = os.getenv("REDIS_HOST", "redis")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        r = redis.Redis(host=redis_host, port=redis_port, socket_connect_timeout=2)
+        r.ping()
+        components["redis"] = {
+            "status": "healthy",
+            "message": "Cache connection OK",
+            "type": "cache"
+        }
+    except Exception as e:
+        components["redis"] = {
+            "status": "unhealthy",
+            "message": f"Cache connection failed: {str(e)}",
+            "type": "cache"
+        }
+        overall_ready = False
+    
+    # Check RabbitMQ
+    try:
+        import pika
+        import os
+        rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_port = int(os.getenv("RABBITMQ_PORT", 5672))
+        rabbitmq_user = os.getenv("RABBITMQ_USER", "heimdall_user")
+        rabbitmq_pass = os.getenv("RABBITMQ_PASSWORD", "heimdall_password")
+        
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+        parameters = pika.ConnectionParameters(
+            host=rabbitmq_host,
+            port=rabbitmq_port,
+            credentials=credentials,
+            socket_timeout=2
+        )
+        connection = pika.BlockingConnection(parameters)
+        connection.close()
+        components["rabbitmq"] = {
+            "status": "healthy",
+            "message": "Message queue connection OK",
+            "type": "queue"
+        }
+    except Exception as e:
+        components["rabbitmq"] = {
+            "status": "unhealthy",
+            "message": f"Message queue connection failed: {str(e)}",
+            "type": "queue"
+        }
+        overall_ready = False
+    
+    # Check MinIO
+    try:
+        from ..storage.object_storage import ObjectStorageManager
+        storage = ObjectStorageManager()
+        # Try to list buckets as a health check
+        storage.client.list_buckets()
+        components["minio"] = {
+            "status": "healthy",
+            "message": "Object storage connection OK",
+            "type": "storage"
+        }
+    except Exception as e:
+        components["minio"] = {
+            "status": "unhealthy",
+            "message": f"Object storage connection failed: {str(e)}",
+            "type": "storage"
+        }
+        overall_ready = False
+    
+    # Check Celery Worker
+    try:
+        from ..main import celery_app
+        # Ping workers with short timeout
+        result = celery_app.control.inspect(timeout=2.0).active()
+        if result and len(result) > 0:
+            worker_count = len(result)
+            components["celery_worker"] = {
+                "status": "healthy",
+                "message": f"{worker_count} worker(s) active",
+                "type": "worker",
+                "worker_count": worker_count
+            }
+        else:
+            components["celery_worker"] = {
+                "status": "unhealthy",
+                "message": "No workers responding",
+                "type": "worker",
+                "worker_count": 0
+            }
+            overall_ready = False
+    except Exception as e:
+        components["celery_worker"] = {
+            "status": "unhealthy",
+            "message": f"Worker check failed: {str(e)}",
+            "type": "worker"
+        }
+        overall_ready = False
+    
+    # Check WebSDR availability (count from database)
+    try:
+        from ..storage.db_manager import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            total_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM heimdall.websdr_stations WHERE is_active = true"
+            )
+            # Get recent health check (last 5 minutes)
+            online_count = await conn.fetchval(
+                """
+                SELECT COUNT(DISTINCT websdr_id) 
+                FROM heimdall.websdr_uptime 
+                WHERE timestamp > NOW() - INTERVAL '5 minutes' 
+                AND is_online = true
+                """
+            )
+            
+            if online_count and online_count > 0:
+                components["websdrs"] = {
+                    "status": "healthy",
+                    "message": f"{online_count}/{total_count} receivers online",
+                    "type": "receiver",
+                    "online_count": online_count,
+                    "total_count": total_count
+                }
+            else:
+                components["websdrs"] = {
+                    "status": "warning",
+                    "message": f"0/{total_count} receivers online (no recent health checks)",
+                    "type": "receiver",
+                    "online_count": 0,
+                    "total_count": total_count
+                }
+                # Don't mark overall as not ready if WebSDRs are offline
+                # They might just be temporarily unavailable
+    except Exception as e:
+        components["websdrs"] = {
+            "status": "unknown",
+            "message": f"WebSDR status check failed: {str(e)}",
+            "type": "receiver"
+        }
+    
+    return {
+        "ready": overall_ready,
+        "components": components,
+        "summary": {
+            "total": len(components),
+            "healthy": sum(1 for c in components.values() if c["status"] == "healthy"),
+            "unhealthy": sum(1 for c in components.values() if c["status"] == "unhealthy"),
+            "warning": sum(1 for c in components.values() if c["status"] == "warning"),
+            "unknown": sum(1 for c in components.values() if c["status"] == "unknown"),
+        }
+    }
+
+
+@router.get("/ready")
+async def get_ready():
+    """
+    Quick readiness check - returns 200 if system is ready, 503 if not
+    """
+    try:
+        from ..storage.db_manager import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        return {"ready": True, "message": "System ready"}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"System not ready: {str(e)}")
+
+
+@router.get("/live")
+async def get_liveness():
+    """
+    Liveness check - returns 200 if service is running
+    """
+    return {"alive": True, "message": "Service is running"}

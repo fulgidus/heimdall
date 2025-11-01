@@ -61,7 +61,7 @@ export interface SystemPerformance {
  * Get prediction metrics for the specified time range
  */
 export async function getPredictionMetrics(timeRange: string = '7d'): Promise<PredictionMetrics> {
-  const response = await api.get('/api/v1/analytics/predictions/metrics', {
+  const response = await api.get('/v1/analytics/predictions/metrics', {
     params: { time_range: timeRange },
   });
 
@@ -74,7 +74,7 @@ export async function getPredictionMetrics(timeRange: string = '7d'): Promise<Pr
  * Get WebSDR performance metrics
  */
 export async function getWebSDRPerformance(timeRange: string = '7d'): Promise<WebSDRPerformance[]> {
-  const response = await api.get('/api/v1/analytics/websdr/performance', {
+  const response = await api.get('/v1/analytics/websdr/performance', {
     params: { time_range: timeRange },
   });
 
@@ -87,7 +87,7 @@ export async function getWebSDRPerformance(timeRange: string = '7d'): Promise<We
  * Get system performance metrics
  */
 export async function getSystemPerformance(timeRange: string = '7d'): Promise<SystemPerformance> {
-  const response = await api.get('/api/v1/analytics/system/performance', {
+  const response = await api.get('/v1/analytics/system/performance', {
     params: { time_range: timeRange },
   });
 
@@ -106,7 +106,7 @@ export async function getAccuracyDistribution(timeRange: string = '7d'): Promise
   const response = await api.get<{
     accuracy_ranges: string[];
     counts: number[];
-  }>('/api/v1/analytics/localizations/accuracy-distribution', {
+  }>('/v1/analytics/localizations/accuracy-distribution', {
     params: { time_range: timeRange },
   });
   return response.data;
@@ -129,7 +129,7 @@ export interface DashboardMetrics {
  * Get aggregated dashboard metrics
  */
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const response = await api.get('/api/v1/analytics/dashboard/metrics');
+  const response = await api.get('/v1/analytics/dashboard/metrics');
 
   // Validate response with Zod
   const validated = DashboardMetricsSchema.parse(response.data);

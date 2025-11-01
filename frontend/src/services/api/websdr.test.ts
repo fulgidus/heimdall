@@ -57,7 +57,7 @@ describe('WebSDR API Service', () => {
         },
       ];
 
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
       const result = await getWebSDRs();
 
@@ -67,7 +67,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should return empty array when no WebSDRs', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, []);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, []);
 
       const result = await getWebSDRs();
 
@@ -76,7 +76,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should handle 500 error', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(500, {
+      mock.onGet('/v1/acquisition/websdrs-all').reply(500, {
         detail: 'Internal server error',
       });
 
@@ -84,7 +84,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should handle network error', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs-all').networkError();
+      mock.onGet('/v1/acquisition/websdrs-all').networkError();
 
       await expect(getWebSDRs()).rejects.toThrow();
     });
@@ -115,7 +115,7 @@ describe('WebSDR API Service', () => {
         },
       };
 
-      mock.onGet('/api/v1/acquisition/websdrs/health').reply(200, mockHealth);
+      mock.onGet('/v1/acquisition/websdrs/health').reply(200, mockHealth);
 
       const result = await checkWebSDRHealth();
 
@@ -125,7 +125,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should return empty object when no health data', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs/health').reply(200, {});
+      mock.onGet('/v1/acquisition/websdrs/health').reply(200, {});
 
       const result = await checkWebSDRHealth();
 
@@ -133,7 +133,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should handle 503 service unavailable', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs/health').reply(503, {
+      mock.onGet('/v1/acquisition/websdrs/health').reply(503, {
         detail: 'Service temporarily unavailable',
       });
 
@@ -166,7 +166,7 @@ describe('WebSDR API Service', () => {
     ];
 
     beforeEach(() => {
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
     });
 
     it('should get specific WebSDR config by id', async () => {
@@ -232,7 +232,7 @@ describe('WebSDR API Service', () => {
         },
       ];
 
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
       const result = await getActiveWebSDRs();
 
@@ -256,7 +256,7 @@ describe('WebSDR API Service', () => {
         },
       ];
 
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
       const result = await getActiveWebSDRs();
 
@@ -287,7 +287,7 @@ describe('WebSDR API Service', () => {
         },
       ];
 
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
       const result = await getActiveWebSDRs();
 
@@ -311,7 +311,7 @@ describe('WebSDR API Service', () => {
         },
       ];
 
-      mock.onGet('/api/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
+      mock.onGet('/v1/acquisition/websdrs-all').reply(200, mockWebSDRs);
 
       const [result1, result2, result3] = await Promise.all([
         getWebSDRs(),
@@ -325,7 +325,7 @@ describe('WebSDR API Service', () => {
     });
 
     it('should handle timeout error', async () => {
-      mock.onGet('/api/v1/acquisition/websdrs-all').timeout();
+      mock.onGet('/v1/acquisition/websdrs-all').timeout();
 
       await expect(getWebSDRs()).rejects.toThrow();
     });

@@ -48,12 +48,28 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
   // Get WebSocket URL from props or construct from environment
   const getWebSocketUrl = useCallback(() => {
-    if (url) return url;
+    if (url) {
+      console.log('[WebSocketContext] Using provided URL:', url);
+      return url;
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const hostname = window.location.hostname;
     const port = window.location.port || (protocol === 'wss' ? '443' : '80');
-    return import.meta.env.VITE_SOCKET_URL || `${protocol}://${hostname}:${port}/ws`;
+    const defaultUrl = `${protocol}://${hostname}:${port}/ws`;
+    const envUrl = import.meta.env.VITE_SOCKET_URL;
+    const finalUrl = envUrl || defaultUrl;
+    
+    console.log('[WebSocketContext] WebSocket URL configuration:', {
+      envUrl,
+      defaultUrl,
+      finalUrl,
+      protocol,
+      hostname,
+      port,
+    });
+    
+    return finalUrl;
   }, [url]);
 
   // Initialize manager only once

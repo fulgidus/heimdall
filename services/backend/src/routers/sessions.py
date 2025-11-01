@@ -175,73 +175,6 @@ async def get_session_analytics():
         )
 
 
-@router.get("/{session_id}", response_model=RecordingSessionWithDetails)
-async def get_session(
-    session_id: str = Path(
-        ...,
-        regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-        description="Session ID as UUID",
-    )
-):
-    """Get a specific recording session by ID"""
-    # Convert to UUID
-    session_uuid = UUID(session_id)
-    pool = get_pool()
-
-    query = """
-        SELECT
-            rs.id,
-            rs.known_source_id,
-            rs.session_name,
-            rs.session_start,
-            rs.session_end,
-            rs.duration_seconds,
-            rs.celery_task_id,
-            rs.status,
-            rs.approval_status,
-            rs.notes,
-            rs.created_at,
-            rs.updated_at,
-            ks.name as source_name,
-            ks.frequency_hz as source_frequency,
-            ks.latitude as source_latitude,
-            ks.longitude as source_longitude,
-            COUNT(m.id) as measurements_count
-        FROM heimdall.recording_sessions rs
-        JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
-        LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start
-            AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
-        WHERE rs.id = $1
-        GROUP BY rs.id, ks.name, ks.frequency_hz, ks.latitude, ks.longitude
-    """
-
-    async with pool.acquire() as conn:
-        row = await conn.fetchrow(query, session_uuid)
-
-        if not row:
-            raise HTTPException(status_code=404, detail="Session not found")
-
-        return RecordingSessionWithDetails(
-            id=row["id"],
-            known_source_id=row["known_source_id"],
-            session_name=row["session_name"],
-            session_start=row["session_start"],
-            session_end=row["session_end"],
-            duration_seconds=row["duration_seconds"],
-            celery_task_id=row["celery_task_id"],
-            status=row["status"],
-            approval_status=row["approval_status"],
-            notes=row["notes"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            source_name=row["source_name"],
-            source_frequency=row["source_frequency"],
-            source_latitude=row["source_latitude"],
-            source_longitude=row["source_longitude"],
-            measurements_count=row["measurements_count"],
-        )
-
-
 @router.patch("/{session_id}", response_model=RecordingSessionWithDetails)
 async def update_session(
     session_id: str = Path(
@@ -763,6 +696,73 @@ async def delete_known_source(
             raise HTTPException(status_code=404, detail="Known source not found")
 
         return None
+
+
+@router.get("/{session_id}", response_model=RecordingSessionWithDetails)
+async def get_session(
+    session_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        description="Session ID as UUID",
+    )
+):
+    """Get a specific recording session by ID"""
+    # Convert to UUID
+    session_uuid = UUID(session_id)
+    pool = get_pool()
+
+    query = """
+        SELECT
+            rs.id,
+            rs.known_source_id,
+            rs.session_name,
+            rs.session_start,
+            rs.session_end,
+            rs.duration_seconds,
+            rs.celery_task_id,
+            rs.status,
+            rs.approval_status,
+            rs.notes,
+            rs.created_at,
+            rs.updated_at,
+            ks.name as source_name,
+            ks.frequency_hz as source_frequency,
+            ks.latitude as source_latitude,
+            ks.longitude as source_longitude,
+            COUNT(m.id) as measurements_count
+        FROM heimdall.recording_sessions rs
+        JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
+        LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start
+            AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
+        WHERE rs.id = $1
+        GROUP BY rs.id, ks.name, ks.frequency_hz, ks.latitude, ks.longitude
+    """
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(query, session_uuid)
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        return RecordingSessionWithDetails(
+            id=row["id"],
+            known_source_id=row["known_source_id"],
+            session_name=row["session_name"],
+            session_start=row["session_start"],
+            session_end=row["session_end"],
+            duration_seconds=row["duration_seconds"],
+            celery_task_id=row["celery_task_id"],
+            status=row["status"],
+            approval_status=row["approval_status"],
+            notes=row["notes"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            source_name=row["source_name"],
+            source_frequency=row["source_frequency"],
+            source_latitude=row["source_latitude"],
+            source_longitude=row["source_longitude"],
+            measurements_count=row["measurements_count"],
+        )
 
 
 # WebSocket handlers for real-time session management

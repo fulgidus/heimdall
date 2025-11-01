@@ -128,7 +128,6 @@ vi.mock('@/services/api/system', () => ({
       },
     }),
     getAPIGatewayStatus: vi.fn().mockResolvedValue({}),
-    getDetailedHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
   },
   checkAllServicesHealth: vi.fn().mockResolvedValue({
     'api-gateway': {

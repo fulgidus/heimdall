@@ -42,7 +42,7 @@ describe('System API Service', () => {
         details: {},
       };
 
-      mock.onGet('/backend/health').reply(200, mockHealth);
+      mock.onGet('/v1/backend/health').reply(200, mockHealth);
 
       const result = await checkServiceHealth('backend');
 
@@ -60,7 +60,7 @@ describe('System API Service', () => {
         details: { latency_ms: 500 },
       };
 
-      mock.onGet('/training/health').reply(200, mockHealth);
+      mock.onGet('/v1/training/health').reply(200, mockHealth);
 
       const result = await checkServiceHealth('training');
 
@@ -68,7 +68,7 @@ describe('System API Service', () => {
     });
 
     it('should handle service health error', async () => {
-      mock.onGet('/unknown-service/health').reply(404, {
+      mock.onGet('/v1/unknown-service/health').reply(404, {
         detail: 'Service not found',
       });
 
@@ -78,7 +78,7 @@ describe('System API Service', () => {
 
   describe('checkAllServicesHealth', () => {
     it('should check all services successfully', async () => {
-      mock.onGet('/backend/health').reply(200, {
+      mock.onGet('/v1/backend/health').reply(200, {
         status: 'healthy',
         service: 'backend',
         version: '1.0.0',
@@ -86,7 +86,7 @@ describe('System API Service', () => {
         details: {},
       });
 
-      mock.onGet('/training/health').reply(200, {
+      mock.onGet('/v1/training/health').reply(200, {
         status: 'healthy',
         service: 'training',
         version: '1.0.0',
@@ -94,7 +94,7 @@ describe('System API Service', () => {
         details: {},
       });
 
-      mock.onGet('/inference/health').reply(200, {
+      mock.onGet('/v1/inference/health').reply(200, {
         status: 'healthy',
         service: 'inference',
         version: '1.0.0',
@@ -111,11 +111,11 @@ describe('System API Service', () => {
     });
 
     it('should handle partial failures gracefully', async () => {
-      mock.onGet('/backend/health').reply(500, {
+      mock.onGet('/v1/backend/health').reply(500, {
         detail: 'Internal error',
       });
 
-      mock.onGet('/training/health').reply(200, {
+      mock.onGet('/v1/training/health').reply(200, {
         status: 'healthy',
         service: 'training',
         version: '1.0.0',
@@ -123,7 +123,7 @@ describe('System API Service', () => {
         details: {},
       });
 
-      mock.onGet('/inference/health').networkError();
+      mock.onGet('/v1/inference/health').networkError();
 
       const result = await checkAllServicesHealth();
 

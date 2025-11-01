@@ -21,7 +21,7 @@ import type {
 export async function triggerAcquisition(
   request: AcquisitionRequest
 ): Promise<AcquisitionTaskResponse> {
-  const response = await api.post('/api/v1/acquisition/acquire', request);
+  const response = await api.post('/v1/acquisition/acquire', request);
 
   // Validate response with Zod
   const validated = AcquisitionTaskResponseSchema.parse(response.data);
@@ -32,7 +32,7 @@ export async function triggerAcquisition(
  * Get status of an acquisition task
  */
 export async function getAcquisitionStatus(taskId: string): Promise<AcquisitionStatusResponse> {
-  const response = await api.get(`/api/v1/acquisition/status/${taskId}`);
+  const response = await api.get(`/v1/acquisition/status/${taskId}`);
 
   // Validate response with Zod
   const validated = AcquisitionStatusResponseSchema.parse(response.data);

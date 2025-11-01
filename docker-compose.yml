@@ -127,9 +127,10 @@ services:
       - "9001:9001"  # UI
     command: minio server /minio_data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://${DOCKER_HOST:-localhost}:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
+      start_period: 5s
       retries: 5
     networks:
       - heimdall-network
@@ -496,7 +497,7 @@ services:
       KC_METRICS_ENABLED: true
       # CORS configuration for Keycloak 23
       KC_HTTP_RELATIVE_PATH: /
-      KC_SPI_CORS_ORIGINS: "http://${DOCKER_HOST:-localhost}:3001,http://${DOCKER_HOST:-localhost}:8000,http://${DOCKER_HOST:-localhost}:5173,http://${DOCKER_HOST:-localhost}:3000"
+      KC_SPI_CORS_ORIGINS: "http://localhost:3001,http://localhost:8000,http://localhost:5173,http://localhost:3000"
       # Realm configuration
       KEYCLOAK_REALM: ${KEYCLOAK_REALM:-heimdall}
       APP_USER_EMAIL: ${APP_USER_EMAIL:-admin@heimdall.local}

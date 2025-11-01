@@ -197,18 +197,19 @@ const WebSDRManagement: React.FC = () => {
                       {websdrs.map(websdr => {
                         const health = healthStatus[websdr.id];
                         const isOnline = health?.status === 'online';
+                        const isUnknown = !health;
                         const responseTime = health?.response_time_ms || 0;
 
                         return (
                           <tr key={websdr.id}>
                             <td>
                               <span
-                                className={`badge ${isOnline ? 'bg-light-success' : 'bg-light-danger'}`}
+                                className={`badge ${isUnknown ? 'bg-light-secondary' : isOnline ? 'bg-light-success' : 'bg-light-danger'}`}
                               >
                                 <i
-                                  className={`ph ${isOnline ? 'ph-check-circle' : 'ph-x-circle'}`}
+                                  className={`ph ${isUnknown ? 'ph-question' : isOnline ? 'ph-check-circle' : 'ph-x-circle'}`}
                                 ></i>
-                                {isOnline ? ' Online' : ' Offline'}
+                                {isUnknown ? ' Unknown' : isOnline ? ' Online' : ' Offline'}
                               </span>
                             </td>
                             <td>

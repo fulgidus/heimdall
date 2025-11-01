@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS known_sources (
     power_dbm FLOAT,
     source_type VARCHAR(100),
     is_validated BOOLEAN DEFAULT FALSE,
+    error_margin_meters FLOAT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
