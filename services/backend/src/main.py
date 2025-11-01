@@ -1,33 +1,33 @@
 import logging
-import sys
 import os
-import asyncio
+import sys
 import threading
 from datetime import datetime
+
+from celery import Celery
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from celery import Celery
 
 # Add parent directory to path for common module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from .config import settings
-from .db import init_pool, close_pool
-from .models.health import HealthResponse
-from .routers.acquisition import router as acquisition_router
-from .routers.sessions import router as sessions_router
-from .routers.websocket import router as websocket_router
-from .routers.import_export import router as import_export_router
+from common.dependency_checkers import check_celery, check_minio, check_postgresql, check_redis
 
 # Import common health utilities
 from common.health import HealthChecker
-from common.dependency_checkers import check_postgresql, check_redis, check_celery, check_minio
+
+from .config import settings
+from .db import close_pool, init_pool
+from .models.health import HealthResponse
+from .routers.acquisition import router as acquisition_router
+from .routers.import_export import router as import_export_router
+from .routers.sessions import router as sessions_router
+from .routers.websocket import router as websocket_router
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ SERVICE_PORT = 8001
 app = FastAPI(
     title=f"Heimdall SDR - {SERVICE_NAME}",
     version=SERVICE_VERSION,
-    description="RF data acquisition service for Heimdall SDR platform"
+    description="RF data acquisition service for Heimdall SDR platform",
 )
 
 # Configure CORS with environment-based settings
@@ -55,16 +55,14 @@ app.add_middleware(
 
 # Initialize Celery
 celery_app = Celery(
-    SERVICE_NAME,
-    broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend_url
+    SERVICE_NAME, broker=settings.celery_broker_url, backend=settings.celery_result_backend_url
 )
 
 celery_app.conf.update(
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='UTC',
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
     enable_utc=True,
     task_track_started=True,
     task_time_limit=30 * 60,  # 30 minutes
@@ -73,11 +71,12 @@ celery_app.conf.update(
 
 # Configure Celery Beat schedule for monitoring
 celery_app.conf.beat_schedule = {
-    'monitor-websdrs-uptime': {
-        'task': 'monitor_websdrs_uptime',
-        'schedule': 60.0,  # Every 60 seconds
+    "monitor-websdrs-uptime": {
+        "task": "monitor_websdrs_uptime",
+        "schedule": 60.0,  # Every 60 seconds
     },
 }
+
 
 # Startup and shutdown events
 @app.on_event("startup")
@@ -90,7 +89,7 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to initialize database pool: {e}")
         raise
-    
+
     # Start RabbitMQ listener for progress events in background thread
     logger.info("Starting RabbitMQ progress event listener...")
     listener_thread = threading.Thread(target=rabbitmq_progress_listener, daemon=True)
@@ -100,40 +99,42 @@ async def startup_event():
 
 def rabbitmq_progress_listener():
     """Listen for progress events from Celery tasks via RabbitMQ (runs in separate thread)."""
-    from kombu import Connection, Exchange, Queue
-    from kombu.common import Broadcast
     import json
-    
+
+    from kombu import Connection, Exchange, Queue
+
     logger.info("RabbitMQ listener thread: started listening for progress events")
-    
+
     try:
         connection = Connection(settings.celery_broker_url)
-        exchange = Exchange('heimdall', type='topic', durable=True)
+        exchange = Exchange("heimdall", type="topic", durable=True)
         queue = Queue(
-            'progress_updates',
+            "progress_updates",
             exchange=exchange,
-            routing_key='session.*.progress',
+            routing_key="session.*.progress",
             durable=True,
-            auto_delete=False
+            auto_delete=False,
         )
-        
+
         def process_event(body, message):
             """Process incoming progress event and broadcast to WebSocket clients."""
             try:
                 if isinstance(body, bytes):
-                    body = body.decode('utf-8')
-                
+                    body = body.decode("utf-8")
+
                 event_data = json.loads(body) if isinstance(body, str) else body
                 logger.debug(f"RabbitMQ listener: received event: {event_data.get('event', '?')}")
-                
+
                 # Schedule broadcast in FastAPI event loop
                 import asyncio
+
                 loop = asyncio.new_event_loop()
-                
+
                 async def broadcast():
                     from .routers.websocket import manager
+
                     await manager.broadcast(event_data)
-                
+
                 # Try to get existing event loop, else create new one
                 try:
                     loop = asyncio.get_running_loop()
@@ -144,14 +145,14 @@ def rabbitmq_progress_listener():
                     asyncio.set_event_loop(loop)
                     loop.run_until_complete(broadcast())
                     loop.close()
-                
+
                 message.ack()
-                
+
             except Exception as e:
                 logger.error(f"RabbitMQ listener: error processing event: {e}")
                 message.nack()
-        
-        with connection.Consumer(queue, callbacks=[process_event], auto_declare=True) as consumer:
+
+        with connection.Consumer(queue, callbacks=[process_event], auto_declare=True):
             logger.info("RabbitMQ listener: listening for messages...")
             while True:
                 try:
@@ -162,7 +163,7 @@ def rabbitmq_progress_listener():
                 except Exception as e:
                     logger.warning(f"RabbitMQ listener: error during drain_events: {e}")
                     break
-                    
+
     except Exception as e:
         logger.error(f"RabbitMQ listener: fatal error: {e}")
 
@@ -187,27 +188,29 @@ app.include_router(import_export_router)
 # Initialize health checker
 health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)
 
+
 # Register dependency health checks
 async def check_db():
     """Check database connectivity."""
     await check_postgresql(settings.database_url)
 
+
 async def check_cache():
     """Check Redis cache connectivity."""
     await check_redis(settings.redis_url)
+
 
 async def check_queue():
     """Check Celery broker and backend."""
     await check_celery(settings.celery_broker_url, settings.celery_result_backend_url)
 
+
 async def check_storage():
     """Check MinIO object storage."""
     await check_minio(
-        settings.minio_url,
-        settings.minio_access_key,
-        settings.minio_secret_key,
-        secure=False
+        settings.minio_url, settings.minio_access_key, settings.minio_secret_key, secure=False
     )
+
 
 health_checker.register_dependency("database", check_db)
 health_checker.register_dependency("redis", check_cache)
@@ -221,7 +224,7 @@ async def root():
     return {
         "service": SERVICE_NAME,
         "status": "running",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
@@ -229,15 +232,12 @@ async def root():
 async def health_check():
     """
     Liveness probe - checks if service is alive.
-    
+
     Returns basic health status without dependency checks.
     Used by Kubernetes liveness probe.
     """
     return HealthResponse(
-        status="healthy",
-        service=SERVICE_NAME,
-        version=SERVICE_VERSION,
-        timestamp=datetime.utcnow()
+        status="healthy", service=SERVICE_NAME, version=SERVICE_VERSION, timestamp=datetime.utcnow()
     )
 
 
@@ -245,70 +245,64 @@ async def health_check():
 async def detailed_health_check():
     """
     Detailed health check with dependency status.
-    
+
     Returns comprehensive health information including all dependencies.
     """
     result = await health_checker.check_all()
-    return JSONResponse(
-        status_code=200 if result.ready else 503,
-        content=result.to_dict()
-    )
+    return JSONResponse(status_code=200 if result.ready else 503, content=result.to_dict())
 
 
 @app.get("/ready")
 async def readiness_check():
     """
     Readiness probe - checks if service can handle requests.
-    
+
     Validates all critical dependencies (database, cache, queue, storage).
     Used by Kubernetes readiness probe.
     """
     try:
         result = await health_checker.check_all()
-        
+
         # In development mode, be more lenient
         if settings.environment == "development":
             # Allow service to be ready even if some non-critical deps are down
             critical_deps = ["database", "celery"]
-            critical_status = [
-                d.status for d in result.dependencies 
-                if d.name in critical_deps
-            ]
-            
+            critical_status = [d.status for d in result.dependencies if d.name in critical_deps]
+
             from common.health import HealthStatus
+
             if HealthStatus.DOWN in critical_status:
                 return JSONResponse(
                     status_code=503,
                     content={
                         "ready": False,
                         "service": SERVICE_NAME,
-                        "dependencies": result.to_dict()["dependencies"]
-                    }
+                        "dependencies": result.to_dict()["dependencies"],
+                    },
                 )
-            
+
             return JSONResponse(
                 status_code=200,
                 content={
                     "ready": True,
                     "service": SERVICE_NAME,
-                    "dependencies": result.to_dict()["dependencies"]
-                }
+                    "dependencies": result.to_dict()["dependencies"],
+                },
             )
-        
+
         # Production mode: all dependencies must be healthy
         return JSONResponse(
             status_code=200 if result.ready else 503,
             content={
                 "ready": result.ready,
                 "service": SERVICE_NAME,
-                "dependencies": result.to_dict()["dependencies"]
-            }
+                "dependencies": result.to_dict()["dependencies"],
+            },
         )
     except Exception as e:
         logger.error("Readiness check failed: %s", str(e), exc_info=True)
         return JSONResponse(
-            status_code=503,
-            content={"ready": False, "service": SERVICE_NAME, "error": str(e)}
+            status_code=503, content={"ready": False, "service": SERVICE_NAME, "error": str(e)}
         )
 
 
@@ -316,7 +310,7 @@ async def readiness_check():
 async def startup_check():
     """
     Startup probe - checks if service has finished starting up.
-    
+
     Used by Kubernetes startup probe to know when to start sending traffic.
     """
     # For now, startup is the same as readiness
@@ -326,4 +320,5 @@ async def startup_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=SERVICE_PORT)

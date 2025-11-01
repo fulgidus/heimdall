@@ -5,10 +5,9 @@ Tests that focus on API structure and health rather than actual WebSDR integrati
 This version doesn't require WebSDR data collection to work - it tests the API contracts
 """
 
-import pytest
 import json
-from httpx import AsyncClient
-from datetime import datetime
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -28,7 +27,7 @@ async def test_02_api_docs_available(api_helper):
     response = await api_helper.client.get("/docs")
     assert response.status_code == 200
     assert "swagger" in response.text.lower() or "openapi" in response.text.lower()
-    print(f"✅ OpenAPI documentation available")
+    print("✅ OpenAPI documentation available")
 
 
 @pytest.mark.asyncio
@@ -36,19 +35,17 @@ async def test_03_api_error_handling_missing_params(api_helper):
     """✅ Verify API validates required parameters."""
     # Missing frequency
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"duration_seconds": 2.0}
+        "/api/v1/acquisition/acquire", json={"duration_seconds": 2.0}
     )
-    assert response.status_code in [400, 422], f"Should reject missing frequency"
-    print(f"✅ API rejects missing frequency")
-    
+    assert response.status_code in [400, 422], "Should reject missing frequency"
+    print("✅ API rejects missing frequency")
+
     # Missing duration
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"frequency_mhz": 145.5}
+        "/api/v1/acquisition/acquire", json={"frequency_mhz": 145.5}
     )
-    assert response.status_code in [400, 422], f"Should reject missing duration"
-    print(f"✅ API rejects missing duration")
+    assert response.status_code in [400, 422], "Should reject missing duration"
+    print("✅ API rejects missing duration")
 
 
 @pytest.mark.asyncio
@@ -56,19 +53,17 @@ async def test_04_api_error_handling_invalid_values(api_helper):
     """✅ Verify API validates parameter ranges."""
     # Negative frequency
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"frequency_mhz": -145.5, "duration_seconds": 2.0}
+        "/api/v1/acquisition/acquire", json={"frequency_mhz": -145.5, "duration_seconds": 2.0}
     )
-    assert response.status_code in [400, 422], f"Should reject negative frequency"
-    print(f"✅ API rejects negative frequency")
-    
+    assert response.status_code in [400, 422], "Should reject negative frequency"
+    print("✅ API rejects negative frequency")
+
     # Excessive duration
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"frequency_mhz": 145.5, "duration_seconds": 300.0}
+        "/api/v1/acquisition/acquire", json={"frequency_mhz": 145.5, "duration_seconds": 300.0}
     )
-    assert response.status_code in [400, 422], f"Should reject excessive duration"
-    print(f"✅ API rejects excessive duration")
+    assert response.status_code in [400, 422], "Should reject excessive duration"
+    print("✅ API rejects excessive duration")
 
 
 @pytest.mark.asyncio
@@ -76,20 +71,23 @@ async def test_05_acquisition_request_accepted(api_helper):
     """✅ Verify acquisition requests are queued."""
     # Should accept and return task_id
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"frequency_mhz": 145.5, "duration_seconds": 2.0}
+        "/api/v1/acquisition/acquire", json={"frequency_mhz": 145.5, "duration_seconds": 2.0}
     )
     assert response.status_code == 200, f"Acquisition request failed: {response.text}"
     data = response.json()
-    
+
     # Verify response structure
     assert "task_id" in data, "Response must contain task_id"
     assert "status" in data, "Response must contain status"
-    assert data["status"] in ["PENDING", "QUEUED", "RUNNING"], f"Initial status should be pending-like, got {data['status']}"
-    
+    assert data["status"] in [
+        "PENDING",
+        "QUEUED",
+        "RUNNING",
+    ], f"Initial status should be pending-like, got {data['status']}"
+
     task_id = data["task_id"]
     print(f"✅ Acquisition request queued with task_id: {task_id}")
-    
+
     # Store task_id for use in other tests (if needed)
     return task_id
 
@@ -99,17 +97,16 @@ async def test_06_status_endpoint_responds(api_helper):
     """✅ Verify status endpoint returns proper response structure."""
     # First trigger an acquisition
     response = await api_helper.client.post(
-        "/api/v1/acquisition/acquire",
-        json={"frequency_mhz": 145.5, "duration_seconds": 2.0}
+        "/api/v1/acquisition/acquire", json={"frequency_mhz": 145.5, "duration_seconds": 2.0}
     )
     assert response.status_code == 200
     task_id = response.json()["task_id"]
-    
+
     # Now check status
     response = await api_helper.client.get(f"/api/v1/acquisition/status/{task_id}")
     assert response.status_code == 200, f"Status endpoint failed: {response.text}"
     data = response.json()
-    
+
     # Verify response structure (flexible - API might return different fields)
     assert isinstance(data, dict), "Status response should be dict"
     print(f"✅ Status endpoint returns valid response: {json.dumps(data, indent=2)[:200]}...")
@@ -119,7 +116,7 @@ async def test_06_status_endpoint_responds(api_helper):
 async def test_07_websdr_config_endpoint(api_helper):
     """✅ Verify WebSDR configuration is retrievable."""
     response = await api_helper.client.get("/api/v1/acquisition/websdrs")
-    
+
     # Endpoint might exist or might return 404 - both are OK
     if response.status_code == 200:
         data = response.json()
@@ -149,16 +146,16 @@ async def test_09_response_schema_consistency(api_helper):
     for i in range(3):
         response = await api_helper.client.post(
             "/api/v1/acquisition/acquire",
-            json={"frequency_mhz": 145.5 + i * 0.1, "duration_seconds": 2.0}
+            json={"frequency_mhz": 145.5 + i * 0.1, "duration_seconds": 2.0},
         )
         assert response.status_code == 200
         responses.append(response.json())
-    
+
     # Verify all responses have same structure
     keys = set(responses[0].keys())
     for resp in responses[1:]:
         assert set(resp.keys()) == keys, "Response structure should be consistent"
-    
+
     print(f"✅ API responses are consistent ({len(keys)} fields)")
 
 

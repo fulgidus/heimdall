@@ -7,18 +7,17 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
-import numpy as np
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
-import aiohttp
 
-from src.models.websdrs import (
-    WebSDRConfig,
-    SignalMetrics,
-    AcquisitionRequest,
-)
+import numpy as np
+import pytest
 from src.fetchers.websdr_fetcher import WebSDRFetcher
+from src.models.websdrs import (
+    AcquisitionRequest,
+    SignalMetrics,
+    WebSDRConfig,
+)
 
 
 @pytest.fixture
@@ -34,7 +33,7 @@ def sample_websdrs() -> list[WebSDRConfig]:
             longitude=1.4,
             is_active=True,
             timeout_seconds=30,
-            retry_count=3
+            retry_count=3,
         ),
         WebSDRConfig(
             id=2,
@@ -45,7 +44,7 @@ def sample_websdrs() -> list[WebSDRConfig]:
             longitude=4.8,
             is_active=True,
             timeout_seconds=30,
-            retry_count=3
+            retry_count=3,
         ),
     ]
 
@@ -71,7 +70,7 @@ def sample_signal_metrics() -> SignalMetrics:
         psd_dbm=-80.2,
         frequency_offset_hz=50.0,
         signal_power_dbm=-50.0,
-        noise_power_dbm=-65.5
+        noise_power_dbm=-65.5,
     )
 
 
@@ -79,10 +78,7 @@ def sample_signal_metrics() -> SignalMetrics:
 def sample_acquisition_request() -> AcquisitionRequest:
     """Create sample acquisition request."""
     return AcquisitionRequest(
-        frequency_mhz=145.5,
-        duration_seconds=10,
-        start_time=datetime.utcnow(),
-        websdrs=None
+        frequency_mhz=145.5, duration_seconds=10, start_time=datetime.utcnow(), websdrs=None
     )
 
 
@@ -90,28 +86,28 @@ def sample_acquisition_request() -> AcquisitionRequest:
 async def mock_aiohttp_session():
     """Create mock aiohttp session for testing."""
     session = AsyncMock()
-    
+
     # Mock successful response
     response = AsyncMock()
     response.status = 200
-    
+
     # Generate mock IQ binary data
     n_samples = 125000
     iq_data = (np.random.randn(n_samples) + 1j * np.random.randn(n_samples)).astype(np.complex64)
-    
+
     # Convert to int16 interleaved format (as WebSDR sends it)
     iq_int16 = (iq_data * 32767).astype(np.int16)
-    binary_data = b''
+    binary_data = b""
     for i in range(0, len(iq_int16), 2):
         if i + 1 < len(iq_int16):
             binary_data += iq_int16[i].tobytes() + iq_int16[i + 1].tobytes()
-    
+
     response.read = AsyncMock(return_value=binary_data)
     response.__aenter__ = AsyncMock(return_value=response)
     response.__aexit__ = AsyncMock(return_value=None)
-    
+
     session.get = MagicMock(return_value=response)
-    
+
     return session
 
 
@@ -119,18 +115,15 @@ async def mock_aiohttp_session():
 def mock_websdr_fetcher_success(sample_websdrs, sample_iq_data):
     """Create mock WebSDR fetcher with successful response."""
     fetcher = MagicMock(spec=WebSDRFetcher)
-    
+
     # Mock successful IQ fetch
     async def mock_fetch(*args, **kwargs):
-        return {
-            ws.id: (sample_iq_data, None)
-            for ws in sample_websdrs
-        }
-    
+        return {ws.id: (sample_iq_data, None) for ws in sample_websdrs}
+
     fetcher.fetch_iq_simultaneous = mock_fetch
     fetcher.__aenter__ = AsyncMock(return_value=fetcher)
     fetcher.__aexit__ = AsyncMock(return_value=None)
-    
+
     return fetcher
 
 
@@ -138,7 +131,7 @@ def mock_websdr_fetcher_success(sample_websdrs, sample_iq_data):
 def mock_websdr_fetcher_partial_failure(sample_websdrs, sample_iq_data):
     """Create mock WebSDR fetcher with partial failure."""
     fetcher = MagicMock(spec=WebSDRFetcher)
-    
+
     # Mock partial IQ fetch (first succeeds, second fails)
     async def mock_fetch(*args, **kwargs):
         results = {}
@@ -148,9 +141,9 @@ def mock_websdr_fetcher_partial_failure(sample_websdrs, sample_iq_data):
             else:
                 results[ws.id] = (None, "Connection timeout")
         return results
-    
+
     fetcher.fetch_iq_simultaneous = mock_fetch
     fetcher.__aenter__ = AsyncMock(return_value=fetcher)
     fetcher.__aexit__ = AsyncMock(return_value=None)
-    
+
     return fetcher

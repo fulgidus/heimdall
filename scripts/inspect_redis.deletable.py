@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Inspect Redis for task state."""
 
+
 import redis
-import json
 
 # Connect to Redis
-r = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)
+r = redis.Redis(host="localhost", port=6379, db=1, decode_responses=True)
 
 # List all keys
-keys = r.keys('*')
+keys = r.keys("*")
 print(f"Total Redis keys: {len(keys)}\n")
 
 # Print some keys

@@ -2,32 +2,31 @@
 Authentication data models for Heimdall SDR services.
 """
 
-from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
 class TokenData(BaseModel):
     """JWT token data extracted from validated token."""
-    
+
     sub: str = Field(..., description="Subject (user ID)")
-    preferred_username: Optional[str] = Field(None, description="Username")
-    email: Optional[str] = Field(None, description="Email address")
-    realm_roles: List[str] = Field(default_factory=list, description="Realm roles")
+    preferred_username: str | None = Field(None, description="Username")
+    email: str | None = Field(None, description="Email address")
+    realm_roles: list[str] = Field(default_factory=list, description="Realm roles")
     exp: int = Field(..., description="Expiration timestamp")
     iat: int = Field(..., description="Issued at timestamp")
 
 
 class User(BaseModel):
     """User information extracted from JWT token."""
-    
+
     id: str = Field(..., description="User ID (sub claim)")
-    username: Optional[str] = Field(None, description="Username")
-    email: Optional[str] = Field(None, description="Email address")
-    roles: List[str] = Field(default_factory=list, description="User roles")
+    username: str | None = Field(None, description="Username")
+    email: str | None = Field(None, description="Email address")
+    roles: list[str] = Field(default_factory=list, description="User roles")
     is_admin: bool = Field(default=False, description="Is user an admin")
     is_operator: bool = Field(default=False, description="Is user an operator")
     is_viewer: bool = Field(default=False, description="Is user a viewer")
-    
+
     @classmethod
     def from_token_data(cls, token_data: TokenData) -> "User":
         """Create User from TokenData."""

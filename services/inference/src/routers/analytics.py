@@ -4,9 +4,10 @@ Provides analytics endpoints for prediction metrics, WebSDR performance,
 system performance, and accuracy distribution.
 """
 
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
 import logging
+from datetime import datetime, timedelta
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, Query
 
 logger = logging.getLogger(__name__)
@@ -25,7 +26,10 @@ class TimeSeriesPoint:
 
 class LocalizationResult:
     """Mock localization result for recent predictions."""
-    def __init__(self, id: int, timestamp: str, lat: float, lon: float, accuracy: float, confidence: float):
+
+    def __init__(
+        self, id: int, timestamp: str, lat: float, lon: float, accuracy: float, confidence: float
+    ):
         self.id = id
         self.timestamp = timestamp
         self.latitude = lat
@@ -46,6 +50,7 @@ class LocalizationResult:
             "websdr_count": self.websdr_count,
             "snr_avg_db": self.snr_avg_db,
         }
+
 
 class PredictionMetrics:
     def __init__(self):
@@ -102,7 +107,9 @@ class SystemPerformance:
             timestamp = (now - timedelta(hours=i)).isoformat()
             self.cpu_usage.append(TimeSeriesPoint(timestamp, 20 + 10 * (i % 6) / 6))  # 20-30%
             self.memory_usage.append(TimeSeriesPoint(timestamp, 40 + 15 * (i % 4) / 4))  # 40-55%
-            self.api_response_times.append(TimeSeriesPoint(timestamp, 150 + 50 * (i % 3) / 3))  # 150-200ms
+            self.api_response_times.append(
+                TimeSeriesPoint(timestamp, 150 + 50 * (i % 3) / 3)
+            )  # 150-200ms
             self.active_tasks.append(TimeSeriesPoint(timestamp, 2 + (i % 4)))  # 2-5 tasks
 
     def dict(self):
@@ -127,7 +134,9 @@ mock_websdrs = [
 
 
 @router.get("/predictions/metrics")
-async def get_prediction_metrics(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+async def get_prediction_metrics(
+    time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")
+) -> dict[str, Any]:
     """Get prediction metrics over time."""
     try:
         logger.info(f"📊 Getting prediction metrics for time_range: {time_range}")
@@ -139,7 +148,9 @@ async def get_prediction_metrics(time_range: str = Query("7d", description="Time
 
 
 @router.get("/websdr/performance")
-async def get_websdr_performance(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> List[Dict[str, Any]]:
+async def get_websdr_performance(
+    time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")
+) -> list[dict[str, Any]]:
     """Get WebSDR performance metrics."""
     try:
         logger.info(f"📡 Getting WebSDR performance for time_range: {time_range}")
@@ -160,7 +171,9 @@ async def get_websdr_performance(time_range: str = Query("7d", description="Time
 
 
 @router.get("/system/performance")
-async def get_system_performance(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+async def get_system_performance(
+    time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")
+) -> dict[str, Any]:
     """Get system performance metrics."""
     try:
         logger.info(f"⚙️ Getting system performance for time_range: {time_range}")
@@ -173,13 +186,17 @@ async def get_system_performance(time_range: str = Query("7d", description="Time
 
 # Alias for backward compatibility
 @router.get("/system")
-async def get_system_metrics_alias(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+async def get_system_metrics_alias(
+    time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")
+) -> dict[str, Any]:
     """Get system metrics (alias for /system/performance)."""
     return await get_system_performance(time_range)
 
 
 @router.get("/localizations/accuracy-distribution")
-async def get_accuracy_distribution(time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")) -> Dict[str, Any]:
+async def get_accuracy_distribution(
+    time_range: str = Query("7d", description="Time range (24h, 7d, 30d)")
+) -> dict[str, Any]:
     """Get localization accuracy distribution."""
     try:
         logger.info(f"🎯 Getting accuracy distribution for time_range: {time_range}")
@@ -190,64 +207,63 @@ async def get_accuracy_distribution(time_range: str = Query("7d", description="T
         }
     except Exception as e:
         logger.error(f"❌ Error getting accuracy distribution: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get accuracy distribution: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get accuracy distribution: {str(e)}"
+        )
 
 
 @router.get("/model/info")
-async def get_model_info() -> Dict[str, Any]:
+async def get_model_info() -> dict[str, Any]:
     """
     Get information about the active ML model.
-    
+
     Returns comprehensive model metadata including:
     - Model version and stage
     - Performance metrics (accuracy, latency)
     - Prediction statistics
     - Health status
     - Uptime information
-    
+
     This endpoint provides real-time model status for the dashboard.
     """
     try:
         logger.info("📋 Getting model information")
-        
+
         # Calculate realistic uptime (service start time)
         import time
+
         uptime_seconds = int(time.time()) % 86400  # Uptime within current day
-        
+
         # Realistic prediction counts (would come from database in production)
         predictions_total = 1247 + (int(time.time()) % 1000)  # Incrementing count
         predictions_successful = int(predictions_total * 0.95)  # 95% success rate
         predictions_failed = predictions_total - predictions_successful
-        
+
         # Calculate last prediction timestamp (within last hour)
         from datetime import timedelta
+
         last_prediction_time = datetime.utcnow() - timedelta(minutes=(int(time.time()) % 60))
-        
+
         return {
             # Core model info
             "active_version": "v1.0.0",
             "stage": "Production",
             "model_name": "heimdall-inference",
-            
             # Performance metrics
             "accuracy": 0.94,
             "latency_p95_ms": 245.0,
             "cache_hit_rate": 0.82,
-            
             # Lifecycle info
             "loaded_at": (datetime.utcnow() - timedelta(seconds=uptime_seconds)).isoformat(),
             "uptime_seconds": uptime_seconds,
             "last_prediction_at": last_prediction_time.isoformat(),
-            
             # Prediction statistics
             "predictions_total": predictions_total,
             "predictions_successful": predictions_successful,
             "predictions_failed": predictions_failed,
-            
             # Health status
             "is_ready": True,
             "health_status": "healthy",
-            
             # Additional metadata (for compatibility)
             "model_id": "heimdall-v1.0.0",
             "version": "1.0.0",
@@ -267,7 +283,7 @@ async def get_model_info() -> Dict[str, Any]:
 
 
 @router.get("/model/performance")
-async def get_model_performance() -> Dict[str, Any]:
+async def get_model_performance() -> dict[str, Any]:
     """Get current model performance metrics."""
     try:
         logger.info("📊 Getting model performance metrics")
@@ -293,24 +309,26 @@ async def get_model_performance() -> Dict[str, Any]:
 
 
 @router.get("/localizations/recent")
-async def get_recent_localizations(limit: int = Query(10, ge=1, le=100, description="Number of recent localizations")) -> List[Dict[str, Any]]:
+async def get_recent_localizations(
+    limit: int = Query(10, ge=1, le=100, description="Number of recent localizations")
+) -> list[dict[str, Any]]:
     """Get recent localization results."""
     try:
         logger.info(f"📍 Getting {limit} recent localizations")
         now = datetime.utcnow()
         results = []
-        
+
         # Generate mock recent localizations
         for i in range(limit):
-            timestamp = (now - timedelta(minutes=i*5)).isoformat()
+            timestamp = (now - timedelta(minutes=i * 5)).isoformat()
             lat = 45.0 + (i % 10) * 0.01
             lon = 8.5 + (i % 10) * 0.01
             accuracy = 15 + (i % 20)  # 15-35m
             confidence = 0.75 + (i % 5) * 0.05  # 0.75-0.95
-            
-            result = LocalizationResult(i+1, timestamp, lat, lon, accuracy, confidence)
+
+            result = LocalizationResult(i + 1, timestamp, lat, lon, accuracy, confidence)
             results.append(result.dict())
-        
+
         return results
     except Exception as e:
         logger.error(f"❌ Error getting recent localizations: {str(e)}")
@@ -318,10 +336,10 @@ async def get_recent_localizations(limit: int = Query(10, ge=1, le=100, descript
 
 
 @router.get("/dashboard/metrics")
-async def get_dashboard_metrics() -> Dict[str, Any]:
+async def get_dashboard_metrics() -> dict[str, Any]:
     """
     Get aggregated metrics for dashboard display.
-    
+
     Returns:
         Dict containing:
         - signalDetections: Count of detections in last 24h
@@ -332,19 +350,19 @@ async def get_dashboard_metrics() -> Dict[str, Any]:
     try:
         logger.info("📊 Getting dashboard metrics")
         import time
-        
+
         # Calculate uptime
         uptime_seconds = int(time.time()) % 86400  # Uptime within current day
-        
+
         # Calculate signal detections (predictions in last 24h)
         # In production, this would query the database
         base_detections = 342
         time_variance = int(time.time()) % 100
         signal_detections = base_detections + time_variance
-        
+
         # Get model info for accuracy
         model_info = await get_model_info()
-        
+
         return {
             "signalDetections": signal_detections,
             "systemUptime": uptime_seconds,

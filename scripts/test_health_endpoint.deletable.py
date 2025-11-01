@@ -2,12 +2,13 @@
 """
 Test della call HTTP all'endpoint /websdrs/health per capire l'eccezione.
 """
-import requests
 import json
+
+import requests
 
 print("Calling /websdrs/health...")
 try:
-    r = requests.get('http://localhost:8001/api/v1/acquisition/websdrs/health', timeout=120)
+    r = requests.get("http://localhost:8001/api/v1/acquisition/websdrs/health", timeout=120)
     print(f"Status: {r.status_code}")
     print(f"Response: {json.dumps(r.json(), indent=2)}")
 except Exception as e:

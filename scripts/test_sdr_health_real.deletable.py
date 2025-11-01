@@ -3,6 +3,7 @@
 Test HEAD requests to real WebSDR receivers to see what they respond with.
 """
 import asyncio
+
 import aiohttp
 
 WEBSDRS = {
@@ -15,23 +16,29 @@ WEBSDRS = {
     7: "http://sdr-piedmont.ddns.net:8076/",
 }
 
+
 async def test_sdr(session, sdr_id, url):
     """Test a single SDR with HEAD request."""
     try:
-        async with session.head(url, timeout=aiohttp.ClientTimeout(total=10), allow_redirects=False) as response:
+        async with session.head(
+            url, timeout=aiohttp.ClientTimeout(total=10), allow_redirects=False
+        ) as response:
             print(f"  HEAD {url}")
             print(f"    ✓ Status: {response.status} ({response.reason})")
-            print(f"    ✓ Current logic (< 500): {response.status < 500} ← {'WRONG!' if response.status >= 200 else 'OK'}")
+            print(
+                f"    ✓ Current logic (< 500): {response.status < 500} ← {'WRONG!' if response.status >= 200 else 'OK'}"
+            )
             print(f"    ✓ Headers: {dict(response.headers)}")
             return response.status
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print(f"  HEAD {url}")
-        print(f"    ✗ Timeout (10s)")
+        print("    ✗ Timeout (10s)")
         return None
     except Exception as e:
         print(f"  HEAD {url}")
         print(f"    ✗ Error: {type(e).__name__}: {e}")
         return None
+
 
 async def test_all():
     """Test all SDRs."""
@@ -39,13 +46,13 @@ async def test_all():
     print("Testing Real WebSDR Health Check Logic")
     print("=" * 80)
     print()
-    
+
     async with aiohttp.ClientSession() as session:
         for sdr_id, url in WEBSDRS.items():
             print(f"SDR #{sdr_id}: {url}")
             await test_sdr(session, sdr_id, url)
             print()
-    
+
     print("=" * 80)
     print("PROBLEM FOUND:")
     print("  Current logic: Returns True if response.status < 500")
@@ -57,6 +64,7 @@ async def test_all():
     print("  ✓ Or: Try GET /api/info (specific endpoint)")
     print("  ✓ Or: Check for specific response headers (Server, Content-Type)")
     print("=" * 80)
+
 
 if __name__ == "__main__":
     asyncio.run(test_all())

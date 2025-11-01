@@ -20,17 +20,17 @@ websdrs_config = [
 # Simula la logica dell'endpoint
 health_status = {}
 for ws_config in websdrs_config:
-    ws_id = ws_config['id']
+    ws_id = ws_config["id"]
     is_online = task_result.get(ws_id, False)  # ← Questo è il test
-    
+
     health_status[ws_id] = {
-        'websdr_id': ws_id,
-        'name': ws_config['name'],
-        'status': 'online' if is_online else 'offline',
+        "websdr_id": ws_id,
+        "name": ws_config["name"],
+        "status": "online" if is_online else "offline",
     }
-    
+
     if not is_online:
-        health_status[ws_id]['error_message'] = 'Health check failed or timed out'
+        health_status[ws_id]["error_message"] = "Health check failed or timed out"
 
 print("=" * 80)
 print("SIMULATED HEALTH CHECK RESPONSE")
@@ -44,14 +44,16 @@ for ws_id, status in health_status.items():
 print()
 print("=" * 80)
 
-# Verifica 
-all_offline = all(v['status'] == 'offline' for v in health_status.values())
+# Verifica
+all_offline = all(v["status"] == "offline" for v in health_status.values())
 if all_offline:
     print("❌ BUG FOUND: All offline!")
     print("\nDEBUG:")
     for ws_config in websdrs_config:
-        ws_id = ws_config['id']
+        ws_id = ws_config["id"]
         result_value = task_result.get(ws_id, False)
-        print(f"  ws_id={ws_id} (type={type(ws_id).__name__}), task_result.get({ws_id})={result_value}")
+        print(
+            f"  ws_id={ws_id} (type={type(ws_id).__name__}), task_result.get({ws_id})={result_value}"
+        )
 else:
     print("✅ Logic is correct - should show 6 online, 1 offline")

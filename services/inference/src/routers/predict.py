@@ -9,13 +9,10 @@ FastAPI router implementing single and batch prediction endpoints with:
 - SLA: <500ms latency (P95)
 """
 
-import asyncio
-from datetime import datetime
-from typing import Optional, List
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import Field
 
 # Internal imports (these will work when service is deployed)
 # from ..models.onnx_loader import ONNXModelLoader
@@ -36,9 +33,10 @@ router = APIRouter(prefix="/api/v1/inference", tags=["inference"])
 # DEPENDENCY INJECTION
 # ============================================================================
 
+
 class PredictionDependencies:
     """Container for prediction endpoint dependencies."""
-    
+
     def __init__(
         self,
         model_loader=None,
@@ -54,12 +52,12 @@ class PredictionDependencies:
 async def get_dependencies() -> PredictionDependencies:
     """
     FastAPI dependency for getting prediction dependencies.
-    
+
     In production, this would:
     - Return singleton model loader (from app state)
     - Return Redis cache client (from app state)
     - Return preprocessing pipeline (from app state)
-    
+
     Example:
         async def app_startup():
             app.state.model_loader = ONNXModelLoader(...)
@@ -79,6 +77,7 @@ async def get_dependencies() -> PredictionDependencies:
 # SINGLE PREDICTION ENDPOINT
 # ============================================================================
 
+
 @router.post(
     "/predict",
     response_model=dict,  # PredictionResponse in production
@@ -89,7 +88,7 @@ async def get_dependencies() -> PredictionDependencies:
         200: {"description": "Prediction successful"},
         400: {"description": "Invalid IQ data"},
         503: {"description": "Model or cache unavailable"},
-    }
+    },
 )
 async def predict_single(
     request: dict,  # PredictionRequest in production
@@ -97,7 +96,7 @@ async def predict_single(
 ) -> dict:
     """
     Predict localization from IQ data.
-    
+
     Process flow:
     1. Extract IQ data from request
     2. Check cache (target: >80% hit rate)
@@ -107,11 +106,11 @@ async def predict_single(
        c. Compute uncertainty ellipse
        d. Cache result
     4. Return position + uncertainty + metadata
-    
+
     Args:
         request: PredictionRequest with iq_data and optional cache_enabled flag
         deps: Injected dependencies
-    
+
     Returns:
         PredictionResponse with:
         - position: {latitude, longitude}
@@ -121,11 +120,11 @@ async def predict_single(
         - inference_time_ms: float
         - timestamp: ISO datetime
         - _cache_hit: bool (whether from cache)
-    
+
     Raises:
         HTTPException 400: Invalid input
         HTTPException 503: Model/cache unavailable
-    
+
     SLA: P95 latency <500ms
     """
     # Metrics context auto-tracks latency and errors
@@ -134,25 +133,23 @@ async def predict_single(
         # Validate request
         if not isinstance(request, dict):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Request must be JSON"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Request must be JSON"
             )
-        
+
         iq_data = request.get("iq_data")
         cache_enabled = request.get("cache_enabled", True)
         session_id = request.get("session_id", "unknown")
-        
+
         if not iq_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing required field: iq_data"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Missing required field: iq_data"
             )
-        
+
         logger.info(f"Prediction request: session={session_id}, cache={cache_enabled}")
-        
+
         # Placeholder implementation showing the flow
         # In production, this would execute the full pipeline
-        
+
         response = {
             "position": {
                 "latitude": 45.123,
@@ -171,38 +168,38 @@ async def predict_single(
             "session_id": session_id,
             "_cache_hit": False,
         }
-        
-        logger.info(f"Prediction complete: lat={response['position']['latitude']}, "
-                   f"lon={response['position']['longitude']}, "
-                   f"time={response['inference_time_ms']}ms")
-        
+
+        logger.info(
+            f"Prediction complete: lat={response['position']['latitude']}, "
+            f"lon={response['position']['longitude']}, "
+            f"time={response['inference_time_ms']}ms"
+        )
+
         return response
-    
+
     except HTTPException:
         raise
     except ValueError as e:
         logger.warning(f"Validation error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid input: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid input: {str(e)}"
         )
     except RuntimeError as e:
         logger.error(f"Processing error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Inference failed: {str(e)}"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Inference failed: {str(e)}"
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
 # ============================================================================
 # BATCH PREDICTION ENDPOINT
 # ============================================================================
+
 
 @router.post(
     "/predict/batch",
@@ -217,44 +214,42 @@ async def predict_batch(
 ) -> dict:
     """
     Batch prediction endpoint.
-    
+
     Processes 1-100 IQ samples in parallel.
-    
+
     Args:
         request: BatchPredictionRequest with iq_samples list
         deps: Injected dependencies
-    
+
     Returns:
         BatchPredictionResponse with:
         - predictions: List of prediction results
         - total_time_ms: Total processing time
         - samples_per_second: Throughput
-    
+
     SLA: Average <500ms per sample
     """
     # with InferenceMetricsContext("predict/batch"):
     try:
         iq_samples = request.get("iq_samples", [])
-        cache_enabled = request.get("cache_enabled", True)
-        
+        request.get("cache_enabled", True)
+
         if not iq_samples:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="iq_samples is empty"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="iq_samples is empty"
             )
-        
+
         if len(iq_samples) > 100:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximum 100 samples allowed"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Maximum 100 samples allowed"
             )
-        
+
         logger.info(f"Batch prediction: {len(iq_samples)} samples")
-        
+
         # Placeholder: would process in parallel
         predictions = [
             {
-                "position": {"latitude": 45.123 + i*0.001, "longitude": 7.456 + i*0.001},
+                "position": {"latitude": 45.123 + i * 0.001, "longitude": 7.456 + i * 0.001},
                 "uncertainty": {"sigma_x": 50.0, "sigma_y": 40.0, "theta": 25.0},
                 "confidence": 0.95,
                 "model_version": "v1.0.0",
@@ -263,30 +258,30 @@ async def predict_batch(
             }
             for i in range(len(iq_samples))
         ]
-        
+
         total_time_ms = len(iq_samples) * 125.5
         throughput = len(iq_samples) / (total_time_ms / 1000)
-        
+
         return {
             "predictions": predictions,
             "total_time_ms": total_time_ms,
             "samples_per_second": throughput,
             "batch_size": len(iq_samples),
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Batch prediction error: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Batch processing failed"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Batch processing failed"
         )
 
 
 # ============================================================================
 # HEALTH CHECK ENDPOINT
 # ============================================================================
+
 
 @router.get(
     "/health",
@@ -299,7 +294,7 @@ async def health_check(
 ) -> dict:
     """
     Health check endpoint.
-    
+
     Returns:
         Status dict with:
         - status: "ok" or "degraded"
@@ -330,17 +325,17 @@ async def predict_single_full(
     deps: PredictionDependencies = Depends(get_dependencies),
 ) -> PredictionResponse:
     '''Complete prediction with all steps.'''
-    
+
     with InferenceMetricsContext("predict"):
         # Step 1: Validate input
         if not request.iq_data:
             raise ValueError("iq_data required")
-        
+
         # Step 2: Try cache
         if request.cache_enabled and deps.cache:
             with PreprocessingMetricsContext():
                 mel_spec = deps.preprocessor.preprocess(request.iq_data)
-            
+
             cached = deps.cache.get(mel_spec)
             if cached:
                 record_cache_hit()
@@ -348,26 +343,26 @@ async def predict_single_full(
                 return PredictionResponse(**cached)
             else:
                 record_cache_miss()
-        
+
         # Step 3: Preprocess
         with PreprocessingMetricsContext():
             mel_spec = deps.preprocessor.preprocess(request.iq_data)
-        
+
         # Step 4: Run ONNX inference
         with ONNXMetricsContext():
             inference_result = deps.model_loader.predict(mel_spec)
-        
+
         # Extract outputs
         position_pred = inference_result['position']  # [lat, lon]
         uncertainty_pred = inference_result['uncertainty']  # [sigma_x, sigma_y, theta]
         confidence = inference_result['confidence']
-        
+
         # Step 5: Compute uncertainty ellipse
         ellipse = compute_uncertainty_ellipse(
             sigma_x=uncertainty_pred[0],
             sigma_y=uncertainty_pred[1],
         )
-        
+
         # Step 6: Create response
         response = PredictionResponse(
             position=PositionResponse(
@@ -385,10 +380,10 @@ async def predict_single_full(
             inference_time_ms=elapsed_ms,
             timestamp=datetime.utcnow(),
         )
-        
+
         # Step 7: Cache result if enabled
         if request.cache_enabled and deps.cache:
             deps.cache.set(mel_spec, response.dict())
-        
+
         return response
 """
