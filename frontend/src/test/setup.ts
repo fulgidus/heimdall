@@ -6,6 +6,7 @@ import {
   createMockWebSDRStore,
   createMockSessionStore,
   createMockAuthStore,
+  createMockSystemStore,
 } from './mockStoreFactories';
 
 // ============================================
@@ -27,6 +28,7 @@ const mockDashboardStore = createMockDashboardStore();
 const mockWebSDRStore = createMockWebSDRStore();
 const mockSessionStore = createMockSessionStore();
 const mockAuthStore = createMockAuthStore();
+const mockSystemStore = createMockSystemStore();
 
 // Mock all stores GLOBALLY
 vi.mock('../store', () => ({
@@ -45,6 +47,10 @@ vi.mock('../store', () => ({
   useAuthStore: () => ({
     ...mockAuthStore.getState(),
     ...mockAuthStore,
+  }),
+  useSystemStore: () => ({
+    ...mockSystemStore.getState(),
+    ...mockSystemStore,
   }),
 }));
 
@@ -75,6 +81,57 @@ vi.mock('../store/websdrStore', () => ({
     ...mockWebSDRStore.getState(),
     ...mockWebSDRStore,
   }),
+}));
+
+vi.mock('../store/systemStore', () => ({
+  useSystemStore: () => ({
+    ...mockSystemStore.getState(),
+    ...mockSystemStore,
+  }),
+}));
+
+// ============================================
+// API SERVICE MOCKS
+// ============================================
+
+// Mock inference service
+vi.mock('../services/api/inference', () => ({
+  inferenceService: {
+    getModelInfo: vi.fn(() =>
+      Promise.resolve({
+        active_version: '1.0.0',
+        stage: 'production',
+        model_name: 'localization-net',
+        accuracy: 0.95,
+        latency_p95_ms: 150,
+        cache_hit_rate: 0.8,
+        loaded_at: new Date().toISOString(),
+        uptime_seconds: 3600,
+        last_prediction_at: new Date().toISOString(),
+        predictions_total: 1000,
+        predictions_successful: 950,
+        predictions_failed: 50,
+        is_ready: true,
+        health_status: 'healthy',
+      })
+    ),
+    getModelPerformance: vi.fn(() =>
+      Promise.resolve({
+        inference_latency_ms: 150,
+        p50_latency_ms: 120,
+        p95_latency_ms: 200,
+        p99_latency_ms: 250,
+        throughput_samples_per_second: 100,
+        cache_hit_rate: 0.8,
+        success_rate: 0.95,
+        predictions_total: 1000,
+        requests_total: 1050,
+        errors_total: 50,
+        uptime_seconds: 3600,
+        timestamp: new Date().toISOString(),
+      })
+    ),
+  },
 }));
 
 // ============================================
