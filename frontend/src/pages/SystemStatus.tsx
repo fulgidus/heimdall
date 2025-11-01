@@ -2,26 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { useSystemStore } from '../store';
 import { useWebSDRStore } from '../store';
 import { inferenceService } from '../services/api';
+import { useSystemWebSocket } from '../hooks/useSystemWebSocket';
 
 const SystemStatus: React.FC = () => {
-  const { servicesHealth, isLoading, checkAllServices, fetchModelPerformance, modelPerformance } = useSystemStore();
+  const { servicesHealth, isLoading, checkAllServices, fetchModelPerformance } = useSystemStore();
   const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [modelInfo, setModelInfo] = useState<any>(null);
+  
+  // Connect to WebSocket for real-time service health updates
+  useSystemWebSocket();
 
   useEffect(() => {
-    // Initial fetch
-    checkAllServices();
+    // Initial fetch - services health will be updated via WebSocket
+    checkAllServices(); // Initial load only, then WebSocket takes over
     fetchModelPerformance();
     fetchWebSDRs();
     checkHealth();
     loadModelInfo();
 
-    // Refresh every 30 seconds
+    // Refresh model performance and model info every 30 seconds (not service health)
     const interval = setInterval(() => {
-      checkAllServices();
       fetchModelPerformance();
-      checkHealth();
       loadModelInfo();
     }, 30000);
 
