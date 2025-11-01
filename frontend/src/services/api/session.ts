@@ -61,7 +61,7 @@ export interface KnownSourceUpdate {
 
 export interface RecordingSession {
   id: string; // UUID as string
-  known_source_id: string; // UUID as string
+  known_source_id: string | null; // UUID as string, null for unknown sources
   session_name: string;
   session_start: string; // ISO datetime
   session_end?: string | null; // ISO datetime, optional
@@ -83,7 +83,7 @@ export interface RecordingSessionWithDetails extends RecordingSession {
 }
 
 export interface RecordingSessionCreate {
-  known_source_id: string;
+  known_source_id: string | null; // null for unknown sources
   session_name: string;
   frequency_hz: number;
   duration_seconds: number;

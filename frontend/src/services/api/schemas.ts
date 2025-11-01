@@ -208,7 +208,7 @@ export const SystemMetricsSchema = z.object({
 
 export const RecordingSessionSchema = z.object({
     id: z.string().uuid(), // Backend sends UUID as string, not number
-    known_source_id: z.string().uuid(),
+    known_source_id: z.string().uuid().nullable(), // null for unknown sources
     session_name: z.string(),
     session_start: z.string().datetime(),
     session_end: z.string().datetime().nullable().optional(),
@@ -222,10 +222,10 @@ export const RecordingSessionSchema = z.object({
 });
 
 export const RecordingSessionWithDetailsSchema = RecordingSessionSchema.extend({
-    source_name: z.string().optional(),
-    source_frequency: z.number().optional(),
-    source_latitude: z.number().optional(),
-    source_longitude: z.number().optional(),
+    source_name: z.string().nullable().optional(), // null when source is unknown
+    source_frequency: z.number().nullable().optional(),
+    source_latitude: z.number().nullable().optional(),
+    source_longitude: z.number().nullable().optional(),
     measurements_count: z.number().optional(),
     approval_status: z.enum(['pending', 'approved', 'rejected']).optional(),
     notes: z.string().optional(),
