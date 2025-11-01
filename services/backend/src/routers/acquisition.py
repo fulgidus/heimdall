@@ -245,9 +245,11 @@ async def check_websdrs_health():
         logger.info("Health check response ready with metrics")
 
         # Broadcast WebSDR health update via WebSocket
-        await ws_manager.broadcast(
-            {"event": "websdrs_update", "timestamp": check_time, "data": health_status}
-        )
+        await ws_manager.broadcast({
+            "event": "websdrs:health",
+            "timestamp": check_time,
+            "data": {"health_status": health_status}
+        })
         logger.debug(
             f"Broadcasted WebSDR health update to {len(ws_manager.active_connections)} WebSocket clients"
         )
@@ -275,9 +277,11 @@ async def check_websdrs_health():
             }
 
         # Broadcast error status via WebSocket
-        await ws_manager.broadcast(
-            {"event": "websdrs_update", "timestamp": check_time, "data": health_status}
-        )
+        await ws_manager.broadcast({
+            "event": "websdrs:health",
+            "timestamp": check_time,
+            "data": {"health_status": health_status}
+        })
 
         return health_status
 
@@ -345,7 +349,18 @@ async def create_websdr(request: WebSDRCreateRequest):
             )
 
         logger.info(f"Created WebSDR station: {station.name} (ID: {station.id})")
-        return WebSDRResponse.model_validate(station)
+        
+        # Broadcast creation to WebSocket clients
+        from .websocket import manager as ws_manager
+        response_data = WebSDRResponse.model_validate(station)
+        await ws_manager.broadcast({
+            "event": "websdr:created",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {"websdr": response_data.model_dump()},
+        })
+        logger.debug(f"Broadcasted websdr:created to {len(ws_manager.active_connections)} clients")
+        
+        return response_data
 
     except HTTPException:
         raise
@@ -422,7 +437,18 @@ async def update_websdr(station_id: str, request: WebSDRUpdateRequest):
             )
 
         logger.info(f"Updated WebSDR station: {station.name} (ID: {station.id})")
-        return WebSDRResponse.model_validate(station)
+        
+        # Broadcast update to WebSocket clients
+        from .websocket import manager as ws_manager
+        response_data = WebSDRResponse.model_validate(station)
+        await ws_manager.broadcast({
+            "event": "websdr:update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {"websdr": response_data.model_dump()},
+        })
+        logger.debug(f"Broadcasted websdr:update to {len(ws_manager.active_connections)} clients")
+        
+        return response_data
 
     except HTTPException:
         raise
@@ -459,6 +485,15 @@ async def delete_websdr(station_id: str, hard_delete: bool = False):
 
         action = "Hard deleted" if hard_delete else "Soft deleted"
         logger.info(f"{action} WebSDR station: {station_id}")
+        
+        # Broadcast deletion to WebSocket clients
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "websdr:deleted",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {"id": station_id, "hard_delete": hard_delete},
+        })
+        logger.debug(f"Broadcasted websdr:deleted to {len(ws_manager.active_connections)} clients")
 
         return None  # 204 No Content
 

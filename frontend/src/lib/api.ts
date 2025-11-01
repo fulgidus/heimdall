@@ -28,10 +28,12 @@ console.log('🔧 API Configuration:', {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: parseInt(import.meta.env.VITE_API_TIMEOUT || '10000', 10), // Keep at 10s as requested
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
+  withCredentials: false, // CORS: Set to true if using cookies
 });
 
 // Request interceptor
@@ -69,7 +71,42 @@ const processQueue = (error: unknown = null) => {
   failedQueue = [];
 };
 
-// Response interceptor with token refresh logic
+// Retry configuration - disable in test mode to avoid test timeouts
+const IS_TEST_MODE = import.meta.env.MODE === 'test';
+const MAX_RETRIES = IS_TEST_MODE ? 0 : 3;
+const RETRY_DELAY_MS = 1000;
+const RETRYABLE_CODES = ['ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND', 'ENETUNREACH'];
+const RETRYABLE_STATUS = [408, 429, 500, 502, 503, 504];
+
+// Helper to determine if request should be retried
+const shouldRetry = (error: any, retryCount: number): boolean => {
+  if (retryCount >= MAX_RETRIES) return false;
+  
+  // Don't retry on 4xx errors (client errors - bad request, not found, etc.)
+  if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
+    return false;
+  }
+  
+  // Retry on network errors
+  if (error.code && RETRYABLE_CODES.includes(error.code)) return true;
+  
+  // Retry on specific HTTP status codes (5xx server errors)
+  if (error.response?.status && RETRYABLE_STATUS.includes(error.response.status)) return true;
+  
+  // Retry on timeout
+  if (error.message?.includes('timeout')) return true;
+  
+  return false;
+};
+
+// Helper to wait with exponential backoff
+const waitForRetry = (retryCount: number): Promise<void> => {
+  const delay = RETRY_DELAY_MS * Math.pow(2, retryCount);
+  console.log(`⏳ Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+  return new Promise(resolve => setTimeout(resolve, delay));
+};
+
+// Response interceptor with token refresh and retry logic
 api.interceptors.response.use(
   response => {
     console.log('📥 API Response:', {
@@ -81,12 +118,19 @@ api.interceptors.response.use(
   },
   async error => {
     const originalRequest = error.config;
+    
+    // Initialize retry count if not present
+    if (!originalRequest._retryCount) {
+      originalRequest._retryCount = 0;
+    }
 
     console.error('❌ API Error:', {
       status: error.response?.status,
       url: error.config?.url,
       message: error.message,
+      code: error.code,
       data: error.response?.data,
+      retryCount: originalRequest._retryCount,
     });
 
     // Handle 401 errors with token refresh
@@ -130,6 +174,14 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Retry logic for transient failures
+    if (shouldRetry(error, originalRequest._retryCount)) {
+      originalRequest._retryCount++;
+      await waitForRetry(originalRequest._retryCount - 1);
+      console.log(`🔄 Retrying request: ${originalRequest.url} (${originalRequest._retryCount}/${MAX_RETRIES})`);
+      return api(originalRequest);
     }
 
     return Promise.reject(error);
