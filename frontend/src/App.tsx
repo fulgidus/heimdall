@@ -174,6 +174,6 @@ function App() {
       </WebSocketProvider>
     </ErrorBoundary>
   );
-}
+    }
 
 export default App;
