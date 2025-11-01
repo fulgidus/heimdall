@@ -45,6 +45,9 @@ const createMockDashboardStore = (overrides = {}) => ({
     ...overrides,
 });
 
+const mockFetchWebSDRs = vi.fn();
+const mockCheckHealth = vi.fn().mockResolvedValue(undefined);
+
 const createMockWebSDRStore = (overrides = {}) => ({
     websdrs: [
         { id: 1, name: 'Turin', location_name: 'Turin, Italy', is_active: true },
@@ -56,8 +59,25 @@ const createMockWebSDRStore = (overrides = {}) => ({
         2: { status: 'online', response_time_ms: 140 },
         3: { status: 'offline', response_time_ms: null },
     },
+    fetchWebSDRs: mockFetchWebSDRs,
+    checkHealth: mockCheckHealth,
     ...overrides,
 });
+
+// Mock widgetStore
+vi.mock('../store/widgetStore', () => ({
+    useWidgetStore: () => ({
+        widgets: [
+            { id: '1', type: 'system-health', enabled: true, order: 0 },
+            { id: '2', type: 'websdr-status', enabled: true, order: 1 },
+            { id: '3', type: 'model-performance', enabled: true, order: 2 },
+            { id: '4', type: 'recent-activity', enabled: true, order: 3 },
+        ],
+        resetToDefault: vi.fn(),
+        toggleWidget: vi.fn(),
+        reorderWidgets: vi.fn(),
+    }),
+}));
 
 vi.mock('../store', () => ({
     useDashboardStore: vi.fn(),
@@ -65,6 +85,33 @@ vi.mock('../store', () => ({
     useAuthStore: {
         getState: vi.fn(() => ({ token: null })),
     },
+}));
+
+// Mock API services to prevent async errors
+vi.mock('@/services/api/analytics', () => ({
+    getModelInfo: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@/services/api/system', () => ({
+    default: {
+        checkServiceHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
+        checkAllServicesHealth: vi.fn().mockResolvedValue({
+            'api-gateway': { status: 'healthy', service: 'api-gateway', version: '0.1.0', timestamp: new Date().toISOString() },
+            'backend': { status: 'healthy', service: 'backend', version: '0.1.0', timestamp: new Date().toISOString() },
+            'training': { status: 'healthy', service: 'training', version: '0.1.0', timestamp: new Date().toISOString() },
+            'inference': { status: 'healthy', service: 'inference', version: '0.1.0', timestamp: new Date().toISOString() },
+            'data-ingestion-web': { status: 'healthy', service: 'data-ingestion-web', version: '0.1.0', timestamp: new Date().toISOString() },
+        }),
+        getAPIGatewayStatus: vi.fn().mockResolvedValue({}),
+        getDetailedHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
+    },
+    checkAllServicesHealth: vi.fn().mockResolvedValue({
+        'api-gateway': { status: 'healthy', service: 'api-gateway', version: '0.1.0', timestamp: new Date().toISOString() },
+        'backend': { status: 'healthy', service: 'backend', version: '0.1.0', timestamp: new Date().toISOString() },
+        'training': { status: 'healthy', service: 'training', version: '0.1.0', timestamp: new Date().toISOString() },
+        'inference': { status: 'healthy', service: 'inference', version: '0.1.0', timestamp: new Date().toISOString() },
+        'data-ingestion-web': { status: 'healthy', service: 'data-ingestion-web', version: '0.1.0', timestamp: new Date().toISOString() },
+    }),
 }));
 
 // Mock react-router-dom
@@ -81,6 +128,11 @@ import { useDashboardStore, useWebSDRStore } from '../store';
 describe('Dashboard - Real API Integration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
     });
 
     const renderDashboard = (dashboardStoreOverrides = {}, webSDRStoreOverrides = {}) => {

@@ -1,4 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Unmock the stores module for this test (we want to test the real store)
+vi.unmock('@/store');
+vi.unmock('@/store/authStore');
+
+// Import after unmocking
 import { useAuthStore } from './authStore';
 
 // Mock fetch

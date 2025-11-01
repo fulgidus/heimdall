@@ -56,12 +56,12 @@ describe('MobileMenu Component', () => {
                 <MobileMenu isOpen={true} onClose={onClose} />
             </BrowserRouter>
         );
-        
+
         expect(screen.getByText('Dashboard')).toBeInTheDocument();
-        expect(screen.getByText('Data Ingestion')).toBeInTheDocument();
         expect(screen.getByText('Localization')).toBeInTheDocument();
         expect(screen.getByText('Session History')).toBeInTheDocument();
         expect(screen.getByText('Analytics')).toBeInTheDocument();
+        expect(screen.getByText('WebSDR Management')).toBeInTheDocument();
     });
 
     it('calls onClose when overlay is clicked', () => {

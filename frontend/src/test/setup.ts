@@ -48,6 +48,21 @@ vi.mock('../store', () => ({
     }),
 }));
 
+// Export the mocks so they can be used in individual tests
+vi.mock('../store/dashboardStore', () => ({
+    useDashboardStore: () => ({
+        ...mockDashboardStore.getState(),
+        ...mockDashboardStore,
+    }),
+}));
+
+vi.mock('../store/authStore', () => ({
+    useAuthStore: () => ({
+        ...mockAuthStore.getState(),
+        ...mockAuthStore,
+    }),
+}));
+
 vi.mock('../store/sessionStore', () => ({
     useSessionStore: () => ({
         ...mockSessionStore.getState(),
@@ -59,6 +74,31 @@ vi.mock('../store/websdrStore', () => ({
     useWebSDRStore: () => ({
         ...mockWebSDRStore.getState(),
         ...mockWebSDRStore,
+    }),
+}));
+
+// ============================================
+// WEBSOCKET CONTEXT MOCK
+// ============================================
+
+// Mock WebSocket context
+vi.mock('../contexts/WebSocketContext', () => ({
+    WebSocketProvider: ({ children }: { children: React.ReactNode }) => children,
+    useWebSocket: () => ({
+        manager: {
+            send: vi.fn(),
+            isConnected: () => true,
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            subscribe: vi.fn(() => vi.fn()),
+            unsubscribe: vi.fn(),
+        },
+        connectionState: 'CONNECTED',
+        isConnected: true,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        subscribe: vi.fn(() => vi.fn()),
+        unsubscribe: vi.fn(),
     }),
 }));
 

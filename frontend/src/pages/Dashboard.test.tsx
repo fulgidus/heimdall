@@ -64,9 +64,23 @@ vi.mock('../store', async () => {
                 websdr6: { status: 'online', response_time_ms: 150 },
                 websdr7: { status: 'online', response_time_ms: 140 },
             },
+            fetchWebSDRs: vi.fn(),
+            checkHealth: vi.fn().mockResolvedValue(undefined),
         })),
     };
 });
+
+// Mock API services to prevent async errors
+vi.mock('@/services/api/analytics', () => ({
+    getModelInfo: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock('@/services/api/system', () => ({
+    getBackendHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
+    getTrainingHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
+    getInferenceHealth: vi.fn().mockResolvedValue({ status: 'healthy' }),
+    checkAllServicesHealth: vi.fn().mockResolvedValue([]),
+}));
 
 // Mock useNavigate
 const mockNavigate = vi.fn();

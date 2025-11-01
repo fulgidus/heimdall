@@ -7,12 +7,9 @@ import Input from '../components/Input';
 import Modal from '../components/Modal';
 import Alert from '../components/Alert';
 
-// Mock auth store
-vi.mock('@/store', () => ({
-    useAuthStore: {
-        getState: vi.fn(() => ({ token: null })),
-    },
-}));
+// Mock stores - use the global mocks from setup.ts
+// The setup.ts already provides complete store mocks
+// No need to override them here unless testing specific scenarios
 
 /**
  * Accessibility Compliance Tests
