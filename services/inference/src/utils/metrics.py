@@ -1,8 +1,10 @@
 """Prometheus metrics for Phase 6 Inference Service."""
-from prometheus_client import Counter, Histogram, Gauge
-import time
+
 import logging
+import time
 from contextlib import contextmanager
+
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,7 @@ model_accuracy_meters = Gauge(
 # METRIC HELPER FUNCTIONS
 # ============================================================================
 
+
 def record_inference_latency(duration_ms: float):
     """Record end-to-end inference latency."""
     inference_latency.observe(duration_ms)
@@ -139,10 +142,10 @@ def _update_cache_hit_rate():
     """Update cache hit rate gauge."""
     try:
         # Get current hit/miss counts
-        total_hits = cache_hits._value.get() if hasattr(cache_hits, '_value') else 0
-        total_misses = cache_misses._value.get() if hasattr(cache_misses, '_value') else 0
+        total_hits = cache_hits._value.get() if hasattr(cache_hits, "_value") else 0
+        total_misses = cache_misses._value.get() if hasattr(cache_misses, "_value") else 0
         total = total_hits + total_misses
-        
+
         if total > 0:
             rate = total_hits / total
             cache_hit_rate.set(rate)
@@ -185,24 +188,25 @@ def set_model_accuracy(accuracy_m: float):
 # CONTEXT MANAGERS
 # ============================================================================
 
+
 @contextmanager
 def InferenceMetricsContext(endpoint: str):
     """
     Context manager for recording inference metrics.
-    
+
     Usage:
         with InferenceMetricsContext("predict"):
             # Run inference
             result = model.predict(data)
         # Metrics automatically recorded
-    
+
     Args:
         endpoint: API endpoint name for labeling
     """
     start_time = time.time()
     active_requests.inc()
     requests_total.labels(endpoint=endpoint).inc()
-    
+
     try:
         yield
     except Exception as e:

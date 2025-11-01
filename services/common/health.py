@@ -1,9 +1,11 @@
 """Health check utilities and models."""
-from dataclasses import dataclass, asdict
-from typing import Optional, Dict, Any
-from enum import Enum
-from datetime import datetime
+
 import asyncio
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
 import structlog
 
 logger = structlog.get_logger()
@@ -11,6 +13,7 @@ logger = structlog.get_logger()
 
 class HealthStatus(str, Enum):
     """Health status enumeration."""
+
     UP = "up"
     DOWN = "down"
     DEGRADED = "degraded"
@@ -20,12 +23,13 @@ class HealthStatus(str, Enum):
 @dataclass
 class DependencyHealth:
     """Health status of a single dependency."""
+
     name: str
     status: HealthStatus
     response_time_ms: float
-    error_message: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
+    error_message: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "status": self.status.value,
@@ -37,6 +41,7 @@ class DependencyHealth:
 @dataclass
 class HealthCheckResponse:
     """Complete health check response."""
+
     status: HealthStatus
     service_name: str
     version: str
@@ -44,8 +49,8 @@ class HealthCheckResponse:
     uptime_seconds: int
     dependencies: list[DependencyHealth]
     ready: bool
-    
-    def to_dict(self) -> Dict[str, Any]:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "status": self.status.value,
             "service_name": self.service_name,
@@ -59,17 +64,17 @@ class HealthCheckResponse:
 
 class HealthChecker:
     """Manages health checks for a service."""
-    
+
     def __init__(self, service_name: str, version: str):
         self.service_name = service_name
         self.version = version
         self.start_time = datetime.utcnow()
-        self.dependencies: Dict[str, Any] = {}
-    
+        self.dependencies: dict[str, Any] = {}
+
     def register_dependency(self, name: str, checker: callable):
         """Register a dependency health checker."""
         self.dependencies[name] = checker
-    
+
     async def check_dependency(self, name: str) -> DependencyHealth:
         """Check health of a single dependency."""
         checker = self.dependencies.get(name)
@@ -80,7 +85,7 @@ class HealthChecker:
                 response_time_ms=0,
                 error_message="No checker registered",
             )
-        
+
         try:
             start = datetime.utcnow()
             await checker()
@@ -98,12 +103,12 @@ class HealthChecker:
                 response_time_ms=0,
                 error_message=str(exc),
             )
-    
+
     async def check_all(self) -> HealthCheckResponse:
         """Check health of all dependencies."""
         tasks = [self.check_dependency(name) for name in self.dependencies]
         dependency_results = await asyncio.gather(*tasks)
-        
+
         # Determine overall status
         statuses = [d.status for d in dependency_results]
         if HealthStatus.DOWN in statuses:
@@ -112,10 +117,10 @@ class HealthChecker:
             overall_status = HealthStatus.DEGRADED
         else:
             overall_status = HealthStatus.UP
-        
+
         uptime = (datetime.utcnow() - self.start_time).total_seconds()
         ready = overall_status in [HealthStatus.UP]
-        
+
         return HealthCheckResponse(
             status=overall_status,
             service_name=self.service_name,

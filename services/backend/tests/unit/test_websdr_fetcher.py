@@ -7,26 +7,19 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
-import asyncio
-import numpy as np
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import numpy as np
+import pytest
 from src.fetchers.websdr_fetcher import WebSDRFetcher
 from src.models.websdrs import WebSDRConfig
-from tests.fixtures import sample_websdrs, sample_iq_data
 
 
 @pytest.mark.asyncio
 async def test_websdr_fetcher_init(sample_websdrs):
     """Test WebSDR fetcher initialization."""
-    fetcher = WebSDRFetcher(
-        websdrs=sample_websdrs,
-        timeout=30,
-        retry_count=3,
-        concurrent_limit=7
-    )
-    
+    fetcher = WebSDRFetcher(websdrs=sample_websdrs, timeout=30, retry_count=3, concurrent_limit=7)
+
     assert len(fetcher.websdrs) == len(sample_websdrs)
     assert fetcher.retry_count == 3
     assert fetcher.concurrent_limit == 7
@@ -38,7 +31,7 @@ async def test_websdr_fetcher_context_manager(sample_websdrs):
     async with WebSDRFetcher(websdrs=sample_websdrs) as fetcher:
         assert fetcher.session is not None
         assert isinstance(fetcher.session, object)  # aiohttp.ClientSession
-    
+
     # Session should be closed after exiting context
     # (can't directly check as it's closed)
 
@@ -50,27 +43,25 @@ async def test_fetch_iq_simultaneous_success(sample_websdrs, sample_iq_data):
         # Mock the session's get method
         mock_response = AsyncMock()
         mock_response.status = 200
-        
+
         # Convert IQ to int16 format
         iq_int16 = (sample_iq_data * 32767).astype(np.int16)
         binary_data = iq_int16.tobytes()
-        
+
         mock_response.read = AsyncMock(return_value=binary_data)
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
-        
+
         fetcher.session.get = MagicMock(return_value=mock_response)
-        
+
         results = await fetcher.fetch_iq_simultaneous(
-            frequency_mhz=145.5,
-            duration_seconds=10,
-            sample_rate_khz=12.5
+            frequency_mhz=145.5, duration_seconds=10, sample_rate_khz=12.5
         )
-        
+
         # All WebSDRs should have results
         assert len(results) == len(sample_websdrs)
-        
-        for websdr_id, (iq_data, error) in results.items():
+
+        for _websdr_id, (iq_data, error) in results.items():
             if error is None:
                 assert isinstance(iq_data, np.ndarray)
                 assert iq_data.dtype == np.complex64
@@ -86,14 +77,14 @@ async def test_websdr_health_check(sample_websdrs):
         mock_response.status = 200
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
-        
+
         fetcher.session.head = MagicMock(return_value=mock_response)
-        
+
         health_status = await fetcher.health_check()
-        
+
         # All WebSDRs should report as reachable
         assert len(health_status) == len(sample_websdrs)
-        for websdr_id, is_reachable in health_status.items():
+        for _websdr_id, is_reachable in health_status.items():
             assert is_reachable is True
 
 
@@ -107,7 +98,7 @@ def test_websdr_fetcher_filters_inactive():
             location_name="Test",
             latitude=0,
             longitude=0,
-            is_active=True
+            is_active=True,
         ),
         WebSDRConfig(
             id=2,
@@ -116,12 +107,12 @@ def test_websdr_fetcher_filters_inactive():
             location_name="Test",
             latitude=0,
             longitude=0,
-            is_active=False
+            is_active=False,
         ),
     ]
-    
+
     fetcher = WebSDRFetcher(websdrs=websdrs)
-    
+
     # Only active WebSDRs should be in the fetcher
     assert len(fetcher.websdrs) == 1
     assert 1 in fetcher.websdrs

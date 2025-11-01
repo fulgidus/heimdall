@@ -1,97 +1,96 @@
 /* Input Component Styles */
 .input-wrapper {
-    width: 100%;
+  width: 100%;
 }
 
 .input-label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--french-gray);
-    margin-bottom: 0.5rem;
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--french-gray);
+  margin-bottom: 0.5rem;
 }
 
 .input-container {
-    position: relative;
+  position: relative;
 }
 
 .input-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--neon-blue);
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--neon-blue);
 }
 
 .input-field {
-    width: 100%;
-    padding: 0.625rem 1rem;
-    border-radius: 0.5rem;
-    background-color: var(--oxford-blue);
-    border: 1px solid var(--neon-blue);
-    border-opacity: 0.3;
-    color: white;
-    outline: none;
-    transition: all 0.2s;
-    font-size: 1rem; /* Prevent iOS auto-zoom */
-    min-height: 44px; /* Touch-friendly on mobile */
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  background-color: var(--oxford-blue);
+  border: 1px solid var(--neon-blue);
+  border-opacity: 0.3;
+  color: white;
+  outline: none;
+  transition: all 0.2s;
+  font-size: 1rem; /* Prevent iOS auto-zoom */
+  min-height: 44px; /* Touch-friendly on mobile */
 }
 
 /* Mobile-specific sizing */
 @media (max-width: 640px) {
-    .input-field {
-        font-size: 16px; /* Prevent iOS auto-zoom */
-        min-height: 44px; /* iOS HIG recommendation */
-        padding: 0.75rem 1rem;
-    }
-    
-    .input-field-with-icon {
-        padding-left: 2.75rem;
-    }
+  .input-field {
+    font-size: 16px; /* Prevent iOS auto-zoom */
+    min-height: 44px; /* iOS HIG recommendation */
+    padding: 0.75rem 1rem;
+  }
+
+  .input-field-with-icon {
+    padding-left: 2.75rem;
+  }
 }
 
 .input-field::placeholder {
-    color: var(--french-gray);
-    opacity: 0.5;
+  color: var(--french-gray);
+  opacity: 0.5;
 }
 
 .input-field:focus {
-    box-shadow: 0 0 0 2px var(--neon-blue);
-    border-color: transparent;
-    background-color: rgba(11, 19, 43, 0.5);
+  box-shadow: 0 0 0 2px var(--neon-blue);
+  border-color: transparent;
+  background-color: rgba(11, 19, 43, 0.5);
 }
 
 .input-field-with-icon {
-    padding-left: 2.5rem;
+  padding-left: 2.5rem;
 }
 
 .input-field-error {
-    border-color: var(--red-500);
+  border-color: var(--red-500);
 }
 
 .input-field-error:focus {
-    box-shadow: 0 0 0 2px var(--red-500);
+  box-shadow: 0 0 0 2px var(--red-500);
 }
 
 .input-error-text {
-    color: var(--red-400);
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
+  color: var(--red-400);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 .input-helper-text {
-    color: var(--french-gray);
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
-    opacity: 0.75;
+  color: var(--french-gray);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  opacity: 0.75;
 }
 
 /* Input type-specific styles for better mobile UX */
-input[type="tel"],
-input[type="email"],
-input[type="number"],
-input[type="date"],
-input[type="time"] {
-    font-size: 16px; /* Always prevent iOS auto-zoom */
+input[type='tel'],
+input[type='email'],
+input[type='number'],
+input[type='date'],
+input[type='time'] {
+  font-size: 16px; /* Always prevent iOS auto-zoom */
 }
-

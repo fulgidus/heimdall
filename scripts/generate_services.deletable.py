@@ -7,15 +7,14 @@ services = ["rf-acquisition", "training", "inference", "api-gateway"]
 ports = {"rf-acquisition": 8001, "training": 8002, "inference": 8003, "api-gateway": 8000}
 
 for service_name in services:
-    try:
-        service_dir = Path("services") / service_name
-        port = ports[service_name]
-        print(f"Generating {service_name}...", end=" ", flush=True)
-    
+    service_dir = Path("services") / service_name
+    port = ports[service_name]
+    print(f"Generating {service_name}...", end=" ", flush=True)
+
     # Create directories
     for d in ["src/models", "src/routers", "src/utils", "tests/unit", "tests/integration", "docs"]:
         (service_dir / d).mkdir(parents=True, exist_ok=True)
-    
+
     # main.py
     main_content = f'''"""Heimdall SDR - {service_name} Service"""
 from datetime import datetime
@@ -62,8 +61,8 @@ async def readiness_check():
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=SERVICE_PORT)
 '''
-    (service_dir / "src" / "main.py").write_text(main_content, encoding='utf-8')
-    
+    (service_dir / "src" / "main.py").write_text(main_content, encoding="utf-8")
+
     # config.py
     config_content = f'''"""Configuration"""
 from typing import List
@@ -80,8 +79,8 @@ class Settings(BaseSettings):
 
 settings = Settings()
 '''
-    (service_dir / "src" / "config.py").write_text(config_content, encoding='utf-8')
-    
+    (service_dir / "src" / "config.py").write_text(config_content, encoding="utf-8")
+
     # models/health.py
     models_content = '''"""Models"""
 from datetime import datetime
@@ -94,11 +93,11 @@ class HealthResponse(BaseModel):
     version: str = Field(..., description="Version")
     timestamp: datetime = Field(..., description="Timestamp")
 '''
-    (service_dir / "src" / "models" / "__init__.py").write_text("", encoding='utf-8')
-    (service_dir / "src" / "models" / "health.py").write_text(models_content, encoding='utf-8')
-    
+    (service_dir / "src" / "models" / "__init__.py").write_text("", encoding="utf-8")
+    (service_dir / "src" / "models" / "health.py").write_text(models_content, encoding="utf-8")
+
     # requirements.txt
-    req_content = '''fastapi==0.104.1
+    req_content = """fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.5.0
 pydantic-settings==2.1.0
@@ -109,11 +108,11 @@ psycopg2-binary==2.9.9
 redis==5.0.1
 pytest==7.4.3
 httpx==0.25.1
-'''
-    (service_dir / "requirements.txt").write_text(req_content, encoding='utf-8')
-    
+"""
+    (service_dir / "requirements.txt").write_text(req_content, encoding="utf-8")
+
     # Dockerfile
-    docker_content = f'''FROM python:3.11-slim as builder
+    docker_content = f"""FROM python:3.11-slim as builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y gcc postgresql-client
 COPY requirements.txt .
@@ -129,11 +128,11 @@ ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1
 USER appuser
 EXPOSE {port}
 CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "{port}"]
-'''
-    (service_dir / "Dockerfile").write_text(docker_content, encoding='utf-8')
-    
+"""
+    (service_dir / "Dockerfile").write_text(docker_content, encoding="utf-8")
+
     # .gitignore
-    gitignore_content = '''__pycache__/
+    gitignore_content = """__pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
@@ -142,27 +141,27 @@ venv/
 .env
 .DS_Store
 *.log
-'''
-    (service_dir / ".gitignore").write_text(gitignore_content, encoding='utf-8')
-    
+"""
+    (service_dir / ".gitignore").write_text(gitignore_content, encoding="utf-8")
+
     # tests
-    (service_dir / "tests" / "__init__.py").write_text("", encoding='utf-8')
-    (service_dir / "tests" / "unit" / "__init__.py").write_text("", encoding='utf-8')
-    (service_dir / "tests" / "integration" / "__init__.py").write_text("", encoding='utf-8')
-    (service_dir / "tests" / "unit" / ".gitkeep").write_text("", encoding='utf-8')
-    (service_dir / "tests" / "integration" / ".gitkeep").write_text("", encoding='utf-8')
-    
-    conftest_content = '''import pytest
+    (service_dir / "tests" / "__init__.py").write_text("", encoding="utf-8")
+    (service_dir / "tests" / "unit" / "__init__.py").write_text("", encoding="utf-8")
+    (service_dir / "tests" / "integration" / "__init__.py").write_text("", encoding="utf-8")
+    (service_dir / "tests" / "unit" / ".gitkeep").write_text("", encoding="utf-8")
+    (service_dir / "tests" / "integration" / ".gitkeep").write_text("", encoding="utf-8")
+
+    conftest_content = """import pytest
 from fastapi.testclient import TestClient
 from src.main import app
 
 @pytest.fixture
 def client():
     return TestClient(app)
-'''
-    (service_dir / "tests" / "conftest.py").write_text(conftest_content, encoding='utf-8')
-    
-    test_content = '''from fastapi.testclient import TestClient
+"""
+    (service_dir / "tests" / "conftest.py").write_text(conftest_content, encoding="utf-8")
+
+    test_content = """from fastapi.testclient import TestClient
 from src.main import app
 
 client = TestClient(app)
@@ -174,11 +173,11 @@ def test_root():
 def test_health():
     response = client.get("/health")
     assert response.status_code == 200
-'''
-    (service_dir / "tests" / "test_main.py").write_text(test_content, encoding='utf-8')
-    
+"""
+    (service_dir / "tests" / "test_main.py").write_text(test_content, encoding="utf-8")
+
     # README
-    readme_content = f'''# {service_name.upper()} Service
+    readme_content = f"""# {service_name.upper()} Service
 
 Port: {port}
 
@@ -188,9 +187,9 @@ pip install -r requirements.txt
 python -m uvicorn src.main:app --reload
 
 API: http://localhost:{port}/docs
-'''
-    (service_dir / "README.md").write_text(readme_content, encoding='utf-8')
-    
+"""
+    (service_dir / "README.md").write_text(readme_content, encoding="utf-8")
+
     print(f"[OK] {service_name} - {port}")
 
 print("\n[SUCCESS] All services generated!")

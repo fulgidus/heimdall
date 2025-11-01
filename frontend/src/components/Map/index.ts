@@ -1,6 +1,6 @@
 /**
  * Map Components
- * 
+ *
  * Interactive Mapbox GL JS map with WebSDR receivers and localization displays
  */
 

@@ -1,23 +1,19 @@
 """Monitor WebSDR uptime and record to database."""
 
+import asyncio
 import logging
 from datetime import datetime
-from typing import List, Dict
-import asyncio
 
 from celery import shared_task
-from sqlalchemy import insert
 
 try:
     from ..config import settings
-    from ..storage.db_manager import DatabaseManager
     from ..fetchers.websdr_fetcher import WebSDRFetcher
     from ..models.db import Base
+    from ..storage.db_manager import DatabaseManager
 except ImportError:
     # Fallback for direct execution
-    from config import settings
     from storage.db_manager import DatabaseManager
-    from fetchers.websdr_fetcher import WebSDRFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +35,12 @@ SELECT create_hypertable(
     if_not_exists => TRUE
 );
 
-CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_websdr_time 
+CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_websdr_time
 ON heimdall.websdrs_uptime_history(websdr_id, timestamp DESC);
 """
 
 
-def get_default_websdrs() -> List[Dict]:
+def get_default_websdrs() -> list[dict]:
     """Get default WebSDR configuration."""
     return [
         {
@@ -56,7 +52,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 7.29,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 2,
@@ -67,7 +63,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 7.857,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 3,
@@ -78,7 +74,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 7.672,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 4,
@@ -89,7 +85,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 7.27,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 5,
@@ -100,7 +96,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 8.956,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 6,
@@ -111,7 +107,7 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 8.956,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
         {
             "id": 7,
@@ -122,12 +118,12 @@ def get_default_websdrs() -> List[Dict]:
             "longitude": 9.123,
             "is_active": True,
             "timeout_seconds": 3,
-            "retry_count": 1
+            "retry_count": 1,
         },
     ]
 
 
-@shared_task(bind=True, name='monitor_websdrs_uptime')
+@shared_task(bind=True, name="monitor_websdrs_uptime")
 def monitor_websdrs_uptime(self):
     """
     Celery task: Check WebSDR health and record status to database.
@@ -135,98 +131,110 @@ def monitor_websdrs_uptime(self):
     """
     try:
         logger.info("Starting WebSDR uptime monitoring task")
-        
+
         # Get WebSDR configs as dict
         websdrs = get_default_websdrs()
-        
+
         # Direct health check without WebSDRFetcher (to avoid object attribute issues)
         logger.info(f"Checking health of {len(websdrs)} WebSDRs")
         import aiohttp
-        
+
         async def direct_health_check():
             """Direct health check without using WebSDRFetcher."""
             results = {}
             timeout = aiohttp.ClientTimeout(total=3)
-            
+
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 for ws in websdrs:
-                    ws_id = ws['id']
-                    ws_url = ws['url']
-                    ws_name = ws['name']
-                    
+                    ws_id = ws["id"]
+                    ws_url = ws["url"]
+                    ws_name = ws["name"]
+
                     try:
-                        async with session.head(ws_url, timeout=timeout, allow_redirects=False) as resp:
+                        async with session.head(
+                            ws_url, timeout=timeout, allow_redirects=False
+                        ) as resp:
                             # 501 means HEAD not supported, try GET
                             if resp.status == 501:
-                                async with session.get(ws_url, timeout=timeout, allow_redirects=False) as resp2:
+                                async with session.get(
+                                    ws_url, timeout=timeout, allow_redirects=False
+                                ) as resp2:
                                     is_online = 200 <= resp2.status < 400
-                                    logger.debug(f"  {ws_name} ({ws_id}): GET {resp2.status} → {'online' if is_online else 'offline'}")
+                                    logger.debug(
+                                        f"  {ws_name} ({ws_id}): GET {resp2.status} → {'online' if is_online else 'offline'}"
+                                    )
                                     results[ws_id] = is_online
                             else:
                                 is_online = 200 <= resp.status < 400
-                                logger.debug(f"  {ws_name} ({ws_id}): HEAD {resp.status} → {'online' if is_online else 'offline'}")
+                                logger.debug(
+                                    f"  {ws_name} ({ws_id}): HEAD {resp.status} → {'online' if is_online else 'offline'}"
+                                )
                                 results[ws_id] = is_online
                     except Exception as e:
-                        logger.warning(f"  {ws_name} ({ws_id}): Exception {type(e).__name__} → offline")
+                        logger.warning(
+                            f"  {ws_name} ({ws_id}): Exception {type(e).__name__} → offline"
+                        )
                         results[ws_id] = False
-            
+
             return results
-        
+
         # Run async health check
         loop = asyncio.get_event_loop()
         health_results = loop.run_until_complete(direct_health_check())
-        
+
         logger.info(f"Health check results: {health_results}")
-        
+
         # Get database connection
         db_manager = DatabaseManager()
-        
+
         # Record status for each WebSDR
         records_inserted = 0
         with db_manager.get_session() as session:
             for ws_config in websdrs:
-                ws_id = ws_config['id']
-                ws_name = ws_config['name']
-                
+                ws_id = ws_config["id"]
+                ws_name = ws_config["name"]
+
                 # Get online/offline status
                 is_online = health_results.get(ws_id, False)
-                status = 'online' if is_online else 'offline'
+                status = "online" if is_online else "offline"
                 timestamp = datetime.utcnow()
-                
+
                 # Insert into websdrs_uptime_history
                 try:
                     from sqlalchemy import text
-                    
+
                     # Raw SQL insert for uptime history using text()
-                    query = text("""
-                        INSERT INTO heimdall.websdrs_uptime_history 
+                    query = text(
+                        """
+                        INSERT INTO heimdall.websdrs_uptime_history
                         (websdr_id, websdr_name, status, timestamp)
                         VALUES (:websdr_id, :websdr_name, :status, :timestamp)
-                    """)
+                    """
+                    )
                     session.execute(
                         query,
                         {
-                            'websdr_id': ws_id,
-                            'websdr_name': ws_name,
-                            'status': status,
-                            'timestamp': timestamp
-                        }
+                            "websdr_id": ws_id,
+                            "websdr_name": ws_name,
+                            "status": status,
+                            "timestamp": timestamp,
+                        },
                     )
                     records_inserted += 1
                     logger.debug(f"Recorded {ws_name} ({ws_id}): {status}")
                 except Exception as e:
                     logger.error(f"Failed to record uptime for {ws_name}: {e}")
-            
+
             session.commit()
-        
+
         logger.info(f"Uptime monitoring complete: {records_inserted} records inserted")
-        
+
         return {
-            'status': 'success',
-            'records_inserted': records_inserted,
-            'timestamp': datetime.utcnow().isoformat()
+            "status": "success",
+            "records_inserted": records_inserted,
+            "timestamp": datetime.utcnow().isoformat(),
         }
-    
+
     except Exception as e:
         logger.exception(f"Error in uptime monitoring: {e}")
         raise
@@ -235,53 +243,53 @@ def monitor_websdrs_uptime(self):
 def calculate_uptime_percentage(websdr_id: int, hours: int = 24) -> float:
     """
     Calculate uptime percentage for a WebSDR over the last N hours.
-    
+
     Args:
         websdr_id: ID of the WebSDR
         hours: Time window in hours (default: 24)
-    
+
     Returns:
         Uptime percentage (0-100)
     """
     try:
         from datetime import timedelta
+
         from sqlalchemy import text
-        
+
         db_manager = DatabaseManager()
-        
+
         with db_manager.get_session() as session:
             # Query uptime history for the time window
             cutoff_time = datetime.utcnow() - timedelta(hours=hours)
-            
+
             # Raw SQL query using SQLAlchemy text()
-            query = text("""
+            query = text(
+                """
                 SELECT status, COUNT(*) as count
                 FROM heimdall.websdrs_uptime_history
                 WHERE websdr_id = :websdr_id
                   AND timestamp >= :cutoff_time
                 GROUP BY status
-            """)
-            
-            results = session.execute(
-                query,
-                {'websdr_id': websdr_id, 'cutoff_time': cutoff_time}
+            """
             )
-            
+
+            results = session.execute(query, {"websdr_id": websdr_id, "cutoff_time": cutoff_time})
+
             status_counts = {row[0]: row[1] for row in results}
-            
+
             total_checks = sum(status_counts.values())
             if total_checks == 0:
                 return 0.0
-            
-            online_checks = status_counts.get('online', 0)
+
+            online_checks = status_counts.get("online", 0)
             uptime_pct = (online_checks / total_checks) * 100
-            
+
             logger.debug(
                 f"SDR {websdr_id}: {online_checks}/{total_checks} online over {hours}h = {uptime_pct:.1f}%"
             )
-            
+
             return uptime_pct
-    
+
     except Exception as e:
         logger.error(f"Error calculating uptime for SDR {websdr_id}: {e}")
         return 0.0

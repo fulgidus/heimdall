@@ -2,10 +2,10 @@ import '@testing-library/jest-dom';
 import { beforeEach, beforeAll, vi } from 'vitest';
 import React from 'react';
 import {
-    createMockDashboardStore,
-    createMockWebSDRStore,
-    createMockSessionStore,
-    createMockAuthStore,
+  createMockDashboardStore,
+  createMockWebSDRStore,
+  createMockSessionStore,
+  createMockAuthStore,
 } from './mockStoreFactories';
 
 // ============================================
@@ -14,8 +14,8 @@ import {
 // React 19 with new JSX transform doesn't require React import in source files,
 // but test files using JSX syntax need React available globally
 declare global {
-    // Extend globalThis to include React for test JSX
-    var React: typeof React;
+  // Extend globalThis to include React for test JSX
+  var React: typeof React;
 }
 globalThis.React = React;
 
@@ -30,51 +30,51 @@ const mockAuthStore = createMockAuthStore();
 
 // Mock all stores GLOBALLY
 vi.mock('../store', () => ({
-    useDashboardStore: () => ({
-        ...mockDashboardStore.getState(),
-        ...mockDashboardStore,
-    }),
-    useWebSDRStore: () => ({
-        ...mockWebSDRStore.getState(),
-        ...mockWebSDRStore,
-    }),
-    useSessionStore: () => ({
-        ...mockSessionStore.getState(),
-        ...mockSessionStore,
-    }),
-    useAuthStore: () => ({
-        ...mockAuthStore.getState(),
-        ...mockAuthStore,
-    }),
+  useDashboardStore: () => ({
+    ...mockDashboardStore.getState(),
+    ...mockDashboardStore,
+  }),
+  useWebSDRStore: () => ({
+    ...mockWebSDRStore.getState(),
+    ...mockWebSDRStore,
+  }),
+  useSessionStore: () => ({
+    ...mockSessionStore.getState(),
+    ...mockSessionStore,
+  }),
+  useAuthStore: () => ({
+    ...mockAuthStore.getState(),
+    ...mockAuthStore,
+  }),
 }));
 
 // Export the mocks so they can be used in individual tests
 vi.mock('../store/dashboardStore', () => ({
-    useDashboardStore: () => ({
-        ...mockDashboardStore.getState(),
-        ...mockDashboardStore,
-    }),
+  useDashboardStore: () => ({
+    ...mockDashboardStore.getState(),
+    ...mockDashboardStore,
+  }),
 }));
 
 vi.mock('../store/authStore', () => ({
-    useAuthStore: () => ({
-        ...mockAuthStore.getState(),
-        ...mockAuthStore,
-    }),
+  useAuthStore: () => ({
+    ...mockAuthStore.getState(),
+    ...mockAuthStore,
+  }),
 }));
 
 vi.mock('../store/sessionStore', () => ({
-    useSessionStore: () => ({
-        ...mockSessionStore.getState(),
-        ...mockSessionStore,
-    }),
+  useSessionStore: () => ({
+    ...mockSessionStore.getState(),
+    ...mockSessionStore,
+  }),
 }));
 
 vi.mock('../store/websdrStore', () => ({
-    useWebSDRStore: () => ({
-        ...mockWebSDRStore.getState(),
-        ...mockWebSDRStore,
-    }),
+  useWebSDRStore: () => ({
+    ...mockWebSDRStore.getState(),
+    ...mockWebSDRStore,
+  }),
 }));
 
 // ============================================
@@ -83,23 +83,23 @@ vi.mock('../store/websdrStore', () => ({
 
 // Mock WebSocket context
 vi.mock('../contexts/WebSocketContext', () => ({
-    WebSocketProvider: ({ children }: { children: React.ReactNode }) => children,
-    useWebSocket: () => ({
-        manager: {
-            send: vi.fn(),
-            isConnected: () => true,
-            connect: vi.fn(),
-            disconnect: vi.fn(),
-            subscribe: vi.fn(() => vi.fn()),
-            unsubscribe: vi.fn(),
-        },
-        connectionState: 'CONNECTED',
-        isConnected: true,
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-        subscribe: vi.fn(() => vi.fn()),
-        unsubscribe: vi.fn(),
-    }),
+  WebSocketProvider: ({ children }: { children: React.ReactNode }) => children,
+  useWebSocket: () => ({
+    manager: {
+      send: vi.fn(),
+      isConnected: () => true,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      subscribe: vi.fn(() => vi.fn()),
+      unsubscribe: vi.fn(),
+    },
+    connectionState: 'CONNECTED',
+    isConnected: true,
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+    unsubscribe: vi.fn(),
+  }),
 }));
 
 // ============================================
@@ -108,33 +108,33 @@ vi.mock('../contexts/WebSocketContext', () => ({
 
 // Mock window.matchMedia
 beforeAll(() => {
-    Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: (query: string) => ({
-            matches: false,
-            media: query,
-            onchange: null,
-            addListener: () => { },
-            removeListener: () => { },
-            addEventListener: () => { },
-            removeEventListener: () => { },
-            dispatchEvent: () => true,
-        }),
-    });
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }),
+  });
 });
 
 // Mock environment variables
 Object.defineProperty(import.meta, 'env', {
-    value: {
-        VITE_ADMIN_EMAIL: 'admin@heimdall.local',
-        VITE_ADMIN_PASSWORD: 'Admin123!@#',
-        VITE_API_URL: 'http://localhost:8000/api',
-    },
-    writable: true,
+  value: {
+    VITE_ADMIN_EMAIL: 'admin@heimdall.local',
+    VITE_ADMIN_PASSWORD: 'Admin123!@#',
+    VITE_API_URL: 'http://localhost:8000/api',
+  },
+  writable: true,
 });
 
 // Clear localStorage before each test
 beforeEach(() => {
-    localStorage.clear();
-    vi.clearAllMocks();
+  localStorage.clear();
+  vi.clearAllMocks();
 });

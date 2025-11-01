@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -12,5 +12,5 @@ class HealthResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     error: str = Field(..., description="Error message")
-    detail: Optional[str] = Field(None, description="Error details")
+    detail: str | None = Field(None, description="Error details")
     timestamp: datetime = Field(default_factory=datetime.utcnow)

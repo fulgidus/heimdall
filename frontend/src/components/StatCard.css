@@ -1,112 +1,114 @@
 .stat-card {
-    height: 100%;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(70, 110, 246, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(70, 110, 246, 0.15);
 }
 
 .stat-card-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .stat-card-info {
-    flex: 1;
+  flex: 1;
 }
 
 .stat-card-title {
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
 }
 
 .stat-card-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.2;
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.2;
 }
 
 .stat-card-subtitle {
-    font-size: 0.875rem;
-    margin-top: 0.25rem;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 .stat-card-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background-color: rgba(70, 110, 246, 0.1);
-    margin-left: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: rgba(70, 110, 246, 0.1);
+  margin-left: 1rem;
 }
 
 .stat-card-icon i {
-    font-size: 2rem;
+  font-size: 2rem;
 }
 
 .stat-card-trend {
-    display: flex;
-    align-items: center;
-    font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
 }
 
 .stat-trend {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
 }
 
 .stat-trend-up {
-    color: var(--bs-success, #28a745);
+  color: var(--bs-success, #28a745);
 }
 
 .stat-trend-down {
-    color: var(--bs-danger, #dc3545);
+  color: var(--bs-danger, #dc3545);
 }
 
 /* Variant specific styles */
 .stat-card-primary {
-    border-left: 4px solid var(--bs-primary, #446df6);
+  border-left: 4px solid var(--bs-primary, #446df6);
 }
 
 .stat-card-success {
-    border-left: 4px solid var(--bs-success, #28a745);
+  border-left: 4px solid var(--bs-success, #28a745);
 }
 
 .stat-card-warning {
-    border-left: 4px solid var(--bs-warning, #ffc107);
+  border-left: 4px solid var(--bs-warning, #ffc107);
 }
 
 .stat-card-danger {
-    border-left: 4px solid var(--bs-danger, #dc3545);
+  border-left: 4px solid var(--bs-danger, #dc3545);
 }
 
 .stat-card-info {
-    border-left: 4px solid var(--bs-info, #17a2b8);
+  border-left: 4px solid var(--bs-info, #17a2b8);
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .stat-card-value {
-        font-size: 1.5rem;
-    }
+  .stat-card-value {
+    font-size: 1.5rem;
+  }
 
-    .stat-card-icon {
-        width: 50px;
-        height: 50px;
-    }
+  .stat-card-icon {
+    width: 50px;
+    height: 50px;
+  }
 
-    .stat-card-icon i {
-        font-size: 1.5rem;
-    }
+  .stat-card-icon i {
+    font-size: 1.5rem;
+  }
 }

@@ -2,6 +2,6 @@
 import { z } from 'zod';
 
 export const TestSchema = z.object({
-    test_nullable: z.string().nullable().optional(),
-    test_normal: z.string().optional(),
+  test_nullable: z.string().nullable().optional(),
+  test_normal: z.string().optional(),
 });

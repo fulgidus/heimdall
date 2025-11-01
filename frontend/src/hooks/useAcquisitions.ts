@@ -1,6 +1,6 @@
 /**
  * React Query Hooks for Acquisition Endpoints
- * 
+ *
  * Provides hooks for fetching acquisitions and triggering new ones
  */
 
@@ -13,23 +13,27 @@ import type { AcquisitionRequest } from '@/services/api/types';
  * Polls every 5 seconds while task is active
  */
 export const useAcquisitionStatus = (taskId: string | null) => {
-    return useQuery({
-        queryKey: ['acquisitions', 'status', taskId],
-        queryFn: () => {
-            if (!taskId) throw new Error('No task ID provided');
-            return acquisitionService.getAcquisitionStatus(taskId);
-        },
-        enabled: !!taskId,
-        refetchInterval: (query) => {
-            const data = query.state.data as { status?: string } | undefined;
-            // Only poll if status is pending or in_progress
-            if (data?.status === 'PENDING' || data?.status === 'IN_PROGRESS' || data?.status === 'STARTED') {
-                return 5000;
-            }
-            return false;
-        },
-        staleTime: 2000,
-    });
+  return useQuery({
+    queryKey: ['acquisitions', 'status', taskId],
+    queryFn: () => {
+      if (!taskId) throw new Error('No task ID provided');
+      return acquisitionService.getAcquisitionStatus(taskId);
+    },
+    enabled: !!taskId,
+    refetchInterval: query => {
+      const data = query.state.data as { status?: string } | undefined;
+      // Only poll if status is pending or in_progress
+      if (
+        data?.status === 'PENDING' ||
+        data?.status === 'IN_PROGRESS' ||
+        data?.status === 'STARTED'
+      ) {
+        return 5000;
+      }
+      return false;
+    },
+    staleTime: 2000,
+  });
 };
 
 /**
@@ -37,14 +41,13 @@ export const useAcquisitionStatus = (taskId: string | null) => {
  * Invalidates acquisition queries on success
  */
 export const useTriggerAcquisition = () => {
-    const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: (params: AcquisitionRequest) => 
-            acquisitionService.triggerAcquisition(params),
-        onSuccess: () => {
-            // Invalidate and refetch acquisitions
-            queryClient.invalidateQueries({ queryKey: ['acquisitions'] });
-        },
-    });
+  return useMutation({
+    mutationFn: (params: AcquisitionRequest) => acquisitionService.triggerAcquisition(params),
+    onSuccess: () => {
+      // Invalidate and refetch acquisitions
+      queryClient.invalidateQueries({ queryKey: ['acquisitions'] });
+    },
+  });
 };

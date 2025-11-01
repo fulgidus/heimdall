@@ -1,25 +1,24 @@
 """FastAPI endpoints for RF acquisition."""
 
 import logging
-import requests
 from datetime import datetime
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+
+import requests
 from celery.result import AsyncResult
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from ..models.websdrs import (
     AcquisitionRequest,
-    AcquisitionTaskResponse,
     AcquisitionStatusResponse,
-    WebSDRConfig,
+    AcquisitionTaskResponse,
     WebSDRCreateRequest,
-    WebSDRUpdateRequest,
-    WebSDRResponse,
     WebSDRFetchInfoRequest,
     WebSDRFetchInfoResponse,
+    WebSDRResponse,
+    WebSDRUpdateRequest,
 )
-from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
 from ..storage.db_manager import get_db_manager
+from ..tasks.acquire_iq import acquire_iq, health_check_websdrs
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +28,12 @@ router = APIRouter(prefix="/api/v1/acquisition", tags=["acquisition"])
 def get_websdrs_config() -> list[dict]:
     """
     Get WebSDR configuration from database.
-    
+
     Returns list of active WebSDR configurations suitable for acquisition tasks.
     """
     db_manager = get_db_manager()
     active_stations = db_manager.get_active_websdrs()
-    
+
     # Convert ORM models to dicts compatible with acquisition tasks
     websdrs_config = []
     for idx, station in enumerate(active_stations, start=1):
@@ -43,7 +42,8 @@ def get_websdrs_config() -> list[dict]:
             "uuid": str(station.id),  # Real UUID for frontend matching
             "name": station.name,
             "url": station.url,
-            "location_name": station.location_description or f"{station.name}, {station.country or 'Italy'}",
+            "location_name": station.location_description
+            or f"{station.name}, {station.country or 'Italy'}",
             "latitude": float(station.latitude),
             "longitude": float(station.longitude),
             "is_active": station.is_active,
@@ -51,7 +51,7 @@ def get_websdrs_config() -> list[dict]:
             "retry_count": station.retry_count or 3,
         }
         websdrs_config.append(config)
-    
+
     logger.debug(f"Loaded {len(websdrs_config)} active WebSDR configurations from database")
     return websdrs_config
 
@@ -63,7 +63,7 @@ async def trigger_acquisition(
 ):
     """
     Trigger an IQ data acquisition from WebSDR receivers.
-    
+
     Returns:
         Task ID and initial status
     """
@@ -71,24 +71,21 @@ async def trigger_acquisition(
         logger.info(
             "Triggering acquisition at %.2f MHz for %.1f seconds",
             request.frequency_mhz,
-            request.duration_seconds
+            request.duration_seconds,
         )
-        
+
         # Get WebSDR configs
         websdrs_config = get_websdrs_config()
-        
+
         # Filter to requested receivers if specified
         if request.websdrs:
-            websdrs_config = [
-                w for w in websdrs_config if w['id'] in request.websdrs
-            ]
-        
+            websdrs_config = [w for w in websdrs_config if w["id"] in request.websdrs]
+
         if not websdrs_config:
             raise HTTPException(
-                status_code=400,
-                detail="No active WebSDRs available for acquisition"
+                status_code=400, detail="No active WebSDRs available for acquisition"
             )
-        
+
         # Queue Celery task
         task = acquire_iq.delay(
             frequency_mhz=request.frequency_mhz,
@@ -97,91 +94,85 @@ async def trigger_acquisition(
             websdrs_config_list=websdrs_config,
             sample_rate_khz=12.5,
         )
-        
+
         logger.info("Queued acquisition task: %s", task.id)
-        
+
         return AcquisitionTaskResponse(
             task_id=str(task.id),
             status="PENDING",
             message=f"Acquisition task queued for {len(websdrs_config)} WebSDR receivers",
             frequency_mhz=request.frequency_mhz,
-            websdrs_count=len(websdrs_config)
+            websdrs_count=len(websdrs_config),
         )
-    
+
     except Exception as e:
         logger.exception("Error triggering acquisition: %s", str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error triggering acquisition: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error triggering acquisition: {str(e)}")
 
 
 @router.get("/status/{task_id}", response_model=AcquisitionStatusResponse)
 async def get_acquisition_status(task_id: str):
     """
     Get status of an ongoing acquisition task.
-    
+
     Args:
         task_id: Celery task ID
-    
+
     Returns:
         Task status and progress information
     """
     try:
         result = AsyncResult(task_id)
-        
+
         status_map = {
-            'PENDING': 'PENDING',
-            'STARTED': 'PROGRESS',
-            'PROGRESS': 'PROGRESS',
-            'SUCCESS': 'SUCCESS',
-            'FAILURE': 'FAILURE',
-            'REVOKED': 'REVOKED',
-            'RETRY': 'PROGRESS',
+            "PENDING": "PENDING",
+            "STARTED": "PROGRESS",
+            "PROGRESS": "PROGRESS",
+            "SUCCESS": "SUCCESS",
+            "FAILURE": "FAILURE",
+            "REVOKED": "REVOKED",
+            "RETRY": "PROGRESS",
         }
-        
+
         mapped_status = status_map.get(result.state, result.state)
-        
+
         # Extract progress info
-        if result.state == 'PROGRESS':
+        if result.state == "PROGRESS":
             info = result.info if isinstance(result.info, dict) else {}
-            progress = info.get('progress', 0)
-            message = info.get('status', 'Processing...')
-            measurements_collected = info.get('successful', 0)
-        elif result.state == 'SUCCESS':
+            progress = info.get("progress", 0)
+            message = info.get("status", "Processing...")
+            measurements_collected = info.get("successful", 0)
+        elif result.state == "SUCCESS":
             info = result.result if isinstance(result.result, dict) else {}
             progress = 100
             message = "Acquisition complete"
-            measurements_collected = info.get('measurements_count', 0)
+            measurements_collected = info.get("measurements_count", 0)
         else:
             info = {}
-            progress = 0 if result.state == 'PENDING' else 50
+            progress = 0 if result.state == "PENDING" else 50
             message = f"Task state: {result.state}"
             measurements_collected = 0
-        
+
         return AcquisitionStatusResponse(
             task_id=task_id,
             status=mapped_status,
             progress=progress,
             message=message,
             measurements_collected=measurements_collected,
-            errors=info.get('errors', None),
-            result=result.result if result.state == 'SUCCESS' else None
+            errors=info.get("errors", None),
+            result=result.result if result.state == "SUCCESS" else None,
         )
-    
+
     except Exception as e:
         logger.exception("Error getting acquisition status: %s", str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error retrieving status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error retrieving status: {str(e)}")
 
 
 @router.get("/websdrs", response_model=list[dict])
 async def list_websdrs():
     """
     List all configured WebSDR receivers from database.
-    
+
     Returns:
         List of WebSDR configurations from database
     """
@@ -194,7 +185,7 @@ async def list_websdrs():
 async def check_websdrs_health():
     """
     Check health status of all WebSDR receivers with metrics.
-    
+
     Returns:
         Dict mapping WebSDR ID to health status with SNR, uptime, last contact
     """
@@ -202,94 +193,92 @@ async def check_websdrs_health():
         from ..storage.db_manager import DatabaseManager
         from ..tasks.uptime_monitor import calculate_uptime_percentage
         from .websocket import manager as ws_manager
-        
+
         # Get WebSDR configs
         websdrs_config = get_websdrs_config()
         logger.debug(f"WebSDR configs loaded: {len(websdrs_config)} SDRs")
-        
+
         # Run health check task
         task = health_check_websdrs.delay()
         logger.debug(f"Health check task submitted: {task.id}")
-        
+
         result = task.get(timeout=60)
         logger.info(f"Health check task result: {result}")
-        
+
         # Get SNR statistics from database
         db_manager = DatabaseManager()
         snr_stats = db_manager.get_snr_statistics() if db_manager else {}
         logger.debug(f"SNR statistics retrieved: {len(snr_stats) if snr_stats else 0} entries")
-        
+
         # Format response with detailed status information
         health_status = {}
         check_time = datetime.utcnow().isoformat()
-        
+
         for ws_config in websdrs_config:
-            ws_id = ws_config['id']
-            ws_uuid = ws_config['uuid']  # Use UUID as key for frontend
+            ws_id = ws_config["id"]
+            ws_uuid = ws_config["uuid"]  # Use UUID as key for frontend
             # IMPORTANT: Celery serializes dict keys as strings!
-            health_info = result.get(str(ws_id), {'online': False, 'response_time_ms': None})
-            is_online = health_info.get('online', False)
-            response_time_ms = health_info.get('response_time_ms', None)
-            
+            health_info = result.get(str(ws_id), {"online": False, "response_time_ms": None})
+            is_online = health_info.get("online", False)
+            response_time_ms = health_info.get("response_time_ms", None)
+
             # Get SNR and uptime from stats
             sdr_stats = snr_stats.get(ws_id, {}) if snr_stats else {}
-            avg_snr = sdr_stats.get('avg_snr_db', None)
-            
+            avg_snr = sdr_stats.get("avg_snr_db", None)
+
             # Calculate uptime from database history (last 24 hours)
             uptime = calculate_uptime_percentage(ws_id, hours=24)
-            
+
             health_status[ws_uuid] = {
-                'websdr_id': ws_uuid,  # Use UUID for frontend matching
-                'name': ws_config['name'],
-                'status': 'online' if is_online else 'offline',
-                'last_check': check_time,
-                'response_time_ms': response_time_ms,
-                'uptime': round(uptime, 1),
-                'avg_snr': round(avg_snr, 2) if avg_snr is not None else None,
+                "websdr_id": ws_uuid,  # Use UUID for frontend matching
+                "name": ws_config["name"],
+                "status": "online" if is_online else "offline",
+                "last_check": check_time,
+                "response_time_ms": response_time_ms,
+                "uptime": round(uptime, 1),
+                "avg_snr": round(avg_snr, 2) if avg_snr is not None else None,
             }
-            
+
             if not is_online:
-                health_status[ws_uuid]['error_message'] = 'Health check failed or timed out'
-        
-        logger.info(f"Health check response ready with metrics")
-        
+                health_status[ws_uuid]["error_message"] = "Health check failed or timed out"
+
+        logger.info("Health check response ready with metrics")
+
         # Broadcast WebSDR health update via WebSocket
-        await ws_manager.broadcast({
-            'event': 'websdrs_update',
-            'timestamp': check_time,
-            'data': health_status
-        })
-        logger.debug(f"Broadcasted WebSDR health update to {len(ws_manager.active_connections)} WebSocket clients")
-        
+        await ws_manager.broadcast(
+            {"event": "websdrs_update", "timestamp": check_time, "data": health_status}
+        )
+        logger.debug(
+            f"Broadcasted WebSDR health update to {len(ws_manager.active_connections)} WebSocket clients"
+        )
+
         return health_status
-    
+
     except Exception as e:
         logger.exception("Error checking WebSDR health: %s", str(e))
         from .websocket import manager as ws_manager
-        
+
         # Return offline status for all WebSDRs on error
         websdrs_config = get_websdrs_config()
         check_time = datetime.utcnow().isoformat()
-        
+
         health_status = {}
         for ws_config in websdrs_config:
-            ws_uuid = ws_config['uuid']  # Use UUID for consistency
+            ws_uuid = ws_config["uuid"]  # Use UUID for consistency
             health_status[ws_uuid] = {
-                'websdr_id': ws_uuid,
-                'name': ws_config['name'],
-                'status': 'offline',
-                'last_check': check_time,
-                'response_time_ms': None,
-                'error_message': f'Health check error: {str(e)}'
+                "websdr_id": ws_uuid,
+                "name": ws_config["name"],
+                "status": "offline",
+                "last_check": check_time,
+                "response_time_ms": None,
+                "error_message": f"Health check error: {str(e)}",
             }
-        
+
         # Broadcast error status via WebSocket
-        await ws_manager.broadcast({
-            'event': 'websdrs_update',
-            'timestamp': check_time,
-            'data': health_status
-        })
-        
+        await ws_manager.broadcast(
+            {"event": "websdrs_update", "timestamp": check_time, "data": health_status}
+        )
+
         return health_status
 
 
@@ -297,21 +286,17 @@ async def check_websdrs_health():
 async def get_configuration():
     """
     Get acquisition service configuration.
-    
+
     Returns:
         Service configuration details
     """
     return {
-        'service': 'backend',
-        'version': '0.1.0',
-        'capabilities': [
-            'simultaneous-acquisition',
-            'iq-processing',
-            'signal-metrics'
-        ],
-        'websdrs_count': len(get_websdrs_config()),
-        'max_duration_seconds': 300,
-        'default_sample_rate_khz': 12.5,
+        "service": "backend",
+        "version": "0.1.0",
+        "capabilities": ["simultaneous-acquisition", "iq-processing", "signal-metrics"],
+        "websdrs_count": len(get_websdrs_config()),
+        "max_duration_seconds": 300,
+        "default_sample_rate_khz": 12.5,
     }
 
 
@@ -319,24 +304,25 @@ async def get_configuration():
 # WebSDR CRUD Endpoints
 # ============================================================================
 
+
 @router.post("/websdrs", response_model=WebSDRResponse, status_code=201)
 async def create_websdr(request: WebSDRCreateRequest):
     """
     Create a new WebSDR station.
-    
+
     Args:
         request: WebSDR creation request with all required fields
-    
+
     Returns:
         Created WebSDR station details
-    
+
     Raises:
         HTTPException 400: If station name already exists or validation fails
         HTTPException 500: If database error occurs
     """
     try:
         db_manager = get_db_manager()
-        
+
         # Create the station
         station = db_manager.create_websdr(
             name=request.name,
@@ -349,39 +335,36 @@ async def create_websdr(request: WebSDRCreateRequest):
             altitude_asl=request.altitude_asl,
             timeout_seconds=request.timeout_seconds,
             retry_count=request.retry_count,
-            is_active=request.is_active
+            is_active=request.is_active,
         )
-        
+
         if not station:
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to create WebSDR station. Name '{request.name}' may already exist."
+                detail=f"Failed to create WebSDR station. Name '{request.name}' may already exist.",
             )
-        
+
         logger.info(f"Created WebSDR station: {station.name} (ID: {station.id})")
         return WebSDRResponse.model_validate(station)
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error creating WebSDR station: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/websdrs/{station_id}", response_model=WebSDRResponse)
 async def get_websdr(station_id: str):
     """
     Get a specific WebSDR station by ID.
-    
+
     Args:
         station_id: UUID of the WebSDR station
-    
+
     Returns:
         WebSDR station details
-    
+
     Raises:
         HTTPException 404: If station not found
         HTTPException 500: If database error occurs
@@ -389,37 +372,33 @@ async def get_websdr(station_id: str):
     try:
         db_manager = get_db_manager()
         station = db_manager.get_websdr_by_id(station_id)
-        
+
         if not station:
             raise HTTPException(
-                status_code=404,
-                detail=f"WebSDR station with ID {station_id} not found"
+                status_code=404, detail=f"WebSDR station with ID {station_id} not found"
             )
-        
+
         return WebSDRResponse.model_validate(station)
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error retrieving WebSDR station: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.put("/websdrs/{station_id}", response_model=WebSDRResponse)
 async def update_websdr(station_id: str, request: WebSDRUpdateRequest):
     """
     Update an existing WebSDR station.
-    
+
     Args:
         station_id: UUID of the WebSDR station to update
         request: Fields to update (only provided fields will be updated)
-    
+
     Returns:
         Updated WebSDR station details
-    
+
     Raises:
         HTTPException 404: If station not found
         HTTPException 400: If update validation fails (e.g., duplicate name)
@@ -427,168 +406,155 @@ async def update_websdr(station_id: str, request: WebSDRUpdateRequest):
     """
     try:
         db_manager = get_db_manager()
-        
+
         # Only include fields that were actually provided
         update_data = request.model_dump(exclude_unset=True)
-        
+
         if not update_data:
-            raise HTTPException(
-                status_code=400,
-                detail="No fields provided for update"
-            )
-        
+            raise HTTPException(status_code=400, detail="No fields provided for update")
+
         station = db_manager.update_websdr(station_id, **update_data)
-        
+
         if not station:
             raise HTTPException(
                 status_code=404,
-                detail=f"WebSDR station with ID {station_id} not found or update failed"
+                detail=f"WebSDR station with ID {station_id} not found or update failed",
             )
-        
+
         logger.info(f"Updated WebSDR station: {station.name} (ID: {station.id})")
         return WebSDRResponse.model_validate(station)
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error updating WebSDR station: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.delete("/websdrs/{station_id}", status_code=204)
 async def delete_websdr(station_id: str, hard_delete: bool = False):
     """
     Delete a WebSDR station (soft delete by default).
-    
+
     Args:
         station_id: UUID of the WebSDR station to delete
         hard_delete: If True, permanently delete; if False, set is_active=False
-    
+
     Returns:
         No content on success
-    
+
     Raises:
         HTTPException 404: If station not found
         HTTPException 500: If database error occurs
     """
     try:
         db_manager = get_db_manager()
-        
+
         success = db_manager.delete_websdr(station_id, soft_delete=not hard_delete)
-        
+
         if not success:
             raise HTTPException(
-                status_code=404,
-                detail=f"WebSDR station with ID {station_id} not found"
+                status_code=404, detail=f"WebSDR station with ID {station_id} not found"
             )
-        
+
         action = "Hard deleted" if hard_delete else "Soft deleted"
         logger.info(f"{action} WebSDR station: {station_id}")
-        
+
         return None  # 204 No Content
-    
+
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(f"Error deleting WebSDR station: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/websdrs-all", response_model=List[WebSDRResponse])
+@router.get("/websdrs-all", response_model=list[WebSDRResponse])
 async def list_all_websdrs(include_inactive: bool = False):
     """
     List all WebSDR stations with full details.
-    
+
     Args:
         include_inactive: If True, include inactive stations; if False, only active
-    
+
     Returns:
         List of WebSDR station details
     """
     try:
         db_manager = get_db_manager()
-        
+
         if include_inactive:
             stations = db_manager.get_all_websdrs()
         else:
             stations = db_manager.get_active_websdrs()
-        
+
         return [WebSDRResponse.model_validate(station) for station in stations]
-    
+
     except Exception as e:
         logger.exception(f"Error listing WebSDR stations: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post("/websdrs/fetch-info", response_model=WebSDRFetchInfoResponse)
 async def fetch_websdr_info(request: WebSDRFetchInfoRequest):
     """
     Fetch WebSDR information from its status.json endpoint.
-    
+
     This endpoint fetches metadata from a WebSDR's /status.json endpoint,
     including receiver details, GPS coordinates, frequency ranges, and SDR profiles.
-    
+
     Args:
         request: URL of the WebSDR to fetch info from
-    
+
     Returns:
         WebSDR information extracted from status.json
-    
+
     Raises:
         HTTPException 400: If URL is invalid or unreachable
         HTTPException 500: If parsing fails
     """
     try:
-        url = request.url.rstrip('/')
+        url = request.url.rstrip("/")
         status_url = f"{url}/status.json"
-        
+
         logger.info(f"Fetching WebSDR info from {status_url}")
-        
+
         # Fetch status.json with timeout
         response = requests.get(status_url, timeout=10)
         response.raise_for_status()
-        
+
         health_data = response.json()
-        
+
         # Extract receiver information
         receiver = health_data.get("receiver", {})
         gps = receiver.get("gps", {})
-        
+
         latitude = gps.get("lat")
         longitude = gps.get("lon")
-        
+
         # Extract frequency ranges from all SDR profiles
         sdrs = health_data.get("sdrs", [])
         all_frequencies = []
         profile_count = 0
-        
+
         for sdr in sdrs:
             profiles = sdr.get("profiles", [])
             profile_count += len(profiles)
-            
+
             for profile in profiles:
                 center_freq = profile.get("center_freq")
                 if center_freq is not None:
                     all_frequencies.append(int(center_freq))
-        
+
         # Calculate frequency range
         frequency_min_hz = min(all_frequencies) if all_frequencies else None
         frequency_max_hz = max(all_frequencies) if all_frequencies else None
-        
+
         logger.info(
             f"Successfully fetched info: {len(sdrs)} SDRs, {profile_count} profiles, "
             f"freq range: {frequency_min_hz}-{frequency_max_hz} Hz"
         )
-        
+
         return WebSDRFetchInfoResponse(
             receiver_name=receiver.get("name"),
             location=receiver.get("location"),
@@ -601,41 +567,35 @@ async def fetch_websdr_info(request: WebSDRFetchInfoRequest):
             sdr_count=len(sdrs),
             profile_count=profile_count,
             success=True,
-            error_message=None
+            error_message=None,
         )
-    
+
     except requests.exceptions.Timeout:
         logger.warning(f"Timeout fetching info from {request.url}")
         return WebSDRFetchInfoResponse(
             success=False,
-            error_message="Connection timeout - WebSDR did not respond within 10 seconds"
+            error_message="Connection timeout - WebSDR did not respond within 10 seconds",
         )
-    
+
     except requests.exceptions.ConnectionError as e:
         logger.warning(f"Connection error fetching info from {request.url}: {e}")
         return WebSDRFetchInfoResponse(
-            success=False,
-            error_message="Connection failed - unable to reach WebSDR URL"
+            success=False, error_message="Connection failed - unable to reach WebSDR URL"
         )
-    
+
     except requests.exceptions.HTTPError as e:
         logger.warning(f"HTTP error fetching info from {request.url}: {e}")
         return WebSDRFetchInfoResponse(
             success=False,
-            error_message=f"HTTP error {e.response.status_code} - WebSDR may not support status.json"
+            error_message=f"HTTP error {e.response.status_code} - WebSDR may not support status.json",
         )
-    
+
     except ValueError as e:
         logger.error(f"Invalid JSON from {request.url}: {e}")
         return WebSDRFetchInfoResponse(
-            success=False,
-            error_message="Invalid response - not valid JSON"
-        )
-    
-    except Exception as e:
-        logger.exception(f"Unexpected error fetching info from {request.url}: {e}")
-        return WebSDRFetchInfoResponse(
-            success=False,
-            error_message=f"Unexpected error: {str(e)}"
+            success=False, error_message="Invalid response - not valid JSON"
         )
 
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching info from {request.url}: {e}")
+        return WebSDRFetchInfoResponse(success=False, error_message=f"Unexpected error: {str(e)}")
