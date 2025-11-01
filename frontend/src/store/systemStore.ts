@@ -18,6 +18,7 @@ interface SystemStore {
   checkAllServices: () => Promise<void>;
   checkService: (serviceName: string) => Promise<void>;
   fetchModelPerformance: () => Promise<void>;
+  updateServicesHealthFromWebSocket: (healthStatus: Record<string, ServiceHealth>) => void;
 
   isServiceHealthy: (serviceName: string) => boolean;
   getServiceStatus: (serviceName: string) => ServiceHealth | null;
@@ -79,6 +80,14 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
 
   getServiceStatus: (serviceName: string) => {
     return get().servicesHealth[serviceName] || null;
+  },
+
+  updateServicesHealthFromWebSocket: (healthStatus: Record<string, ServiceHealth>) => {
+    set({
+      servicesHealth: healthStatus,
+      lastCheck: new Date(),
+      error: null,
+    });
   },
 
   refreshAll: async () => {

@@ -76,6 +76,10 @@ celery_app.conf.beat_schedule = {
         "task": "monitor_websdrs_uptime",
         "schedule": 60.0,  # Every 60 seconds
     },
+    "monitor-services-health": {
+        "task": "monitor_services_health",
+        "schedule": 30.0,  # Every 30 seconds
+    },
 }
 
 
