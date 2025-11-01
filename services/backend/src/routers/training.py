@@ -436,3 +436,465 @@ async def get_training_metrics(
     except Exception as e:
         logger.error(f"Error getting metrics for job {job_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get training metrics: {e!s}")
+
+
+# ============================================================================
+# SYNTHETIC DATA GENERATION ENDPOINTS
+# ============================================================================
+
+@router.post("/synthetic/generate", status_code=202)
+async def generate_synthetic_data(request: Any):
+    """
+    Generate synthetic training dataset.
+    
+    Creates a background job to generate synthetic samples using RF propagation simulation.
+    
+    Args:
+        request: Synthetic data generation configuration
+    
+    Returns:
+        Job ID and status URL
+    """
+    from ..models.synthetic_data import SyntheticDataGenerationRequest
+    
+    # Import here to avoid circular dependency
+    if not isinstance(request, dict):
+        request = request.model_dump() if hasattr(request, 'model_dump') else request
+    
+    db_manager = get_db_manager()
+    
+    try:
+        # Create job record
+        with db_manager.get_session() as session:
+            job_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    job_name, job_type, status, config
+                )
+                VALUES (
+                    :job_name, 'synthetic_generation', 'pending', :config::jsonb
+                )
+                RETURNING id, created_at
+            """)
+            
+            import json
+            result = session.execute(
+                job_query,
+                {
+                    "job_name": f"Synthetic Data: {request.get('name', 'Unnamed')}",
+                    "config": json.dumps(request)
+                }
+            )
+            row = result.fetchone()
+            job_id = row[0]
+            created_at = row[1]
+            
+            session.commit()
+        
+        logger.info(f"Created synthetic data generation job {job_id}")
+        
+        # Queue Celery task
+        from ..tasks.training_task import generate_synthetic_data_task
+        generate_synthetic_data_task.delay(str(job_id))
+        
+        return {
+            "job_id": job_id,
+            "status": "pending",
+            "created_at": created_at,
+            "status_url": f"/api/v1/training/jobs/{job_id}"
+        }
+    
+    except Exception as e:
+        logger.error(f"Error creating synthetic data job: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create job: {e!s}")
+
+
+@router.get("/synthetic/datasets")
+async def list_synthetic_datasets(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0)
+):
+    """
+    List all synthetic datasets.
+    
+    Args:
+        limit: Maximum number of datasets to return
+        offset: Pagination offset
+    
+    Returns:
+        List of synthetic datasets
+    """
+    from ..models.synthetic_data import SyntheticDatasetResponse, SyntheticDatasetListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Get datasets
+            query = text("""
+                SELECT id, name, description, num_samples, train_count, val_count, test_count,
+                       config, quality_metrics, storage_table, created_at, created_by_job_id
+                FROM heimdall.synthetic_datasets
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+            
+            results = session.execute(query, {"limit": limit, "offset": offset}).fetchall()
+            
+            # Get total count
+            count_query = text("SELECT COUNT(*) FROM heimdall.synthetic_datasets")
+            total = session.execute(count_query).scalar() or 0
+            
+            # Convert to response models
+            import json
+            datasets = []
+            for row in results:
+                datasets.append(SyntheticDatasetResponse(
+                    id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    num_samples=row[3],
+                    train_count=row[4],
+                    val_count=row[5],
+                    test_count=row[6],
+                    config=json.loads(row[7]) if row[7] else {},
+                    quality_metrics=json.loads(row[8]) if row[8] else None,
+                    storage_table=row[9],
+                    created_at=row[10],
+                    created_by_job_id=row[11]
+                ))
+            
+            return SyntheticDatasetListResponse(datasets=datasets, total=total)
+    
+    except Exception as e:
+        logger.error(f"Error listing synthetic datasets: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list datasets: {e!s}")
+
+
+@router.get("/synthetic/datasets/{dataset_id}")
+async def get_synthetic_dataset(dataset_id: UUID):
+    """
+    Get synthetic dataset details.
+    
+    Args:
+        dataset_id: Dataset UUID
+    
+    Returns:
+        Dataset details
+    """
+    from ..models.synthetic_data import SyntheticDatasetResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            query = text("""
+                SELECT id, name, description, num_samples, train_count, val_count, test_count,
+                       config, quality_metrics, storage_table, created_at, created_by_job_id
+                FROM heimdall.synthetic_datasets
+                WHERE id = :dataset_id
+            """)
+            
+            result = session.execute(query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            import json
+            return SyntheticDatasetResponse(
+                id=result[0],
+                name=result[1],
+                description=result[2],
+                num_samples=result[3],
+                train_count=result[4],
+                val_count=result[5],
+                test_count=result[6],
+                config=json.loads(result[7]) if result[7] else {},
+                quality_metrics=json.loads(result[8]) if result[8] else None,
+                storage_table=result[9],
+                created_at=result[10],
+                created_by_job_id=result[11]
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get dataset: {e!s}")
+
+
+@router.delete("/synthetic/datasets/{dataset_id}", status_code=204)
+async def delete_synthetic_dataset(dataset_id: UUID):
+    """
+    Delete synthetic dataset and all its samples.
+    
+    Args:
+        dataset_id: Dataset UUID
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if dataset exists
+            check_query = text("SELECT id FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            # Delete dataset (cascade will delete samples)
+            delete_query = text("DELETE FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            session.execute(delete_query, {"dataset_id": str(dataset_id)})
+            session.commit()
+            
+            logger.info(f"Deleted synthetic dataset {dataset_id}")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e!s}")
+
+
+# ============================================================================
+# MODEL MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@router.get("/models")
+async def list_models(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    active_only: bool = Query(default=False)
+):
+    """
+    List all trained models.
+    
+    Args:
+        limit: Maximum number of models to return
+        offset: Pagination offset
+        active_only: Only return active models
+    
+    Returns:
+        List of trained models
+    """
+    from ..models.synthetic_data import ModelMetadataResponse, ModelListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Build query and parameters safely
+            params = {"limit": limit, "offset": offset}
+            if active_only:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id
+                    FROM heimdall.models
+                    WHERE is_active = :is_active
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                params["is_active"] = True
+                count_query = text("SELECT COUNT(*) FROM heimdall.models WHERE is_active = :is_active")
+                count_params = {"is_active": True}
+            else:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id
+                    FROM heimdall.models
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                count_query = text("SELECT COUNT(*) FROM heimdall.models")
+                count_params = {}
+            
+            results = session.execute(query, params).fetchall()
+            total = session.execute(count_query, count_params).scalar() or 0
+            
+            import json
+            models = []
+            for row in results:
+                models.append(ModelMetadataResponse(
+                    id=row[0],
+                    model_name=row[1],
+                    version=row[2] or 1,
+                    model_type=row[3],
+                    synthetic_dataset_id=row[4],
+                    mlflow_run_id=row[5],
+                    mlflow_experiment_id=row[6],
+                    onnx_model_location=row[7],
+                    pytorch_model_location=row[8],
+                    accuracy_meters=row[9],
+                    accuracy_sigma_meters=row[10],
+                    loss_value=row[11],
+                    epoch=row[12],
+                    is_active=row[13],
+                    is_production=row[14],
+                    hyperparameters=json.loads(row[15]) if row[15] else None,
+                    training_metrics=json.loads(row[16]) if row[16] else None,
+                    test_metrics=json.loads(row[17]) if row[17] else None,
+                    created_at=row[18],
+                    trained_by_job_id=row[19]
+                ))
+            
+            return ModelListResponse(models=models, total=total)
+    
+    except Exception as e:
+        logger.error(f"Error listing models: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list models: {e!s}")
+
+
+@router.get("/models/{model_id}")
+async def get_model(model_id: UUID):
+    """
+    Get model details.
+    
+    Args:
+        model_id: Model UUID
+    
+    Returns:
+        Model details
+    """
+    from ..models.synthetic_data import ModelMetadataResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            query = text("""
+                SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                       mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                       pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                       loss_value, epoch, is_active, is_production, hyperparameters,
+                       training_metrics, test_metrics, created_at, trained_by_job_id
+                FROM heimdall.models
+                WHERE id = :model_id
+            """)
+            
+            result = session.execute(query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            import json
+            return ModelMetadataResponse(
+                id=result[0],
+                model_name=result[1],
+                version=result[2] or 1,
+                model_type=result[3],
+                synthetic_dataset_id=result[4],
+                mlflow_run_id=result[5],
+                mlflow_experiment_id=result[6],
+                onnx_model_location=result[7],
+                pytorch_model_location=result[8],
+                accuracy_meters=result[9],
+                accuracy_sigma_meters=result[10],
+                loss_value=result[11],
+                epoch=result[12],
+                is_active=result[13],
+                is_production=result[14],
+                hyperparameters=json.loads(result[15]) if result[15] else None,
+                training_metrics=json.loads(result[16]) if result[16] else None,
+                test_metrics=json.loads(result[17]) if result[17] else None,
+                created_at=result[18],
+                trained_by_job_id=result[19]
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get model: {e!s}")
+
+
+@router.post("/models/{model_id}/deploy", status_code=200)
+async def deploy_model(model_id: UUID, set_production: bool = False):
+    """
+    Deploy model (set as active for inference).
+    
+    Args:
+        model_id: Model UUID
+        set_production: Also set as production model
+    
+    Returns:
+        Updated model details
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            # Deactivate other models
+            deactivate_query = text("UPDATE heimdall.models SET is_active = FALSE")
+            session.execute(deactivate_query)
+            
+            if set_production:
+                unprod_query = text("UPDATE heimdall.models SET is_production = FALSE")
+                session.execute(unprod_query)
+            
+            # Activate this model
+            activate_query = text("""
+                UPDATE heimdall.models
+                SET is_active = TRUE, is_production = :set_production, updated_at = NOW()
+                WHERE id = :model_id
+            """)
+            session.execute(activate_query, {"model_id": str(model_id), "set_production": set_production})
+            session.commit()
+            
+            logger.info(f"Deployed model {model_id} (production={set_production})")
+            
+            return {"status": "deployed", "model_id": model_id, "is_production": set_production}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deploying model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to deploy model: {e!s}")
+
+
+@router.delete("/models/{model_id}", status_code=204)
+async def delete_model(model_id: UUID):
+    """
+    Delete model and associated artifacts.
+    
+    Args:
+        model_id: Model UUID
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id, is_active FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            is_active = result[1]
+            if is_active:
+                raise HTTPException(status_code=400, detail="Cannot delete active model. Deactivate first.")
+            
+            # Delete model
+            delete_query = text("DELETE FROM heimdall.models WHERE id = :model_id")
+            session.execute(delete_query, {"model_id": str(model_id)})
+            session.commit()
+            
+            logger.info(f"Deleted model {model_id}")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete model: {e!s}")

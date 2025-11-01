@@ -11,6 +11,12 @@ from .uptime_monitor import (
     calculate_uptime_percentage,
     monitor_websdrs_uptime,
 )
+from .training_task import (
+    start_training_job,
+    generate_synthetic_data_task,
+    evaluate_model_task,
+    export_model_onnx_task,
+)
 
 __all__ = [
     "acquire_iq",
@@ -20,4 +26,8 @@ __all__ = [
     "monitor_websdrs_uptime",
     "calculate_uptime_percentage",
     "monitor_services_health",
+    "start_training_job",
+    "generate_synthetic_data_task",
+    "evaluate_model_task",
+    "export_model_onnx_task",
 ]

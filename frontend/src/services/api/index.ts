@@ -12,3 +12,4 @@ export { default as systemService } from './system';
 export { default as sessionService } from './session';
 export { default as analyticsService } from './analytics';
 export * as importExportService from './import-export';
+export * as trainingService from './training';
