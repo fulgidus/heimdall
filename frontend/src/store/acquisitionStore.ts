@@ -35,6 +35,9 @@ interface AcquisitionStore {
   updateTaskStatus: (taskId: string, status: AcquisitionStatusResponse) => void;
   removeActiveTask: (taskId: string) => void;
 
+  // WebSocket integration
+  updateTaskFromWebSocket: (taskId: string, status: AcquisitionStatusResponse) => void;
+
   clearError: () => void;
 }
 
@@ -128,6 +131,19 @@ export const useAcquisitionStore = create<AcquisitionStore>((set, get) => ({
       newMap.delete(taskId);
       return { activeTasks: newMap };
     });
+  },
+
+  // WebSocket integration
+  updateTaskFromWebSocket: (taskId: string, status: AcquisitionStatusResponse) => {
+    get().updateTaskStatus(taskId, status);
+    
+    // If task is complete, move to recent acquisitions
+    if (status.status === 'SUCCESS' || status.status === 'FAILURE') {
+      set(state => ({
+        recentAcquisitions: [status, ...state.recentAcquisitions].slice(0, 10),
+      }));
+      get().removeActiveTask(taskId);
+    }
   },
 
   clearError: () => set({ error: null }),

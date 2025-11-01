@@ -68,6 +68,9 @@ interface SessionStore {
   setStatusFilter: (status: string | null) => void;
   setApprovalFilter: (approval: string | null) => void;
 
+  // WebSocket integration
+  updateSessionFromWebSocket: (session: RecordingSessionWithDetails) => void;
+
   clearError: () => void;
 }
 
@@ -295,6 +298,30 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   setApprovalFilter: (approval: string | null) => {
     set({ approvalFilter: approval, currentPage: 1 });
     get().fetchSessions();
+  },
+
+  // WebSocket integration
+  updateSessionFromWebSocket: (session: RecordingSessionWithDetails) => {
+    set(state => {
+      // Update in sessions list
+      const updatedSessions = state.sessions.map(s => 
+        s.id === session.id ? session : s
+      );
+      
+      // If session doesn't exist in list, add it
+      if (!state.sessions.find(s => s.id === session.id)) {
+        updatedSessions.unshift(session);
+      }
+
+      // Update current session if it matches
+      const updatedCurrentSession =
+        state.currentSession?.id === session.id ? session : state.currentSession;
+
+      return {
+        sessions: updatedSessions,
+        currentSession: updatedCurrentSession,
+      };
+    });
   },
 
   clearError: () => set({ error: null }),

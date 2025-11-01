@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useWebSDRStore } from '../store/websdrStore';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { useWebSDRWebSocket } from '../hooks/useWebSDRWebSocket';
 import WebSDRModal from '../components/WebSDRModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import type { WebSDRConfig } from '@/services/api/types';
@@ -20,7 +21,8 @@ const WebSDRManagement: React.FC = () => {
     deleteWebSDR,
   } = useWebSDRStore();
 
-  const { isConnected, subscribe, manager } = useWebSocket();
+  const { isConnected, manager } = useWebSocket();
+  useWebSDRWebSocket(); // Auto-subscribe to WebSDR WebSocket events
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedWebSDR, setSelectedWebSDR] = useState<string | null>(null);
   const isMountedRef = useRef(true);
@@ -59,36 +61,7 @@ const WebSDRManagement: React.FC = () => {
     };
   }, [fetchWebSDRs, checkHealth, isConnected, manager]);
 
-  // Subscribe to WebSocket events
-  useEffect(() => {
-    if (!isMountedRef.current) return;
-
-    const handleWebSDRData = (data: any) => {
-      if (!isMountedRef.current) return;
-      console.log('[WebSDRManagement] Received WebSDR data via WebSocket:', data);
-      if (Array.isArray(data)) {
-        useWebSDRStore.setState({ websdrs: data });
-      } else if (data && Array.isArray(data.data)) {
-        useWebSDRStore.setState({ websdrs: data.data });
-      }
-    };
-
-    const handleWebSDRUpdate = (data: any) => {
-      if (!isMountedRef.current) return;
-      console.log('[WebSDRManagement] Received real-time WebSDR health update:', data);
-      useWebSDRStore.setState({ healthStatus: data });
-    };
-
-    // Subscribe to events and store unsubscribe functions
-    const unsubscribeWebSDRData = subscribe('websdrs_data', handleWebSDRData);
-    const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
-
-    return () => {
-      isMountedRef.current = false;
-      unsubscribeWebSDRData();
-      unsubscribeWebSDRUpdate();
-    };
-  }, [subscribe]);
+  // WebSocket subscriptions are handled by useWebSDRWebSocket hook
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

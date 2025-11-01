@@ -2,6 +2,7 @@
  * WebSDR Store
  *
  * Manages WebSDR receivers state and operations
+ * Integrated with WebSocket for real-time updates
  */
 
 import { create } from 'zustand';
@@ -14,6 +15,7 @@ interface WebSDRStore {
   isLoading: boolean;
   error: string | null;
   lastHealthCheck: Date | null;
+  isWebSocketConnected: boolean;
 
   fetchWebSDRs: () => Promise<void>;
   checkHealth: () => Promise<void>;
@@ -27,6 +29,12 @@ interface WebSDRStore {
   deleteWebSDR: (id: string, hardDelete?: boolean) => Promise<void>; // UUID parameter
 
   refreshAll: () => Promise<void>;
+  
+  // WebSocket integration
+  setWebSocketConnected: (connected: boolean) => void;
+  updateWebSDRFromWebSocket: (websdr: WebSDRConfig) => void;
+  updateHealthFromWebSocket: (healthStatus: Record<string, WebSDRHealthStatus>) => void;
+  setWebSDRsFromWebSocket: (websdrs: WebSDRConfig[]) => void;
 }
 
 export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
@@ -35,6 +43,7 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
   isLoading: false,
   error: null,
   lastHealthCheck: null,
+  isWebSocketConnected: false,
 
   fetchWebSDRs: async () => {
     set({ isLoading: true, error: null });
@@ -138,5 +147,42 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
 
   refreshAll: async () => {
     await Promise.all([get().fetchWebSDRs(), get().checkHealth()]);
+  },
+  
+  // WebSocket integration methods
+  setWebSocketConnected: (connected: boolean) => {
+    set({ isWebSocketConnected: connected });
+  },
+  
+  updateWebSDRFromWebSocket: (websdr: WebSDRConfig) => {
+    set(state => {
+      const exists = state.websdrs.some(w => w.id === websdr.id);
+      if (exists) {
+        // Update existing
+        return {
+          websdrs: state.websdrs.map(w => (w.id === websdr.id ? websdr : w)),
+        };
+      } else {
+        // Add new
+        return {
+          websdrs: [...state.websdrs, websdr],
+        };
+      }
+    });
+  },
+  
+  updateHealthFromWebSocket: (healthStatus: Record<string, WebSDRHealthStatus>) => {
+    set({
+      healthStatus,
+      lastHealthCheck: new Date(),
+    });
+  },
+  
+  setWebSDRsFromWebSocket: (websdrs: WebSDRConfig[]) => {
+    set({
+      websdrs,
+      isLoading: false,
+      error: null,
+    });
   },
 }));
