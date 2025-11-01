@@ -1,6 +1,7 @@
 """Celery tasks for IQ data acquisition."""
 
 from datetime import datetime
+from io import BytesIO
 
 import numpy as np
 from celery import Task, shared_task
@@ -677,12 +678,62 @@ def acquire_iq_chunked(
             if chunk_measurements:
                 successful_chunks += 1
 
+            # Upload chunk IQ data to MinIO before saving to database
+            if chunk_measurements:
+                try:
+                    from ..config import settings
+                    minio_client = MinIOClient(
+                        endpoint_url=settings.minio_url,
+                        access_key=settings.minio_access_key,
+                        secret_key=settings.minio_secret_key,
+                        bucket_name=settings.minio_bucket_raw_iq,
+                    )
+
+                    # Upload each measurement's IQ data to MinIO
+                    for measurement in chunk_measurements:
+                        if 'iq_data' in measurement and measurement['iq_data'] is not None:
+                            iq_array = np.array(measurement['iq_data'])
+                            chunk_key = f"sessions/{session_id}/chunk_{chunk_idx+1:03d}_websdr_{measurement['websdr_id']}.npy"
+
+                            try:
+                                buffer = BytesIO()
+                                np.save(buffer, iq_array)
+                                buffer.seek(0)
+
+                                minio_client.s3_client.put_object(
+                                    Bucket=settings.minio_bucket_raw_iq,
+                                    Key=chunk_key,
+                                    Body=buffer.getvalue(),
+                                    ContentType="application/octet-stream",
+                                    Metadata={
+                                        'session_id': str(session_id),
+                                        'websdr_id': str(measurement['websdr_id']),
+                                        'chunk_index': str(chunk_idx + 1),
+                                        'samples_count': str(len(iq_array)),
+                                    }
+                                )
+                                logger.debug(
+                                    "Uploaded chunk %d websdr %d to MinIO: %s",
+                                    chunk_idx + 1,
+                                    measurement['websdr_id'],
+                                    chunk_key
+                                )
+                            except Exception as upload_error:
+                                logger.warning(
+                                    "Failed to upload chunk %d websdr %d to MinIO: %s",
+                                    chunk_idx + 1,
+                                    measurement['websdr_id'],
+                                    upload_error
+                                )
+                except Exception as minio_error:
+                    logger.error("MinIO setup error for chunk %d: %s", chunk_idx + 1, minio_error)
+
             # Save chunk measurements to TimescaleDB immediately after each chunk
             if chunk_measurements:
                 try:
                     from ..storage.db_manager import get_db_manager
                     db_manager = get_db_manager()
-                    
+
                     # Prepare measurements for database
                     db_measurements = []
                     for measurement in chunk_measurements:

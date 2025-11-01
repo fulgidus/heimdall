@@ -22,6 +22,8 @@ from ..models.session import (
     SessionListResponse,
 )
 from ..rf_client import RFAcquisitionClient
+from ..storage.minio_client import MinIOClient
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -495,10 +497,31 @@ async def delete_session(
         ..., regex="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     )
 ):
-    """Delete a recording session"""
+    """Delete a recording session and all associated IQ data files"""
     session_uuid = UUID(session_id)
     pool = get_pool()
 
+    # First, delete IQ data files from MinIO
+    try:
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name=settings.minio_bucket_raw_iq,
+        )
+
+        successful, failed = minio_client.delete_session_data(session_id)
+        logger.info(
+            "Deleted MinIO data for session %s: %d files successful, %d failed",
+            session_id,
+            successful,
+            failed,
+        )
+    except Exception as e:
+        logger.warning("Failed to delete MinIO data for session %s: %s", session_id, e)
+        # Continue with database deletion even if MinIO fails
+
+    # Then delete from database (CASCADE will delete measurements)
     async with pool.acquire() as conn:
         result = await conn.execute(
             "DELETE FROM heimdall.recording_sessions WHERE id = $1", session_uuid
@@ -506,6 +529,11 @@ async def delete_session(
 
         if result == "DELETE 0":
             raise HTTPException(status_code=404, detail="Session not found")
+
+        logger.info(
+            "Deleted session %s from database (CASCADE deleted measurements)",
+            session_id,
+        )
 
         return None
 

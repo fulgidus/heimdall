@@ -199,6 +199,89 @@ class MinIOClient:
             logger.exception("Unexpected error listing measurements: %s", e)
             return {}
 
+    def delete_object(self, s3_path: str) -> tuple[bool, str]:
+        """Delete a single object from MinIO."""
+        try:
+            # Remove s3:// prefix and bucket name if present
+            if s3_path.startswith("s3://"):
+                s3_path = s3_path.replace(f"s3://{self.bucket_name}/", "")
+
+            self.s3_client.delete_object(Bucket=self.bucket_name, Key=s3_path)
+            logger.info("Deleted object: s3://%s/%s", self.bucket_name, s3_path)
+            return True, f"Deleted s3://{self.bucket_name}/{s3_path}"
+
+        except ClientError as e:
+            error_msg = f"Failed to delete object {s3_path}: {e}"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error deleting object {s3_path}: {str(e)}"
+            logger.exception(error_msg)
+            return False, error_msg
+
+    def delete_session_data(self, session_id: str) -> tuple[int, int]:
+        """Delete all IQ data files for a session.
+        
+        Returns:
+            tuple[int, int]: (successful_deletes, failed_deletes)
+        """
+        successful = 0
+        failed = 0
+
+        try:
+            prefix = f"sessions/{session_id}/"
+
+            # List all objects with this prefix
+            paginator = self.s3_client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+
+            objects_to_delete = []
+            for page in pages:
+                if "Contents" not in page:
+                    continue
+
+                for obj in page["Contents"]:
+                    objects_to_delete.append({"Key": obj["Key"]})
+
+            if not objects_to_delete:
+                logger.info("No objects found for session %s", session_id)
+                return 0, 0
+
+            # Delete objects in batches (max 1000 per request)
+            batch_size = 1000
+            for i in range(0, len(objects_to_delete), batch_size):
+                batch = objects_to_delete[i : i + batch_size]
+
+                response = self.s3_client.delete_objects(
+                    Bucket=self.bucket_name, Delete={"Objects": batch}
+                )
+
+                if "Deleted" in response:
+                    successful += len(response["Deleted"])
+
+                if "Errors" in response:
+                    failed += len(response["Errors"])
+                    for error in response["Errors"]:
+                        logger.error(
+                            "Failed to delete %s: %s", error["Key"], error["Message"]
+                        )
+
+            logger.info(
+                "Deleted session %s data: %d successful, %d failed",
+                session_id,
+                successful,
+                failed,
+            )
+
+            return successful, failed
+
+        except ClientError as e:
+            logger.error("Failed to delete session data for %s: %s", session_id, e)
+            return successful, failed
+        except Exception as e:
+            logger.exception("Unexpected error deleting session data for %s: %s", session_id, e)
+            return successful, failed
+
     def health_check(self) -> dict[str, bool]:
         """Check MinIO connectivity and bucket access."""
         try:
