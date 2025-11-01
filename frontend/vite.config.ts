@@ -22,11 +22,45 @@ export default defineConfig({
     },
     server: {
         port: 3001,
+        host: '0.0.0.0', // Allow external connections
         proxy: {
             '/api': {
-                target: 'http://localhost:8000',
+                target: 'http://localhost',
                 changeOrigin: true,
-                // Don't rewrite paths - API Gateway expects /api/v1/* paths
+                secure: false,
+                ws: true, // WebSocket support
+                configure: (proxy, _options) => {
+                    proxy.on('error', (err, _req, _res) => {
+                        console.log('proxy error', err);
+                    });
+                    proxy.on('proxyReq', (proxyReq, req, _res) => {
+                        console.log('Sending Request:', req.method, req.url, '→', proxyReq.path);
+                    });
+                    proxy.on('proxyRes', (proxyRes, req, _res) => {
+                        console.log('Received Response:', proxyRes.statusCode, req.url);
+                    });
+                },
+            },
+            '/ws': {
+                target: 'ws://localhost',
+                ws: true,
+                changeOrigin: true,
+            },
+            '/backend': {
+                target: 'http://localhost',
+                changeOrigin: true,
+            },
+            '/training': {
+                target: 'http://localhost',
+                changeOrigin: true,
+            },
+            '/inference': {
+                target: 'http://localhost',
+                changeOrigin: true,
+            },
+            '/health': {
+                target: 'http://localhost',
+                changeOrigin: true,
             },
         },
     },

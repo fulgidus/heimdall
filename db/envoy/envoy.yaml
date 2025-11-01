@@ -52,7 +52,32 @@ static_resources:
                             cluster: keycloak_cluster
                             prefix_rewrite: "/"
                           name: "keycloak_auth"
-                        
+
+                        # Service-specific routes (must come before /api/v1/)
+                        - match:
+                            prefix: "/backend/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "backend_service"
+
+                        - match:
+                            prefix: "/training/"
+                          route:
+                            cluster: training_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "training_service"
+
+                        - match:
+                            prefix: "/inference/"
+                          route:
+                            cluster: inference_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "inference_service"
+
                         # API Gateway routes - all /api/v1 goes to backend
                         - match:
                             prefix: "/api/v1/"
@@ -61,7 +86,7 @@ static_resources:
                             prefix_rewrite: "/api/v1/"
                             timeout: 30s
                           name: "api_v1"
-                        
+
                         # WebSocket routes for real-time updates
                         - match:
                             prefix: "/ws"
@@ -71,7 +96,7 @@ static_resources:
                             upgrade_configs:
                               - upgrade_type: websocket
                           name: "websocket"
-                        
+
                         # Health check routes - should go to backend
                         - match:
                             prefix: "/health"
@@ -79,7 +104,7 @@ static_resources:
                             cluster: backend_cluster
                             prefix_rewrite: "/health"
                           name: "health_checks"
-                        
+
                         # Frontend static files and SPA
                         - match:
                             prefix: "/"
@@ -161,6 +186,50 @@ static_resources:
                     socket_address:
                       address: keycloak
                       port_value: 8080
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Training cluster - ML Training Service
+    - name: training_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: training_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: training
+                      port_value: 8002
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Inference cluster - ML Inference Service
+    - name: inference_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: inference_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: inference
+                      port_value: 8003
       health_checks:
         - timeout: 3s
           interval: 10s
