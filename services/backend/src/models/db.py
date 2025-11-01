@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models for TimescaleDB storage."""
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -161,44 +162,48 @@ class Measurement(Base):
 
     __tablename__ = "measurements"
 
-    # Primary key (TimescaleDB hypertable)
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-
-    # Acquisition metadata
-    task_id = Column(String(36), nullable=False, index=True)
-    websdr_id = Column(Integer, nullable=False, index=True)
-
-    # Signal parameters
-    frequency_mhz = Column(DOUBLE_PRECISION, nullable=False)
-    sample_rate_khz = Column(DOUBLE_PRECISION, nullable=False)
-    samples_count = Column(Integer, nullable=False)
-
-    # Timestamp (TimescaleDB time dimension)
-    timestamp_utc = Column(
-        DateTime(timezone=True), nullable=False, index=True, default=datetime.utcnow
+    # Primary key (TimescaleDB hypertable) - composite key with timestamp
+    timestamp = Column(DateTime(timezone=True), primary_key=True, nullable=False)
+    id = Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        nullable=False,
+        server_default=text("uuid_generate_v4()"),
     )
 
-    # Computed metrics
+    # Foreign key to WebSDR station
+    websdr_station_id = Column(PG_UUID(as_uuid=True), nullable=True, index=True)
+
+    # Signal parameters
+    frequency_hz = Column(BigInteger, nullable=False)
+    signal_strength_db = Column(DOUBLE_PRECISION, nullable=True)
     snr_db = Column(DOUBLE_PRECISION, nullable=True)
-    frequency_offset_hz = Column(DOUBLE_PRECISION, nullable=True)
-    power_dbm = Column(DOUBLE_PRECISION, nullable=True)
+    frequency_offset_hz = Column(Integer, nullable=True)
 
-    # Storage reference
-    s3_path = Column(Text, nullable=True)
+    # IQ data metadata
+    iq_data_location = Column(String(512), nullable=True)
+    iq_data_format = Column(String(50), nullable=True)
+    iq_sample_rate = Column(Integer, nullable=True)
+    iq_samples_count = Column(Integer, nullable=True)
 
-    # Compound indexes for common queries
+    # Additional fields
+    duration_seconds = Column(DOUBLE_PRECISION, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=True, default=datetime.utcnow)
+
+    # Compound indexes for common queries (existing from database)
     __table_args__ = (
-        Index("idx_measurements_websdr_time", "websdr_id", "timestamp_utc"),
-        Index("idx_measurements_task_time", "task_id", "timestamp_utc"),
-        Index("idx_measurements_frequency", "frequency_mhz", "timestamp_utc"),
+        Index("idx_measurements_frequency", "frequency_hz", "timestamp"),
+        Index("idx_measurements_time", "timestamp"),
+        Index("idx_measurements_websdr_station", "websdr_station_id", "timestamp"),
     )
 
     def __repr__(self) -> str:
         """String representation."""
         return (
-            f"<Measurement(id={self.id}, task_id={self.task_id}, "
-            f"websdr_id={self.websdr_id}, snr={self.snr_db}dB, "
-            f"timestamp={self.timestamp_utc})>"
+            f"<Measurement(id={self.id}, "
+            f"websdr_station_id={self.websdr_station_id}, snr={self.snr_db}dB, "
+            f"timestamp={self.timestamp})>"
         )
 
     @classmethod
@@ -212,15 +217,17 @@ class Measurement(Base):
         Create a Measurement instance from measurement dictionary.
 
         Args:
-            task_id: Acquisition task ID
+            task_id: Acquisition task ID  
             measurement_dict: Dictionary containing measurement data
-                Expected keys:
-                  - websdr_id (int)
-                  - frequency_mhz (float)
-                  - sample_rate_khz (float)
-                  - samples_count (int)
-                  - timestamp_utc (str or datetime)
-                  - metrics (dict with snr_db, frequency_offset_hz, power_dbm)
+                Expected keys matching database schema:
+                  - websdr_id (int) - will be mapped to websdr_station_id via lookup
+                  - frequency_hz (int)
+                  - iq_sample_rate (int)
+                  - iq_samples_count (int)
+                  - timestamp (str or datetime)
+                  - snr_db, frequency_offset_hz, signal_strength_db (floats)
+                  - iq_data_location (str)
+                  - duration_seconds (float)
             s3_path: Optional S3 path where IQ data is stored
 
         Returns:
@@ -231,48 +238,31 @@ class Measurement(Base):
             TypeError: If types cannot be converted
         """
         try:
-            # Extract and validate required fields
-            websdr_id = int(measurement_dict.get("websdr_id"))
-            frequency_mhz = float(measurement_dict.get("frequency_mhz"))
-            sample_rate_khz = float(measurement_dict.get("sample_rate_khz"))
-            samples_count = int(measurement_dict.get("samples_count"))
-
             # Handle timestamp
-            timestamp_str = measurement_dict.get("timestamp_utc")
+            timestamp_str = measurement_dict.get("timestamp")
             if isinstance(timestamp_str, str):
                 # Parse ISO format datetime
                 if "T" in timestamp_str:
-                    timestamp_utc = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                    timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
                 else:
-                    timestamp_utc = datetime.fromisoformat(timestamp_str)
+                    timestamp = datetime.fromisoformat(timestamp_str)
             else:
-                timestamp_utc = timestamp_str or datetime.utcnow()
-
-            # Extract metrics
-            metrics = measurement_dict.get("metrics", {})
-            snr_db = metrics.get("snr_db")
-            frequency_offset_hz = metrics.get("frequency_offset_hz")
-            power_dbm = metrics.get("power_dbm")
-
-            # Convert to float if present
-            if snr_db is not None:
-                snr_db = float(snr_db)
-            if frequency_offset_hz is not None:
-                frequency_offset_hz = float(frequency_offset_hz)
-            if power_dbm is not None:
-                power_dbm = float(power_dbm)
+                timestamp = timestamp_str or datetime.now()
 
             return cls(
-                task_id=task_id,
-                websdr_id=websdr_id,
-                frequency_mhz=frequency_mhz,
-                sample_rate_khz=sample_rate_khz,
-                samples_count=samples_count,
-                timestamp_utc=timestamp_utc,
-                snr_db=snr_db,
-                frequency_offset_hz=frequency_offset_hz,
-                power_dbm=power_dbm,
-                s3_path=s3_path,
+                timestamp=timestamp,
+                id=str(uuid.uuid4()),
+                websdr_station_id=measurement_dict.get("websdr_station_id"),  # UUID from station lookup
+                frequency_hz=int(measurement_dict.get("frequency_hz", 0)),
+                signal_strength_db=float(measurement_dict.get("signal_strength_db")) if measurement_dict.get("signal_strength_db") is not None else None,
+                snr_db=float(measurement_dict.get("snr_db")) if measurement_dict.get("snr_db") is not None else None,
+                frequency_offset_hz=int(measurement_dict.get("frequency_offset_hz", 0)),
+                iq_data_location=measurement_dict.get("iq_data_location") or s3_path,
+                iq_data_format=measurement_dict.get("iq_data_format", "npy"),
+                iq_sample_rate=int(measurement_dict.get("iq_sample_rate", 0)),
+                iq_samples_count=int(measurement_dict.get("iq_samples_count", 0)),
+                duration_seconds=float(measurement_dict.get("duration_seconds")) if measurement_dict.get("duration_seconds") is not None else None,
+                notes=measurement_dict.get("notes"),
             )
         except (KeyError, ValueError, TypeError) as e:
             raise ValueError(f"Failed to create Measurement from dict: {str(e)}") from e
@@ -281,14 +271,17 @@ class Measurement(Base):
         """Convert measurement to dictionary."""
         return {
             "id": self.id,
-            "task_id": self.task_id,
-            "websdr_id": self.websdr_id,
-            "frequency_mhz": self.frequency_mhz,
-            "sample_rate_khz": self.sample_rate_khz,
-            "samples_count": self.samples_count,
-            "timestamp_utc": self.timestamp_utc.isoformat() if self.timestamp_utc else None,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "websdr_station_id": self.websdr_station_id,
+            "frequency_hz": self.frequency_hz,
+            "signal_strength_db": self.signal_strength_db,
             "snr_db": self.snr_db,
             "frequency_offset_hz": self.frequency_offset_hz,
-            "power_dbm": self.power_dbm,
-            "s3_path": self.s3_path,
+            "iq_data_location": self.iq_data_location,
+            "iq_data_format": self.iq_data_format,
+            "iq_sample_rate": self.iq_sample_rate,
+            "iq_samples_count": self.iq_samples_count,
+            "duration_seconds": self.duration_seconds,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

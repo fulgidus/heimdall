@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS recording_sessions (
     celery_task_id VARCHAR(255),
     status VARCHAR(50) DEFAULT 'pending',
     approval_status VARCHAR(50) DEFAULT 'pending',
+    uncertainty_meters FLOAT,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

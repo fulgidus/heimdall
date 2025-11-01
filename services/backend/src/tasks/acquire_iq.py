@@ -53,6 +53,9 @@ def acquire_iq(
     Returns:
         Dict with acquisition results
     """
+    # IMMEDIATE DEBUG LOG AT FUNCTION START
+    print(f"🔥🔥🔥 ACQUIRE_IQ STARTED: task_id={self.request.id} 🔥🔥🔥")
+    
     try:
         self.update_state(
             state="PROGRESS",
@@ -67,7 +70,7 @@ def acquire_iq(
         websdrs = [WebSDRConfig(**cfg) for cfg in websdrs_config_list]
 
         logger.info(
-            "Starting acquisition task from %d WebSDRs at %.2f MHz for %.1f seconds",
+            "🚀🚀🚀 MODIFIED ACQUIRE_IQ: Starting acquisition task from %d WebSDRs at %.2f MHz for %.1f seconds",
             len(websdrs),
             frequency_mhz,
             duration_seconds,
@@ -165,6 +168,51 @@ def acquire_iq(
             asyncio.set_event_loop(loop)
 
         measurements, errors = loop.run_until_complete(fetch_and_process())
+
+        # CRITICAL DEBUG LOG - SHOULD ALWAYS APPEAR
+        print(f"🚨🚨🚨 FETCH COMPLETE: {len(measurements)} measurements, {len(errors)} errors 🚨🚨🚨")
+        
+        # Debug: Log measurements count immediately after fetch
+        logger.info("DEBUG: Fetch complete. Measurements count: %d, Errors count: %d", len(measurements), len(errors))
+        
+        # Debug: Log measurements count before saving
+        logger.info("DEBUG: About to save. Measurements count: %d", len(measurements))
+
+        # Save measurements to TimescaleDB
+        if measurements:
+            logger.info("Saving %d measurements to TimescaleDB...", len(measurements))
+            try:
+                from ..storage.db_manager import get_db_manager
+                db_manager = get_db_manager()
+                
+                # Prepare measurements for database
+                db_measurements = []
+                for measurement in measurements:
+                    db_measurement = {
+                        'websdr_station_id': None,  # Will be mapped by db_manager from websdr_id
+                        'websdr_id': measurement['websdr_id'],  # Temporary field for mapping
+                        'frequency_hz': int(measurement['frequency_mhz'] * 1_000_000),
+                        'iq_sample_rate': int(measurement['sample_rate_khz'] * 1000),
+                        'iq_samples_count': measurement['samples_count'],
+                        'timestamp': measurement['timestamp_utc'],
+                        'snr_db': measurement['metrics']['snr_db'],
+                        'frequency_offset_hz': int(measurement['metrics']['frequency_offset_hz']),
+                        'signal_strength_db': measurement['metrics']['signal_power_dbm'],
+                        'iq_data_location': measurement['iq_data_path'],
+                        'iq_data_format': 'npy',
+                        'duration_seconds': float(duration_seconds),
+                    }
+                    db_measurements.append(db_measurement)
+                
+                # Bulk insert measurements
+                successful, failed = db_manager.insert_measurements_bulk(
+                    task_id=self.request.id,
+                    measurements_list=db_measurements
+                )
+                logger.info("Database save complete: %d successful, %d failed", successful, failed)
+            except Exception as e:
+                logger.error("Failed to save measurements to database: %s", str(e))
+                errors.append(f"Database save error: {str(e)}")
 
         # Remove iq_data from result to make it JSON serializable
         # (iq_data contains complex numbers which can't be JSON serialized)
@@ -628,6 +676,46 @@ def acquire_iq_chunked(
 
             if chunk_measurements:
                 successful_chunks += 1
+
+            # Save chunk measurements to TimescaleDB immediately after each chunk
+            if chunk_measurements:
+                try:
+                    from ..storage.db_manager import get_db_manager
+                    db_manager = get_db_manager()
+                    
+                    # Prepare measurements for database
+                    db_measurements = []
+                    for measurement in chunk_measurements:
+                        db_measurement = {
+                            'websdr_station_id': None,  # Will be mapped by db_manager from websdr_id
+                            'websdr_id': measurement['websdr_id'],  # Temporary field for mapping
+                            'frequency_hz': int(frequency_hz),
+                            'iq_sample_rate': int(sample_rate_khz * 1000),
+                            'iq_samples_count': measurement['samples_count'],
+                            'timestamp': measurement['timestamp_utc'],
+                            'snr_db': measurement['metrics']['snr_db'],
+                            'frequency_offset_hz': int(measurement['metrics']['frequency_offset_hz']),
+                            'signal_strength_db': measurement['metrics']['signal_power_dbm'],
+                            'iq_data_location': measurement['iq_data_path'],
+                            'iq_data_format': 'npy',
+                            'duration_seconds': float(measurement.get('chunk_duration', 1.0)),
+                            'recording_session_id': session_id,  # Link to session
+                        }
+                        db_measurements.append(db_measurement)
+                    
+                    # Bulk insert measurements for this chunk
+                    successful, failed = db_manager.insert_measurements_bulk(
+                        task_id=self.request.id,
+                        measurements_list=db_measurements
+                    )
+                    logger.debug(
+                        "Chunk %d: Saved %d measurements to database (%d failed)",
+                        chunk_idx + 1,
+                        successful,
+                        failed
+                    )
+                except Exception as e:
+                    logger.error("Failed to save chunk %d measurements to database: %s", chunk_idx + 1, str(e))
 
             # Update progress
             progress = ((chunk_idx + 1) / duration_seconds) * 100

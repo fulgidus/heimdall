@@ -63,6 +63,7 @@ async def list_sessions(
             rs.celery_task_id,
             rs.status,
             rs.approval_status,
+            rs.uncertainty_meters,
             rs.notes,
             rs.created_at,
             rs.updated_at,
@@ -153,11 +154,11 @@ async def get_session_analytics():
 
         success_rate = (completed / total * 100) if total > 0 else 0.0
 
-        # Calculate average accuracy from inference results if available
+        # Calculate average accuracy from completed sessions
         accuracy_query = """
             SELECT AVG(uncertainty_meters) as avg_accuracy
-            FROM heimdall.recording_sessions rs
-            WHERE rs.status = 'completed'
+            FROM heimdall.recording_sessions
+            WHERE status = 'completed' AND uncertainty_meters IS NOT NULL
         """
 
         accuracy_row = await conn.fetchrow(accuracy_query)
@@ -239,6 +240,7 @@ async def update_session(
                 rs.celery_task_id,
                 rs.status,
                 rs.approval_status,
+                rs.uncertainty_meters,
                 rs.notes,
                 rs.created_at,
                 rs.updated_at,
@@ -314,13 +316,24 @@ async def trigger_rf_acquisition_task(
                 session_id,
             )
 
-        # Trigger RF acquisition
-        result = await rf_client.trigger_acquisition(
+        # Get WebSDR configurations
+        from .acquisition import get_websdrs_config
+        from ..tasks.acquire_iq import acquire_iq_chunked
+
+        websdrs_config = get_websdrs_config()
+
+        if not websdrs_config:
+            raise ValueError("No active WebSDRs available")
+
+        # Trigger RF acquisition using chunked task (1-second samples)
+        task = acquire_iq_chunked.delay(
             frequency_hz=frequency_hz,
-            duration_seconds=duration_seconds,
+            duration_seconds=int(duration_seconds),
+            session_id=str(session_id),
+            websdrs_config_list=websdrs_config,
         )
 
-        task_id = result.get("task_id")
+        task_id = task.id
 
         # Update session with task ID
         async with pool.acquire() as conn:

@@ -5,7 +5,7 @@ Session management models
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class KnownSource(BaseModel):
@@ -69,9 +69,16 @@ class RecordingSession(BaseModel):
     celery_task_id: str | None = None
     status: str  # pending, in_progress, completed, failed
     approval_status: str = "pending"  # pending, approved, rejected
-    notes: str | None = None
+    uncertainty_meters: float | None = None
+    notes: str = ""  # Default to empty string instead of None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('notes', mode='before')
+    @classmethod
+    def notes_to_empty_string(cls, v):
+        """Convert None to empty string for frontend compatibility"""
+        return v if v is not None else ""
 
 
 class RecordingSessionCreate(BaseModel):
@@ -92,6 +99,7 @@ class RecordingSessionUpdate(BaseModel):
     session_name: str | None = Field(None, min_length=1, max_length=255)
     notes: str | None = None
     approval_status: str | None = Field(None, pattern="^(pending|approved|rejected)$")
+    uncertainty_meters: float | None = Field(None, gt=0, description="Uncertainty in meters")
 
 
 class RecordingSessionWithDetails(RecordingSession):

@@ -151,6 +151,13 @@ class DatabaseManager:
                         websdr_id = measurement_dict.get("websdr_id")
                         s3_path = s3_paths.get(websdr_id) if s3_paths else None
 
+                        # Map websdr_id to websdr_station_id
+                        if websdr_id is not None:
+                            websdr_station_id = self.get_websdr_station_id_by_numeric_id(websdr_id)
+                            if websdr_station_id:
+                                measurement_dict = measurement_dict.copy()  # Don't modify original
+                                measurement_dict["websdr_station_id"] = websdr_station_id
+
                         measurement = Measurement.from_measurement_dict(
                             task_id=task_id, measurement_dict=measurement_dict, s3_path=s3_path
                         )
@@ -158,8 +165,8 @@ class DatabaseManager:
                         successful += 1
                     except (ValueError, TypeError) as e:
                         logger.warning(
-                            f"Skipping invalid measurement for WebSDR "
-                            f"{measurement_dict.get('websdr_id')}: {e}"
+                            "Skipping invalid measurement for WebSDR %s: %s",
+                            measurement_dict.get('websdr_id'), e
                         )
                         failed += 1
 
@@ -638,6 +645,36 @@ class DatabaseManager:
             logger.error(f"Error deleting WebSDR station: {e}")
             return False
 
+    def get_websdr_station_id_by_numeric_id(self, websdr_id: int) -> str | None:
+        """
+        Map numeric websdr_id to UUID websdr_station_id.
+        
+        This mapping is based on the uptime_monitor configuration where:
+        ID 1: "Aquila di Giaveno", ID 2: "Montanaro", ID 3: "Torino", 
+        ID 4: "Coazze", ID 5: "Passo del Giovi", ID 6: "Genova", ID 7: "Milano - Baggio"
+        """
+        name_mapping = {
+            1: "Aquila di Giaveno",
+            2: "Montanaro", 
+            3: "Torino",
+            4: "Coazze",
+            5: "Passo del Giovi",
+            6: "Genova",
+            7: "Milano - Baggio"
+        }
+        
+        station_name = name_mapping.get(websdr_id)
+        if not station_name:
+            logger.error("Unknown websdr_id: %d", websdr_id)
+            return None
+            
+        station = self.get_websdr_by_name(station_name)
+        if station:
+            return str(station.id)
+        else:
+            logger.error("WebSDR station '%s' not found in database", station_name)
+            return None
+
     def get_websdr_by_id(self, station_id: str) -> WebSDRStation | None:
         """Get a WebSDR station by UUID."""
         try:
@@ -648,7 +685,7 @@ class DatabaseManager:
                     session.expunge(station)
                 return station
         except Exception as e:
-            logger.error(f"Error retrieving WebSDR by ID '{station_id}': {e}")
+            logger.error(f"Error retrieving WebSDR by ID: {e}")
             return None
 
     def close(self) -> None:

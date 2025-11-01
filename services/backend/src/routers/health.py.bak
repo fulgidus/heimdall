@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import redis
 from celery import Celery
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 from minio import Minio
 from pika import BlockingConnection, URLParameters
 
@@ -66,15 +66,11 @@ async def get_detailed_health():
     
     # Check Redis
     try:
-        # Parse Redis URL: redis://:password@host:port/db
-        parsed = urlparse(settings.redis_url)
-        r = redis.Redis(
-            host=parsed.hostname or "redis",
-            port=parsed.port or 6379,
-            password=parsed.password,
-            db=int(parsed.path.lstrip("/")) if parsed.path else 0,
-            socket_connect_timeout=2
-        )
+        import redis
+        import os
+        redis_host = os.getenv("REDIS_HOST", "redis")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        r = redis.Redis(host=redis_host, port=redis_port, socket_connect_timeout=2)
         r.ping()
         components["redis"] = {
             "status": "healthy",
@@ -91,9 +87,21 @@ async def get_detailed_health():
     
     # Check RabbitMQ
     try:
-        connection = BlockingConnection(URLParameters(settings.celery_broker_url))
-        channel = connection.channel()
-        channel.close()
+        import pika
+        import os
+        rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+        rabbitmq_port = int(os.getenv("RABBITMQ_PORT", 5672))
+        rabbitmq_user = os.getenv("RABBITMQ_USER", "heimdall_user")
+        rabbitmq_pass = os.getenv("RABBITMQ_PASSWORD", "heimdall_password")
+        
+        credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+        parameters = pika.ConnectionParameters(
+            host=rabbitmq_host,
+            port=rabbitmq_port,
+            credentials=credentials,
+            socket_timeout=2
+        )
+        connection = pika.BlockingConnection(parameters)
         connection.close()
         components["rabbitmq"] = {
             "status": "healthy",
@@ -110,30 +118,15 @@ async def get_detailed_health():
     
     # Check MinIO
     try:
-        # Parse MinIO URL to get host and port
-        parsed = urlparse(settings.minio_url)
-        endpoint = f"{parsed.hostname}:{parsed.port}" if parsed.port else parsed.hostname
-
-        client = Minio(
-            endpoint=endpoint or "minio:9000",
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
-            secure=False
-        )
-
-        # Check if bucket exists
-        if client.bucket_exists(settings.minio_bucket_raw_iq):
-            components["minio"] = {
-                "status": "healthy",
-                "message": f"Object storage OK, bucket '{settings.minio_bucket_raw_iq}' exists",
-                "type": "storage"
-            }
-        else:
-            components["minio"] = {
-                "status": "warning",
-                "message": f"Object storage connected but bucket '{settings.minio_bucket_raw_iq}' not found",
-                "type": "storage"
-            }
+        from ..storage.object_storage import ObjectStorageManager
+        storage = ObjectStorageManager()
+        # Try to list buckets as a health check
+        storage.client.list_buckets()
+        components["minio"] = {
+            "status": "healthy",
+            "message": "Object storage connection OK",
+            "type": "storage"
+        }
     except Exception as e:
         components["minio"] = {
             "status": "unhealthy",
@@ -142,14 +135,13 @@ async def get_detailed_health():
         }
         overall_ready = False
     
-    # Check Celery Workers
+    # Check Celery Worker
     try:
-        celery_app = Celery(broker=settings.celery_broker_url)
-        inspect = celery_app.control.inspect()
-        stats = inspect.stats()
-
-        if stats:
-            worker_count = len(stats)
+        from ..main import celery_app
+        # Ping workers with short timeout
+        result = celery_app.control.inspect(timeout=2.0).active()
+        if result and len(result) > 0:
+            worker_count = len(result)
             components["celery_worker"] = {
                 "status": "healthy",
                 "message": f"{worker_count} worker(s) active",
@@ -159,7 +151,7 @@ async def get_detailed_health():
         else:
             components["celery_worker"] = {
                 "status": "unhealthy",
-                "message": "No active workers found",
+                "message": "No workers responding",
                 "type": "worker",
                 "worker_count": 0
             }
@@ -172,46 +164,42 @@ async def get_detailed_health():
         }
         overall_ready = False
     
-    # Check WebSDR connectivity (check recent uptime records)
+    # Check WebSDR availability (count from database)
     try:
+        from ..storage.db_manager import get_pool
         pool = get_pool()
         async with pool.acquire() as conn:
-            online_count = await conn.fetchval("""
-                SELECT COUNT(DISTINCT websdr_id)
-                FROM heimdall.websdrs_uptime_history
-                WHERE timestamp > NOW() - INTERVAL '5 minutes'
-                AND status = 'online'
-            """)
-
-            total_count = await conn.fetchval("""
-                SELECT COUNT(*)
-                FROM heimdall.websdr_stations
-            """)
-
+            total_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM heimdall.websdr_stations WHERE is_active = true"
+            )
+            # Get recent health check (last 5 minutes)
+            online_count = await conn.fetchval(
+                """
+                SELECT COUNT(DISTINCT websdr_id) 
+                FROM heimdall.websdr_uptime 
+                WHERE timestamp > NOW() - INTERVAL '5 minutes' 
+                AND is_online = true
+                """
+            )
+            
             if online_count and online_count > 0:
                 components["websdrs"] = {
                     "status": "healthy",
-                    "message": f"{online_count}/{total_count} WebSDRs online in last 5 minutes",
+                    "message": f"{online_count}/{total_count} receivers online",
                     "type": "receiver",
                     "online_count": online_count,
                     "total_count": total_count
                 }
-            elif total_count == 0:
-                components["websdrs"] = {
-                    "status": "warning",
-                    "message": "No WebSDRs configured",
-                    "type": "receiver",
-                    "online_count": 0,
-                    "total_count": 0
-                }
             else:
                 components["websdrs"] = {
-                    "status": "unknown",
-                    "message": f"No recent data (0/{total_count} online)",
+                    "status": "warning",
+                    "message": f"0/{total_count} receivers online (no recent health checks)",
                     "type": "receiver",
                     "online_count": 0,
                     "total_count": total_count
                 }
+                # Don't mark overall as not ready if WebSDRs are offline
+                # They might just be temporarily unavailable
     except Exception as e:
         components["websdrs"] = {
             "status": "unknown",
@@ -233,21 +221,24 @@ async def get_detailed_health():
 
 
 @router.get("/ready")
-async def get_ready(response: Response):
+async def get_ready():
     """
-    Kubernetes-style readiness probe
-    Returns 200 if system is ready, 503 if not
+    Quick readiness check - returns 200 if system is ready, 503 if not
     """
-    health = await get_detailed_health()
-    if not health["ready"]:
-        response.status_code = 503
-    return {"ready": health["ready"]}
+    try:
+        from ..storage.db_manager import get_pool
+        pool = get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        return {"ready": True, "message": "System ready"}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"System not ready: {str(e)}")
 
 
-@router.get("/liveness")
+@router.get("/live")
 async def get_liveness():
     """
-    Kubernetes-style liveness probe
-    Always returns 200 if the service is running
+    Liveness check - returns 200 if service is running
     """
-    return {"alive": True}
+    return {"alive": True, "message": "Service is running"}

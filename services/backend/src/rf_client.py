@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class RFAcquisitionClient:
     """Client for interacting with RF acquisition service"""
 
-    def __init__(self, base_url: str = "http://rf-acquisition:8001"):
+    def __init__(self, base_url: str = "http://backend:8001"):
         self.base_url = base_url
         self.timeout = httpx.Timeout(300.0, connect=10.0)  # 5 min for acquisition
 
