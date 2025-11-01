@@ -13,12 +13,11 @@ vi.mock('../store', async () => {
         CONNECTED: 'Connected',
         RECONNECTING: 'Reconnecting',
     };
-    
+
     return {
-        useAuthStore: vi.fn(() => ({
-            user: { email: 'admin@heimdall.local' },
-            logout: vi.fn(),
-        })),
+        useAuthStore: {
+            getState: vi.fn(() => ({ token: null })),
+        },
         useDashboardStore: vi.fn(() => ({
             metrics: {
                 active_websdrs: 7,

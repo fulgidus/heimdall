@@ -1,7 +1,7 @@
 /**
  * Responsive Design Tests
  * Phase 7: Testing & Validation
- * 
+ *
  * Tests responsive behavior across mobile, tablet, and desktop viewports
  */
 
@@ -9,8 +9,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
-// Mock the stores before importing pages
-vi.mock('../store');
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
 
 // Pages to test
 import Dashboard from '../pages/Dashboard';

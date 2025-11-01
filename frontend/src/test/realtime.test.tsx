@@ -1,7 +1,7 @@
 /**
  * Real-Time Data Update Tests
  * Phase 7: Testing & Validation
- * 
+ *
  * Tests real-time data refresh and auto-update mechanisms
  */
 
@@ -9,8 +9,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
-// Mock stores before importing
-vi.mock('../store');
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
 
 // Pages with real-time updates
 import Dashboard from '../pages/Dashboard';

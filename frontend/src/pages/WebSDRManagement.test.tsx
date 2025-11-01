@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import WebSDRManagement from './WebSDRManagement';
 
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
+
 // The mocks are set up in src/test/setup.ts
 // No need to mock here - they're already registered globally
 

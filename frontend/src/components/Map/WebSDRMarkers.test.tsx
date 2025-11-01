@@ -4,6 +4,13 @@ import WebSDRMarkers from './WebSDRMarkers';
 import type { WebSDRConfig, WebSDRHealthStatus } from '@/services/api/types';
 import mapboxgl from 'mapbox-gl';
 
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
+
 // Mock mapbox-gl
 vi.mock('mapbox-gl', () => {
     const createMockMarker = () => ({

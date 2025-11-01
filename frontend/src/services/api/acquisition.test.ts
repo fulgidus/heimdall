@@ -52,7 +52,10 @@ describe('Acquisition API Service', () => {
 
             const expectedResponse: AcquisitionTaskResponse = {
                 task_id: 'task-abc123',
+                status: 'PENDING',
                 message: 'Acquisition task started successfully',
+                frequency_mhz: 145.5,
+                websdrs_count: 7,
             };
 
             mock.onPost('/api/v1/acquisition/acquire', request).reply(200, expectedResponse);
@@ -73,7 +76,10 @@ describe('Acquisition API Service', () => {
 
             const expectedResponse: AcquisitionTaskResponse = {
                 task_id: 'task-xyz789',
+                status: 'PENDING',
                 message: 'Started',
+                frequency_mhz: 435.0,
+                websdrs_count: 7,
             };
 
             mock.onPost('/api/v1/acquisition/acquire').reply((config) => {

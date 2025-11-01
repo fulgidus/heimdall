@@ -62,10 +62,9 @@ const createMockWebSDRStore = (overrides = {}) => ({
 vi.mock('../store', () => ({
     useDashboardStore: vi.fn(),
     useWebSDRStore: vi.fn(),
-    useAuthStore: vi.fn(() => ({
-        user: { email: 'test@heimdall.local' },
-        logout: vi.fn(),
-    })),
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
 }));
 
 // Mock react-router-dom

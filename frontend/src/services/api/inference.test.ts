@@ -42,13 +42,20 @@ afterEach(() => {
 describe('getModelInfo', () => {
     it('should fetch model information successfully', async () => {
         const mockModelInfo: ModelInfo = {
-            name: 'LocalizationNet-v1',
-            version: '1.0.0',
-            architecture: 'ResNet-18',
-            parameters: 11689512,
-            input_shape: [1, 128, 512],
-            training_date: '2025-10-15T10:00:00Z',
-            accuracy_meters: 25.5,
+            active_version: '1.0.0',
+            stage: 'production',
+            model_name: 'LocalizationNet-v1',
+            accuracy: 0.85,
+            latency_p95_ms: 125.3,
+            cache_hit_rate: 0.65,
+            loaded_at: '2025-10-15T10:00:00Z',
+            uptime_seconds: 86400,
+            last_prediction_at: '2025-10-25T12:00:00Z',
+            predictions_total: 1543,
+            predictions_successful: 1520,
+            predictions_failed: 23,
+            is_ready: true,
+            health_status: 'healthy',
         };
 
         mock.onGet('/api/v1/analytics/model/info').reply(200, mockModelInfo);
@@ -56,8 +63,8 @@ describe('getModelInfo', () => {
         const result = await getModelInfo();
 
         expect(result).toEqual(mockModelInfo);
-        expect(result.name).toBe('LocalizationNet-v1');
-        expect(result.parameters).toBeGreaterThan(0);
+        expect(result.model_name).toBe('LocalizationNet-v1');
+        expect(result.is_ready).toBe(true);
     });
 
     it('should handle 500 error when model info not available', async () => {
@@ -78,37 +85,51 @@ describe('getModelInfo', () => {
 describe('getModelPerformance', () => {
     it('should fetch model performance metrics successfully', async () => {
         const mockPerformance: ModelPerformanceMetrics = {
-            total_predictions: 1543,
-            average_inference_time_ms: 125.3,
+            inference_latency_ms: 125.3,
+            p50_latency_ms: 100.5,
+            p95_latency_ms: 125.3,
+            p99_latency_ms: 150.7,
+            throughput_samples_per_second: 50.5,
             cache_hit_rate: 0.65,
-            accuracy_meters: 28.7,
-            last_updated: '2025-10-25T12:00:00Z',
+            success_rate: 0.98,
+            predictions_total: 1543,
+            requests_total: 1600,
+            errors_total: 23,
+            uptime_seconds: 86400,
+            timestamp: '2025-10-25T12:00:00Z',
         };
 
         mock.onGet('/api/v1/analytics/model/performance').reply(200, mockPerformance);
 
         const result = await getModelPerformance();
 
-        expect(result.total_predictions).toBe(1543);
-        expect(result.average_inference_time_ms).toBeGreaterThan(0);
+        expect(result.predictions_total).toBe(1543);
+        expect(result.inference_latency_ms).toBeGreaterThan(0);
         expect(result.cache_hit_rate).toBeGreaterThanOrEqual(0);
         expect(result.cache_hit_rate).toBeLessThanOrEqual(1);
     });
 
     it('should handle empty metrics (new deployment)', async () => {
         const mockPerformance: ModelPerformanceMetrics = {
-            total_predictions: 0,
-            average_inference_time_ms: 0,
+            inference_latency_ms: 0,
+            p50_latency_ms: 0,
+            p95_latency_ms: 0,
+            p99_latency_ms: 0,
+            throughput_samples_per_second: 0,
             cache_hit_rate: 0,
-            accuracy_meters: 0,
-            last_updated: '2025-10-25T12:00:00Z',
+            success_rate: 0,
+            predictions_total: 0,
+            requests_total: 0,
+            errors_total: 0,
+            uptime_seconds: 0,
+            timestamp: '2025-10-25T12:00:00Z',
         };
 
         mock.onGet('/api/v1/analytics/model/performance').reply(200, mockPerformance);
 
         const result = await getModelPerformance();
 
-        expect(result.total_predictions).toBe(0);
+        expect(result.predictions_total).toBe(0);
     });
 
     it('should handle 503 error when metrics service unavailable', async () => {
@@ -342,22 +363,28 @@ describe('getRecentLocalizations', () => {
     it('should fetch recent localizations with default limit', async () => {
         const mockLocalizations: LocalizationResult[] = [
             {
-                id: 1,
+                id: '123e4567-e89b-12d3-a456-426614174001',
                 session_id: 'session-1',
+                timestamp: '2025-10-25T12:00:00Z',
                 latitude: 45.0,
                 longitude: 7.6,
-                uncertainty_meters: 25.5,
+                uncertainty_m: 25.5,
                 confidence: 0.85,
-                timestamp: '2025-10-25T12:00:00Z',
+                source_frequency_mhz: 145.5,
+                snr_avg_db: 15.3,
+                websdr_count: 5,
             },
             {
-                id: 2,
+                id: '123e4567-e89b-12d3-a456-426614174002',
                 session_id: 'session-2',
+                timestamp: '2025-10-25T11:50:00Z',
                 latitude: 45.1,
                 longitude: 7.7,
-                uncertainty_meters: 30.2,
+                uncertainty_m: 30.2,
                 confidence: 0.82,
-                timestamp: '2025-10-25T11:50:00Z',
+                source_frequency_mhz: 145.5,
+                snr_avg_db: 12.8,
+                websdr_count: 4,
             },
         ];
 
@@ -367,18 +394,21 @@ describe('getRecentLocalizations', () => {
 
         expect(result).toHaveLength(2);
         expect(result[0].confidence).toBeGreaterThan(0);
-        expect(result[0].uncertainty_meters).toBeGreaterThan(0);
+        expect(result[0].uncertainty_m).toBeGreaterThan(0);
     });
 
     it('should fetch recent localizations with custom limit', async () => {
         const mockLocalizations: LocalizationResult[] = Array.from({ length: 5 }, (_, i) => ({
-            id: i + 1,
+            id: `123e4567-e89b-12d3-a456-42661417400${i}`,
             session_id: `session-${i + 1}`,
+            timestamp: new Date(Date.now() - i * 60000).toISOString(),
             latitude: 45.0 + i * 0.01,
             longitude: 7.6 + i * 0.01,
-            uncertainty_meters: 25 + i,
+            uncertainty_m: 25 + i,
             confidence: 0.85 - i * 0.01,
-            timestamp: new Date(Date.now() - i * 60000).toISOString(),
+            source_frequency_mhz: 145.5,
+            snr_avg_db: 15.0 - i * 0.5,
+            websdr_count: 5 - i,
         }));
 
         mock.onGet('/api/v1/analytics/localizations/recent', { params: { limit: 5 } }).reply(200, mockLocalizations);

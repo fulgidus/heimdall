@@ -3,6 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import MobileMenu from './MobileMenu';
 
+// Mock auth store
+vi.mock('@/store', () => ({
+    useAuthStore: {
+        getState: vi.fn(() => ({ token: null })),
+    },
+}));
+
 describe('MobileMenu Component', () => {
     it('renders when open', () => {
         const onClose = vi.fn();
