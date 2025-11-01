@@ -61,7 +61,7 @@ class RecordingSession(BaseModel):
     """Recording session model"""
 
     id: UUID
-    known_source_id: UUID
+    known_source_id: UUID | None = None  # NULL when source is unknown
     session_name: str
     session_start: datetime
     session_end: datetime | None = None
@@ -84,7 +84,7 @@ class RecordingSession(BaseModel):
 class RecordingSessionCreate(BaseModel):
     """Create a new recording session"""
 
-    known_source_id: UUID
+    known_source_id: UUID | None = None  # None for unknown sources
     session_name: str
     frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
     duration_seconds: float = Field(
@@ -105,10 +105,10 @@ class RecordingSessionUpdate(BaseModel):
 class RecordingSessionWithDetails(RecordingSession):
     """Recording session with source details"""
 
-    source_name: str
-    source_frequency: int
-    source_latitude: float
-    source_longitude: float
+    source_name: str | None = None  # None when source is unknown
+    source_frequency: int | None = None
+    source_latitude: float | None = None
+    source_longitude: float | None = None
     measurements_count: int = 0
 
 

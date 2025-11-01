@@ -165,17 +165,51 @@ export const createMockAuthStore = () =>
     updateProfile: () => {},
   }));
 
+export const createMockSystemStore = () =>
+  create(() => ({
+    servicesHealth: {
+      backend: { status: 'healthy', service: 'backend', version: '1.0.0', timestamp: new Date().toISOString() },
+      training: { status: 'healthy', service: 'training', version: '1.0.0', timestamp: new Date().toISOString() },
+      inference: { status: 'healthy', service: 'inference', version: '1.0.0', timestamp: new Date().toISOString() },
+    },
+    modelPerformance: {
+      inference_latency_ms: 150,
+      p50_latency_ms: 120,
+      p95_latency_ms: 200,
+      p99_latency_ms: 250,
+      throughput_samples_per_second: 100,
+      cache_hit_rate: 0.8,
+      success_rate: 0.95,
+      predictions_total: 1000,
+      requests_total: 1050,
+      errors_total: 50,
+      uptime_seconds: 3600,
+      timestamp: new Date().toISOString(),
+    },
+    isLoading: false,
+    error: null,
+    lastCheck: new Date(),
+    checkAllServices: () => Promise.resolve(),
+    checkService: () => Promise.resolve(),
+    fetchModelPerformance: () => Promise.resolve(),
+    isServiceHealthy: () => true,
+    getServiceStatus: () => null,
+    refreshAll: () => Promise.resolve(),
+  }));
+
 // Export stores globally during testing
 let mockDashboardStore = createMockDashboardStore();
 let mockWebSDRStore = createMockWebSDRStore();
 let mockSessionStore = createMockSessionStore();
 let mockAuthStore = createMockAuthStore();
+let mockSystemStore = createMockSystemStore();
 
 export const getMockStores = () => ({
   mockDashboardStore,
   mockWebSDRStore,
   mockSessionStore,
   mockAuthStore,
+  mockSystemStore,
 });
 
 export const resetMockStores = () => {
@@ -183,4 +217,5 @@ export const resetMockStores = () => {
   mockWebSDRStore = createMockWebSDRStore();
   mockSessionStore = createMockSessionStore();
   mockAuthStore = createMockAuthStore();
+  mockSystemStore = createMockSystemStore();
 };

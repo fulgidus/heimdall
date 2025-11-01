@@ -285,7 +285,7 @@ const SessionHistory: React.FC = () => {
                             </td>
                             <td>
                               <div>
-                                <div className="mb-1">{session.source_name}</div>
+                                <div className="mb-1">{session.source_name || 'Unknown'}</div>
                                 <span className="f-12 text-muted">
                                   {session.source_frequency
                                     ? (session.source_frequency / 1e6).toFixed(3) + ' MHz'
@@ -482,7 +482,7 @@ const SessionHistory: React.FC = () => {
                         </tr>
                         <tr>
                           <td className="text-muted">Source</td>
-                          <td>{selectedSessionData.source_name}</td>
+                          <td>{selectedSessionData.source_name || 'Unknown'}</td>
                         </tr>
                         <tr>
                           <td className="text-muted">Frequency</td>

@@ -402,7 +402,7 @@ const DataIngestion: React.FC = () => {
                               </td>
                               <td className="d-none d-sm-table-cell">
                                 <div>
-                                  <div className="mb-1">{session.source_name}</div>
+                                  <div className="mb-1">{session.source_name || 'Unknown'}</div>
                                   <span className="f-12 text-muted">
                                     {session.source_frequency
                                       ? (session.source_frequency / 1e6).toFixed(3) + ' MHz'

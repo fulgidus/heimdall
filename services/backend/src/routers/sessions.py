@@ -75,7 +75,7 @@ async def list_sessions(
             ks.longitude as source_longitude,
             COUNT(m.id) as measurements_count
         FROM heimdall.recording_sessions rs
-        JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
+        LEFT JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
         LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start
             AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
         {where_sql}
@@ -252,7 +252,7 @@ async def update_session(
                 ks.longitude as source_longitude,
                 COUNT(m.id) as measurements_count
             FROM heimdall.recording_sessions rs
-            JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
+            LEFT JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
             LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start
                 AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
             WHERE rs.id = $1
@@ -364,15 +364,16 @@ async def create_session(
     """Create a new recording session and trigger RF acquisition"""
     pool = get_pool()
 
-    # Verify known source exists
+    # Verify known source exists (skip check if source_id is None)
     async with pool.acquire() as conn:
-        source_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
-            session.known_source_id,
-        )
+        if session.known_source_id is not None:
+            source_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
+                session.known_source_id,
+            )
 
-        if not source_exists:
-            raise HTTPException(status_code=404, detail="Known source not found")
+            if not source_exists:
+                raise HTTPException(status_code=404, detail="Known source not found")
 
         # Insert new session
         query = """
@@ -772,7 +773,7 @@ async def get_session(
             ks.longitude as source_longitude,
             COUNT(m.id) as measurements_count
         FROM heimdall.recording_sessions rs
-        JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
+        LEFT JOIN heimdall.known_sources ks ON rs.known_source_id = ks.id
         LEFT JOIN heimdall.measurements m ON m.created_at >= rs.session_start
             AND (rs.session_end IS NULL OR m.created_at <= rs.session_end)
         WHERE rs.id = $1
@@ -837,25 +838,20 @@ async def handle_session_assign_source_ws(assignment_data: dict):
     if not session_id:
         raise ValueError("Missing required field: session_id")
 
-    # If source_id is "unknown" or not provided, use the unknown source
+    # If source_id is "unknown" or not provided, set to None
     if not source_id or source_id == "unknown":
-        async with pool.acquire() as conn:
-            source_id = await conn.fetchval(
-                "SELECT id FROM heimdall.known_sources WHERE name = 'Unknown'"
-            )
-
-            if not source_id:
-                raise ValueError("Unknown source not found in database")
+        source_id = None
 
     async with pool.acquire() as conn:
-        # Verify source exists
-        source_exists = await conn.fetchval(
-            "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
-            UUID(source_id) if isinstance(source_id, str) else source_id,
-        )
+        # Verify source exists (skip check if source_id is None)
+        if source_id is not None:
+            source_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
+                UUID(source_id) if isinstance(source_id, str) else source_id,
+            )
 
-        if not source_exists:
-            raise ValueError("Source not found")
+            if not source_exists:
+                raise ValueError("Source not found")
 
         # Update session with source
         query = """
@@ -872,7 +868,7 @@ async def handle_session_assign_source_ws(assignment_data: dict):
 
         row = await conn.fetchrow(
             query,
-            UUID(source_id) if isinstance(source_id, str) else source_id,
+            UUID(source_id) if source_id and isinstance(source_id, str) else source_id,
             UUID(session_id) if isinstance(session_id, str) else session_id,
         )
 
@@ -883,7 +879,7 @@ async def handle_session_assign_source_ws(assignment_data: dict):
 
         return {
             "session_id": str(session.id),
-            "source_id": str(session.known_source_id),
+            "source_id": str(session.known_source_id) if session.known_source_id else None,
             "status": session.status,
         }
 
@@ -905,28 +901,11 @@ async def handle_session_complete_ws(complete_data: dict):
         )
 
     async with pool.acquire() as conn:
-        # Handle "unknown" source - find or create it
+        # Handle "unknown" source - set to NULL instead of creating a placeholder
         if source_id == "unknown":
-            # Check if "Unknown" source exists
-            unknown_id = await conn.fetchval(
-                "SELECT id FROM heimdall.known_sources WHERE name = 'Unknown' LIMIT 1"
-            )
+            source_id = None
 
-            # If not, create it with the frequency from this session
-            if unknown_id is None:
-                unknown_id = await conn.fetchval(
-                    """
-                    INSERT INTO heimdall.known_sources
-                    (name, description, frequency_hz, latitude, longitude, is_validated)
-                    VALUES ('Unknown', 'Placeholder for unknown sources', $1, 0.0, 0.0, false)
-                    RETURNING id
-                    """,
-                    frequency_hz,  # Already in Hz
-                )
-
-            source_id = str(unknown_id)
-
-        # Create session with selected source
+        # Create session with selected source (or NULL for unknown sources)
         query = """
             INSERT INTO heimdall.recording_sessions
             (known_source_id, session_name, session_start, status, approval_status, notes)
@@ -939,7 +918,7 @@ async def handle_session_complete_ws(complete_data: dict):
 
         row = await conn.fetchrow(
             query,
-            UUID(source_id) if isinstance(source_id, str) else source_id,
+            UUID(source_id) if source_id and isinstance(source_id, str) else source_id,
             session_name,
             datetime.utcnow(),
             notes,
