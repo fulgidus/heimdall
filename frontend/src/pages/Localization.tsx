@@ -23,6 +23,32 @@ const Localization: React.FC = () => {
   const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
   const avgAccuracy = data.modelInfo?.accuracy ? (data.modelInfo.accuracy * 100).toFixed(1) : 'N/A';
 
+  // Calculate average confidence from recent localizations
+  const avgConfidence =
+    recentLocalizations.length > 0
+      ? (
+          (recentLocalizations.reduce((sum, loc) => sum + loc.confidence, 0) /
+            recentLocalizations.length) *
+          100
+        ).toFixed(0)
+      : 'N/A';
+
+  // Calculate average SNR and map to quality label
+  const avgSnr =
+    recentLocalizations.length > 0
+      ? recentLocalizations.reduce((sum, loc) => sum + loc.snr_avg_db, 0) /
+        recentLocalizations.length
+      : 0;
+
+  const signalQuality =
+    recentLocalizations.length === 0
+      ? 'N/A'
+      : avgSnr > 20
+        ? 'Excellent'
+        : avgSnr > 10
+          ? 'Good'
+          : 'Poor';
+
   return (
     <>
       {/* Breadcrumb */}
@@ -100,7 +126,7 @@ const Localization: React.FC = () => {
                 </div>
                 <div className="grow ms-3">
                   <h6 className="mb-0">Confidence</h6>
-                  <h4 className="mb-0">94%</h4>
+                  <h4 className="mb-0">{avgConfidence}%</h4>
                 </div>
               </div>
             </div>
@@ -118,7 +144,7 @@ const Localization: React.FC = () => {
                 </div>
                 <div className="grow ms-3">
                   <h6 className="mb-0">Signal Quality</h6>
-                  <h4 className="mb-0 f-14">Excellent</h4>
+                  <h4 className="mb-0 f-14">{signalQuality}</h4>
                 </div>
               </div>
             </div>
