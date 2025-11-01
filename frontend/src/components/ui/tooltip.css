@@ -1,21 +1,21 @@
 /* UI Tooltip Component Styles */
 .ui-tooltip-content {
-    background-color: var(--foreground);
-    color: var(--background);
-    z-index: 50;
-    width: fit-content;
-    border-radius: 0.375rem;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.75rem;
-    text-wrap: balance;
+  background-color: var(--foreground);
+  color: var(--background);
+  z-index: 50;
+  width: fit-content;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  text-wrap: balance;
 }
 
 .ui-tooltip-arrow {
-    background-color: var(--foreground);
-    fill: var(--foreground);
-    z-index: 50;
-    width: 0.625rem;
-    height: 0.625rem;
-    transform: translateY(calc(-50% - 2px)) rotate(45deg);
-    border-radius: 2px;
+  background-color: var(--foreground);
+  fill: var(--foreground);
+  z-index: 50;
+  width: 0.625rem;
+  height: 0.625rem;
+  transform: translateY(calc(-50% - 2px)) rotate(45deg);
+  border-radius: 2px;
 }

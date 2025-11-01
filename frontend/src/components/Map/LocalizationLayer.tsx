@@ -1,38 +1,43 @@
 /**
  * LocalizationLayer Component
- * 
+ *
  * Displays localization results with uncertainty ellipses on the map
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import type { LocalizationResult } from '@/services/api/types';
-import { createCircularUncertainty, createConfidenceEllipses, getConfidenceColor, getConfidenceOpacity } from '@/utils/ellipse';
+import {
+  createCircularUncertainty,
+  createConfidenceEllipses,
+  getConfidenceColor,
+  getConfidenceOpacity,
+} from '@/utils/ellipse';
 
 export interface LocalizationLayerProps {
-    map: mapboxgl.Map;
-    localizations: LocalizationResult[];
-    onLocalizationClick?: (localization: LocalizationResult) => void;
-    maxPoints?: number; // Maximum number of points to display (default: 100)
+  map: mapboxgl.Map;
+  localizations: LocalizationResult[];
+  onLocalizationClick?: (localization: LocalizationResult) => void;
+  maxPoints?: number; // Maximum number of points to display (default: 100)
 }
 
 const LAYER_IDS = {
-    ELLIPSE_3SIGMA: 'localization-ellipse-3sigma',
-    ELLIPSE_2SIGMA: 'localization-ellipse-2sigma',
-    ELLIPSE_1SIGMA: 'localization-ellipse-1sigma',
-    POINTS: 'localization-points',
+  ELLIPSE_3SIGMA: 'localization-ellipse-3sigma',
+  ELLIPSE_2SIGMA: 'localization-ellipse-2sigma',
+  ELLIPSE_1SIGMA: 'localization-ellipse-1sigma',
+  POINTS: 'localization-points',
 };
 
 const SOURCE_IDS = {
-    ELLIPSES: 'localization-ellipses',
-    POINTS: 'localization-points',
+  ELLIPSES: 'localization-ellipses',
+  POINTS: 'localization-points',
 };
 
 /**
  * Create popup HTML for localization result
  */
 function createPopupHTML(localization: LocalizationResult): string {
-    return `
+  return `
         <div style="min-width: 250px;">
             <h6 class="mb-2">Localization Result</h6>
             <table class="table table-sm table-borderless mb-0">
@@ -76,273 +81,273 @@ function createPopupHTML(localization: LocalizationResult): string {
 }
 
 const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
-    map,
-    localizations,
-    onLocalizationClick,
-    maxPoints = 100,
+  map,
+  localizations,
+  onLocalizationClick,
+  maxPoints = 100,
 }) => {
-    const popupsRef = useRef<mapboxgl.Popup[]>([]);
-    const layersInitialized = useRef(false);
-    const clickHandlerRef = useRef<((e: mapboxgl.MapLayerMouseEvent) => void) | null>(null);
-    const mouseEnterHandlerRef = useRef<(() => void) | null>(null);
-    const mouseLeaveHandlerRef = useRef<(() => void) | null>(null);
+  const popupsRef = useRef<mapboxgl.Popup[]>([]);
+  const layersInitialized = useRef(false);
+  const clickHandlerRef = useRef<((e: mapboxgl.MapLayerMouseEvent) => void) | null>(null);
+  const mouseEnterHandlerRef = useRef<(() => void) | null>(null);
+  const mouseLeaveHandlerRef = useRef<(() => void) | null>(null);
 
-    /**
-     * Initialize map layers and sources (once only)
-     */
-    const initializeLayers = useCallback(() => {
-        // Add ellipses source
-        if (!map.getSource(SOURCE_IDS.ELLIPSES)) {
-            map.addSource(SOURCE_IDS.ELLIPSES, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: [],
-                },
-            });
+  /**
+   * Initialize map layers and sources (once only)
+   */
+  const initializeLayers = useCallback(() => {
+    // Add ellipses source
+    if (!map.getSource(SOURCE_IDS.ELLIPSES)) {
+      map.addSource(SOURCE_IDS.ELLIPSES, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      });
+    }
+
+    // Add points source
+    if (!map.getSource(SOURCE_IDS.POINTS)) {
+      map.addSource(SOURCE_IDS.POINTS, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [],
+        },
+      });
+    }
+
+    // Add ellipse layers (3σ, 2σ, 1σ - in order from largest to smallest)
+    if (!map.getLayer(LAYER_IDS.ELLIPSE_3SIGMA)) {
+      map.addLayer({
+        id: LAYER_IDS.ELLIPSE_3SIGMA,
+        type: 'fill',
+        source: SOURCE_IDS.ELLIPSES,
+        filter: ['==', ['get', 'confidenceLevel'], 3],
+        paint: {
+          'fill-color': getConfidenceColor(3),
+          'fill-opacity': getConfidenceOpacity(3),
+        },
+      });
+    }
+
+    if (!map.getLayer(LAYER_IDS.ELLIPSE_2SIGMA)) {
+      map.addLayer({
+        id: LAYER_IDS.ELLIPSE_2SIGMA,
+        type: 'fill',
+        source: SOURCE_IDS.ELLIPSES,
+        filter: ['==', ['get', 'confidenceLevel'], 2],
+        paint: {
+          'fill-color': getConfidenceColor(2),
+          'fill-opacity': getConfidenceOpacity(2),
+        },
+      });
+    }
+
+    if (!map.getLayer(LAYER_IDS.ELLIPSE_1SIGMA)) {
+      map.addLayer({
+        id: LAYER_IDS.ELLIPSE_1SIGMA,
+        type: 'fill',
+        source: SOURCE_IDS.ELLIPSES,
+        filter: ['==', ['get', 'confidenceLevel'], 1],
+        paint: {
+          'fill-color': getConfidenceColor(1),
+          'fill-opacity': getConfidenceOpacity(1),
+        },
+      });
+    }
+
+    // Add points layer
+    if (!map.getLayer(LAYER_IDS.POINTS)) {
+      map.addLayer({
+        id: LAYER_IDS.POINTS,
+        type: 'circle',
+        source: SOURCE_IDS.POINTS,
+        paint: {
+          'circle-radius': 8,
+          'circle-color': '#ef4444', // Red for localization points
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+    }
+  }, [map]);
+
+  /**
+   * Setup event handlers for map interactions
+   */
+  useEffect(() => {
+    if (!layersInitialized.current) {
+      return;
+    }
+
+    // Remove old handlers if they exist
+    if (clickHandlerRef.current) {
+      map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+    }
+    if (mouseEnterHandlerRef.current) {
+      map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+    }
+    if (mouseLeaveHandlerRef.current) {
+      map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
+    }
+
+    // Create new click handler with current localizations and callback
+    clickHandlerRef.current = (e: mapboxgl.MapLayerMouseEvent) => {
+      if (e.features && e.features.length > 0) {
+        const feature = e.features[0];
+        const localizationId = feature.properties?.id;
+        const localization = localizations.find(loc => loc.id === localizationId);
+
+        if (localization) {
+          // Show popup
+          const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: false,
+          })
+            .setLngLat([localization.longitude, localization.latitude])
+            .setHTML(createPopupHTML(localization))
+            .addTo(map);
+
+          popupsRef.current.push(popup);
+
+          // Call callback
+          if (onLocalizationClick) {
+            onLocalizationClick(localization);
+          }
         }
+      }
+    };
 
-        // Add points source
-        if (!map.getSource(SOURCE_IDS.POINTS)) {
-            map.addSource(SOURCE_IDS.POINTS, {
-                type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: [],
-                },
-            });
-        }
+    // Create cursor change handlers
+    mouseEnterHandlerRef.current = () => {
+      map.getCanvas().style.cursor = 'pointer';
+    };
 
-        // Add ellipse layers (3σ, 2σ, 1σ - in order from largest to smallest)
-        if (!map.getLayer(LAYER_IDS.ELLIPSE_3SIGMA)) {
-            map.addLayer({
-                id: LAYER_IDS.ELLIPSE_3SIGMA,
-                type: 'fill',
-                source: SOURCE_IDS.ELLIPSES,
-                filter: ['==', ['get', 'confidenceLevel'], 3],
-                paint: {
-                    'fill-color': getConfidenceColor(3),
-                    'fill-opacity': getConfidenceOpacity(3),
-                },
-            });
-        }
+    mouseLeaveHandlerRef.current = () => {
+      map.getCanvas().style.cursor = '';
+    };
 
-        if (!map.getLayer(LAYER_IDS.ELLIPSE_2SIGMA)) {
-            map.addLayer({
-                id: LAYER_IDS.ELLIPSE_2SIGMA,
-                type: 'fill',
-                source: SOURCE_IDS.ELLIPSES,
-                filter: ['==', ['get', 'confidenceLevel'], 2],
-                paint: {
-                    'fill-color': getConfidenceColor(2),
-                    'fill-opacity': getConfidenceOpacity(2),
-                },
-            });
-        }
+    // Attach new handlers
+    map.on('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+    map.on('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+    map.on('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
 
-        if (!map.getLayer(LAYER_IDS.ELLIPSE_1SIGMA)) {
-            map.addLayer({
-                id: LAYER_IDS.ELLIPSE_1SIGMA,
-                type: 'fill',
-                source: SOURCE_IDS.ELLIPSES,
-                filter: ['==', ['get', 'confidenceLevel'], 1],
-                paint: {
-                    'fill-color': getConfidenceColor(1),
-                    'fill-opacity': getConfidenceOpacity(1),
-                },
-            });
-        }
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (clickHandlerRef.current) {
+        map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
+      }
+      if (mouseEnterHandlerRef.current) {
+        map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
+      }
+      if (mouseLeaveHandlerRef.current) {
+        map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
+      }
+    };
+  }, [map, localizations, onLocalizationClick]);
 
-        // Add points layer
-        if (!map.getLayer(LAYER_IDS.POINTS)) {
-            map.addLayer({
-                id: LAYER_IDS.POINTS,
-                type: 'circle',
-                source: SOURCE_IDS.POINTS,
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': '#ef4444', // Red for localization points
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#ffffff',
-                },
-            });
-        }
-    }, [map]);
+  /**
+   * Update localization data on the map
+   */
+  const updateLocalizationData = useCallback(() => {
+    // Limit to maxPoints most recent
+    const recentLocalizations = localizations.slice(0, maxPoints);
 
-    /**
-     * Setup event handlers for map interactions
-     */
-    useEffect(() => {
-        if (!layersInitialized.current) {
-            return;
-        }
+    // Create ellipse features
+    const ellipseFeatures = recentLocalizations.flatMap(loc => {
+      const ellipseParams = createCircularUncertainty(
+        loc.latitude,
+        loc.longitude,
+        loc.uncertainty_m
+      );
+      return createConfidenceEllipses(ellipseParams, [1, 2, 3]).map(feature => ({
+        ...feature,
+        properties: {
+          ...feature.properties,
+          id: loc.id,
+        },
+      }));
+    });
 
-        // Remove old handlers if they exist
-        if (clickHandlerRef.current) {
-            map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
-        }
-        if (mouseEnterHandlerRef.current) {
-            map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
-        }
-        if (mouseLeaveHandlerRef.current) {
-            map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
-        }
+    // Create point features
+    const pointFeatures = recentLocalizations.map(loc => ({
+      type: 'Feature' as const,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [loc.longitude, loc.latitude],
+      },
+      properties: {
+        id: loc.id,
+        timestamp: loc.timestamp,
+        confidence: loc.confidence,
+        uncertainty: loc.uncertainty_m,
+      },
+    }));
 
-        // Create new click handler with current localizations and callback
-        clickHandlerRef.current = (e: mapboxgl.MapLayerMouseEvent) => {
-            if (e.features && e.features.length > 0) {
-                const feature = e.features[0];
-                const localizationId = feature.properties?.id;
-                const localization = localizations.find((loc) => loc.id === localizationId);
+    // Update sources
+    const ellipsesSource = map.getSource(SOURCE_IDS.ELLIPSES) as mapboxgl.GeoJSONSource;
+    if (ellipsesSource) {
+      ellipsesSource.setData({
+        type: 'FeatureCollection',
+        features: ellipseFeatures,
+      });
+    }
 
-                if (localization) {
-                    // Show popup
-                    const popup = new mapboxgl.Popup({
-                        closeButton: true,
-                        closeOnClick: false,
-                    })
-                        .setLngLat([localization.longitude, localization.latitude])
-                        .setHTML(createPopupHTML(localization))
-                        .addTo(map);
+    const pointsSource = map.getSource(SOURCE_IDS.POINTS) as mapboxgl.GeoJSONSource;
+    if (pointsSource) {
+      pointsSource.setData({
+        type: 'FeatureCollection',
+        features: pointFeatures,
+      });
+    }
 
-                    popupsRef.current.push(popup);
+    // Auto-center on most recent localization if available
+    if (recentLocalizations.length > 0) {
+      const latest = recentLocalizations[0];
+      // Only fly to if not already close
+      const currentCenter = map.getCenter();
+      const distance = Math.sqrt(
+        Math.pow(currentCenter.lat - latest.latitude, 2) +
+          Math.pow(currentCenter.lng - latest.longitude, 2)
+      );
 
-                    // Call callback
-                    if (onLocalizationClick) {
-                        onLocalizationClick(localization);
-                    }
-                }
-            }
-        };
-
-        // Create cursor change handlers
-        mouseEnterHandlerRef.current = () => {
-            map.getCanvas().style.cursor = 'pointer';
-        };
-
-        mouseLeaveHandlerRef.current = () => {
-            map.getCanvas().style.cursor = '';
-        };
-
-        // Attach new handlers
-        map.on('click', LAYER_IDS.POINTS, clickHandlerRef.current);
-        map.on('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
-        map.on('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
-
-        // Cleanup on unmount or when dependencies change
-        return () => {
-            if (clickHandlerRef.current) {
-                map.off('click', LAYER_IDS.POINTS, clickHandlerRef.current);
-            }
-            if (mouseEnterHandlerRef.current) {
-                map.off('mouseenter', LAYER_IDS.POINTS, mouseEnterHandlerRef.current);
-            }
-            if (mouseLeaveHandlerRef.current) {
-                map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
-            }
-        };
-    }, [map, localizations, onLocalizationClick]);
-
-    /**
-     * Update localization data on the map
-     */
-    const updateLocalizationData = useCallback(() => {
-        // Limit to maxPoints most recent
-        const recentLocalizations = localizations.slice(0, maxPoints);
-
-        // Create ellipse features
-        const ellipseFeatures = recentLocalizations.flatMap((loc) => {
-            const ellipseParams = createCircularUncertainty(
-                loc.latitude,
-                loc.longitude,
-                loc.uncertainty_m
-            );
-            return createConfidenceEllipses(ellipseParams, [1, 2, 3]).map((feature) => ({
-                ...feature,
-                properties: {
-                    ...feature.properties,
-                    id: loc.id,
-                },
-            }));
+      // If more than 0.1 degrees away, fly to the new location
+      if (distance > 0.1) {
+        map.flyTo({
+          center: [latest.longitude, latest.latitude],
+          zoom: Math.max(map.getZoom(), 10),
+          duration: 1000,
         });
+      }
+    }
+  }, [map, localizations, maxPoints]);
 
-        // Create point features
-        const pointFeatures = recentLocalizations.map((loc) => ({
-            type: 'Feature' as const,
-            geometry: {
-                type: 'Point' as const,
-                coordinates: [loc.longitude, loc.latitude],
-            },
-            properties: {
-                id: loc.id,
-                timestamp: loc.timestamp,
-                confidence: loc.confidence,
-                uncertainty: loc.uncertainty_m,
-            },
-        }));
+  // Initialize layers once when map is ready
+  useEffect(() => {
+    if (!layersInitialized.current) {
+      initializeLayers();
+      layersInitialized.current = true;
+    }
+  }, [initializeLayers]);
 
-        // Update sources
-        const ellipsesSource = map.getSource(SOURCE_IDS.ELLIPSES) as mapboxgl.GeoJSONSource;
-        if (ellipsesSource) {
-            ellipsesSource.setData({
-                type: 'FeatureCollection',
-                features: ellipseFeatures,
-            });
-        }
+  // Update data when localizations change
+  useEffect(() => {
+    if (layersInitialized.current) {
+      updateLocalizationData();
+    }
+  }, [updateLocalizationData]);
 
-        const pointsSource = map.getSource(SOURCE_IDS.POINTS) as mapboxgl.GeoJSONSource;
-        if (pointsSource) {
-            pointsSource.setData({
-                type: 'FeatureCollection',
-                features: pointFeatures,
-            });
-        }
+  // Cleanup popups on unmount
+  useEffect(() => {
+    return () => {
+      popupsRef.current.forEach(popup => popup.remove());
+      popupsRef.current = [];
+    };
+  }, []);
 
-        // Auto-center on most recent localization if available
-        if (recentLocalizations.length > 0) {
-            const latest = recentLocalizations[0];
-            // Only fly to if not already close
-            const currentCenter = map.getCenter();
-            const distance = Math.sqrt(
-                Math.pow(currentCenter.lat - latest.latitude, 2) +
-                    Math.pow(currentCenter.lng - latest.longitude, 2)
-            );
-
-            // If more than 0.1 degrees away, fly to the new location
-            if (distance > 0.1) {
-                map.flyTo({
-                    center: [latest.longitude, latest.latitude],
-                    zoom: Math.max(map.getZoom(), 10),
-                    duration: 1000,
-                });
-            }
-        }
-    }, [map, localizations, maxPoints]);
-
-    // Initialize layers once when map is ready
-    useEffect(() => {
-        if (!layersInitialized.current) {
-            initializeLayers();
-            layersInitialized.current = true;
-        }
-    }, [initializeLayers]);
-
-    // Update data when localizations change
-    useEffect(() => {
-        if (layersInitialized.current) {
-            updateLocalizationData();
-        }
-    }, [updateLocalizationData]);
-
-    // Cleanup popups on unmount
-    useEffect(() => {
-        return () => {
-            popupsRef.current.forEach((popup) => popup.remove());
-            popupsRef.current = [];
-        };
-    }, []);
-
-    return null; // This component doesn't render anything directly
+  return null; // This component doesn't render anything directly
 };
 
 export default LocalizationLayer;

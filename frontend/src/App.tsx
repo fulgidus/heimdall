@@ -23,157 +23,157 @@ const ImportExport = lazy(() => import('./pages/ImportExport'));
 
 // Loading fallback component
 const LoadingFallback = () => (
-    <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100"></div>
+      <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
     </div>
+  </div>
 );
 
 interface ProtectedRouteProps {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    const { isAuthenticated } = useAuthStore();
-    
-    // Allow bypass in development mode when VITE_ENABLE_DEBUG is true
-    const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_ENV === 'development';
-    const debugMode = import.meta.env.VITE_ENABLE_DEBUG === 'true';
-    
-    // Bypass auth in development/debug mode
-    if (isDevelopment && debugMode) {
-        return <DattaLayout>{children}</DattaLayout>;
-    }
+  const { isAuthenticated } = useAuthStore();
 
-    if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
-    }
+  // Allow bypass in development mode when VITE_ENABLE_DEBUG is true
+  const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_ENV === 'development';
+  const debugMode = import.meta.env.VITE_ENABLE_DEBUG === 'true';
 
+  // Bypass auth in development/debug mode
+  if (isDevelopment && debugMode) {
     return <DattaLayout>{children}</DattaLayout>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <DattaLayout>{children}</DattaLayout>;
 };
 
 function App() {
-    // Enable automatic token refresh
-    useTokenRefresh();
+  // Enable automatic token refresh
+  useTokenRefresh();
 
-    return (
-        <ErrorBoundary>
-            <WebSocketProvider autoConnect={true}>
-                <Router>
-                    <Suspense fallback={<LoadingFallback />}>
-                        <Routes>
-                            {/* Public Routes */}
-                            <Route path="/login" element={<Login />} />
+  return (
+    <ErrorBoundary>
+      <WebSocketProvider autoConnect={true}>
+        <Router>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
 
-                            {/* Protected Routes */}
-                            <Route
-                                path="/dashboard"
-                                element={
-                                    <ProtectedRoute>
-                                        <Dashboard />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/localization"
-                                element={
-                                    <ProtectedRoute>
-                                        <Localization />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/analytics"
-                                element={
-                                    <ProtectedRoute>
-                                        <Analytics />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/data-ingestion"
-                                element={
-                                    <ProtectedRoute>
-                                        <DataIngestion />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/settings"
-                                element={
-                                    <ProtectedRoute>
-                                        <Settings />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/profile"
-                                element={
-                                    <ProtectedRoute>
-                                        <Profile />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/recording"
-                                element={
-                                    <ProtectedRoute>
-                                        <RecordingSession />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/history"
-                                element={
-                                    <ProtectedRoute>
-                                        <SessionHistory />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/websdrs"
-                                element={
-                                    <ProtectedRoute>
-                                        <WebSDRManagement />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/system-status"
-                                element={
-                                    <ProtectedRoute>
-                                        <SystemStatus />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/sources"
-                                element={
-                                    <ProtectedRoute>
-                                        <SourcesManagement />
-                                    </ProtectedRoute>
-                                }
-                            />
-                            <Route
-                                path="/import-export"
-                                element={
-                                    <ProtectedRoute>
-                                        <ImportExport />
-                                    </ProtectedRoute>
-                                }
-                            />
+              {/* Protected Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/localization"
+                element={
+                  <ProtectedRoute>
+                    <Localization />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/analytics"
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/data-ingestion"
+                element={
+                  <ProtectedRoute>
+                    <DataIngestion />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/recording"
+                element={
+                  <ProtectedRoute>
+                    <RecordingSession />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/history"
+                element={
+                  <ProtectedRoute>
+                    <SessionHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/websdrs"
+                element={
+                  <ProtectedRoute>
+                    <WebSDRManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/system-status"
+                element={
+                  <ProtectedRoute>
+                    <SystemStatus />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/sources"
+                element={
+                  <ProtectedRoute>
+                    <SourcesManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/import-export"
+                element={
+                  <ProtectedRoute>
+                    <ImportExport />
+                  </ProtectedRoute>
+                }
+              />
 
-                            {/* Redirect */}
-                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
-                    </Suspense>
-                </Router>
-            </WebSocketProvider>
-        </ErrorBoundary>
-    );
+              {/* Redirect */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
+        </Router>
+      </WebSocketProvider>
+    </ErrorBoundary>
+  );
 }
 
 export default App;

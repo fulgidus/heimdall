@@ -11,52 +11,52 @@ import { BrowserRouter } from 'react-router-dom';
 
 // Mock stores
 vi.mock('@/store', () => ({
-    useAuthStore: {
-        getState: vi.fn(() => ({ token: null })),
+  useAuthStore: {
+    getState: vi.fn(() => ({ token: null })),
+  },
+  useDashboardStore: () => ({
+    metrics: {
+      activeWebSDRs: 5,
+      totalWebSDRs: 7,
+      signalDetections: 42,
+      systemUptime: 7200,
+      averageAccuracy: 94.5,
     },
-    useDashboardStore: () => ({
-        metrics: {
-            activeWebSDRs: 5,
-            totalWebSDRs: 7,
-            signalDetections: 42,
-            systemUptime: 7200,
-            averageAccuracy: 94.5,
-        },
-        data: {
-            websdrs: [],
-            websdrsHealth: {},
-            modelInfo: null,
-            servicesHealth: {},
-        },
-        isLoading: false,
-        error: null,
-        lastUpdate: new Date(),
-        wsManager: null,
-        wsConnectionState: 'Disconnected',
-        wsEnabled: true,
-        retryCount: 0,
-        retryDelay: 1000,
-        fetchDashboardData: vi.fn(),
-        resetRetry: vi.fn(),
-        incrementRetry: vi.fn(),
-        connectWebSocket: vi.fn(),
-        disconnectWebSocket: vi.fn(),
-        setWebSocketState: vi.fn(),
-    }),
-    useWebSDRStore: () => ({
-        websdrs: [],
-        healthStatus: {},
-        isLoading: false,
-        error: null,
-        fetchWebSDRs: vi.fn(),
-        checkHealth: vi.fn(),
-    }),
-    useSessionStore: () => ({
-        sessions: [],
-        isLoading: false,
-        error: null,
-        fetchSessions: vi.fn(),
-    }),
+    data: {
+      websdrs: [],
+      websdrsHealth: {},
+      modelInfo: null,
+      servicesHealth: {},
+    },
+    isLoading: false,
+    error: null,
+    lastUpdate: new Date(),
+    wsManager: null,
+    wsConnectionState: 'Disconnected',
+    wsEnabled: true,
+    retryCount: 0,
+    retryDelay: 1000,
+    fetchDashboardData: vi.fn(),
+    resetRetry: vi.fn(),
+    incrementRetry: vi.fn(),
+    connectWebSocket: vi.fn(),
+    disconnectWebSocket: vi.fn(),
+    setWebSocketState: vi.fn(),
+  }),
+  useWebSDRStore: () => ({
+    websdrs: [],
+    healthStatus: {},
+    isLoading: false,
+    error: null,
+    fetchWebSDRs: vi.fn(),
+    checkHealth: vi.fn(),
+  }),
+  useSessionStore: () => ({
+    sessions: [],
+    isLoading: false,
+    error: null,
+    fetchSessions: vi.fn(),
+  }),
 }));
 
 // Pages to test
@@ -66,119 +66,119 @@ import DataIngestion from '../pages/DataIngestion';
 
 // Mock matchMedia for responsive tests
 const createMatchMedia = () => {
-    return (query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: () => { },
-        removeListener: () => { },
-        addEventListener: () => { },
-        removeEventListener: () => { },
-        dispatchEvent: () => true,
-    });
+  return (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => true,
+  });
 };
 
 describe('Phase 7: Responsive Design Validation', () => {
-    const viewports = {
-        mobile: { width: 375, height: 667, name: 'Mobile (iPhone SE)' },
-        tablet: { width: 768, height: 1024, name: 'Tablet (iPad)' },
-        desktop: { width: 1920, height: 1080, name: 'Desktop (Full HD)' },
-    };
+  const viewports = {
+    mobile: { width: 375, height: 667, name: 'Mobile (iPhone SE)' },
+    tablet: { width: 768, height: 1024, name: 'Tablet (iPad)' },
+    desktop: { width: 1920, height: 1080, name: 'Desktop (Full HD)' },
+  };
 
-    Object.entries(viewports).forEach(([, viewport]) => {
-        describe(`${viewport.name} (${viewport.width}x${viewport.height})`, () => {
-            beforeEach(() => {
-                // Mock window.matchMedia for responsive tests
-                window.matchMedia = createMatchMedia();
+  Object.entries(viewports).forEach(([, viewport]) => {
+    describe(`${viewport.name} (${viewport.width}x${viewport.height})`, () => {
+      beforeEach(() => {
+        // Mock window.matchMedia for responsive tests
+        window.matchMedia = createMatchMedia();
 
-                // Mock window dimensions
-                Object.defineProperty(window, 'innerWidth', {
-                    writable: true,
-                    configurable: true,
-                    value: viewport.width,
-                });
-                Object.defineProperty(window, 'innerHeight', {
-                    writable: true,
-                    configurable: true,
-                    value: viewport.height,
-                });
-            });
-
-            it('Dashboard should render without errors', () => {
-                const { container } = render(
-                    <BrowserRouter>
-                        <Dashboard />
-                    </BrowserRouter>
-                );
-                expect(container).toBeTruthy();
-            });
-
-            it('WebSDR Management page should render without errors', () => {
-                const { container } = render(
-                    <BrowserRouter>
-                        <WebSDRManagement />
-                    </BrowserRouter>
-                );
-                expect(container).toBeTruthy();
-            });
-
-            it('Data Ingestion page should render without errors', () => {
-                const { container } = render(
-                    <BrowserRouter>
-                        <DataIngestion />
-                    </BrowserRouter>
-                );
-                expect(container).toBeTruthy();
-            });
+        // Mock window dimensions
+        Object.defineProperty(window, 'innerWidth', {
+          writable: true,
+          configurable: true,
+          value: viewport.width,
         });
+        Object.defineProperty(window, 'innerHeight', {
+          writable: true,
+          configurable: true,
+          value: viewport.height,
+        });
+      });
+
+      it('Dashboard should render without errors', () => {
+        const { container } = render(
+          <BrowserRouter>
+            <Dashboard />
+          </BrowserRouter>
+        );
+        expect(container).toBeTruthy();
+      });
+
+      it('WebSDR Management page should render without errors', () => {
+        const { container } = render(
+          <BrowserRouter>
+            <WebSDRManagement />
+          </BrowserRouter>
+        );
+        expect(container).toBeTruthy();
+      });
+
+      it('Data Ingestion page should render without errors', () => {
+        const { container } = render(
+          <BrowserRouter>
+            <DataIngestion />
+          </BrowserRouter>
+        );
+        expect(container).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Bootstrap Responsive Classes', () => {
+    it('should use Bootstrap grid classes correctly', () => {
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
+
+      // Check for responsive content - pages use different class structures
+      const content = document.body;
+      expect(content).toBeTruthy();
     });
 
-    describe('Bootstrap Responsive Classes', () => {
-        it('should use Bootstrap grid classes correctly', () => {
-            render(
-                <BrowserRouter>
-                    <Dashboard />
-                </BrowserRouter>
-            );
+    it('should have responsive cards', () => {
+      render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
 
-            // Check for responsive content - pages use different class structures
-            const content = document.body;
-            expect(content).toBeTruthy();
-        });
+      // Check for card components (may use different class names)
+      const content = document.body;
+      expect(content).toBeTruthy();
+    });
+  });
 
-        it('should have responsive cards', () => {
-            render(
-                <BrowserRouter>
-                    <Dashboard />
-                </BrowserRouter>
-            );
-
-            // Check for card components (may use different class names)
-            const content = document.body;
-            expect(content).toBeTruthy();
-        });
+  describe('Mobile-Specific Features', () => {
+    beforeEach(() => {
+      window.matchMedia = createMatchMedia(375);
+      Object.defineProperty(window, 'innerWidth', {
+        writable: true,
+        configurable: true,
+        value: 375,
+      });
     });
 
-    describe('Mobile-Specific Features', () => {
-        beforeEach(() => {
-            window.matchMedia = createMatchMedia(375);
-            Object.defineProperty(window, 'innerWidth', {
-                writable: true,
-                configurable: true,
-                value: 375,
-            });
-        });
+    it('should handle touch interactions', () => {
+      const { container } = render(
+        <BrowserRouter>
+          <Dashboard />
+        </BrowserRouter>
+      );
 
-        it('should handle touch interactions', () => {
-            const { container } = render(
-                <BrowserRouter>
-                    <Dashboard />
-                </BrowserRouter>
-            );
-
-            // Check that buttons and interactive elements exist
-            const buttons = container.querySelectorAll('button');
-            expect(buttons.length).toBeGreaterThan(0);
-        });
+      // Check that buttons and interactive elements exist
+      const buttons = container.querySelectorAll('button');
+      expect(buttons.length).toBeGreaterThan(0);
     });
+  });
 });
