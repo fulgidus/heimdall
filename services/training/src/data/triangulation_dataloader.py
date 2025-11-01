@@ -297,6 +297,9 @@ class TriangulationMetrics:
         Returns:
             Dict with expected_errors and actual_errors lists
         """
+        # Import constant
+        from ..models.triangulator import DEGREES_TO_KM
+        
         # Calculate actual errors
         predicted_lat = predicted_positions[:, 0]
         predicted_lon = predicted_positions[:, 1]
@@ -309,7 +312,7 @@ class TriangulationMetrics:
         
         # Calculate predicted uncertainty (in km)
         variances = torch.exp(log_variances).squeeze()
-        predicted_std_km = torch.sqrt(variances) * 111.0  # Rough conversion: 1° ≈ 111 km
+        predicted_std_km = torch.sqrt(variances) * DEGREES_TO_KM  # Approximate conversion
         
         # Sort by predicted uncertainty
         sorted_indices = torch.argsort(predicted_std_km)

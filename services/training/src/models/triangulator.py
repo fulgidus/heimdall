@@ -19,6 +19,10 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
+# Constants
+MAX_RECEIVERS = 7  # Maximum number of WebSDR receivers in the network
+DEGREES_TO_KM = 111.0  # Approximate conversion (1 degree latitude ≈ 111 km)
+
 
 class ReceiverEncoder(nn.Module):
     """
@@ -167,7 +171,7 @@ class AttentionAggregator(nn.Module):
         
         # Concatenate: [mean, max, std_repeated, num_valid_normalized]
         std_expanded = attn_std.unsqueeze(-1).expand(-1, mean_features.size(1))  # (batch_size, embed_dim)
-        num_valid_normalized = (num_valid / 7.0).expand(-1, mean_features.size(1))  # (batch_size, embed_dim) - 7 is max receivers
+        num_valid_normalized = (num_valid / MAX_RECEIVERS).expand(-1, mean_features.size(1))  # (batch_size, embed_dim)
         
         aggregated = torch.cat([mean_features, max_features, std_expanded, num_valid_normalized], dim=1)  # (batch_size, embed_dim * 4)
         

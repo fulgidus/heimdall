@@ -492,8 +492,9 @@ async def generate_synthetic_data(request: Any):
         
         logger.info(f"Created synthetic data generation job {job_id}")
         
-        # Queue Celery task (placeholder - task implementation comes next)
-        # task = generate_synthetic_data_task.delay(str(job_id))
+        # Queue Celery task
+        from ..tasks.training_task import generate_synthetic_data_task
+        task = generate_synthetic_data_task.delay(str(job_id))
         
         return {
             "job_id": job_id,

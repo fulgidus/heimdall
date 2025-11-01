@@ -255,7 +255,7 @@ class SyntheticDataGenerator:
             return 'test'
 
 
-async def save_samples_to_db(samples: List[SyntheticSample], dataset_id: uuid.UUID, db_session) -> int:
+def save_samples_to_db(samples: List[SyntheticSample], dataset_id: uuid.UUID, db_session) -> int:
     """
     Save synthetic samples to database.
     

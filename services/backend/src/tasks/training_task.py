@@ -236,7 +236,7 @@ def generate_synthetic_data_task(self, job_id: str):
         
         # Save samples to database
         with db_manager.get_session() as session:
-            num_saved = await save_samples_to_db(samples, dataset_id, session)
+            num_saved = save_samples_to_db(samples, dataset_id, session)
             logger.info(f"Saved {num_saved} samples to database")
         
         # Update job as completed
