@@ -51,6 +51,23 @@ CREATE TABLE IF NOT EXISTS known_sources (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Table: recording_sessions (must be created before measurements due to FK)
+CREATE TABLE IF NOT EXISTS recording_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    known_source_id UUID REFERENCES known_sources(id) ON DELETE CASCADE,
+    session_name VARCHAR(255) NOT NULL,
+    session_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    session_end TIMESTAMP WITH TIME ZONE,
+    duration_seconds FLOAT,
+    celery_task_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',
+    approval_status VARCHAR(50) DEFAULT 'pending',
+    uncertainty_meters FLOAT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Table: measurements (will become hypertable)
 CREATE TABLE IF NOT EXISTS measurements (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -86,23 +103,6 @@ CREATE INDEX IF NOT EXISTS idx_measurements_recording_session ON measurements(re
 CREATE INDEX IF NOT EXISTS idx_measurements_frequency ON measurements(frequency_hz, timestamp DESC);
 
 CREATE INDEX IF NOT EXISTS idx_measurements_time ON measurements(timestamp DESC);
-
--- Table: recording_sessions
-CREATE TABLE IF NOT EXISTS recording_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    known_source_id UUID REFERENCES known_sources(id) ON DELETE CASCADE,
-    session_name VARCHAR(255) NOT NULL,
-    session_start TIMESTAMP WITH TIME ZONE NOT NULL,
-    session_end TIMESTAMP WITH TIME ZONE,
-    duration_seconds FLOAT,
-    celery_task_id VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'pending',
-    approval_status VARCHAR(50) DEFAULT 'pending',
-    uncertainty_meters FLOAT,
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 -- Table: training_datasets
 CREATE TABLE IF NOT EXISTS training_datasets (
@@ -191,7 +191,7 @@ SELECT
     create_hypertable(
         'websdrs_uptime_history',
         'timestamp',
-        if_not_exists = > TRUE
+        if_not_exists => TRUE
     );
 
 CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(websdr_id, timestamp DESC);

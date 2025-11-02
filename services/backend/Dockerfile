@@ -7,11 +7,12 @@ RUN apt-get update && apt-get install -y gcc postgresql-client ca-certificates
 # Copy centralized requirements and service-specific requirements
 COPY services/requirements/ ./requirements/
 COPY services/backend/requirements.txt .
+COPY services/common/auth/requirements.txt ./auth_requirements.txt
 
 # Using locked versions for reproducibility
-# Resolve all requirements by combining base + api + data + service-specific
+# Resolve all requirements by combining base + api + data + auth + service-specific
 RUN pip install --upgrade pip && \
-    { cat requirements/base.txt requirements/api.txt requirements/data.txt; \
+    { cat requirements/base.txt requirements/api.txt requirements/data.txt auth_requirements.txt; \
     grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
     grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \

@@ -2,24 +2,211 @@
 Synthetic training data generator for RF source localization.
 
 Generates realistic synthetic training samples using:
+- IQ sample generation with realistic RF effects
+- Feature extraction from IQ samples
 - Random transmitter placement (70% inside network, 30% outside)
 - RF propagation simulation per receiver
 - Quality filtering (GDOP, SNR thresholds)
-- Train/val/test splitting
+- Multiprocessing for parallel generation
 """
 
 import uuid
+import io
+import json
 import numpy as np
 import structlog
+import multiprocessing as mp
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
 from .terrain import TerrainLookup
+from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
+
+# Import from common module (PYTHONPATH=/app in Dockerfile)
+from common.feature_extraction import RFFeatureExtractor, IQSample
 
 logger = structlog.get_logger(__name__)
+
+
+def _generate_single_sample(args):
+    """
+    Generate a single synthetic sample (for multiprocessing).
+
+    This function must be at module level for pickle serialization.
+
+    Args:
+        args: Tuple of (sample_index, receivers_config, training_config, config, seed)
+
+    Returns:
+        Tuple of (sample_idx, receiver_features, extraction_metadata, quality_metrics, iq_samples_dict, tx_position)
+    """
+    sample_idx, receivers_list, training_config_dict, config, base_seed = args
+
+    # Create unique seed for this sample
+    sample_seed = base_seed + sample_idx if base_seed else None
+    rng = np.random.default_rng(sample_seed)
+
+    # Initialize generators
+    iq_generator = SyntheticIQGenerator(
+        sample_rate_hz=200_000,  # 200 kHz
+        duration_ms=1000.0,       # 1 second
+        seed=sample_seed
+    )
+    feature_extractor = RFFeatureExtractor(sample_rate_hz=200_000)
+    propagation = RFPropagationModel()
+
+    # Extract config parameters
+    frequency_mhz = config.get('frequency_mhz', 145.0)
+    tx_power_dbm = config.get('tx_power_dbm', 37.0)
+    inside_ratio = config.get('inside_ratio', 0.7)
+    min_snr_db = config.get('min_snr_db', 3.0)
+
+    # Generate random TX position
+    # Reconstruct bounding boxes from config dict
+    if rng.random() < inside_ratio:
+        # Inside receiver network
+        lat_min = training_config_dict['receiver_bbox']['lat_min']
+        lat_max = training_config_dict['receiver_bbox']['lat_max']
+        lon_min = training_config_dict['receiver_bbox']['lon_min']
+        lon_max = training_config_dict['receiver_bbox']['lon_max']
+    else:
+        # Training area (larger)
+        lat_min = training_config_dict['training_bbox']['lat_min']
+        lat_max = training_config_dict['training_bbox']['lat_max']
+        lon_min = training_config_dict['training_bbox']['lon_min']
+        lon_max = training_config_dict['training_bbox']['lon_max']
+
+    tx_lat = rng.uniform(lat_min, lat_max)
+    tx_lon = rng.uniform(lon_min, lon_max)
+    tx_alt = 300.0  # Simplified altitude (meters ASL)
+
+    # Generate IQ samples for each receiver
+    iq_samples = {}
+    receiver_features_list = []
+    receivers_with_signal = 0
+
+    for receiver in receivers_list:
+        rx_id = receiver['name']
+        rx_lat = receiver['latitude']
+        rx_lon = receiver['longitude']
+        rx_alt = receiver['altitude']
+
+        # Calculate received power and SNR using propagation model
+        rx_power_dbm, snr_db, details = propagation.calculate_received_power(
+            tx_power_dbm=tx_power_dbm,
+            tx_lat=tx_lat,
+            tx_lon=tx_lon,
+            tx_alt=tx_alt,
+            rx_lat=rx_lat,
+            rx_lon=rx_lon,
+            rx_alt=rx_alt,
+            frequency_mhz=frequency_mhz,
+            terrain_lookup=None
+        )
+
+        # Check if signal is detectable
+        signal_present = snr_db >= min_snr_db
+        if signal_present:
+            receivers_with_signal += 1
+
+        # Generate IQ sample
+        noise_floor_dbm = -120.0
+        frequency_offset_hz = rng.uniform(-50, 50)  # Doppler/oscillator drift
+        
+        iq_sample = iq_generator.generate_iq_sample(
+            center_frequency_hz=frequency_mhz * 1e6,
+            signal_power_dbm=rx_power_dbm,
+            noise_floor_dbm=noise_floor_dbm,
+            snr_db=snr_db,
+            frequency_offset_hz=frequency_offset_hz,
+            bandwidth_hz=12500.0,  # FM signal bandwidth
+            rx_id=rx_id,
+            rx_lat=rx_lat,
+            rx_lon=rx_lon,
+            timestamp=float(sample_idx)
+        )
+
+        # Store IQ sample (for first 100 samples only)
+        if sample_idx < 100:
+            iq_samples[rx_id] = iq_sample
+
+        # Convert SyntheticIQSample to IQSample for feature extraction
+        iq_sample_for_extraction = IQSample(
+            samples=iq_sample.samples,
+            sample_rate_hz=int(iq_sample.sample_rate_hz),
+            center_frequency_hz=int(iq_sample.center_frequency_hz),
+            rx_id=iq_sample.rx_id,
+            rx_lat=iq_sample.rx_lat,
+            rx_lon=iq_sample.rx_lon,
+            timestamp=iq_sample.to_datetime()
+        )
+
+        # Extract features (chunked: 1000ms → 5×200ms with aggregation)
+        features_dict = feature_extractor.extract_features_chunked(
+            iq_sample_for_extraction,
+            chunk_duration_ms=200.0,
+            num_chunks=5
+        )
+
+        # Add receiver metadata to features
+        features_dict['rx_id'] = rx_id
+        features_dict['rx_lat'] = rx_lat
+        features_dict['rx_lon'] = rx_lon
+        features_dict['distance_km'] = details['distance_km']
+        
+        # Add signal_present flag (use mean of signal_present aggregation)
+        signal_present_flag = features_dict.get('signal_present', {}).get('mean', 0.0) > 0.5
+        features_dict['signal_present'] = signal_present_flag
+
+        receiver_features_list.append(features_dict)
+
+    # Calculate overall quality metrics
+    snr_values = [f['snr_db']['mean'] for f in receiver_features_list if f.get('signal_present')]
+    mean_snr_db = float(np.mean(snr_values)) if snr_values else 0.0
+
+    # Calculate overall confidence (weighted average)
+    confidence_scores = [f.get('delay_spread_confidence', {}).get('mean', 0.8)
+                        for f in receiver_features_list if f.get('signal_present')]
+    overall_confidence = float(np.mean(confidence_scores)) if confidence_scores else 0.0
+
+    # Calculate GDOP
+    receiver_positions = [
+        (f['rx_lat'], f['rx_lon'])
+        for f in receiver_features_list
+        if f.get('signal_present')
+    ]
+    gdop = calculate_gdop(receiver_positions, (tx_lat, tx_lon)) if len(receiver_positions) >= 3 else 999.0
+
+    extraction_metadata = {
+        'extraction_method': 'synthetic',
+        'iq_duration_ms': 1000.0,
+        'sample_rate_hz': 200_000,
+        'num_chunks': 5,
+        'chunk_duration_ms': 200.0,
+        'generated_at': sample_idx,
+        'frequency_mhz': frequency_mhz,
+        'tx_power_dbm': tx_power_dbm
+    }
+
+    quality_metrics = {
+        'overall_confidence': overall_confidence,
+        'mean_snr_db': mean_snr_db,
+        'num_receivers_detected': receivers_with_signal,
+        'gdop': gdop
+    }
+
+    tx_position = {
+        'tx_lat': tx_lat,
+        'tx_lon': tx_lon,
+        'tx_alt': tx_alt,
+        'tx_power_dbm': tx_power_dbm
+    }
+
+    return (sample_idx, receiver_features_list, extraction_metadata, quality_metrics, iq_samples, tx_position)
 
 
 @dataclass
@@ -362,3 +549,253 @@ def calculate_quality_metrics(samples: List[SyntheticSample]) -> dict:
     }
     
     return metrics
+
+
+async def generate_synthetic_data_with_iq(
+    dataset_id: uuid.UUID,
+    num_samples: int,
+    receivers_config: list,
+    training_config: TrainingConfig,
+    config: dict,
+    conn,
+    progress_callback=None,
+    seed: Optional[int] = None
+) -> dict:
+    """
+    Generate synthetic training data with IQ samples and feature extraction.
+
+    Args:
+        dataset_id: Dataset UUID
+        num_samples: Number of samples to generate
+        receivers_config: List of receiver configurations
+        training_config: Training configuration with bounding boxes
+        config: Generation parameters (frequency, power, SNR thresholds, etc.)
+        conn: Database connection (async)
+        progress_callback: Optional callback for progress updates
+        seed: Random seed for reproducibility
+
+    Returns:
+        dict with generation statistics
+    """
+    logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples")
+
+    # Extract generation parameters
+    min_snr_db = config.get('min_snr_db', 3.0)
+    min_receivers = config.get('min_receivers', 3)
+    max_gdop = config.get('max_gdop', 10.0)
+
+    # Determine number of workers (up to 24)
+    num_workers = min(24, mp.cpu_count())
+    logger.info(f"Using {num_workers} worker processes for parallel generation")
+
+    # Convert training config to dict for serialization
+    training_config_dict = {
+        'receiver_bbox': {
+            'lat_min': training_config.receiver_bbox.lat_min,
+            'lat_max': training_config.receiver_bbox.lat_max,
+            'lon_min': training_config.receiver_bbox.lon_min,
+            'lon_max': training_config.receiver_bbox.lon_max
+        },
+        'training_bbox': {
+            'lat_min': training_config.training_bbox.lat_min,
+            'lat_max': training_config.training_bbox.lat_max,
+            'lon_min': training_config.training_bbox.lon_min,
+            'lon_max': training_config.training_bbox.lon_max
+        }
+    }
+
+    # Convert receivers to simple dicts
+    receivers_list = [
+        {
+            'name': r.name,
+            'latitude': r.latitude,
+            'longitude': r.longitude,
+            'altitude': r.altitude
+        }
+        for r in receivers_config
+    ]
+
+    # Prepare arguments for parallel processing
+    args_list = [
+        (i, receivers_list, training_config_dict, config, seed)
+        for i in range(num_samples)
+    ]
+
+    # Generate samples in parallel
+    generated_samples = []
+    iq_samples_to_save = {}  # First 100 IQ samples
+
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = {executor.submit(_generate_single_sample, args): args[0]
+                  for args in args_list}
+
+        completed = 0
+
+        for future in as_completed(futures):
+            sample_idx = futures[future]
+
+            try:
+                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position = future.result()
+
+                # Validation checks
+                if quality_metrics['num_receivers_detected'] < min_receivers:
+                    logger.debug(f"Sample {sample_idx}: rejected (receivers={quality_metrics['num_receivers_detected']} < {min_receivers})")
+                    continue
+
+                if quality_metrics['mean_snr_db'] < min_snr_db:
+                    logger.debug(f"Sample {sample_idx}: rejected (SNR={quality_metrics['mean_snr_db']:.1f} < {min_snr_db})")
+                    continue
+
+                if quality_metrics['gdop'] > max_gdop:
+                    logger.debug(f"Sample {sample_idx}: rejected (GDOP={quality_metrics['gdop']:.1f} > {max_gdop})")
+                    continue
+
+                # Store sample
+                generated_samples.append({
+                    'sample_idx': sample_idx_ret,
+                    'receiver_features': receiver_features,
+                    'extraction_metadata': extraction_metadata,
+                    'quality_metrics': quality_metrics,
+                    'tx_position': tx_position
+                })
+
+                # Store IQ samples (first 100 only)
+                if sample_idx < 100 and iq_samples:
+                    iq_samples_to_save[sample_idx] = iq_samples
+
+                completed += 1
+
+                # Progress update
+                if progress_callback and completed % 100 == 0:
+                    await progress_callback(completed, num_samples)
+                    logger.info(f"Progress: {completed}/{num_samples} samples generated")
+
+            except Exception as e:
+                logger.error(f"Error generating sample {sample_idx}: {e}")
+                continue
+
+    logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
+
+    # Save features to database
+    await save_features_to_db(dataset_id, generated_samples, conn)
+
+    # Save IQ samples to MinIO (first 100 only)
+    if iq_samples_to_save:
+        await save_iq_to_minio(dataset_id, iq_samples_to_save)
+
+    return {
+        'total_generated': len(generated_samples),
+        'total_attempted': num_samples,
+        'success_rate': len(generated_samples) / num_samples if num_samples > 0 else 0,
+        'iq_samples_saved': len(iq_samples_to_save)
+    }
+
+
+async def save_features_to_db(
+    dataset_id: uuid.UUID,
+    samples: list[dict],
+    conn
+) -> None:
+    """
+    Save extracted features to measurement_features table.
+
+    Args:
+        dataset_id: Dataset UUID
+        samples: List of sample dicts with receiver_features, metadata, quality_metrics
+        conn: Database connection (async)
+    """
+    from sqlalchemy import text
+    
+    logger.info(f"Saving {len(samples)} feature samples to database")
+    
+    insert_features_query = text("""
+        INSERT INTO heimdall.measurement_features (
+            recording_session_id, timestamp, receiver_features, tx_latitude,
+            tx_longitude, tx_altitude_m, tx_power_dbm, tx_known,
+            extraction_metadata, overall_confidence, mean_snr_db,
+            num_receivers_detected, gdop, extraction_failed, created_at
+        )
+        VALUES (
+            :recording_session_id, NOW(), CAST(:receiver_features AS jsonb[]),
+            :tx_latitude, :tx_longitude, :tx_altitude_m, :tx_power_dbm, TRUE,
+            CAST(:extraction_metadata AS jsonb), :overall_confidence,
+            :mean_snr_db, :num_receivers_detected, :gdop, FALSE, NOW()
+        )
+    """)
+
+    for sample in samples:
+        # Generate unique recording_session_id for synthetic sample
+        recording_session_id = uuid.uuid4()
+
+        # Convert receiver features list to PostgreSQL array of JSONB
+        receiver_features_json_list = [
+            json.dumps(rf) for rf in sample['receiver_features']
+        ]
+
+        # Insert features
+        await conn.execute(
+            insert_features_query,
+            {
+                'recording_session_id': str(recording_session_id),
+                'receiver_features': f'{{{",".join(receiver_features_json_list)}}}',  # PostgreSQL array syntax
+                'tx_latitude': sample['tx_position']['tx_lat'],
+                'tx_longitude': sample['tx_position']['tx_lon'],
+                'tx_altitude_m': sample['tx_position']['tx_alt'],
+                'tx_power_dbm': sample['tx_position']['tx_power_dbm'],
+                'extraction_metadata': json.dumps(sample['extraction_metadata']),
+                'overall_confidence': sample['quality_metrics']['overall_confidence'],
+                'mean_snr_db': sample['quality_metrics']['mean_snr_db'],
+                'num_receivers_detected': sample['quality_metrics']['num_receivers_detected'],
+                'gdop': sample['quality_metrics']['gdop']
+            }
+        )
+
+    logger.info(f"Saved {len(samples)} feature samples to database")
+
+
+async def save_iq_to_minio(
+    dataset_id: uuid.UUID,
+    iq_samples_dict: dict[int, dict[str, SyntheticIQSample]]
+) -> None:
+    """
+    Save IQ samples to MinIO.
+
+    Args:
+        dataset_id: Dataset UUID
+        iq_samples_dict: Dict mapping sample_idx to dict of {rx_id: SyntheticIQSample}
+    """
+    # Import MinIO client
+    import sys
+    sys.path.insert(0, '/app/backend/src')
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
+
+    minio_client = MinIOClient(
+        endpoint_url=backend_settings.minio_url,
+        access_key=backend_settings.minio_access_key,
+        secret_key=backend_settings.minio_secret_key,
+        bucket_name="heimdall-synthetic-iq"
+    )
+    
+    # Ensure bucket exists
+    minio_client.ensure_bucket_exists()
+
+    logger.info(f"Saving {len(iq_samples_dict)} IQ samples to MinIO")
+
+    for sample_idx, receivers_iq in iq_samples_dict.items():
+        for rx_id, iq_sample in receivers_iq.items():
+            # Binary format: complex64 array
+            buffer = io.BytesIO()
+            np.save(buffer, iq_sample.samples)
+            buffer.seek(0)
+
+            object_name = f"synthetic/{dataset_id}/{sample_idx}/{rx_id}.npy"
+
+            minio_client.s3_client.put_object(
+                Bucket="heimdall-synthetic-iq",
+                Key=object_name,
+                Body=buffer.getvalue(),
+                ContentType='application/octet-stream'
+            )
+
+    logger.info(f"Saved {len(iq_samples_dict)} IQ samples to MinIO bucket 'heimdall-synthetic-iq'")

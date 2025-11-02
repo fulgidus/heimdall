@@ -21,6 +21,7 @@ from .config import settings
 from .db import close_pool, init_pool
 from .models.health import HealthResponse
 from .routers.acquisition import router as acquisition_router
+from .routers.admin import router as admin_router
 from .routers.health import router as health_router
 from .routers.import_export import router as import_export_router
 from .routers.sessions import router as sessions_router
@@ -82,6 +83,14 @@ celery_app.conf.beat_schedule = {
     "monitor-services-health": {
         "task": "monitor_services_health",
         "schedule": 30.0,  # Every 30 seconds
+    },
+    "batch-feature-extraction": {
+        "task": "backend.tasks.batch_feature_extraction",
+        "schedule": 300.0,  # Every 5 minutes
+        "kwargs": {
+            "batch_size": 50,
+            "max_batches": 5  # Max 250 recordings per run
+        }
     },
 }
 
@@ -204,6 +213,7 @@ async def shutdown_event():
 
 # Include routers
 app.include_router(acquisition_router)
+app.include_router(admin_router)
 app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
