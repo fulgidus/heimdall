@@ -7,3 +7,4 @@ export { useSystemStore } from './systemStore';
 export { useSessionStore } from './sessionStore';
 export { useLocalizationStore } from './localizationStore';
 export { useAnalyticsStore } from './analyticsStore';
+export { useSettingsStore } from './settingsStore';

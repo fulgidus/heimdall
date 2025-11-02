@@ -47,7 +47,7 @@ const Settings: React.FC = () => {
       await updateSettings(formData);
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
+    } catch (_err) {
       // Error is already set in the store
     }
   };
@@ -60,7 +60,7 @@ const Settings: React.FC = () => {
         await resetSettings();
         setSuccessMessage('Settings reset to defaults!');
         setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
+      } catch (_err) {
         // Error is already set in the store
       }
     }
@@ -419,8 +419,8 @@ const Settings: React.FC = () => {
                         className="form-check-input"
                         type="checkbox"
                         id="debugMode"
-                        checked={settings.debugMode}
-                        onChange={e => setSettings({ ...settings, debugMode: e.target.checked })}
+                        checked={formData.debug_mode ?? false}
+                        onChange={e => setFormData({ ...formData, debug_mode: e.target.checked })}
                       />
                       <label className="form-check-label" htmlFor="debugMode">
                         Enable Debug Mode
@@ -457,7 +457,11 @@ const Settings: React.FC = () => {
                       </>
                     )}
                   </button>
-                  <button className="btn btn-outline-secondary ms-2">
+                  <button 
+                    className="btn btn-outline-secondary ms-2"
+                    onClick={handleReset}
+                    disabled={isSaving}
+                  >
                     <i className="ph ph-arrow-counter-clockwise me-2"></i>
                     Reset to Defaults
                   </button>

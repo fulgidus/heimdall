@@ -4,7 +4,8 @@
  */
 
 import { create } from 'zustand';
-import { getUserSettings, updateUserSettings, resetUserSettings, UserSettings, UserSettingsUpdate } from '../services/api/settings';
+import { getUserSettings, updateUserSettings, resetUserSettings } from '../services/api/settings';
+import type { UserSettings, UserSettingsUpdate } from '../services/api/settings';
 
 interface SettingsStore {
   settings: UserSettings | null;
