@@ -9,6 +9,14 @@ Tasks:
 """
 
 import uuid
+import json
+import sys
+import os
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from io import BytesIO
+
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
 
@@ -49,14 +57,6 @@ def start_training_job(self, job_id: str):
     from ..storage.minio_client import MinIOClient
     from ..config import settings
     from sqlalchemy import text
-    import json
-    import sys
-    import os
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from io import BytesIO
-    import uuid as uuid_lib
     
     logger.info(f"Starting training job {job_id}")
     
@@ -112,30 +112,32 @@ def start_training_job(self, job_id: str):
         device = torch.device("cuda" if torch.cuda.is_available() and config.get("accelerator", "cpu") == "gpu" else "cpu")
         logger.info(f"Using device: {device}")
         
-        # Create dataloaders with separate sessions for each
+        # Create dataloaders with proper context managers
         logger.info("Creating train dataloader...")
         train_session = db_manager.get_session()
-        train_loader = create_triangulation_dataloader(
-            dataset_id=dataset_id,
-            split="train",
-            db_session=train_session.__enter__(),
-            batch_size=batch_size,
-            num_workers=0,  # Avoid multiprocessing issues with DB connections
-            shuffle=True,
-            max_receivers=7
-        )
+        with train_session:
+            train_loader = create_triangulation_dataloader(
+                dataset_id=dataset_id,
+                split="train",
+                db_session=train_session,
+                batch_size=batch_size,
+                num_workers=0,  # Avoid multiprocessing issues with DB connections
+                shuffle=True,
+                max_receivers=7
+            )
         
         logger.info("Creating validation dataloader...")
         val_session = db_manager.get_session()
-        val_loader = create_triangulation_dataloader(
-            dataset_id=dataset_id,
-            split="val",
-            db_session=val_session.__enter__(),
-            batch_size=batch_size,
-            num_workers=0,
-            shuffle=False,
-            max_receivers=7
-        )
+        with val_session:
+            val_loader = create_triangulation_dataloader(
+                dataset_id=dataset_id,
+                split="val",
+                db_session=val_session,
+                batch_size=batch_size,
+                num_workers=0,
+                shuffle=False,
+                max_receivers=7
+            )
         
         # Update dataset info in job
         train_samples = len(train_loader.dataset)
@@ -436,7 +438,7 @@ def start_training_job(self, job_id: str):
         )
         
         # Save model metadata to models table
-        model_id = uuid_lib.uuid4()
+        model_id = uuid.uuid4()
         with db_manager.get_session() as session:
             session.execute(
                 text("""
@@ -467,10 +469,6 @@ def start_training_job(self, job_id: str):
                 }
             )
             session.commit()
-        
-        # Clean up dataloader sessions
-        train_session.__exit__(None, None, None)
-        val_session.__exit__(None, None, None)
         
         # Update job as completed
         with db_manager.get_session() as session:

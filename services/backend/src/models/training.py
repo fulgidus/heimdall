@@ -39,7 +39,7 @@ class TrainingConfig(BaseModel):
     """Training configuration parameters."""
 
     # Dataset
-    dataset_id: Optional[str] = Field(default=None, description="Synthetic dataset UUID to train on")
+    dataset_id: str = Field(..., description="Synthetic dataset UUID to train on (required)")
 
     # Model architecture
     model_architecture: str = Field(default="triangulation", description="Model architecture")
