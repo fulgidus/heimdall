@@ -228,42 +228,34 @@ def monitor_websdrs_uptime(self):
             session.commit()
 
         logger.info(f"Uptime monitoring complete: {records_inserted} records inserted")
-        
-        # Broadcast health status via WebSocket (if available)
+
+        # Publish health status to RabbitMQ for WebSocket broadcasting
         try:
-            # Import here to avoid circular dependency
-            from ..routers.websocket import manager as ws_manager
-            
-            if ws_manager.active_connections:
-                # Build health status message
-                health_data = {}
-                for ws_config in websdrs:
-                    ws_id = ws_config["id"]
-                    ws_name = ws_config["name"]
-                    is_online = health_results.get(ws_id, False)
-                    
-                    # Use UUID as key if available (for frontend compatibility)
-                    # For now, use string ID as key
-                    health_data[str(ws_id)] = {
-                        "websdr_id": str(ws_id),
-                        "name": ws_name,
-                        "status": "online" if is_online else "offline",
-                        "last_check": datetime.utcnow().isoformat(),
-                    }
-                
-                # Broadcast asynchronously
-                async def broadcast_health():
-                    await ws_manager.broadcast({
-                        "event": "websdrs:health",
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "data": {"health_status": health_data},
-                    })
-                
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(broadcast_health())
-                logger.debug(f"Broadcasted health update to {len(ws_manager.active_connections)} WebSocket clients")
-        except Exception as ws_error:
-            logger.warning(f"Failed to broadcast health update via WebSocket: {ws_error}")
+            from ..events.publisher import get_event_publisher
+
+            # Build health status message
+            health_data = {}
+            for ws_config in websdrs:
+                ws_id = ws_config["id"]
+                ws_name = ws_config["name"]
+                is_online = health_results.get(ws_id, False)
+
+                # Use string ID as key for frontend compatibility
+                health_data[str(ws_id)] = {
+                    "websdr_id": str(ws_id),
+                    "name": ws_name,
+                    "status": "online" if is_online else "offline",
+                    "last_check": datetime.utcnow().isoformat(),
+                }
+
+            # Publish to RabbitMQ (non-blocking, fire-and-forget)
+            publisher = get_event_publisher()
+            publisher.publish_websdr_health(health_data)
+            logger.debug(f"Published WebSDR health update to RabbitMQ for {len(health_data)} stations")
+
+        except Exception as publish_error:
+            # Don't fail the task if event publishing fails
+            logger.warning(f"Failed to publish health update to RabbitMQ: {publish_error}")
 
         return {
             "status": "success",

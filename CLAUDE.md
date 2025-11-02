@@ -64,7 +64,53 @@ WebSDR Sources
 **Exchange & Queue Topology**:
 - `heimdall.signals` (topic exchange): Signal data flow
 - `heimdall.ml` (direct exchange): Training/inference tasks
+- `heimdall.events` (topic exchange): Real-time event broadcasting for WebSocket updates
 - Routing keys include station_id and severity for fine-grained filtering
+
+#### Real-Time Event Broadcasting Pattern
+
+**Problem**: Celery tasks running in worker processes cannot directly call async WebSocket broadcast methods in FastAPI due to different event loops, causing `RuntimeError: This event loop is already running` or silent failures.
+
+**Solution**: Use RabbitMQ as an event bus between Celery workers and FastAPI WebSocket manager:
+
+```
+Celery Task (Sync)
+    ↓
+EventPublisher → RabbitMQ (heimdall.events exchange)
+    ↓
+RabbitMQEventConsumer (FastAPI startup)
+    ↓
+WebSocket Manager → Connected Clients
+```
+
+**Implementation**:
+- **Publisher** (`services/backend/src/events/publisher.py`): Singleton `EventPublisher` class with methods for different event types (WebSDR health, service health, signal detection, etc.)
+- **Consumer** (`services/backend/src/events/consumer.py`): `RabbitMQEventConsumer` using `ConsumerMixin` for robust connection handling
+- **Integration**: Consumer runs in background thread, started in FastAPI `@app.on_event("startup")`
+- **Event Loop Bridging**: Uses `asyncio.run_coroutine_threadsafe()` to safely schedule WebSocket broadcasts in FastAPI's event loop
+
+**Key Benefits**:
+- Decouples Celery workers from FastAPI WebSocket layer
+- Automatic reconnection on connection failures (ConsumerMixin)
+- Fire-and-forget publishing (non-blocking, failures don't crash tasks)
+- Scalable pattern for all real-time updates (health, signals, training progress, etc.)
+
+**Usage Example**:
+```python
+# In Celery task
+from ..events.publisher import get_event_publisher
+
+publisher = get_event_publisher()
+publisher.publish_websdr_health(health_data)
+# Event automatically flows to WebSocket clients via RabbitMQ
+```
+
+**Routing Keys**:
+- `websdr.health.update`: WebSDR station status
+- `service.health.*`: Microservice health updates
+- `signal.detected`: Signal detection events
+- `training.progress.*`: Training job updates
+- `localization.complete`: Localization results
 
 ### 2.3 Data Architecture
 

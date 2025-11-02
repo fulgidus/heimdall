@@ -337,6 +337,60 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - **WebSDR Integration**: API quirks, frequency offsets, retry strategies
 - **ML Architecture**: CNN design, Gaussian NLL loss, mel-spectrogram features
 - **Deployment**: Microservices patterns, caching, monitoring
+- **Real-Time Event Broadcasting**: RabbitMQ pattern for Celery-to-WebSocket communication
+
+#### RabbitMQ Event Broadcasting Pattern
+
+**Problem Solved**: Celery tasks running in worker processes cannot directly call async WebSocket broadcast methods in FastAPI due to different event loops. Direct attempts cause `RuntimeError: This event loop is already running` or fail silently.
+
+**Architectural Decision**: Use RabbitMQ as an event bus between Celery workers and FastAPI WebSocket manager.
+
+**Implementation**:
+```
+Celery Task (worker process)
+    ↓
+EventPublisher.publish_*() → RabbitMQ (heimdall.events exchange)
+    ↓
+RabbitMQEventConsumer (FastAPI background thread)
+    ↓
+asyncio.run_coroutine_threadsafe() → WebSocket Manager
+    ↓
+Connected WebSocket clients receive real-time updates
+```
+
+**Code Location**:
+- Publisher: `services/backend/src/events/publisher.py`
+- Consumer: `services/backend/src/events/consumer.py`
+- Integration: `services/backend/src/main.py` (startup event)
+
+**Usage Pattern**:
+```python
+# In any Celery task
+from ..events.publisher import get_event_publisher
+
+publisher = get_event_publisher()
+publisher.publish_websdr_health(health_data)
+# Event automatically flows to WebSocket clients via RabbitMQ
+```
+
+**When to Use This Pattern**:
+- Any Celery task needing to send real-time updates to frontend
+- Background monitoring tasks (health checks, uptime tracking)
+- Training progress updates
+- Signal detection events
+- Localization results
+
+**Key Benefits**:
+- ✅ Decouples worker processes from FastAPI event loop
+- ✅ Automatic reconnection (ConsumerMixin)
+- ✅ Fire-and-forget publishing (non-blocking)
+- ✅ Scalable to multiple consumers
+- ✅ No silent failures (proper error logging)
+
+**Applied In**:
+- `tasks/uptime_monitor.py`: WebSDR health status
+- `tasks/services_health_monitor.py`: Microservice health
+- Future: Training progress, signal detection, localization results
 
 → [Full Knowledge Base](docs/standards/KNOWLEDGE_BASE.md)
 

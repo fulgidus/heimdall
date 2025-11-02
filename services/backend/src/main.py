@@ -104,6 +104,21 @@ async def startup_event():
     listener_thread.start()
     logger.info("RabbitMQ listener thread started")
 
+    # Start RabbitMQ event consumer for WebSocket broadcasting
+    try:
+        logger.info("Starting RabbitMQ events consumer for WebSocket broadcasting...")
+        from .events.consumer import start_rabbitmq_consumer
+        from .routers.websocket import manager as websocket_manager
+
+        consumer_thread = threading.Thread(
+            target=lambda: asyncio.run(start_rabbitmq_consumer(settings.celery_broker_url, websocket_manager)),
+            daemon=True
+        )
+        consumer_thread.start()
+        logger.info("RabbitMQ events consumer thread started")
+    except Exception as e:
+        logger.error(f"Failed to start RabbitMQ events consumer: {e}", exc_info=True)
+
 
 def rabbitmq_progress_listener():
     """Listen for progress events from Celery tasks via RabbitMQ (runs in separate thread)."""

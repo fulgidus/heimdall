@@ -96,24 +96,28 @@ def monitor_services_health(self):
         health_results = loop.run_until_complete(check_all_services())
         
         logger.info(f"Health check results: {health_results}")
-        
-        # Broadcast health status via WebSocket (if available)
+
+        # Publish health status to RabbitMQ for WebSocket broadcasting
         try:
-            from ..routers.websocket import manager as ws_manager
-            
-            if ws_manager.active_connections:
-                async def broadcast_health():
-                    await ws_manager.broadcast({
-                        "event": "services:health",
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "data": {"health_status": health_results},
-                    })
-                
-                loop = asyncio.get_event_loop()
-                loop.run_until_complete(broadcast_health())
-                logger.info(f"Broadcasted service health to {len(ws_manager.active_connections)} WebSocket clients")
-        except Exception as ws_error:
-            logger.warning(f"Failed to broadcast health update via WebSocket: {ws_error}")
+            from ..events.publisher import get_event_publisher
+
+            # Publish individual service health updates
+            publisher = get_event_publisher()
+            for service_name, health_data in health_results.items():
+                publisher.publish_service_health(
+                    service_name=service_name,
+                    status=health_data["status"],
+                    response_time_ms=health_data.get("response_time_ms"),
+                    error=health_data.get("error"),
+                    version=health_data.get("version"),
+                    last_check=health_data.get("last_check")
+                )
+
+            logger.debug(f"Published service health updates to RabbitMQ for {len(health_results)} services")
+
+        except Exception as publish_error:
+            # Don't fail the task if event publishing fails
+            logger.warning(f"Failed to publish health update to RabbitMQ: {publish_error}")
         
         return {
             "status": "success",
