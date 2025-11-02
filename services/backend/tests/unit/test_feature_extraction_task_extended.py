@@ -5,10 +5,9 @@ Tests the feature extraction from real IQ recordings stored in MinIO.
 """
 
 import pytest
-import uuid
 import numpy as np
 from unittest.mock import MagicMock, patch, AsyncMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.tasks.feature_extraction_task import extract_recording_features
 
@@ -39,7 +38,7 @@ def mock_iq_sample():
         rx_id='Test_RX',
         rx_lat=45.0,
         rx_lon=7.0,
-        timestamp=datetime.now().timestamp()
+        timestamp=datetime.now(timezone.utc).timestamp()
     )
 
 
@@ -112,12 +111,12 @@ def test_feature_extraction_from_iq_sample(mock_iq_sample):
     
     # Verify feature structure
     assert isinstance(features, dict)
-    assert 'snr' in features
-    assert 'mean' in features['snr']
-    assert 'std' in features['snr']
+    assert 'snr_db' in features
+    assert 'mean' in features['snr_db']
+    assert 'std' in features['snr_db']
     
     # SNR should be reasonable (we added signal with SNR ~20dB)
-    assert features['snr']['mean'] > 0, "Should detect signal presence"
+    assert features['snr_db']['mean'] > 0, "Should detect signal presence"
 
 
 @pytest.mark.unit
@@ -135,7 +134,7 @@ def test_feature_extraction_error_propagation():
         rx_id='Test',
         rx_lat=45.0,
         rx_lon=7.0,
-        timestamp=datetime.now().timestamp()
+        timestamp=datetime.now(timezone.utc).timestamp()
     )
     
     # Should raise an error or handle gracefully

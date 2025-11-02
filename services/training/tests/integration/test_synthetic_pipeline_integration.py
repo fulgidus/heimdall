@@ -4,14 +4,10 @@ Integration tests for synthetic data generation pipeline.
 Tests the full pipeline from sample generation to database storage.
 """
 
-import pytest
-import uuid
 import numpy as np
-from datetime import datetime
-from unittest.mock import MagicMock, patch, AsyncMock
 
 from src.data.synthetic_generator import _generate_single_sample
-from src.data.config import TrainingConfig, BoundingBox, ReceiverConfig
+from src.data.config import TrainingConfig
 
 
 def test_generate_single_sample():

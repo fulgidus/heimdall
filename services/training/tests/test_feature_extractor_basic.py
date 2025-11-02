@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from src.data.rf_feature_extractor import (
     RFFeatureExtractor,
     IQSample,
-    ExtractedFeatures,
 )
 
 

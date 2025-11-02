@@ -9,7 +9,6 @@ Tests performance targets:
 
 import pytest
 import time
-import numpy as np
 from statistics import mean, stdev
 
 from src.data.iq_generator import SyntheticIQGenerator
@@ -29,7 +28,7 @@ def test_iq_generation_performance():
     for i in range(100):
         start = time.perf_counter()
 
-        iq_sample = generator.generate_iq_sample(
+        generator.generate_iq_sample(
             center_frequency_hz=144_000_000,
             signal_power_dbm=-65.0,
             noise_floor_dbm=-87.0,
@@ -88,13 +87,13 @@ def test_feature_extraction_performance():
         iq_samples.append(iq_sample)
 
     times = []
-    for _ in range(100):
+    for i in range(100):
         # Cycle through test samples
-        iq_sample = iq_samples[_ % len(iq_samples)]
+        iq_sample = iq_samples[i % len(iq_samples)]
         
         start = time.perf_counter()
 
-        features = extractor.extract_features_chunked(
+        extractor.extract_features_chunked(
             iq_sample,
             chunk_duration_ms=200.0,
             num_chunks=5
@@ -147,7 +146,7 @@ def test_end_to_end_performance():
         )
 
         # Extract features
-        features = extractor.extract_features_chunked(
+        extractor.extract_features_chunked(
             iq_sample,
             chunk_duration_ms=200.0,
             num_chunks=5
@@ -253,17 +252,17 @@ def test_feature_extraction_chunked_vs_single():
 
     # Benchmark single-shot extraction
     single_times = []
-    for _ in range(50):
+    for _i in range(50):
         start = time.perf_counter()
-        features = extractor.extract_features(iq_sample)
+        extractor.extract_features(iq_sample)
         elapsed = time.perf_counter() - start
         single_times.append(elapsed)
 
     # Benchmark chunked extraction (5 chunks of 200ms)
     chunked_times = []
-    for _ in range(50):
+    for _i in range(50):
         start = time.perf_counter()
-        features = extractor.extract_features_chunked(
+        extractor.extract_features_chunked(
             iq_sample,
             chunk_duration_ms=200.0,
             num_chunks=5

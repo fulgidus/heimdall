@@ -5,8 +5,6 @@ Processes recordings that don't have features yet.
 """
 
 import logging
-from datetime import datetime
-from typing import Optional
 
 from celery import shared_task
 

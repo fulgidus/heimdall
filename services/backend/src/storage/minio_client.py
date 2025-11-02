@@ -151,6 +151,7 @@ class MinIOClient:
         Raises:
             Exception if download fails
         """
+        key = None  # Initialize to avoid undefined variable in error handling
         try:
             if s3_path:
                 # Direct path provided (for real recordings)
@@ -180,7 +181,7 @@ class MinIOClient:
             return iq_bytes
 
         except ClientError as e:
-            logger.error("Failed to download IQ data from %s: %s", key if 'key' in locals() else 'unknown', e)
+            logger.error("Failed to download IQ data from %s: %s", key if key else 'unknown', e)
             raise
         except Exception as e:
             logger.exception("Unexpected error downloading IQ data: %s", e)

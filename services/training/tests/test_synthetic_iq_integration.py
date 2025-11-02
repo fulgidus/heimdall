@@ -9,10 +9,9 @@ Tests the full pipeline:
 
 import pytest
 import numpy as np
-from datetime import datetime, timezone
 
 from src.data.synthetic_generator import _generate_single_sample
-from src.data.config import TrainingConfig, ReceiverConfig
+from src.data.config import TrainingConfig
 
 
 def test_generate_single_sample_basic():

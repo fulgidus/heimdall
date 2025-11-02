@@ -1,6 +1,5 @@
 """Unit tests for batch feature extraction task."""
 
-import asyncio
 import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -86,15 +85,6 @@ def test_batch_feature_extraction_task_no_recordings():
         patch("src.tasks.batch_feature_extraction.get_pool"),
         patch("asyncio.run") as mock_run,
     ):
-
-        # Mock async function result
-        async def mock_run_batch():
-            return {
-                "total_found": 0,
-                "tasks_queued": 0,
-                "message": "No recordings without features",
-            }
-
         mock_run.return_value = {"total_found": 0, "tasks_queued": 0}
 
         result = batch_feature_extraction_task.apply(kwargs={"batch_size": 50, "max_batches": 5})

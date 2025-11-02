@@ -154,7 +154,7 @@ Aggregations per Feature (×4):
 | 100     | ~5 sec      | 2 GB   | 500 KB          | 11 MB     |
 | 1,000   | ~30 sec     | 2 GB   | 5 MB            | 112 MB    |
 | 10,000  | ~3 min      | 3 GB   | 50 MB           | 112 MB*   |
-| 100,000 | ~30 min     | 4 GB   | 500 MB          | 112 MB*   |
+| 100,000 | ~45-60 min  | 4 GB   | 500 MB          | 112 MB*   |
 
 *IQ storage capped at first 100 samples
 

@@ -17,7 +17,7 @@ import numpy as np
 import structlog
 import multiprocessing as mp
 from datetime import datetime, timezone
-from typing import List, Tuple, Optional, Dict
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor, as_completed
 

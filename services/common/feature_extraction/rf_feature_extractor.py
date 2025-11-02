@@ -9,7 +9,7 @@ import numpy as np
 import structlog
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 logger = structlog.get_logger(__name__)
 

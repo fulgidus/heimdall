@@ -15,7 +15,6 @@ import json
 
 import numpy as np
 from celery import shared_task
-from sqlalchemy import text
 
 from ..config import settings
 from ..db import get_pool
