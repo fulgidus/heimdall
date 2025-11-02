@@ -26,10 +26,8 @@ from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_
 from .terrain import TerrainLookup
 from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
 
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../common'))
-from feature_extraction import RFFeatureExtractor, IQSample
+# Import from common module (PYTHONPATH=/app in Dockerfile)
+from common.feature_extraction import RFFeatureExtractor, IQSample
 
 logger = structlog.get_logger(__name__)
 

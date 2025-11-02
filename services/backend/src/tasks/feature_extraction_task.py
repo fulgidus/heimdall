@@ -23,10 +23,8 @@ from ..db import get_pool
 logger = logging.getLogger(__name__)
 
 # Import feature extractor from common module
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../common'))
-from feature_extraction import RFFeatureExtractor, IQSample
+# PYTHONPATH is set to /app in Dockerfile, so this will resolve to /app/common/feature_extraction
+from common.feature_extraction import RFFeatureExtractor, IQSample
 
 
 @shared_task(bind=True, name='backend.tasks.extract_recording_features')
@@ -43,51 +41,54 @@ def extract_recording_features(self, recording_session_id: str) -> dict:
     logger.info(f"Starting multi-receiver feature extraction for session {recording_session_id}")
 
     try:
-        # Get database pool
+        # Get database pool and run async operations
         import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        pool = loop.run_until_complete(get_pool())
+        
+        async def run_extraction():
+            pool = await get_pool()
 
-        # Get recording session details
-        session = loop.run_until_complete(_get_session_details(pool, recording_session_id))
+            # Get recording session details
+            session = await _get_session_details(pool, recording_session_id)
 
-        if not session:
-            logger.error(f"Recording session {recording_session_id} not found")
-            return {'success': False, 'error': 'Session not found'}
+            if not session:
+                logger.error(f"Recording session {recording_session_id} not found")
+                return {'success': False, 'error': 'Session not found'}
 
-        # Get ALL measurements for this session (all receivers)
-        measurements = loop.run_until_complete(_get_session_measurements(pool, recording_session_id))
+            # Get ALL measurements for this session (all receivers)
+            measurements = await _get_session_measurements(pool, recording_session_id)
 
-        if not measurements:
-            logger.warning(f"No measurements found for session {recording_session_id}")
-            return {'success': False, 'error': 'No measurements found'}
+            if not measurements:
+                logger.warning(f"No measurements found for session {recording_session_id}")
+                return {'success': False, 'error': 'No measurements found'}
 
-        logger.info(f"Found {len(measurements)} receivers for session {recording_session_id}")
+            logger.info(f"Found {len(measurements)} receivers for session {recording_session_id}")
 
-        # Extract features from ALL receivers
-        try:
-            loop.run_until_complete(_extract_session_features(pool, session, measurements))
+            # Extract features from ALL receivers
+            try:
+                await _extract_session_features(pool, session, measurements)
 
-            logger.info(f"Successfully extracted features from {len(measurements)} receivers")
+                logger.info(f"Successfully extracted features from {len(measurements)} receivers")
 
-            return {
-                'success': True,
-                'num_receivers': len(measurements),
-                'session_id': recording_session_id
-            }
+                return {
+                    'success': True,
+                    'num_receivers': len(measurements),
+                    'session_id': recording_session_id
+                }
 
-        except Exception as e:
-            logger.error(f"Error extracting features for session {recording_session_id}: {e}")
+            except Exception as e:
+                logger.error(f"Error extracting features for session {recording_session_id}: {e}")
 
-            # Save error to database
-            loop.run_until_complete(_save_extraction_error(pool, recording_session_id, str(e)))
+                # Save error to database
+                await _save_extraction_error(pool, recording_session_id, str(e))
 
-            return {
-                'success': False,
-                'error': str(e),
-                'session_id': recording_session_id
-            }
+                return {
+                    'success': False,
+                    'error': str(e),
+                    'session_id': recording_session_id
+                }
+
+        # Use asyncio.run() for proper event loop management
+        return asyncio.run(run_extraction())
 
     except Exception as e:
         logger.exception(f"Fatal error in feature extraction task: {e}")
@@ -178,6 +179,7 @@ async def _extract_session_features(
     all_receiver_features = []
     snr_values = []
     confidence_scores = []
+    failed_receivers = []
 
     for measurement in measurements:
         try:
@@ -222,11 +224,18 @@ async def _extract_session_features(
 
         except Exception as e:
             logger.error(f"Error extracting features from {measurement['name']}: {e}")
+            failed_receivers.append({'name': measurement['name'], 'error': str(e)})
             # Continue with other receivers (don't fail entire session)
             continue
 
     if not all_receiver_features:
-        raise Exception("No features extracted from any receiver")
+        error_msg = f"No features extracted from any receiver. Failures: {failed_receivers}"
+        raise Exception(error_msg)
+
+    # Log partial failures if any
+    if failed_receivers:
+        logger.warning(f"Partial extraction success: {len(all_receiver_features)} succeeded, "
+                      f"{len(failed_receivers)} failed. Failed receivers: {[f['name'] for f in failed_receivers]}")
 
     # Calculate overall quality metrics
     mean_snr_db = float(np.mean(snr_values)) if snr_values else 0.0
