@@ -129,6 +129,23 @@ export async function resumeTrainingJob(jobId: string): Promise<{ status: string
     return response.data;
 }
 
+export async function continueSyntheticJob(jobId: string): Promise<{
+    job_id: string;
+    parent_job_id: string;
+    dataset_id: string;
+    dataset_name: string;
+    status: string;
+    created_at: string;
+    samples_existing: number;
+    samples_remaining: number;
+    total_samples: number;
+    status_url: string;
+    message: string;
+}> {
+    const response = await api.post(`/v1/training/jobs/${jobId}/continue`);
+    return response.data;
+}
+
 export async function deleteTrainingJob(jobId: string): Promise<void> {
     await api.delete(`/v1/training/jobs/${jobId}`);
 }

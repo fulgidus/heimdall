@@ -593,6 +593,199 @@ async def resume_training_job(job_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to resume training job: {e!s}")
 
 
+@router.post("/jobs/{job_id}/continue", status_code=202)
+async def continue_synthetic_job(job_id: UUID):
+    """
+    Continue a cancelled synthetic data generation job from where it left off.
+    
+    Creates a new job that:
+    - References the same dataset (reuses existing samples)
+    - Generates only the remaining samples
+    - Links to the original job via parent_job_id
+    
+    Only works for jobs that:
+    - Are cancelled
+    - Have job_type='synthetic_generation'
+    - Have made some progress (current_progress > 0)
+    
+    Args:
+        job_id: UUID of the cancelled job to continue
+        
+    Returns:
+        New job details with continuation info
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Fetch original job details
+            job_query = text("""
+                SELECT 
+                    tj.status, 
+                    tj.job_type, 
+                    tj.job_name,
+                    tj.config, 
+                    tj.current_progress, 
+                    tj.total_progress,
+                    sd.id as dataset_id,
+                    sd.name as dataset_name
+                FROM heimdall.training_jobs tj
+                LEFT JOIN heimdall.synthetic_datasets sd ON sd.job_id = tj.id
+                WHERE tj.id = :job_id
+            """)
+            result = session.execute(job_query, {"job_id": str(job_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+            
+            status, job_type, job_name, config, current_progress, total_progress, dataset_id, dataset_name = result
+            
+            # Validate job can be continued
+            if job_type != 'synthetic_generation':
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Only synthetic_generation jobs can be continued (found: {job_type})"
+                )
+            
+            if status != 'cancelled':
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Only cancelled jobs can be continued (current status: {status})"
+                )
+            
+            if not current_progress or current_progress <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Job has no progress to continue from"
+                )
+            
+            if not dataset_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot find associated dataset for this job"
+                )
+            
+            # Count actual samples in database (may differ from current_progress)
+            count_query = text("""
+                SELECT COUNT(*) 
+                FROM heimdall.measurement_features 
+                WHERE dataset_id = :dataset_id
+            """)
+            actual_samples = session.execute(
+                count_query, 
+                {"dataset_id": str(dataset_id)}
+            ).scalar()
+            
+            # Calculate remaining samples
+            remaining_samples = total_progress - actual_samples
+            
+            if remaining_samples <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Job already complete ({actual_samples}/{total_progress} samples)"
+                )
+            
+            # Parse original config and create continuation config
+            import json
+            original_config = json.loads(config) if isinstance(config, str) else config
+            
+            continuation_config = {
+                **original_config,
+                "is_continuation": True,
+                "existing_dataset_id": str(dataset_id),
+                "num_samples": remaining_samples,
+                "samples_offset": actual_samples
+            }
+            
+            # Create new job with parent reference
+            new_job_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    job_name, 
+                    job_type, 
+                    status, 
+                    config, 
+                    total_epochs,
+                    total_progress,
+                    parent_job_id
+                )
+                VALUES (
+                    :job_name, 
+                    'synthetic_generation', 
+                    'pending', 
+                    CAST(:config AS jsonb), 
+                    0,
+                    :total_progress,
+                    :parent_job_id
+                )
+                RETURNING id, created_at
+            """)
+            
+            new_job_result = session.execute(
+                new_job_query,
+                {
+                    "job_name": f"{job_name} (Continued)",
+                    "config": json.dumps(continuation_config),
+                    "total_progress": total_progress,
+                    "parent_job_id": str(job_id)
+                }
+            )
+            
+            new_job_row = new_job_result.fetchone()
+            new_job_id = new_job_row[0]
+            created_at = new_job_row[1]
+            
+            session.commit()
+        
+        logger.info(
+            f"Created continuation job {new_job_id} for cancelled job {job_id}. "
+            f"Resuming from {actual_samples}/{total_progress} samples, "
+            f"generating {remaining_samples} more."
+        )
+        
+        # Queue Celery task
+        from ..main import celery_app
+        celery_app.send_task(
+            'src.tasks.training_task.generate_synthetic_data_task',
+            args=[str(new_job_id)],
+            queue='training'
+        )
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_update",
+            "data": {
+                "job_id": str(new_job_id),
+                "parent_job_id": str(job_id),
+                "status": "pending",
+                "action": "continued",
+                "dataset_id": str(dataset_id),
+                "samples_existing": actual_samples,
+                "samples_remaining": remaining_samples
+            }
+        })
+        
+        return {
+            "job_id": str(new_job_id),
+            "parent_job_id": str(job_id),
+            "dataset_id": str(dataset_id),
+            "dataset_name": dataset_name,
+            "status": "pending",
+            "created_at": created_at,
+            "samples_existing": actual_samples,
+            "samples_remaining": remaining_samples,
+            "total_samples": total_progress,
+            "status_url": f"/api/v1/training/jobs/{new_job_id}",
+            "message": f"Continuing from {actual_samples}/{total_progress} samples"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error continuing synthetic job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to continue job: {e!s}")
+
+
 @router.delete("/jobs/{job_id}", status_code=204)
 async def delete_training_job(job_id: UUID):
     """

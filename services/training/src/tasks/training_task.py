@@ -713,48 +713,71 @@ def generate_synthetic_data_task(self, job_id: str):
 
         training_config = TrainingConfig.from_receivers(receivers, margin_degrees=0.5)
 
-        # Create dataset record (or get existing)
-        dataset_id = uuid.uuid4()
-        with db_manager.get_session() as session:
-            # Check if dataset with this name already exists
-            check_query = text("""
-                SELECT id FROM heimdall.synthetic_datasets WHERE name = :name
-            """)
-            existing = session.execute(check_query, {"name": config['name']}).fetchone()
-
-            if existing:
-                dataset_id = existing[0]
-                logger.info(f"Using existing dataset {dataset_id}")
-            else:
-                # Create new dataset
-                dataset_query = text("""
-                    INSERT INTO heimdall.synthetic_datasets (
-                        id, name, description, num_samples,
-                        config, created_by_job_id
-                    )
-                    VALUES (
-                        :id, :name, :description, 0,
-                        CAST(:config AS jsonb), :job_id
-                    )
+        # Handle continuation vs new dataset
+        is_continuation = config.get('is_continuation', False)
+        samples_offset = config.get('samples_offset', 0)
+        
+        if is_continuation:
+            # Reuse existing dataset
+            dataset_id_str = config.get('existing_dataset_id')
+            if not dataset_id_str:
+                raise ValueError("is_continuation=True but no existing_dataset_id provided")
+            
+            dataset_id = uuid.UUID(dataset_id_str)
+            logger.info(f"Continuing dataset {dataset_id} from {samples_offset} samples")
+        else:
+            # Create dataset record (or get existing by name)
+            dataset_id = uuid.uuid4()
+            with db_manager.get_session() as session:
+                # Check if dataset with this name already exists
+                check_query = text("""
+                    SELECT id FROM heimdall.synthetic_datasets WHERE name = :name
                 """)
+                existing = session.execute(check_query, {"name": config['name']}).fetchone()
 
-                session.execute(
-                    dataset_query,
-                    {
-                        "id": str(dataset_id),
-                        "name": config['name'],
-                        "description": config.get('description'),
-                        "config": json.dumps(config),
-                        "job_id": job_id
-                    }
-                )
-                session.commit()
-                logger.info(f"Created new dataset {dataset_id}")
+                if existing:
+                    dataset_id = existing[0]
+                    logger.info(f"Using existing dataset {dataset_id}")
+                else:
+                    # Create new dataset
+                    dataset_query = text("""
+                        INSERT INTO heimdall.synthetic_datasets (
+                            id, name, description, num_samples,
+                            config, created_by_job_id
+                        )
+                        VALUES (
+                            :id, :name, :description, 0,
+                            CAST(:config AS jsonb), :job_id
+                        )
+                    """)
+
+                    session.execute(
+                        dataset_query,
+                        {
+                            "id": str(dataset_id),
+                            "name": config['name'],
+                            "description": config.get('description'),
+                            "config": json.dumps(config),
+                            "job_id": job_id
+                        }
+                    )
+                    session.commit()
+                    logger.info(f"Created new dataset {dataset_id}")
 
         # Progress callback (async wrapper for Celery)
+        # For continuations, show cumulative progress
         async def progress_callback(current, total):
-            progress_pct = (current / total) * 100
-            message = f'Processing {current}/{total} samples'
+            # Add offset for continuation jobs
+            cumulative_current = samples_offset + current
+            # Note: total_progress in DB was set to original total (not remaining)
+            # so we calculate progress based on cumulative progress
+            total_samples = samples_offset + total if is_continuation else total
+            progress_pct = (cumulative_current / total_samples) * 100
+            
+            if is_continuation:
+                message = f'Processing {cumulative_current}/{total_samples} samples (continued from {samples_offset})'
+            else:
+                message = f'Processing {current}/{total} samples'
 
             logger.info(f"[PROGRESS] {message} ({progress_pct:.1f}%)")
 
@@ -762,8 +785,8 @@ def generate_synthetic_data_task(self, job_id: str):
             self.update_state(
                 state='PROGRESS',
                 meta={
-                    'current': current,
-                    'total': total,
+                    'current': cumulative_current if is_continuation else current,
+                    'total': total_samples,
                     'message': message,
                     'progress_percent': progress_pct
                 }
@@ -782,15 +805,15 @@ def generate_synthetic_data_task(self, job_id: str):
                             WHERE id = :job_id
                         """),
                         {
-                            "current": current,
-                            "total": total,
+                            "current": cumulative_current if is_continuation else current,
+                            "total": total_samples,
                             "progress": progress_pct,
                             "message": message,
                             "job_id": job_id
                         }
                     )
                     session.commit()
-                    logger.info(f"[PROGRESS] Database updated: {current}/{total}")
+                    logger.info(f"[PROGRESS] Database updated: {cumulative_current if is_continuation else current}/{total_samples}")
             except Exception as e:
                 logger.error(f"Failed to update progress in database: {e}", exc_info=True)
 
@@ -804,7 +827,11 @@ def generate_synthetic_data_task(self, job_id: str):
         )
 
         # Generate samples with IQ generation and feature extraction
-        logger.info(f"Generating {config['num_samples']} synthetic samples with IQ generation")
+        if is_continuation:
+            logger.info(f"Continuing generation: {config['num_samples']} remaining samples "
+                       f"(total: {samples_offset + config['num_samples']})")
+        else:
+            logger.info(f"Generating {config['num_samples']} synthetic samples with IQ generation")
 
         async def run_generation():
             async with async_engine.begin() as conn:
@@ -816,7 +843,8 @@ def generate_synthetic_data_task(self, job_id: str):
                     config=config,
                     conn=conn,
                     progress_callback=progress_callback,
-                    seed=config.get('seed')
+                    seed=config.get('seed'),
+                    job_id=job_id  # Pass job_id for cancellation detection
                 )
             return stats
 

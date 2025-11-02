@@ -554,7 +554,8 @@ async def generate_synthetic_data_with_iq(
     config: dict,
     conn,
     progress_callback=None,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    job_id: Optional[str] = None
 ) -> dict:
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -568,6 +569,7 @@ async def generate_synthetic_data_with_iq(
         conn: Database connection (async)
         progress_callback: Optional callback for progress updates
         seed: Random seed for reproducibility
+        job_id: Optional job ID for cancellation detection
 
     Returns:
         dict with generation statistics
@@ -649,6 +651,22 @@ async def generate_synthetic_data_with_iq(
         for future in as_completed(futures):
             sample_idx = futures[future]
             processed += 1  # Increment for every sample processed, regardless of validation
+
+            # Check for cancellation every 100 samples
+            if job_id and processed % 100 == 0:
+                from sqlalchemy import text
+                check_query = text("""
+                    SELECT status FROM heimdall.training_jobs WHERE id = :job_id
+                """)
+                result = await conn.execute(check_query, {"job_id": job_id})
+                row = await result.fetchone()
+                if row and row[0] == 'cancelled':
+                    logger.warning(f"Job {job_id} was cancelled, stopping generation at {processed}/{num_samples}")
+                    # Cancel remaining futures
+                    for f in futures:
+                        f.cancel()
+                    # Break out of loop gracefully
+                    break
 
             try:
                 sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position = future.result()

@@ -47,6 +47,7 @@ import {
   cancelTrainingJob,
   pauseTrainingJob,
   resumeTrainingJob,
+  continueSyntheticJob,
   deleteTrainingJob,
   deleteSyntheticDataset,
   deleteModel,
@@ -264,6 +265,19 @@ const TrainingDashboard: React.FC = () => {
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to resume job');
+    }
+  };
+
+  // Handle continue synthetic job
+  const handleContinueSyntheticJob = async (jobId: string) => {
+    if (!confirm('Continue this cancelled synthetic data generation from where it left off?')) return;
+
+    try {
+      const result = await continueSyntheticJob(jobId);
+      console.log('Continuation job created:', result);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to continue job');
     }
   };
 
@@ -574,6 +588,17 @@ const TrainingDashboard: React.FC = () => {
                             size="sm"
                             onClick={() => handleResumeJob(job.id)}
                             title="Resume training"
+                          >
+                            <Play size={14} />
+                          </Button>
+                        )}
+                        {/* Continue button for cancelled synthetic jobs with progress */}
+                        {job.status === 'cancelled' && isSyntheticDataJob(job) && (job.current_progress ?? 0) > 0 && (
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            onClick={() => handleContinueSyntheticJob(job.id)}
+                            title="Continue from where it left off"
                           >
                             <Play size={14} />
                           </Button>
