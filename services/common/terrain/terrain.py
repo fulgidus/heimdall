@@ -218,17 +218,17 @@ class SRTMDownloader:
     SRTM tile downloader and manager using OpenTopography API.
     """
     
-    def __init__(self, minio_client=None, db_session=None, api_key: Optional[str] = None):
+    def __init__(self, minio_client=None, db_pool=None, api_key: Optional[str] = None):
         """
         Initialize SRTM downloader.
         
         Args:
             minio_client: MinIO client for storage
-            db_session: Database session for cache tracking
+            db_pool: Database connection pool for cache tracking
             api_key: OpenTopography API key (or from OPENTOPOGRAPHY_API_KEY env var)
         """
         self.minio_client = minio_client
-        self.db_session = db_session
+        self.db_pool = db_pool
         self.base_url = "https://portal.opentopography.org/API/globaldem"
         self.api_key = api_key or os.getenv("OPENTOPOGRAPHY_API_KEY")
         self.bucket_name = "heimdall-terrain"
@@ -275,7 +275,7 @@ class SRTMDownloader:
             return {"success": False, "error": "No MinIO client configured", "tile_name": tile_name}
         
         # Update DB status to downloading
-        if self.db_session:
+        if self.db_pool:
             await self._update_tile_status(tile_name, lat, lon, "downloading")
         
         # Build OpenTopography API request
@@ -296,7 +296,7 @@ class SRTMDownloader:
                     if response.status != 200:
                         error_msg = f"HTTP {response.status}: {await response.text()}"
                         logger.error(f"Failed to download tile {tile_name}: {error_msg}")
-                        if self.db_session:
+                        if self.db_pool:
                             await self._update_tile_status(tile_name, lat, lon, "failed", error_msg)
                         return {"success": False, "error": error_msg, "tile_name": tile_name}
                     
@@ -320,13 +320,13 @@ class SRTMDownloader:
                     except Exception as e:
                         error_msg = f"Failed to save to MinIO: {e}"
                         logger.error(error_msg)
-                        if self.db_session:
+                        if self.db_pool:
                             await self._update_tile_status(tile_name, lat, lon, "failed", error_msg)
                         return {"success": False, "error": error_msg, "tile_name": tile_name}
                     
                     # Update DB status to ready
                     source_url = f"{self.base_url}?{self._encode_params(params)}"
-                    if self.db_session:
+                    if self.db_pool:
                         await self._update_tile_status(
                             tile_name, lat, lon, "ready",
                             error_message=None,
@@ -345,13 +345,13 @@ class SRTMDownloader:
         except aiohttp.ClientError as e:
             error_msg = f"Network error: {e}"
             logger.error(f"Failed to download tile {tile_name}: {error_msg}")
-            if self.db_session:
+            if self.db_pool:
                 await self._update_tile_status(tile_name, lat, lon, "failed", error_msg)
             return {"success": False, "error": error_msg, "tile_name": tile_name}
         except Exception as e:
             error_msg = f"Unexpected error: {e}"
             logger.error(f"Failed to download tile {tile_name}: {error_msg}")
-            if self.db_session:
+            if self.db_pool:
                 await self._update_tile_status(tile_name, lat, lon, "failed", error_msg)
             return {"success": False, "error": error_msg, "tile_name": tile_name}
     
@@ -413,78 +413,73 @@ class SRTMDownloader:
             checksum: Optional SHA256 checksum
             source_url: Optional source URL
         """
-        if not self.db_session:
+        if not self.db_pool:
             return
         
-        from sqlalchemy import text
         from datetime import datetime, timezone
         
-        # Check if tile exists
-        check_query = text("SELECT id FROM heimdall.terrain_tiles WHERE tile_name = :tile_name")
-        result = await self.db_session.execute(check_query, {"tile_name": tile_name})
-        existing = result.fetchone()
+        now = datetime.now(timezone.utc)
         
-        if existing:
-            # Update existing tile
-            update_query = text("""
-                UPDATE heimdall.terrain_tiles
-                SET status = :status,
-                    error_message = :error_message,
-                    file_size_bytes = COALESCE(:file_size, file_size_bytes),
-                    checksum_sha256 = COALESCE(:checksum, checksum_sha256),
-                    source_url = COALESCE(:source_url, source_url),
-                    downloaded_at = CASE WHEN :status = 'ready' THEN :now ELSE downloaded_at END,
-                    updated_at = :now
-                WHERE tile_name = :tile_name
-            """)
-            await self.db_session.execute(
-                update_query,
-                {
-                    "tile_name": tile_name,
-                    "status": status,
-                    "error_message": error_message,
-                    "file_size": file_size,
-                    "checksum": checksum,
-                    "source_url": source_url,
-                    "now": datetime.now(timezone.utc)
-                }
-            )
-        else:
-            # Insert new tile
-            insert_query = text("""
-                INSERT INTO heimdall.terrain_tiles (
-                    tile_name, lat_min, lat_max, lon_min, lon_max,
-                    minio_bucket, minio_path, status, error_message,
-                    file_size_bytes, checksum_sha256, source_url,
-                    downloaded_at, created_at, updated_at
-                ) VALUES (
-                    :tile_name, :lat_min, :lat_max, :lon_min, :lon_max,
-                    :bucket, :path, :status, :error_message,
-                    :file_size, :checksum, :source_url,
-                    CASE WHEN :status = 'ready' THEN :now ELSE NULL END,
-                    :now, :now
+        async with self.db_pool.acquire() as conn:
+            # Check if tile exists
+            check_query = "SELECT id FROM heimdall.terrain_tiles WHERE tile_name = $1"
+            existing = await conn.fetchrow(check_query, tile_name)
+            
+            if existing:
+                # Update existing tile
+                update_query = """
+                    UPDATE heimdall.terrain_tiles
+                    SET status = $1,
+                        error_message = $2,
+                        file_size_bytes = COALESCE($3, file_size_bytes),
+                        checksum_sha256 = COALESCE($4, checksum_sha256),
+                        source_url = COALESCE($5, source_url),
+                        downloaded_at = CASE WHEN $1 = 'ready' THEN $6 ELSE downloaded_at END,
+                        updated_at = $6
+                    WHERE tile_name = $7
+                """
+                await conn.execute(
+                    update_query,
+                    status,
+                    error_message,
+                    file_size,
+                    checksum,
+                    source_url,
+                    now,
+                    tile_name
                 )
-            """)
-            await self.db_session.execute(
-                insert_query,
-                {
-                    "tile_name": tile_name,
-                    "lat_min": lat,
-                    "lat_max": lat + 1,
-                    "lon_min": lon,
-                    "lon_max": lon + 1,
-                    "bucket": self.bucket_name,
-                    "path": f"tiles/{tile_name}.tif",
-                    "status": status,
-                    "error_message": error_message,
-                    "file_size": file_size,
-                    "checksum": checksum,
-                    "source_url": source_url,
-                    "now": datetime.now(timezone.utc)
-                }
-            )
-        
-        await self.db_session.commit()
+            else:
+                # Insert new tile
+                insert_query = """
+                    INSERT INTO heimdall.terrain_tiles (
+                        tile_name, lat_min, lat_max, lon_min, lon_max,
+                        minio_bucket, minio_path, status, error_message,
+                        file_size_bytes, checksum_sha256, source_url,
+                        downloaded_at, created_at, updated_at
+                    ) VALUES (
+                        $1, $2, $3, $4, $5,
+                        $6, $7, $8, $9,
+                        $10, $11, $12,
+                        CASE WHEN $8 = 'ready' THEN $13 ELSE NULL END,
+                        $13, $13
+                    )
+                """
+                await conn.execute(
+                    insert_query,
+                    tile_name,
+                    lat,
+                    lat + 1,
+                    lon,
+                    lon + 1,
+                    self.bucket_name,
+                    f"tiles/{tile_name}.tif",
+                    status,
+                    error_message,
+                    file_size,
+                    checksum,
+                    source_url,
+                    now
+                )
     
     def _get_tile_name(self, lat: int, lon: int) -> str:
         """
@@ -513,20 +508,19 @@ class SRTMDownloader:
         Returns:
             True if tile exists, False otherwise
         """
-        if not self.db_session:
+        if not self.db_pool:
             return False
-        
-        from sqlalchemy import text
         
         tile_name = self._get_tile_name(lat, lon)
         
-        query = text("""
+        query = """
             SELECT status FROM heimdall.terrain_tiles
-            WHERE tile_name = :tile_name AND status = 'ready'
-        """)
+            WHERE tile_name = $1 AND status = 'ready'
+        """
         
-        result = self.db_session.execute(query, {"tile_name": tile_name}).fetchone()
-        return result is not None
+        async with self.db_pool.acquire() as conn:
+            result = await conn.fetchrow(query, tile_name)
+            return result is not None
 
 
 def validate_elevation_data(terrain_lookup: TerrainLookup, checkpoints: list[Tuple[float, float, float]]) -> dict:
