@@ -178,11 +178,11 @@ export async function getSyntheticDatasetSamples(
         limit: limit.toString(),
         offset: offset.toString(),
     };
-    
+
     if (split) {
         params.split = split;
     }
-    
+
     const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/samples`, { params });
     return response.data;
 }
