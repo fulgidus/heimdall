@@ -696,9 +696,16 @@ def generate_synthetic_data_task(self, job_id: str):
                    f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
         
         # Update dataset record with final counts
-        # Note: Features are already saved to measurement_features table
-        # We just need to update the dataset metadata
+        # Count actual samples saved to measurement_features table using dataset_id
         with db_manager.get_session() as session:
+            # Count actual samples in measurement_features
+            count_query = text("""
+                SELECT COUNT(*) FROM heimdall.measurement_features
+                WHERE dataset_id = :dataset_id
+            """)
+            actual_count = session.execute(count_query, {"dataset_id": str(dataset_id)}).scalar() or 0
+
+            # Update dataset metadata
             update_query = text("""
                 UPDATE heimdall.synthetic_datasets
                 SET num_samples = :num_samples
@@ -708,11 +715,11 @@ def generate_synthetic_data_task(self, job_id: str):
                 update_query,
                 {
                     "id": str(dataset_id),
-                    "num_samples": stats['total_generated']
+                    "num_samples": actual_count
                 }
             )
             session.commit()
-            logger.info(f"Updated dataset {dataset_id} with {stats['total_generated']} samples")
+            logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']})")
         
         # Update job as completed
         with db_manager.get_session() as session:

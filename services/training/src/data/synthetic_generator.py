@@ -701,6 +701,16 @@ async def generate_synthetic_data_with_iq(
 
                 completed += 1
 
+                # Incremental save every 10 valid samples
+                if completed % 10 == 0 and len(generated_samples) >= 10:
+                    # Save last 10 samples to database
+                    samples_to_save = generated_samples[-10:]
+                    try:
+                        await save_features_to_db(dataset_id, samples_to_save, conn)
+                        logger.info(f"Incrementally saved 10 samples (total saved: {completed})")
+                    except Exception as e:
+                        logger.error(f"Failed to incrementally save samples: {e}")
+
                 # Progress update (for valid samples)
                 if progress_callback and processed % 10 == 0:
                     await progress_callback(processed, num_samples)
@@ -716,8 +726,12 @@ async def generate_synthetic_data_with_iq(
 
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
 
-    # Save features to database
-    await save_features_to_db(dataset_id, generated_samples, conn)
+    # Save remaining samples to database (those not saved incrementally)
+    remaining_samples = len(generated_samples) % 10
+    if remaining_samples > 0:
+        samples_to_save = generated_samples[-remaining_samples:]
+        await save_features_to_db(dataset_id, samples_to_save, conn)
+        logger.info(f"Saved final {remaining_samples} remaining samples")
 
     # Save IQ samples to MinIO (first 100 only)
     if iq_samples_to_save:
@@ -744,50 +758,53 @@ async def save_features_to_db(
         samples: List of sample dicts with receiver_features, metadata, quality_metrics
         conn: Database connection (async)
     """
-    from sqlalchemy import text
-    
     logger.info(f"Saving {len(samples)} feature samples to database")
-    
-    insert_features_query = text("""
+
+    # Get the underlying asyncpg connection from SQLAlchemy
+    # This bypasses SQLAlchemy's parameter handling which has issues with jsonb[]
+    raw_conn = await conn.get_raw_connection()
+    asyncpg_conn = raw_conn.driver_connection
+
+    insert_features_query = """
         INSERT INTO heimdall.measurement_features (
-            recording_session_id, timestamp, receiver_features, tx_latitude,
+            recording_session_id, dataset_id, timestamp, receiver_features, tx_latitude,
             tx_longitude, tx_altitude_m, tx_power_dbm, tx_known,
             extraction_metadata, overall_confidence, mean_snr_db,
             num_receivers_detected, gdop, extraction_failed, created_at
         )
         VALUES (
-            :recording_session_id, NOW(), CAST(:receiver_features AS jsonb[]),
-            :tx_latitude, :tx_longitude, :tx_altitude_m, :tx_power_dbm, TRUE,
-            CAST(:extraction_metadata AS jsonb), :overall_confidence,
-            :mean_snr_db, :num_receivers_detected, :gdop, FALSE, NOW()
+            $1, $2, NOW(), $3::jsonb[],
+            $4, $5, $6, $7, TRUE,
+            $8::jsonb, $9,
+            $10, $11, $12, FALSE, NOW()
         )
-    """)
+    """
 
     for sample in samples:
-        # Generate unique recording_session_id for synthetic sample
+        # For synthetic data: generate unique UUID for each sample, but track dataset_id
+        # recording_session_id = unique UUID (PRIMARY KEY)
+        # dataset_id = synthetic dataset UUID (for filtering/grouping)
         recording_session_id = uuid.uuid4()
 
-        # Convert receiver features list to PostgreSQL array of JSONB
-        receiver_features_json_list = [
-            json.dumps(rf) for rf in sample['receiver_features']
-        ]
+        # Convert receiver features to list of JSON strings
+        # Raw asyncpg can handle this directly without PostgreSQL array literal format
+        receiver_features_json_strings = [json.dumps(feat) for feat in sample['receiver_features']]
 
-        # Insert features
-        await conn.execute(
+        # Use raw asyncpg connection execute (NOT SQLAlchemy wrapper)
+        await asyncpg_conn.execute(
             insert_features_query,
-            {
-                'recording_session_id': str(recording_session_id),
-                'receiver_features': f'{{{",".join(receiver_features_json_list)}}}',  # PostgreSQL array syntax
-                'tx_latitude': sample['tx_position']['tx_lat'],
-                'tx_longitude': sample['tx_position']['tx_lon'],
-                'tx_altitude_m': sample['tx_position']['tx_alt'],
-                'tx_power_dbm': sample['tx_position']['tx_power_dbm'],
-                'extraction_metadata': json.dumps(sample['extraction_metadata']),
-                'overall_confidence': sample['quality_metrics']['overall_confidence'],
-                'mean_snr_db': sample['quality_metrics']['mean_snr_db'],
-                'num_receivers_detected': sample['quality_metrics']['num_receivers_detected'],
-                'gdop': sample['quality_metrics']['gdop']
-            }
+            str(recording_session_id),                               # $1 - Unique UUID for this sample
+            str(dataset_id),                                         # $2 - Dataset ID for filtering
+            receiver_features_json_strings,                          # $3 - List of JSON strings (raw asyncpg handles this)
+            sample['tx_position']['tx_lat'],                         # $4
+            sample['tx_position']['tx_lon'],                         # $5
+            sample['tx_position']['tx_alt'],                         # $6
+            sample['tx_position']['tx_power_dbm'],                   # $7
+            json.dumps(sample['extraction_metadata']),               # $8
+            sample['quality_metrics']['overall_confidence'],         # $9
+            sample['quality_metrics']['mean_snr_db'],                # $10
+            sample['quality_metrics']['num_receivers_detected'],     # $11
+            sample['quality_metrics']['gdop']                        # $12
         )
 
     logger.info(f"Saved {len(samples)} feature samples to database")

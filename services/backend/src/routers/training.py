@@ -645,17 +645,32 @@ async def list_synthetic_datasets(
     
     try:
         with db_manager.get_session() as session:
-            # Get datasets
+            # Get datasets with REAL-TIME sample counts from measurement_features
             query = text("""
-                SELECT id, name, description, num_samples, train_count, val_count, test_count,
-                       config, quality_metrics, storage_table, created_at, created_by_job_id
-                FROM heimdall.synthetic_datasets
-                ORDER BY created_at DESC
+                SELECT
+                    sd.id,
+                    sd.name,
+                    sd.description,
+                    COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
+                    sd.train_count,
+                    sd.val_count,
+                    sd.test_count,
+                    sd.config,
+                    sd.quality_metrics,
+                    sd.storage_table,
+                    sd.created_at,
+                    sd.created_by_job_id
+                FROM heimdall.synthetic_datasets sd
+                LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
+                GROUP BY sd.id, sd.name, sd.description, sd.train_count, sd.val_count,
+                         sd.test_count, sd.config, sd.quality_metrics, sd.storage_table,
+                         sd.created_at, sd.created_by_job_id
+                ORDER BY sd.created_at DESC
                 LIMIT :limit OFFSET :offset
             """)
-            
+
             results = session.execute(query, {"limit": limit, "offset": offset}).fetchall()
-            
+
             # Get total count
             count_query = text("SELECT COUNT(*) FROM heimdall.synthetic_datasets")
             total = session.execute(count_query).scalar() or 0
@@ -707,15 +722,31 @@ async def get_synthetic_dataset(dataset_id: UUID):
     
     try:
         with db_manager.get_session() as session:
+            # Get dataset with REAL-TIME sample count from measurement_features
             query = text("""
-                SELECT id, name, description, num_samples, train_count, val_count, test_count,
-                       config, quality_metrics, storage_table, created_at, created_by_job_id
-                FROM heimdall.synthetic_datasets
-                WHERE id = :dataset_id
+                SELECT
+                    sd.id,
+                    sd.name,
+                    sd.description,
+                    COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
+                    sd.train_count,
+                    sd.val_count,
+                    sd.test_count,
+                    sd.config,
+                    sd.quality_metrics,
+                    sd.storage_table,
+                    sd.created_at,
+                    sd.created_by_job_id
+                FROM heimdall.synthetic_datasets sd
+                LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
+                WHERE sd.id = :dataset_id
+                GROUP BY sd.id, sd.name, sd.description, sd.train_count, sd.val_count,
+                         sd.test_count, sd.config, sd.quality_metrics, sd.storage_table,
+                         sd.created_at, sd.created_by_job_id
             """)
-            
+
             result = session.execute(query, {"dataset_id": str(dataset_id)}).fetchone()
-            
+
             if not result:
                 raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
             
