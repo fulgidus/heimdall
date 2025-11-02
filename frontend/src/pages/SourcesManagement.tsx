@@ -180,7 +180,7 @@ const SourcesManagement: React.FC = () => {
       // Add new markers
       knownSources.forEach(source => {
         // Skip sources without coordinates
-        if (source.latitude == null || source.longitude == null) {
+        if (source.latitude === null || source.longitude === null) {
           return;
         }
 
@@ -232,7 +232,7 @@ const SourcesManagement: React.FC = () => {
         // Handle marker click
         el.addEventListener('click', () => {
           setSelectedSource(source);
-          if (source.longitude != null && source.latitude != null) {
+          if (source.longitude !== null && source.latitude !== null) {
             map.current?.flyTo({
               center: [source.longitude, source.latitude],
               zoom: 10,
@@ -253,7 +253,7 @@ const SourcesManagement: React.FC = () => {
           } catch (error) {
             console.error('Failed to update source location:', error);
             showNotification('error', 'Failed to update source location');
-            if (source.longitude != null && source.latitude != null) {
+            if (source.longitude !== null && source.latitude !== null) {
               marker.setLngLat([source.longitude, source.latitude]);
             }
           }
@@ -789,7 +789,7 @@ const SourcesManagement: React.FC = () => {
                         className={`list-group-item list-group-item-action ${selectedSource?.id === source.id ? 'active' : ''}`}
                         onClick={() => {
                           setSelectedSource(source);
-                          if (source.latitude != null && source.longitude != null) {
+                          if (source.latitude !== null && source.longitude !== null) {
                             map.current?.flyTo({
                               center: [source.longitude, source.latitude],
                               zoom: 10,
@@ -815,13 +815,13 @@ const SourcesManagement: React.FC = () => {
                                 {(source.frequency_hz / 1e6).toFixed(3)} MHz
                               </p>
                             )}
-                            {source.latitude != null && source.longitude != null && (
+                            {source.latitude !== null && source.longitude !== null && (
                               <p className="mb-1 f-12">
                                 <i className="ph ph-map-pin me-1"></i>
                                 {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
                               </p>
                             )}
-                            {source.error_margin_meters != null && (
+                            {source.error_margin_meters !== null && (
                               <p className="mb-1 f-12">
                                 <i className="ph ph-circle me-1"></i>±{source.error_margin_meters}m
                               </p>
