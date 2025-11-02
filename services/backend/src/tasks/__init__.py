@@ -6,6 +6,10 @@ from .acquire_iq import (
     save_measurements_to_minio,
     save_measurements_to_timescaledb,
 )
+from .batch_feature_extraction import (
+    backfill_all_features,
+    batch_feature_extraction_task,
+)
 from .services_health_monitor import monitor_services_health
 from .uptime_monitor import (
     calculate_uptime_percentage,
@@ -20,4 +24,6 @@ __all__ = [
     "monitor_websdrs_uptime",
     "calculate_uptime_percentage",
     "monitor_services_health",
+    "batch_feature_extraction_task",
+    "backfill_all_features",
 ]
