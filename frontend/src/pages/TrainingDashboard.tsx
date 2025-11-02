@@ -133,17 +133,18 @@ const TrainingDashboard: React.FC = () => {
   
   // Data generation form
   // NOTE: train_ratio/val_ratio/test_ratio removed - splits calculated at training time
+  // Production Baseline defaults (balanced quality/performance with SRTM terrain)
   const [dataForm, setDataForm] = useState({
     name: '',
     num_samples: 10000,
-    inside_ratio: 0.7,
-    // RF generation parameters (relaxed defaults for better success rate)
+    inside_ratio: 0.75,    // Production baseline
+    // RF generation parameters (production baseline)
     frequency_mhz: 144.0,
     tx_power_dbm: wattToDbm(2.0), // 2W = ~33dBm
-    min_snr_db: 0.0,       // More permissive (was 3.0)
-    min_receivers: 2,      // More permissive (was 3)
-    max_gdop: 500.0,       // VERY permissive - accept poor geometry for ML training
-    use_real_terrain: false, // Use SRTM terrain data
+    min_snr_db: 3.0,       // Reasonable minimum SNR
+    min_receivers: 3,      // Minimum triangulation
+    max_gdop: 100.0,       // Acceptable geometry
+    use_real_terrain: true, // Use SRTM terrain data (production baseline)
   });
 
   // Load data silently (no loading spinner after initial load)
@@ -206,19 +207,19 @@ const TrainingDashboard: React.FC = () => {
     try {
       await generateSyntheticData(dataForm);
       setShowDataModal(false);
-      // Reset form
+      // Reset form to production baseline defaults
       setPowerValueWatt(2.0);
       setPowerUnit('watt');
       setDataForm({
         name: '',
         num_samples: 10000,
-        inside_ratio: 0.7,
+        inside_ratio: 0.75,
         frequency_mhz: 144.0,
         tx_power_dbm: wattToDbm(2.0),
-        min_snr_db: 0.0,
-        min_receivers: 2,
+        min_snr_db: 3.0,
+        min_receivers: 3,
         max_gdop: 100.0,
-        use_real_terrain: false,
+        use_real_terrain: true,
       });
       loadData(); // Refresh
     } catch (err) {
