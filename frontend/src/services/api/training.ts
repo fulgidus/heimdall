@@ -86,7 +86,7 @@ export interface SyntheticDataRequest {
 // ============================================================================
 
 export async function createTrainingJob(config: Record<string, any>): Promise<TrainingJob> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/jobs`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/jobs`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -116,7 +116,7 @@ export async function listTrainingJobs(
         params.append('status', status);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/jobs?${params}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/jobs?${params}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch training jobs');
@@ -126,7 +126,7 @@ export async function listTrainingJobs(
 }
 
 export async function getTrainingJob(jobId: string): Promise<TrainingJob> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/jobs/${jobId}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/jobs/${jobId}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch training job');
@@ -136,7 +136,7 @@ export async function getTrainingJob(jobId: string): Promise<TrainingJob> {
 }
 
 export async function deleteTrainingJob(jobId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/jobs/${jobId}`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/jobs/${jobId}`, {
         method: 'DELETE',
     });
 
@@ -150,7 +150,7 @@ export async function deleteTrainingJob(jobId: string): Promise<void> {
 // ============================================================================
 
 export async function generateSyntheticData(request: SyntheticDataRequest): Promise<{ job_id: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/synthetic/generate`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/synthetic/generate`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ export async function listSyntheticDatasets(
         offset: offset.toString(),
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/synthetic/datasets?${params}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/synthetic/datasets?${params}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch synthetic datasets');
@@ -185,7 +185,7 @@ export async function listSyntheticDatasets(
 }
 
 export async function getSyntheticDataset(datasetId: string): Promise<SyntheticDataset> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/synthetic/datasets/${datasetId}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/synthetic/datasets/${datasetId}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch synthetic dataset');
@@ -195,7 +195,7 @@ export async function getSyntheticDataset(datasetId: string): Promise<SyntheticD
 }
 
 export async function deleteSyntheticDataset(datasetId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/synthetic/datasets/${datasetId}`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/synthetic/datasets/${datasetId}`, {
         method: 'DELETE',
     });
 
@@ -219,7 +219,7 @@ export async function listModels(
         active_only: activeOnly.toString(),
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/models?${params}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/models?${params}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch models');
@@ -229,7 +229,7 @@ export async function listModels(
 }
 
 export async function getModel(modelId: string): Promise<TrainedModel> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/models/${modelId}`);
+    const response = await fetch(`${API_BASE_URL}/v1/training/models/${modelId}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch model');
@@ -239,7 +239,7 @@ export async function getModel(modelId: string): Promise<TrainedModel> {
 }
 
 export async function deployModel(modelId: string, setProduction: boolean = false): Promise<{ status: string }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/models/${modelId}/deploy?set_production=${setProduction}`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/models/${modelId}/deploy?set_production=${setProduction}`, {
         method: 'POST',
     });
 
@@ -252,7 +252,7 @@ export async function deployModel(modelId: string, setProduction: boolean = fals
 }
 
 export async function deleteModel(modelId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/training/models/${modelId}`, {
+    const response = await fetch(`${API_BASE_URL}/v1/training/models/${modelId}`, {
         method: 'DELETE',
     });
 

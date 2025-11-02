@@ -20,6 +20,7 @@ const SystemStatus = lazy(() => import('./pages/SystemStatus'));
 const DataIngestion = lazy(() => import('./pages/DataIngestion'));
 const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
 const ImportExport = lazy(() => import('./pages/ImportExport'));
+const TrainingDashboard = lazy(() => import('./pages/TrainingDashboard'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -161,6 +162,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ImportExport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/training"
+                element={
+                  <ProtectedRoute>
+                    <TrainingDashboard />
                   </ProtectedRoute>
                 }
               />

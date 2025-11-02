@@ -1,13 +1,16 @@
 /**
  * Training Dashboard
- * 
+ *
  * Main page for ML training pipeline:
  * - Synthetic data generation
- * - Training job management  
+ * - Training job management
  * - Model management
+ *
+ * Real-time updates via WebSocket (silent background refresh)
  */
 
 import React, { useEffect, useState } from 'react';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import {
   Container,
   Row,
@@ -46,11 +49,14 @@ import {
 } from '@/services/api/training';
 
 const TrainingDashboard: React.FC = () => {
+  // WebSocket for real-time updates
+  const { subscribe } = useWebSocket();
+
   // State
   const [jobs, setJobs] = useState<TrainingJob[]>([]);
   const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
   const [models, setModels] = useState<TrainedModel[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
   
@@ -64,10 +70,10 @@ const TrainingDashboard: React.FC = () => {
     test_ratio: 0.15,
   });
 
-  // Load data
-  const loadData = async () => {
+  // Load data silently (no loading spinner after initial load)
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setInitialLoading(true);
       const [jobsResp, datasetsResp, modelsResp] = await Promise.all([
         listTrainingJobs(undefined, 10, 0),
         listSyntheticDatasets(10, 0),
@@ -79,19 +85,45 @@ const TrainingDashboard: React.FC = () => {
       setModels(modelsResp.models);
       setError(null);
     } catch (err) {
+      console.error('Failed to load training data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setInitialLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
     
-    // Refresh every 5 seconds
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    // Silent refresh every 10 seconds (backup for WebSocket)
+    const interval = setInterval(() => loadData(true), 10000);
+    
+    // WebSocket real-time updates (silent and transparent)
+    const unsubscribeTrainingJob = subscribe('training_job_update', (data: any) => {
+      console.log('[TrainingDashboard] Received training job update:', data);
+      // Refresh jobs silently without spinner
+      loadData(true);
+    });
+
+    const unsubscribeDataset = subscribe('dataset_update', (data: any) => {
+      console.log('[TrainingDashboard] Received dataset update:', data);
+      // Refresh datasets silently
+      loadData(true);
+    });
+
+    const unsubscribeModel = subscribe('model_update', (data: any) => {
+      console.log('[TrainingDashboard] Received model update:', data);
+      // Refresh models silently
+      loadData(true);
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribeTrainingJob();
+      unsubscribeDataset();
+      unsubscribeModel();
+    };
+  }, [subscribe]);
 
   // Handle data generation
   const handleGenerateData = async () => {
@@ -179,7 +211,7 @@ const TrainingDashboard: React.FC = () => {
     );
   };
 
-  if (loading && jobs.length === 0) {
+  if (initialLoading) {
     return (
       <Container className="mt-4">
         <div className="text-center">

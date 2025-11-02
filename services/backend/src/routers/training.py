@@ -106,6 +106,17 @@ async def create_training_job(request: TrainingJobRequest):
 
         logger.info(f"Queued training job {job_id} with Celery task {task.id}")
 
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "training_job_update",
+            "data": {
+                "job_id": str(job_id),
+                "status": TrainingStatus.QUEUED.value,
+                "action": "created",
+            }
+        })
+
         # Return job details
         return TrainingJobResponse(
             id=job_id,
@@ -491,6 +502,17 @@ async def generate_synthetic_data(request: Any):
         # Queue Celery task to training service
         from ..main import celery_app
         celery_app.send_task('generate_synthetic_data_task', args=[str(job_id)])
+
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_update",
+            "data": {
+                "job_id": str(job_id),
+                "status": "pending",
+                "action": "created",
+            }
+        })
         
         return {
             "job_id": job_id,
@@ -849,6 +871,17 @@ async def deploy_model(model_id: UUID, set_production: bool = False):
             session.commit()
             
             logger.info(f"Deployed model {model_id} (production={set_production})")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "model_update",
+                "data": {
+                    "model_id": str(model_id),
+                    "action": "deployed",
+                    "is_production": set_production,
+                }
+            })
             
             return {"status": "deployed", "model_id": model_id, "is_production": set_production}
     
@@ -888,6 +921,16 @@ async def delete_model(model_id: UUID):
             session.commit()
             
             logger.info(f"Deleted model {model_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "model_update",
+                "data": {
+                    "model_id": str(model_id),
+                    "action": "deleted",
+                }
+            })
     
     except HTTPException:
         raise
