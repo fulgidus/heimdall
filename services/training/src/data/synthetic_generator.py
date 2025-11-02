@@ -13,13 +13,14 @@ Generates realistic synthetic training samples using:
 import uuid
 import io
 import json
+import os
 import numpy as np
 import structlog
 import multiprocessing as mp
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
@@ -88,6 +89,7 @@ def _generate_single_sample(args):
     iq_samples = {}
     receiver_features_list = []
     receivers_with_signal = 0
+    propagation_snr_values = []  # Track SNR from propagation model
 
     for receiver in receivers_list:
         rx_id = receiver['name']
@@ -112,6 +114,7 @@ def _generate_single_sample(args):
         signal_present = snr_db >= min_snr_db
         if signal_present:
             receivers_with_signal += 1
+            propagation_snr_values.append(snr_db)  # Store propagation SNR
 
         # Generate IQ sample
         noise_floor_dbm = -120.0
@@ -157,16 +160,16 @@ def _generate_single_sample(args):
         features_dict['rx_lat'] = rx_lat
         features_dict['rx_lon'] = rx_lon
         features_dict['distance_km'] = details['distance_km']
-        
-        # Add signal_present flag (use mean of signal_present aggregation)
-        signal_present_flag = features_dict.get('signal_present', {}).get('mean', 0.0) > 0.5
-        features_dict['signal_present'] = signal_present_flag
+
+        # Override signal_present with propagation model result
+        # (feature extractor may incorrectly detect no signal due to fading/multipath)
+        features_dict['signal_present'] = signal_present
 
         receiver_features_list.append(features_dict)
 
     # Calculate overall quality metrics
-    snr_values = [f['snr_db']['mean'] for f in receiver_features_list if f.get('signal_present')]
-    mean_snr_db = float(np.mean(snr_values)) if snr_values else 0.0
+    # Use propagation model SNR (not feature extractor SNR which can be negative due to fading)
+    mean_snr_db = float(np.mean(propagation_snr_values)) if propagation_snr_values else 0.0
 
     # Calculate overall confidence (weighted average)
     confidence_scores = [f.get('delay_spread_confidence', {}).get('mean', 0.8)
@@ -584,9 +587,26 @@ async def generate_synthetic_data_with_iq(
     min_receivers = config.get('min_receivers', 3)
     max_gdop = config.get('max_gdop', 10.0)
 
-    # Determine number of workers (up to 24)
-    num_workers = min(24, mp.cpu_count())
-    logger.info(f"Using {num_workers} worker processes for parallel generation")
+    # Determine number of worker threads
+    # For I/O-bound tasks (which include numpy operations), use more threads than CPUs
+    # Rule of thumb: 2-4x CPU count for mixed CPU/I/O workloads
+    cpu_count = mp.cpu_count()
+
+    # Check if we can get thread limit from environment or system
+    try:
+        # Try to get from system limit
+        import resource
+        soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NPROC)
+        # Use a reasonable fraction of the process limit
+        max_threads_from_limit = min(soft_limit // 4, 128) if soft_limit != resource.RLIM_INFINITY else 128
+    except:
+        max_threads_from_limit = 128
+
+    # For ThreadPoolExecutor: use 2-3x CPU count (good for numpy/scipy workloads)
+    # but cap at reasonable maximum to avoid thread explosion
+    num_workers = min(cpu_count * 3, max_threads_from_limit, 72)
+
+    logger.info(f"Using {num_workers} worker threads for parallel generation (CPUs: {cpu_count})")
 
     # Convert training config to dict for serialization
     training_config_dict = {
@@ -621,18 +641,22 @@ async def generate_synthetic_data_with_iq(
         for i in range(num_samples)
     ]
 
-    # Generate samples in parallel
+    # Generate samples in parallel using threads
+    # Note: ThreadPoolExecutor is used instead of ProcessPoolExecutor because
+    # Celery worker processes are daemon processes and cannot spawn child processes
     generated_samples = []
     iq_samples_to_save = {}  # First 100 IQ samples
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = {executor.submit(_generate_single_sample, args): args[0]
                   for args in args_list}
 
         completed = 0
+        processed = 0  # Track total samples processed (including rejected)
 
         for future in as_completed(futures):
             sample_idx = futures[future]
+            processed += 1  # Increment for every sample processed, regardless of validation
 
             try:
                 sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position = future.result()
@@ -640,14 +664,26 @@ async def generate_synthetic_data_with_iq(
                 # Validation checks
                 if quality_metrics['num_receivers_detected'] < min_receivers:
                     logger.debug(f"Sample {sample_idx}: rejected (receivers={quality_metrics['num_receivers_detected']} < {min_receivers})")
+                    # Still update progress for rejected samples
+                    if progress_callback and processed % 10 == 0:
+                        await progress_callback(processed, num_samples)
+                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 if quality_metrics['mean_snr_db'] < min_snr_db:
                     logger.debug(f"Sample {sample_idx}: rejected (SNR={quality_metrics['mean_snr_db']:.1f} < {min_snr_db})")
+                    # Still update progress for rejected samples
+                    if progress_callback and processed % 10 == 0:
+                        await progress_callback(processed, num_samples)
+                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 if quality_metrics['gdop'] > max_gdop:
                     logger.debug(f"Sample {sample_idx}: rejected (GDOP={quality_metrics['gdop']:.1f} > {max_gdop})")
+                    # Still update progress for rejected samples
+                    if progress_callback and processed % 10 == 0:
+                        await progress_callback(processed, num_samples)
+                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 # Store sample
@@ -665,13 +701,17 @@ async def generate_synthetic_data_with_iq(
 
                 completed += 1
 
-                # Progress update
-                if progress_callback and completed % 100 == 0:
-                    await progress_callback(completed, num_samples)
-                    logger.info(f"Progress: {completed}/{num_samples} samples generated")
+                # Progress update (for valid samples)
+                if progress_callback and processed % 10 == 0:
+                    await progress_callback(processed, num_samples)
+                    logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
 
             except Exception as e:
                 logger.error(f"Error generating sample {sample_idx}: {e}")
+                # Still update progress even on error
+                if progress_callback and processed % 10 == 0:
+                    await progress_callback(processed, num_samples)
+                    logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
                 continue
 
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")

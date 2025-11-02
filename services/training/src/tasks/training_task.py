@@ -556,14 +556,21 @@ def generate_synthetic_data_task(self, job_id: str):
             # Config is already a dict from JSONB column
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
         
-        # Update status to running
+        # Update status to running and initialize progress tracking
         with db_manager.get_session() as session:
             update_query = text("""
                 UPDATE heimdall.training_jobs
-                SET status = 'running', started_at = NOW()
+                SET status = 'running',
+                    started_at = NOW(),
+                    current_progress = 0,
+                    total_progress = :total_samples,
+                    progress_message = 'Starting synthetic data generation...'
                 WHERE id = :job_id
             """)
-            session.execute(update_query, {"job_id": job_id})
+            session.execute(update_query, {
+                "job_id": job_id,
+                "total_samples": config['num_samples']
+            })
             session.commit()
         
         # Generate synthetic data - import training service modules
@@ -615,15 +622,46 @@ def generate_synthetic_data_task(self, job_id: str):
         
         # Progress callback (async wrapper for Celery)
         async def progress_callback(current, total):
+            progress_pct = (current / total) * 100
+            message = f'Processing {current}/{total} samples'
+
+            logger.info(f"[PROGRESS] {message} ({progress_pct:.1f}%)")
+
+            # Update Celery state
             self.update_state(
                 state='PROGRESS',
                 meta={
                     'current': current,
                     'total': total,
-                    'message': f'Generated {current}/{total} samples',
-                    'progress_percent': (current / total) * 100
+                    'message': message,
+                    'progress_percent': progress_pct
                 }
             )
+
+            # Update database with progress
+            try:
+                with db_manager.get_session() as session:
+                    session.execute(
+                        text("""
+                            UPDATE heimdall.training_jobs
+                            SET current_progress = :current,
+                                total_progress = :total,
+                                progress_percent = :progress,
+                                progress_message = :message
+                            WHERE id = :job_id
+                        """),
+                        {
+                            "current": current,
+                            "total": total,
+                            "progress": progress_pct,
+                            "message": message,
+                            "job_id": job_id
+                        }
+                    )
+                    session.commit()
+                    logger.info(f"[PROGRESS] Database updated: {current}/{total}")
+            except Exception as e:
+                logger.error(f"Failed to update progress in database: {e}", exc_info=True)
         
         # Get async database pool
         from sqlalchemy.ext.asyncio import create_async_engine
@@ -645,7 +683,7 @@ def generate_synthetic_data_task(self, job_id: str):
                     receivers_config=receivers,
                     training_config=training_config,
                     config=config,
-                    pool=conn,
+                    conn=conn,
                     progress_callback=progress_callback,
                     seed=config.get('seed')
                 )

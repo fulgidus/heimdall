@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Zap, AlertCircle, Radio, Clock, Waves } from 'lucide-react';
 import { useSessionStore } from '../store/sessionStore';
+import { useWebSDRStore } from '../store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -24,6 +25,11 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
 
   // Store
   const { createSession, error, clearError } = useSessionStore();
+  const { websdrs, healthStatus } = useWebSDRStore();
+
+  // Calculate WebSDR counts
+  const totalWebSDRs = websdrs.length || Object.keys(healthStatus).length || 0;
+  const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,7 +156,7 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
               </div>
             </div>
             <p className="text-xs text-slate-400">
-              Recording duration (5-300 seconds, 7 WebSDR receivers)
+              Recording duration (5-300 seconds, {totalWebSDRs} WebSDR receivers)
             </p>
           </div>
 
@@ -159,14 +165,14 @@ export const RecordingSessionCreator: React.FC<RecordingSessionCreatorProps> = (
             <p className="text-sm text-slate-300 font-semibold">Acquisition Details:</p>
             <ul className="text-xs text-slate-400 space-y-1 pl-4">
               <li>
-                • <strong>Receivers:</strong> 7 WebSDR (Northwestern Italy)
+                • <strong>Receivers:</strong> {totalWebSDRs} WebSDR ({onlineWebSDRs} online, Northwestern Italy)
               </li>
               <li>
                 • <strong>Frequency:</strong> {frequency.toFixed(3)} MHz
               </li>
               <li>
-                • <strong>Duration:</strong> {duration} seconds ({Math.ceil((duration * 7) / 60)}{' '}
-                min for 7 receivers)
+                • <strong>Duration:</strong> {duration} seconds ({Math.ceil((duration * totalWebSDRs) / 60)}{' '}
+                min for {totalWebSDRs} receivers)
               </li>
               <li>
                 • <strong>Output:</strong> IQ data + SNR metadata

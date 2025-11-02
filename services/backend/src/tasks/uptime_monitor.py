@@ -132,8 +132,35 @@ def monitor_websdrs_uptime(self):
     try:
         logger.info("Starting WebSDR uptime monitoring task")
 
-        # Get WebSDR configs as dict
-        websdrs = get_default_websdrs()
+        # Get WebSDR configs from database
+        from ..storage.db_manager import DatabaseManager
+        from sqlalchemy import text
+
+        db_manager = DatabaseManager()
+        with db_manager.get_session() as session:
+            query = text("""
+                SELECT id, name, url, latitude, longitude, timeout_seconds, is_active
+                FROM heimdall.websdr_stations
+                WHERE is_active = TRUE
+                ORDER BY name
+            """)
+            result = session.execute(query)
+            db_websdrs = result.fetchall()
+
+        # Convert to dict format expected by health check
+        websdrs = []
+        for row in db_websdrs:
+            websdrs.append({
+                "id": str(row[0]),  # UUID as string
+                "name": row[1],
+                "url": row[2],
+                "latitude": float(row[3]) if row[3] else 0.0,
+                "longitude": float(row[4]) if row[4] else 0.0,
+                "timeout_seconds": row[5] or 3,
+                "is_active": row[6],
+            })
+
+        logger.info(f"Loaded {len(websdrs)} active WebSDRs from database")
 
         # Direct health check without WebSDRFetcher (to avoid object attribute issues)
         logger.info(f"Checking health of {len(websdrs)} WebSDRs")

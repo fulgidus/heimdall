@@ -33,12 +33,14 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  StopCircle,
 } from 'lucide-react';
 import {
   listTrainingJobs,
   listSyntheticDatasets,
   listModels,
   generateSyntheticData,
+  cancelTrainingJob,
   deleteTrainingJob,
   deleteSyntheticDataset,
   deleteModel,
@@ -47,6 +49,54 @@ import {
   type SyntheticDataset,
   type TrainedModel,
 } from '@/services/api/training';
+
+/**
+ * Helper function to detect if a job is synthetic data generation
+ */
+const isSyntheticDataJob = (job: TrainingJob): boolean => {
+  return job.total_epochs === 0 || job.job_name.toLowerCase().includes('synthetic');
+};
+
+/**
+ * Calculate ETA for a running job
+ */
+const calculateETA = (job: TrainingJob): string => {
+  if (!job.started_at) return 'Calculating...';
+
+  // For synthetic data jobs, use current/total samples
+  if (isSyntheticDataJob(job)) {
+    if (!job.current || !job.total || job.current === 0) return 'Calculating...';
+
+    const elapsed = Date.now() - new Date(job.started_at).getTime();
+    const rate = job.current / elapsed; // samples per ms
+    const remaining = job.total - job.current;
+    const etaMs = remaining / rate;
+
+    const hours = Math.floor(etaMs / 3600000);
+    const minutes = Math.floor((etaMs % 3600000) / 60000);
+    const seconds = Math.floor((etaMs % 60000) / 1000);
+
+    if (hours > 0) return `~${hours}h ${minutes}m`;
+    if (minutes > 0) return `~${minutes}m ${seconds}s`;
+    return `~${seconds}s`;
+  }
+
+  // For training jobs, use current_epoch/total_epochs
+  if (!job.current_epoch || !job.total_epochs || job.current_epoch === 0) return 'Calculating...';
+
+  const elapsed = Date.now() - new Date(job.started_at).getTime();
+  const rate = job.current_epoch / elapsed; // epochs per ms
+  const remaining = job.total_epochs - job.current_epoch;
+  const etaMs = remaining / rate;
+
+  const hours = Math.floor(etaMs / 3600000);
+  const minutes = Math.floor((etaMs % 3600000) / 60000);
+  const seconds = Math.floor((etaMs % 60000) / 1000);
+
+  if (hours > 0) return `~${hours}h ${minutes}m`;
+  if (minutes > 0) return `~${minutes}m ${seconds}s`;
+  return `~${seconds}s`;
+};
 
 const TrainingDashboard: React.FC = () => {
   // WebSocket for real-time updates
@@ -73,7 +123,7 @@ const TrainingDashboard: React.FC = () => {
     tx_power_dbm: 33.0,
     min_snr_db: 0.0,       // More permissive (was 3.0)
     min_receivers: 2,      // More permissive (was 3)
-    max_gdop: 100.0,       // Very permissive for ML training (was 10.0)
+    max_gdop: 500.0,       // VERY permissive - accept poor geometry for ML training
   });
 
   // Load data silently (no loading spinner after initial load)
@@ -155,10 +205,22 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  // Handle cancel job
+  const handleCancelJob = async (jobId: string) => {
+    if (!confirm('Cancel this running job?')) return;
+
+    try {
+      await cancelTrainingJob(jobId);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel job');
+    }
+  };
+
   // Handle delete job
   const handleDeleteJob = async (jobId: string) => {
     if (!confirm('Delete this training job?')) return;
-    
+
     try {
       await deleteTrainingJob(jobId);
       loadData();
@@ -348,13 +410,24 @@ const TrainingDashboard: React.FC = () => {
                     <td>
                       {job.status === 'running' ? (
                         <div>
-                          <div className="progress">
+                          <div className="progress mb-1">
                             <div
                               className="progress-bar progress-bar-striped progress-bar-animated"
                               style={{ width: `${job.progress_percent}%` }}
                             />
                           </div>
-                          <small>{job.current_epoch}/{job.total_epochs} epochs</small>
+                          <small className="d-block">
+                            {isSyntheticDataJob(job) ? (
+                              <>
+                                {job.current || 0}/{job.total || 0} samples ({job.progress_percent.toFixed(1)}%)
+                              </>
+                            ) : (
+                              <>
+                                {job.current_epoch}/{job.total_epochs} epochs
+                              </>
+                            )}
+                          </small>
+                          <small className="text-muted d-block">ETA: {calculateETA(job)}</small>
                         </div>
                       ) : (
                         `${job.progress_percent.toFixed(0)}%`
@@ -372,14 +445,29 @@ const TrainingDashboard: React.FC = () => {
                     </td>
                     <td>{new Date(job.created_at).toLocaleString()}</td>
                     <td>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => handleDeleteJob(job.id)}
-                        disabled={job.status === 'running'}
-                      >
-                        <Trash size={14} />
-                      </Button>
+                      <div className="d-flex gap-1">
+                        {/* Cancel button for running jobs */}
+                        {(job.status === 'running' || job.status === 'queued' || job.status === 'pending') && (
+                          <Button
+                            variant="outline-warning"
+                            size="sm"
+                            onClick={() => handleCancelJob(job.id)}
+                            title="Cancel job"
+                          >
+                            <StopCircle size={14} />
+                          </Button>
+                        )}
+                        {/* Delete button for non-running jobs */}
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDeleteJob(job.id)}
+                          disabled={job.status === 'running' || job.status === 'queued' || job.status === 'pending'}
+                          title="Delete job"
+                        >
+                          <Trash size={14} />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

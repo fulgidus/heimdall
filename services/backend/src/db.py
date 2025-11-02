@@ -56,3 +56,18 @@ def get_pool() -> asyncpg.Pool:
     if _pool is None:
         raise RuntimeError("Database pool not initialized. Call init_pool() first.")
     return _pool
+
+
+async def get_db_session():
+    """
+    FastAPI dependency to get a database connection from the pool.
+
+    Usage:
+        @router.get("/endpoint")
+        async def endpoint(db: asyncpg.Connection = Depends(get_db_session)):
+            result = await db.fetch("SELECT * FROM table")
+            return result
+    """
+    pool = get_pool()
+    async with pool.acquire() as connection:
+        yield connection

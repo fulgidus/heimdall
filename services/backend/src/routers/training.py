@@ -175,7 +175,8 @@ async def list_training_jobs(
                        train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
                        best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
                        mlflow_run_id, error_message, dataset_size, train_samples,
-                       val_samples, model_architecture, celery_task_id
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message
                 FROM heimdall.training_jobs
                 {where_clause}
                 ORDER BY created_at DESC
@@ -223,6 +224,9 @@ async def list_training_jobs(
                         val_samples=row[23],
                         model_architecture=row[24],
                         celery_task_id=row[25],
+                        current=row[26],
+                        total=row[27],
+                        message=row[28],
                     )
                 )
 
@@ -255,7 +259,8 @@ async def get_training_job(job_id: UUID):
                        train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
                        best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
                        mlflow_run_id, error_message, dataset_size, train_samples,
-                       val_samples, model_architecture, celery_task_id
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message
                 FROM heimdall.training_jobs
                 WHERE id = :job_id
             """)
@@ -292,6 +297,9 @@ async def get_training_job(job_id: UUID):
                 val_samples=result[23],
                 model_architecture=result[24],
                 celery_task_id=result[25],
+                current=result[26],
+                total=result[27],
+                message=result[28],
             )
 
             # Get recent metrics (last 10 epochs)
@@ -336,13 +344,90 @@ async def get_training_job(job_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to get training job: {e!s}")
 
 
+@router.post("/jobs/{job_id}/cancel", status_code=200)
+async def cancel_training_job(job_id: UUID):
+    """
+    Cancel a running training job without deleting it.
+
+    Sets the job status to 'cancelled' and stops the Celery task.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status
+            check_query = text("""
+                SELECT status, celery_task_id FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, celery_task_id = result
+
+            # Can only cancel pending, queued, or running jobs
+            if status not in ["pending", "queued", "running"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot cancel job in status '{status}'. Only pending, queued, or running jobs can be cancelled."
+                )
+
+            # Cancel Celery task
+            if celery_task_id:
+                try:
+                    from celery import current_app
+
+                    current_app.control.revoke(celery_task_id, terminate=True, signal='SIGTERM')
+                    logger.info(f"Cancelled Celery task {celery_task_id} for job {job_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to cancel Celery task: {e}")
+
+            # Update job status
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'cancelled', completed_at = NOW()
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"job_id": str(job_id)})
+            session.commit()
+
+            logger.info(f"Cancelled training job {job_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "cancelled",
+                    "action": "cancelled",
+                }
+            })
+
+            return {"status": "cancelled", "job_id": str(job_id)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to cancel training job: {e!s}")
+
+
 @router.delete("/jobs/{job_id}", status_code=204)
 async def delete_training_job(job_id: UUID):
     """
-    Cancel and delete a training job.
+    Delete a training job.
 
-    If the job is running, it will be cancelled.
-    All associated data (metrics, checkpoints) will be removed.
+    Can only delete jobs that are not running (completed, failed, or cancelled).
+    For running jobs, cancel them first.
 
     Args:
         job_id: Training job UUID
@@ -363,15 +448,12 @@ async def delete_training_job(job_id: UUID):
 
             status, celery_task_id = result
 
-            # Cancel Celery task if running
-            if status in ["pending", "queued", "running"] and celery_task_id:
-                try:
-                    from celery import current_app
-
-                    current_app.control.revoke(celery_task_id, terminate=True)
-                    logger.info(f"Cancelled Celery task {celery_task_id}")
-                except Exception as e:
-                    logger.warning(f"Failed to cancel Celery task: {e}")
+            # Cannot delete running jobs directly
+            if status in ["pending", "queued", "running"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot delete job in status '{status}'. Cancel the job first."
+                )
 
             # Delete job (cascade will delete metrics)
             delete_query = text("""
@@ -381,6 +463,16 @@ async def delete_training_job(job_id: UUID):
             session.commit()
 
             logger.info(f"Deleted training job {job_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "data": {
+                    "job_id": str(job_id),
+                    "action": "deleted",
+                }
+            })
 
     except HTTPException:
         raise

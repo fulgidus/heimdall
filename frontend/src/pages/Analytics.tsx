@@ -59,8 +59,8 @@ const Analytics: React.FC = () => {
   };
 
   // Calculate metrics from real analytics data
+  const totalWebSDRs = websdrs.length || Object.keys(healthStatus).length || 0;
   const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
-  const totalWebSDRs = websdrs.length || 7;
 
   // Calculate totals from time series data
   const totalPredictions = predictionMetrics?.total_predictions?.slice(-1)[0]?.value || 0;

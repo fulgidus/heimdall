@@ -111,8 +111,9 @@ const RecordingSession: React.FC = () => {
   }, [fetchKnownSources, fetchWebSDRs, ws, isConnected, handleSessionStarted, handleSessionCompleted, handleSessionProgress, handleSessionError]);
 
   const hasHealthData = Object.keys(healthStatus).length > 0;
+  const totalWebSDRs = Object.keys(healthStatus).length;
   const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
-  const onlineWebSDRsDisplay = hasHealthData ? `${onlineWebSDRs}/7` : '?/7';
+  const onlineWebSDRsDisplay = hasHealthData ? `${onlineWebSDRs}/${totalWebSDRs}` : '?/?';
 
   // Step 1: Validate configuration
   const handleValidateConfig = () => {

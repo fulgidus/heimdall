@@ -121,6 +121,11 @@ class TrainingJobResponse(BaseModel):
     total_epochs: int
     progress_percent: float = 0.0
 
+    # Progress tracking (for synthetic data and training)
+    current: Optional[int] = None  # current_progress from DB
+    total: Optional[int] = None    # total_progress from DB
+    message: Optional[str] = None  # progress_message from DB
+
     # Metrics
     train_loss: Optional[float] = None
     val_loss: Optional[float] = None

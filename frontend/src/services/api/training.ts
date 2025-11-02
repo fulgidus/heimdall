@@ -28,6 +28,9 @@ export interface TrainingJob {
     val_loss?: number;
     error_message?: string;
     model_architecture?: string;
+    current?: number;  // For synthetic data generation: current samples
+    total?: number;    // For synthetic data generation: total samples
+    message?: string;  // Progress message from task
 }
 
 export interface SyntheticDataset {
@@ -110,6 +113,11 @@ export async function listTrainingJobs(
 
 export async function getTrainingJob(jobId: string): Promise<TrainingJob> {
     const response = await api.get(`/v1/training/jobs/${jobId}`);
+    return response.data;
+}
+
+export async function cancelTrainingJob(jobId: string): Promise<{ status: string; job_id: string }> {
+    const response = await api.post(`/v1/training/jobs/${jobId}/cancel`);
     return response.data;
 }
 

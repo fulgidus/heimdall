@@ -20,6 +20,7 @@ const Localization: React.FC = () => {
     setIsRefreshing(false);
   };
 
+  const totalWebSDRs = Object.keys(healthStatus).length;
   const onlineWebSDRs = Object.values(healthStatus).filter(h => h.status === 'online').length;
   const avgAccuracy = data.modelInfo?.accuracy ? (data.modelInfo.accuracy * 100).toFixed(1) : 'N/A';
 
@@ -90,7 +91,7 @@ const Localization: React.FC = () => {
                 </div>
                 <div className="grow ms-3">
                   <h6 className="mb-0">Active Receivers</h6>
-                  <h4 className="mb-0">{onlineWebSDRs}/7</h4>
+                  <h4 className="mb-0">{onlineWebSDRs}/{totalWebSDRs}</h4>
                 </div>
               </div>
             </div>
@@ -227,7 +228,7 @@ const Localization: React.FC = () => {
                           </div>
                           <div className="col-6">
                             <p className="f-12 text-muted mb-0">Receivers</p>
-                            <h6 className="mb-0">{result.websdr_count}/7</h6>
+                            <h6 className="mb-0">{result.websdr_count}/{totalWebSDRs}</h6>
                           </div>
                         </div>
                       </div>
@@ -306,7 +307,7 @@ const Localization: React.FC = () => {
                           </tr>
                           <tr>
                             <td className="text-muted">Active Receivers</td>
-                            <td>{result.websdr_count}/7</td>
+                            <td>{result.websdr_count}/{totalWebSDRs}</td>
                           </tr>
                         </tbody>
                       </table>
