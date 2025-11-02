@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store';
+import { getCurrentUserProfile, updateCurrentUserProfile, UserProfile } from '../services/api/users';
 
 const Profile: React.FC = () => {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'activity'>('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Profile state (TODO: Connect to backend user API)
   const [profile, setProfile] = useState({
-    firstName: 'Admin',
-    lastName: 'User',
-    email: user?.email || 'admin@heimdall.local',
-    phone: '+39 123 456 7890',
-    organization: 'Heimdall SDR',
-    role: 'System Administrator',
-    location: 'Turin, Italy',
-    bio: 'RF localization specialist',
+    firstName: '',
+    lastName: '',
+    email: user?.email || '',
+    phone: '',
+    organization: '',
+    role: user?.role || 'user',
+    location: '',
+    bio: '',
   });
 
   const [security, setSecurity] = useState({
@@ -25,7 +27,6 @@ const Profile: React.FC = () => {
     twoFactorEnabled: false,
   });
 
-  // Mock activity data
   const recentActivity = [
     {
       id: 1,
@@ -50,16 +51,56 @@ const Profile: React.FC = () => {
     },
   ];
 
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const userProfile = await getCurrentUserProfile();
+        setProfile({
+          firstName: userProfile.first_name || '',
+          lastName: userProfile.last_name || '',
+          email: userProfile.email || user?.email || '',
+          phone: userProfile.phone || '',
+          organization: userProfile.organization || '',
+          role: userProfile.roles?.[0] || user?.role || 'user',
+          location: userProfile.location || '',
+          bio: userProfile.bio || '',
+        });
+      } catch (err: any) {
+        console.error('Failed to load profile:', err);
+        setError(err.response?.data?.detail || 'Failed to load profile');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
   const handleSaveProfile = async () => {
-    setIsSaving(true);
-    // TODO: Save to backend API
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      setError(null);
+      await updateCurrentUserProfile({
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        phone: profile.phone,
+        organization: profile.organization,
+        location: profile.location,
+        bio: profile.bio,
+      });
+    } catch (err: any) {
+      console.error('Failed to save profile:', err);
+      setError(err.response?.data?.detail || 'Failed to save profile');
+      throw err;
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleChangePassword = async () => {
     setIsSaving(true);
-    // TODO: Change password via API
     await new Promise(resolve => setTimeout(resolve, 1000));
     setSecurity({ ...security, currentPassword: '', newPassword: '', confirmPassword: '' });
     setIsSaving(false);
@@ -157,6 +198,19 @@ const Profile: React.FC = () => {
 
         {/* Profile Content */}
         <div className="col-lg-9">
+          {error && (
+            <div className="alert alert-danger alert-dismissible fade show" role="alert">
+              <i className="ph ph-warning me-2"></i>
+              {error}
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => setError(null)}
+                aria-label="Close"
+              ></button>
+            </div>
+          )}
+
           <div className="card">
             <div className="card-header">
               <h5 className="mb-0">
@@ -166,8 +220,17 @@ const Profile: React.FC = () => {
               </h5>
             </div>
             <div className="card-body">
-              {/* Profile Tab */}
-              {activeTab === 'profile' && (
+              {isLoading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="mt-3 text-muted">Loading profile...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Profile Tab */}
+                  {activeTab === 'profile' && (
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label">First Name</label>
@@ -365,6 +428,8 @@ const Profile: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+              )}
+              </>
               )}
             </div>
           </div>
