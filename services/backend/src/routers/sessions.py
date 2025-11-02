@@ -546,7 +546,8 @@ async def list_known_sources():
 
     query = """
         SELECT id, name, description, frequency_hz, latitude, longitude,
-               power_dbm, source_type, is_validated, created_at, updated_at
+               power_dbm, source_type, is_validated, error_margin_meters,
+               created_at, updated_at
         FROM heimdall.known_sources
         ORDER BY name
     """
@@ -575,7 +576,8 @@ async def get_known_source(
 
     query = """
         SELECT id, name, description, frequency_hz, latitude, longitude,
-               power_dbm, source_type, is_validated, created_at, updated_at
+               power_dbm, source_type, is_validated, error_margin_meters,
+               created_at, updated_at
         FROM heimdall.known_sources
         WHERE id = $1
     """
@@ -596,10 +598,11 @@ async def create_known_source(source: KnownSourceCreate):
 
     query = """
         INSERT INTO heimdall.known_sources
-        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (name, description, frequency_hz, latitude, longitude, power_dbm, source_type, is_validated, error_margin_meters)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, name, description, frequency_hz, latitude, longitude,
-                  power_dbm, source_type, is_validated, created_at, updated_at
+                  power_dbm, source_type, is_validated, error_margin_meters,
+                  created_at, updated_at
     """
 
     async with pool.acquire() as conn:
@@ -614,6 +617,7 @@ async def create_known_source(source: KnownSourceCreate):
                 source.power_dbm,
                 source.source_type,
                 source.is_validated,
+                source.error_margin_meters,
             )
 
             return KnownSource(**dict(row))
@@ -679,6 +683,11 @@ async def update_known_source(
         params.append(source.is_validated)
         param_count += 1
 
+    if source.error_margin_meters is not None:
+        update_fields.append(f"error_margin_meters = ${param_count}")
+        params.append(source.error_margin_meters)
+        param_count += 1
+
     if not update_fields:
         raise HTTPException(status_code=400, detail="No fields to update")
 
@@ -692,7 +701,8 @@ async def update_known_source(
         SET {', '.join(update_fields)}
         WHERE id = ${param_count}
         RETURNING id, name, description, frequency_hz, latitude, longitude,
-                  power_dbm, source_type, is_validated, created_at, updated_at
+                  power_dbm, source_type, is_validated, error_margin_meters,
+                  created_at, updated_at
     """
 
     async with pool.acquire() as conn:
