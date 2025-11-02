@@ -1,23 +1,19 @@
 """
 User settings router for Heimdall SDR backend.
 
-Provides endpoints for managing user settings and Keycloak user profile updates.
+Provides endpoints for managing user settings.
 """
 
 import logging
 import os
-from typing import Any, Dict
 
-import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from ..db import get_pool
 from ..models.settings import (
-    PasswordChangeRequest,
     UserSettings,
     UserSettingsCreate,
     UserSettingsUpdate,
-    UsernameChangeRequest,
 )
 
 # Import authentication from common module
@@ -30,39 +26,6 @@ from common.auth.models import User
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/settings", tags=["settings"])
-
-
-# Keycloak Admin API configuration
-KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
-KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "heimdall")
-KEYCLOAK_ADMIN_CLIENT_ID = os.getenv("KEYCLOAK_API_GATEWAY_CLIENT_ID", "api-gateway")
-KEYCLOAK_ADMIN_CLIENT_SECRET = os.getenv(
-    "KEYCLOAK_API_GATEWAY_CLIENT_SECRET", "api-gateway-secret"
-)
-
-
-async def get_admin_token() -> str:
-    """Get Keycloak admin access token using client credentials."""
-    token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            token_url,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": KEYCLOAK_ADMIN_CLIENT_ID,
-                "client_secret": KEYCLOAK_ADMIN_CLIENT_SECRET,
-            },
-        )
-
-        if response.status_code != 200:
-            logger.error(f"Failed to get admin token: {response.text}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to authenticate with identity provider",
-            )
-
-        return response.json()["access_token"]
 
 
 @router.get("/", response_model=UserSettings)
@@ -151,99 +114,6 @@ async def update_user_settings(
             row = await conn.fetchrow(query, *values)
 
         return UserSettings(**dict(row))
-
-
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(
-    password_request: PasswordChangeRequest, user: User = Depends(get_current_user)
-) -> None:
-    """
-    Change user's password via Keycloak Admin API.
-
-    Requires current password for verification.
-    """
-    # First, verify current password by attempting to get a token
-    token_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
-
-    async with httpx.AsyncClient() as client:
-        # Verify current password
-        response = await client.post(
-            token_url,
-            data={
-                "grant_type": "password",
-                "client_id": KEYCLOAK_ADMIN_CLIENT_ID,
-                "username": user.username or user.email,
-                "password": password_request.current_password,
-            },
-        )
-
-        if response.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Current password is incorrect",
-            )
-
-        # Get admin token to update password
-        admin_token = await get_admin_token()
-
-        # Update password via Keycloak Admin API
-        user_url = f"{KEYCLOAK_URL}/admin/realms/{KEYCLOAK_REALM}/users/{user.id}"
-        reset_password_url = f"{user_url}/reset-password"
-
-        response = await client.put(
-            reset_password_url,
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "type": "password",
-                "value": password_request.new_password,
-                "temporary": False,
-            },
-        )
-
-        if response.status_code != 204:
-            logger.error(f"Failed to update password: {response.text}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update password",
-            )
-
-    logger.info(f"Password changed successfully for user {user.id}")
-
-
-@router.post("/username", status_code=status.HTTP_204_NO_CONTENT)
-async def change_username(
-    username_request: UsernameChangeRequest, user: User = Depends(get_current_user)
-) -> None:
-    """
-    Change user's username via Keycloak Admin API.
-
-    Requires admin privileges.
-    """
-    # Get admin token
-    admin_token = await get_admin_token()
-
-    async with httpx.AsyncClient() as client:
-        # Update username via Keycloak Admin API
-        user_url = f"{KEYCLOAK_URL}/admin/realms/{KEYCLOAK_REALM}/users/{user.id}"
-
-        response = await client.put(
-            user_url,
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"username": username_request.new_username},
-        )
-
-        if response.status_code == 409:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="Username already exists"
-            )
-        elif response.status_code not in [200, 204]:
-            logger.error(f"Failed to update username: {response.text}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update username",
-            )
-
-    logger.info(f"Username changed successfully for user {user.id} to {username_request.new_username}")
 
 
 @router.delete("/", status_code=status.HTTP_204_NO_CONTENT)

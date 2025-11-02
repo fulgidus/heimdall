@@ -99,16 +99,3 @@ class UserSettings(UserSettingsBase):
 
     class Config:
         from_attributes = True
-
-
-class PasswordChangeRequest(BaseModel):
-    """Request model for password change."""
-
-    current_password: str = Field(..., min_length=8)
-    new_password: str = Field(..., min_length=8)
-
-
-class UsernameChangeRequest(BaseModel):
-    """Request model for username change."""
-
-    new_username: str = Field(..., min_length=3, max_length=50, pattern="^[a-zA-Z0-9_-]+$")
