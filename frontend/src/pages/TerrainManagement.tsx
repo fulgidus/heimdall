@@ -12,6 +12,7 @@ import { Container, Row, Col, Card, Button, Table, Badge, ProgressBar, Alert } f
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useTerrainStore } from '../store/terrainStore';
+import { useWebSocket } from '../contexts/WebSocketContext';
 import type { TerrainTile } from '../services/api/terrain';
 
 // Mapbox token from environment
@@ -35,12 +36,43 @@ const TerrainManagement: React.FC = () => {
   const map = useRef<mapboxgl.Map | null>(null);
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{current: number; total: number; tile_name: string} | null>(null);
+  
+  const { subscribe, isConnected } = useWebSocket();
 
   // Initialize map and load data
   useEffect(() => {
     fetchTiles();
     fetchCoverage();
-  }, []);
+  }, [fetchTiles, fetchCoverage]);
+
+  // Subscribe to WebSocket terrain tile progress events
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const unsubscribe = subscribe('terrain:tile_progress', (data: any) => {
+      console.log('[TerrainManagement] Terrain progress:', data);
+      
+      if (data.data) {
+        const { tile_name, status, current, total, file_size } = data.data;
+        
+        // Update progress state
+        setDownloadProgress({ current, total, tile_name });
+        
+        // When a tile completes (ready or failed), refresh the tiles list
+        if (status === 'ready' || status === 'failed') {
+          fetchTiles();
+        }
+        
+        // Log progress
+        console.log(`Tile ${tile_name}: ${status} (${current}/${total})${file_size ? ` - ${(file_size / 1024 / 1024).toFixed(2)} MB` : ''}`);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isConnected, subscribe, fetchTiles]);
 
   // Initialize Mapbox map
   useEffect(() => {
@@ -68,98 +100,227 @@ const TerrainManagement: React.FC = () => {
     };
   }, []);
 
-  // Update map with tile boundaries
+  // Update map with tile boundaries and coverage
   useEffect(() => {
-    if (!map.current || !tiles.length) return;
+    if (!map.current) return;
 
     // Wait for map to load
     if (!map.current.isStyleLoaded()) {
-      map.current.once('load', () => updateMapTiles());
+      map.current.once('load', () => updateMapLayers());
     } else {
-      updateMapTiles();
+      updateMapLayers();
     }
-  }, [tiles, selectedTile]);
+  }, [tiles, coverage, selectedTile]);
 
-  const updateMapTiles = () => {
+  const updateMapLayers = () => {
     if (!map.current) return;
 
     // Remove existing layers and sources
-    if (map.current.getLayer('tiles-layer')) {
-      map.current.removeLayer('tiles-layer');
-    }
-    if (map.current.getSource('tiles')) {
-      map.current.removeSource('tiles');
-    }
+    const layersToRemove = ['tiles-fill-layer', 'tiles-border-layer', 'missing-tiles-layer', 'bbox-layer'];
+    const sourcesToRemove = ['tiles', 'missing-tiles', 'bbox'];
+    
+    layersToRemove.forEach(layer => {
+      if (map.current?.getLayer(layer)) {
+        map.current.removeLayer(layer);
+      }
+    });
+    
+    sourcesToRemove.forEach(source => {
+      if (map.current?.getSource(source)) {
+        map.current.removeSource(source);
+      }
+    });
 
-    // Create GeoJSON features for tiles
-    const features = tiles.map(tile => {
-      const color = getTileColor(tile.status, tile.tile_name === selectedTile);
+    // 1. Add bounding box if coverage exists
+    if (coverage && coverage.region) {
+      const { lat_min, lat_max, lon_min, lon_max } = coverage.region;
       
-      return {
-        type: 'Feature' as const,
-        properties: {
-          tile_name: tile.tile_name,
-          status: tile.status,
-          color: color
-        },
-        geometry: {
-          type: 'Polygon' as const,
-          coordinates: [[
-            [tile.lon_min, tile.lat_min],
-            [tile.lon_max, tile.lat_min],
-            [tile.lon_max, tile.lat_max],
-            [tile.lon_min, tile.lat_max],
-            [tile.lon_min, tile.lat_min]
-          ]]
+      map.current.addSource('bbox', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Polygon',
+            coordinates: [[
+              [lon_min, lat_min],
+              [lon_max, lat_min],
+              [lon_max, lat_max],
+              [lon_min, lat_max],
+              [lon_min, lat_min]
+            ]]
+          }
         }
-      };
-    });
+      });
 
-    // Add source and layer
-    map.current.addSource('tiles', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: features
-      }
-    });
+      map.current.addLayer({
+        id: 'bbox-layer',
+        type: 'line',
+        source: 'bbox',
+        paint: {
+          'line-color': '#007bff',
+          'line-width': 3,
+          'line-dasharray': [2, 2]
+        }
+      });
+    }
 
-    map.current.addLayer({
-      id: 'tiles-layer',
-      type: 'line',
-      source: 'tiles',
-      paint: {
-        'line-color': ['get', 'color'],
-        'line-width': 3
-      }
-    });
+    // 2. Add missing tiles (future tiles to download)
+    if (coverage && coverage.region.tiles_missing.length > 0) {
+      const missingFeatures = coverage.region.tiles_missing.map(tileName => {
+        // Parse tile name (e.g., N44E007)
+        const match = tileName.match(/([NS])(\d+)([EW])(\d+)/);
+        if (!match) return null;
 
-    // Add click handler
-    map.current.on('click', 'tiles-layer', (e) => {
-      if (e.features && e.features.length > 0) {
-        const feature = e.features[0];
-        const tileName = feature.properties?.tile_name;
-        setSelectedTile(tileName === selectedTile ? null : tileName);
-      }
-    });
+        const latSign = match[1] === 'N' ? 1 : -1;
+        const lat = parseInt(match[2]) * latSign;
+        const lonSign = match[3] === 'E' ? 1 : -1;
+        const lon = parseInt(match[4]) * lonSign;
 
-    // Change cursor on hover
-    map.current.on('mouseenter', 'tiles-layer', () => {
-      if (map.current) {
-        map.current.getCanvas().style.cursor = 'pointer';
-      }
-    });
+        return {
+          type: 'Feature' as const,
+          properties: {
+            tile_name: tileName,
+            status: 'missing'
+          },
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: [[
+              [lon, lat],
+              [lon + 1, lat],
+              [lon + 1, lat + 1],
+              [lon, lat + 1],
+              [lon, lat]
+            ]]
+          }
+        };
+      }).filter(Boolean);
 
-    map.current.on('mouseleave', 'tiles-layer', () => {
-      if (map.current) {
-        map.current.getCanvas().style.cursor = '';
+      if (missingFeatures.length > 0) {
+        map.current.addSource('missing-tiles', {
+          type: 'geojson',
+          data: {
+            type: 'FeatureCollection',
+            features: missingFeatures as any[]
+          }
+        });
+
+        map.current.addLayer({
+          id: 'missing-tiles-layer',
+          type: 'line',
+          source: 'missing-tiles',
+          paint: {
+            'line-color': '#dc3545',
+            'line-width': 2,
+            'line-dasharray': [4, 4]
+          }
+        });
       }
-    });
+    }
+
+    // 3. Add existing tiles with fill and border
+    if (tiles.length > 0) {
+      const features = tiles.map(tile => {
+        const color = getTileColor(tile.status, tile.tile_name === selectedTile);
+        const fillColor = getTileFillColor(tile.status);
+        
+        return {
+          type: 'Feature' as const,
+          properties: {
+            tile_name: tile.tile_name,
+            status: tile.status,
+            color: color,
+            fillColor: fillColor,
+            isSelected: tile.tile_name === selectedTile
+          },
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: [[
+              [tile.lon_min, tile.lat_min],
+              [tile.lon_max, tile.lat_min],
+              [tile.lon_max, tile.lat_max],
+              [tile.lon_min, tile.lat_max],
+              [tile.lon_min, tile.lat_min]
+            ]]
+          }
+        };
+      });
+
+      map.current.addSource('tiles', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: features
+        }
+      });
+
+      // Add fill layer (semi-transparent)
+      map.current.addLayer({
+        id: 'tiles-fill-layer',
+        type: 'fill',
+        source: 'tiles',
+        paint: {
+          'fill-color': ['get', 'fillColor'],
+          'fill-opacity': 0.3
+        }
+      });
+
+      // Add border layer
+      map.current.addLayer({
+        id: 'tiles-border-layer',
+        type: 'line',
+        source: 'tiles',
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': [
+            'case',
+            ['get', 'isSelected'],
+            4,
+            2
+          ]
+        }
+      });
+
+      // Add click handler
+      map.current.on('click', 'tiles-fill-layer', (e) => {
+        if (e.features && e.features.length > 0) {
+          const feature = e.features[0];
+          const tileName = feature.properties?.tile_name;
+          setSelectedTile(tileName === selectedTile ? null : tileName);
+        }
+      });
+
+      // Change cursor on hover
+      map.current.on('mouseenter', 'tiles-fill-layer', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = 'pointer';
+        }
+      });
+
+      map.current.on('mouseleave', 'tiles-fill-layer', () => {
+        if (map.current) {
+          map.current.getCanvas().style.cursor = '';
+        }
+      });
+    }
   };
 
   const getTileColor = (status: string, isSelected: boolean): string => {
     if (isSelected) return '#ff00ff'; // Magenta for selected
     
+    switch (status) {
+      case 'ready':
+        return '#28a745'; // Green
+      case 'downloading':
+        return '#ffc107'; // Yellow
+      case 'failed':
+        return '#dc3545'; // Red
+      default:
+        return '#6c757d'; // Gray
+    }
+  };
+
+  const getTileFillColor = (status: string): string => {
     switch (status) {
       case 'ready':
         return '#28a745'; // Green
@@ -196,14 +357,19 @@ const TerrainManagement: React.FC = () => {
 
   const handleDownload = async () => {
     setDownloadResult(null);
+    setDownloadProgress(null);
     try {
-      const result = await downloadWebSDRRegion();
-      setDownloadResult(`Downloaded ${result.successful} tiles successfully, ${result.failed} failed.`);
+      await downloadWebSDRRegion();
+      // Result will be updated via WebSocket events
+      // When all tiles complete, reset progress
+      setDownloadProgress(null);
+      setDownloadResult('Download completed! Check the tiles table for details.');
       // Refresh data
       await fetchTiles();
       await fetchCoverage();
     } catch (error: any) {
       console.error('Download error:', error);
+      setDownloadProgress(null);
     }
   };
 
@@ -238,6 +404,26 @@ const TerrainManagement: React.FC = () => {
       {downloadResult && (
         <Alert variant="info" dismissible onClose={() => setDownloadResult(null)}>
           {downloadResult}
+        </Alert>
+      )}
+
+      {/* Download Progress */}
+      {downloadProgress && downloading && (
+        <Alert variant="info">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <span>
+              <strong>Downloading:</strong> {downloadProgress.tile_name}
+            </span>
+            <span>
+              {downloadProgress.current} / {downloadProgress.total} tiles
+            </span>
+          </div>
+          <ProgressBar
+            now={(downloadProgress.current / downloadProgress.total) * 100}
+            label={`${Math.round((downloadProgress.current / downloadProgress.total) * 100)}%`}
+            animated
+            striped
+          />
         </Alert>
       )}
 
@@ -326,11 +512,33 @@ const TerrainManagement: React.FC = () => {
               )}
               <div className="mt-3">
                 <small className="text-muted">
-                  <span style={{ color: '#28a745' }}>■</span> Ready
-                  <span style={{ color: '#ffc107' }} className="ms-3">■</span> Downloading
-                  <span style={{ color: '#dc3545' }} className="ms-3">■</span> Failed
-                  <span style={{ color: '#6c757d' }} className="ms-3">■</span> Pending
+                  <strong>Tiles:</strong>{' '}
+                  <span style={{ color: '#28a745' }}>■</span> Ready{' '}
+                  <span style={{ color: '#ffc107' }} className="ms-3">■</span> Downloading{' '}
+                  <span style={{ color: '#dc3545' }} className="ms-3">■</span> Failed{' '}
+                  <span style={{ color: '#6c757d' }} className="ms-3">■</span> Pending{' '}
                   <span style={{ color: '#ff00ff' }} className="ms-3">■</span> Selected
+                  <span className="ms-4">|</span>
+                  <strong className="ms-3">Regions:</strong>{' '}
+                  <span style={{ 
+                    display: 'inline-block',
+                    width: '20px',
+                    height: '2px',
+                    backgroundColor: '#007bff',
+                    verticalAlign: 'middle',
+                    borderTop: '2px dashed #007bff',
+                    marginRight: '5px'
+                  }}></span> Bounding Box{' '}
+                  <span style={{ 
+                    display: 'inline-block',
+                    width: '20px',
+                    height: '2px',
+                    backgroundColor: '#dc3545',
+                    verticalAlign: 'middle',
+                    borderTop: '2px dashed #dc3545',
+                    marginLeft: '10px',
+                    marginRight: '5px'
+                  }}></span> Missing Tiles
                 </small>
               </div>
             </Card.Body>

@@ -181,8 +181,12 @@ async def download_tiles(
         api_key=api_key
     )
     
-    # Download tiles
-    result = await downloader.download_tiles(tile_coords)
+    # Get event publisher for real-time progress updates
+    from ..events.publisher import get_event_publisher
+    event_publisher = get_event_publisher()
+    
+    # Download tiles with progress updates
+    result = await downloader.download_tiles(tile_coords, event_publisher=event_publisher)
     
     # Convert to response format
     tiles_results = [

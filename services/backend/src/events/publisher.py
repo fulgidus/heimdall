@@ -218,6 +218,43 @@ class EventPublisher:
         self._publish(f'training.progress.{job_id}', event)
         logger.debug(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}")
 
+    def publish_terrain_tile_progress(
+        self,
+        tile_name: str,
+        status: str,
+        current: int,
+        total: int,
+        error: Optional[str] = None,
+        file_size: Optional[int] = None
+    ) -> None:
+        """
+        Publish terrain tile download progress.
+
+        Args:
+            tile_name: Tile name (e.g., 'N44E007')
+            status: Tile status ('downloading', 'ready', 'failed')
+            current: Current tile number
+            total: Total tiles to download
+            error: Optional error message
+            file_size: Optional file size in bytes
+        """
+        event = {
+            'event': 'terrain:tile_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'tile_name': tile_name,
+                'status': status,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'error': error,
+                'file_size': file_size
+            }
+        }
+
+        self._publish('terrain.tile.progress', event)
+        logger.debug(f"Published terrain tile progress: {tile_name} - {status} ({current}/{total})")
+
 
 # Singleton instance for convenience
 _publisher = None

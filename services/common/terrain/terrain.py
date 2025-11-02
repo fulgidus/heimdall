@@ -360,12 +360,13 @@ class SRTMDownloader:
         from urllib.parse import urlencode
         return urlencode(params)
     
-    async def download_tiles(self, tiles: list[Tuple[int, int]]) -> dict:
+    async def download_tiles(self, tiles: list[Tuple[int, int]], event_publisher=None) -> dict:
         """
-        Download multiple SRTM tiles.
+        Download multiple SRTM tiles with real-time progress updates.
         
         Args:
             tiles: List of (lat, lon) tuples for tile SW corners
+            event_publisher: Optional EventPublisher for progress updates
         
         Returns:
             Dict with download summary and per-tile results
@@ -373,14 +374,54 @@ class SRTMDownloader:
         results = []
         successful = 0
         failed = 0
+        total = len(tiles)
         
-        for lat, lon in tiles:
+        for idx, (lat, lon) in enumerate(tiles, 1):
+            tile_name = self._get_tile_name(lat, lon)
+            
+            # Publish progress: downloading
+            if event_publisher:
+                try:
+                    event_publisher.publish_terrain_tile_progress(
+                        tile_name=tile_name,
+                        status='downloading',
+                        current=idx,
+                        total=total
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to publish downloading event: {e}")
+            
             result = await self.download_tile(lat, lon)
             results.append(result)
+            
             if result["success"]:
                 successful += 1
+                # Publish progress: ready
+                if event_publisher:
+                    try:
+                        event_publisher.publish_terrain_tile_progress(
+                            tile_name=tile_name,
+                            status='ready',
+                            current=idx,
+                            total=total,
+                            file_size=result.get("file_size")
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to publish ready event: {e}")
             else:
                 failed += 1
+                # Publish progress: failed
+                if event_publisher:
+                    try:
+                        event_publisher.publish_terrain_tile_progress(
+                            tile_name=tile_name,
+                            status='failed',
+                            current=idx,
+                            total=total,
+                            error=result.get("error")
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to publish failed event: {e}")
         
         return {
             "successful": successful,
@@ -429,13 +470,16 @@ class SRTMDownloader:
                 # Update existing tile
                 update_query = """
                     UPDATE heimdall.terrain_tiles
-                    SET status = $1,
-                        error_message = $2,
+                    SET status = $1::VARCHAR,
+                        error_message = $2::TEXT,
                         file_size_bytes = COALESCE($3, file_size_bytes),
                         checksum_sha256 = COALESCE($4, checksum_sha256),
                         source_url = COALESCE($5, source_url),
-                        downloaded_at = CASE WHEN $1 = 'ready' THEN $6 ELSE downloaded_at END,
-                        updated_at = $6
+                        downloaded_at = CASE 
+                            WHEN $1::VARCHAR = 'ready' THEN $6::TIMESTAMPTZ 
+                            ELSE downloaded_at 
+                        END,
+                        updated_at = $6::TIMESTAMPTZ
                     WHERE tile_name = $7
                 """
                 await conn.execute(
@@ -458,10 +502,10 @@ class SRTMDownloader:
                         downloaded_at, created_at, updated_at
                     ) VALUES (
                         $1, $2, $3, $4, $5,
-                        $6, $7, $8, $9,
+                        $6, $7, $8::VARCHAR, $9::TEXT,
                         $10, $11, $12,
-                        CASE WHEN $8 = 'ready' THEN $13 ELSE NULL END,
-                        $13, $13
+                        CASE WHEN $8::VARCHAR = 'ready' THEN $13::TIMESTAMPTZ ELSE NULL END,
+                        $13::TIMESTAMPTZ, $13::TIMESTAMPTZ
                     )
                 """
                 await conn.execute(

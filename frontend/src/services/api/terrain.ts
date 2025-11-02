@@ -113,7 +113,10 @@ export const terrainApi = {
    * @param request Optional bounds, otherwise auto-detect from WebSDR stations
    */
   async downloadTiles(request?: DownloadRequest): Promise<DownloadResponse> {
-    const response = await api.post('/v1/terrain/download', request || {});
+    // Use extended timeout for tile downloads (can take 60-90s for multiple tiles)
+    const response = await api.post('/v1/terrain/download', request || {}, {
+      timeout: 120000, // 2 minutes
+    });
     return response.data;
   },
 
