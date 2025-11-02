@@ -555,7 +555,7 @@ async def generate_synthetic_data_with_iq(
     receivers_config: list,
     training_config: TrainingConfig,
     config: dict,
-    pool,
+    conn,
     progress_callback=None,
     seed: Optional[int] = None
 ) -> dict:
@@ -568,7 +568,7 @@ async def generate_synthetic_data_with_iq(
         receivers_config: List of receiver configurations
         training_config: Training configuration with bounding boxes
         config: Generation parameters (frequency, power, SNR thresholds, etc.)
-        pool: Database connection pool
+        conn: Database connection (async)
         progress_callback: Optional callback for progress updates
         seed: Random seed for reproducibility
 
@@ -675,7 +675,7 @@ async def generate_synthetic_data_with_iq(
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
 
     # Save features to database
-    await save_features_to_db(dataset_id, generated_samples, pool)
+    await save_features_to_db(dataset_id, generated_samples, conn)
 
     # Save IQ samples to MinIO (first 100 only)
     if iq_samples_to_save:
@@ -692,7 +692,7 @@ async def generate_synthetic_data_with_iq(
 async def save_features_to_db(
     dataset_id: uuid.UUID,
     samples: list[dict],
-    pool
+    conn
 ) -> None:
     """
     Save extracted features to measurement_features table.
@@ -700,54 +700,53 @@ async def save_features_to_db(
     Args:
         dataset_id: Dataset UUID
         samples: List of sample dicts with receiver_features, metadata, quality_metrics
-        pool: Database connection pool
+        conn: Database connection (async)
     """
     from sqlalchemy import text
     
     logger.info(f"Saving {len(samples)} feature samples to database")
+    
+    insert_features_query = text("""
+        INSERT INTO heimdall.measurement_features (
+            recording_session_id, timestamp, receiver_features, tx_latitude,
+            tx_longitude, tx_altitude_m, tx_power_dbm, tx_known,
+            extraction_metadata, overall_confidence, mean_snr_db,
+            num_receivers_detected, gdop, extraction_failed, created_at
+        )
+        VALUES (
+            :recording_session_id, NOW(), CAST(:receiver_features AS jsonb[]),
+            :tx_latitude, :tx_longitude, :tx_altitude_m, :tx_power_dbm, TRUE,
+            CAST(:extraction_metadata AS jsonb), :overall_confidence,
+            :mean_snr_db, :num_receivers_detected, :gdop, FALSE, NOW()
+        )
+    """)
 
-    async with pool.acquire() as conn:
-        insert_features_query = text("""
-            INSERT INTO heimdall.measurement_features (
-                recording_session_id, timestamp, receiver_features, tx_latitude,
-                tx_longitude, tx_altitude_m, tx_power_dbm, tx_known,
-                extraction_metadata, overall_confidence, mean_snr_db,
-                num_receivers_detected, gdop, extraction_failed, created_at
-            )
-            VALUES (
-                :recording_session_id, NOW(), CAST(:receiver_features AS jsonb[]),
-                :tx_latitude, :tx_longitude, :tx_altitude_m, :tx_power_dbm, TRUE,
-                CAST(:extraction_metadata AS jsonb), :overall_confidence,
-                :mean_snr_db, :num_receivers_detected, :gdop, FALSE, NOW()
-            )
-        """)
+    for sample in samples:
+        # Generate unique recording_session_id for synthetic sample
+        recording_session_id = uuid.uuid4()
 
-        for sample in samples:
-            # Generate unique recording_session_id for synthetic sample
-            recording_session_id = uuid.uuid4()
+        # Convert receiver features list to PostgreSQL array of JSONB
+        receiver_features_json_list = [
+            json.dumps(rf) for rf in sample['receiver_features']
+        ]
 
-            # Convert receiver features list to PostgreSQL array of JSONB
-            receiver_features_json_list = [
-                json.dumps(rf) for rf in sample['receiver_features']
-            ]
-
-            # Insert features
-            await conn.execute(
-                insert_features_query,
-                {
-                    'recording_session_id': str(recording_session_id),
-                    'receiver_features': f'{{{",".join(receiver_features_json_list)}}}',  # PostgreSQL array syntax
-                    'tx_latitude': sample['tx_position']['tx_lat'],
-                    'tx_longitude': sample['tx_position']['tx_lon'],
-                    'tx_altitude_m': sample['tx_position']['tx_alt'],
-                    'tx_power_dbm': sample['tx_position']['tx_power_dbm'],
-                    'extraction_metadata': json.dumps(sample['extraction_metadata']),
-                    'overall_confidence': sample['quality_metrics']['overall_confidence'],
-                    'mean_snr_db': sample['quality_metrics']['mean_snr_db'],
-                    'num_receivers_detected': sample['quality_metrics']['num_receivers_detected'],
-                    'gdop': sample['quality_metrics']['gdop']
-                }
-            )
+        # Insert features
+        await conn.execute(
+            insert_features_query,
+            {
+                'recording_session_id': str(recording_session_id),
+                'receiver_features': f'{{{",".join(receiver_features_json_list)}}}',  # PostgreSQL array syntax
+                'tx_latitude': sample['tx_position']['tx_lat'],
+                'tx_longitude': sample['tx_position']['tx_lon'],
+                'tx_altitude_m': sample['tx_position']['tx_alt'],
+                'tx_power_dbm': sample['tx_position']['tx_power_dbm'],
+                'extraction_metadata': json.dumps(sample['extraction_metadata']),
+                'overall_confidence': sample['quality_metrics']['overall_confidence'],
+                'mean_snr_db': sample['quality_metrics']['mean_snr_db'],
+                'num_receivers_detected': sample['quality_metrics']['num_receivers_detected'],
+                'gdop': sample['quality_metrics']['gdop']
+            }
+        )
 
     logger.info(f"Saved {len(samples)} feature samples to database")
 
