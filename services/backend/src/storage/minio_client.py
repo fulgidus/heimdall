@@ -133,33 +133,58 @@ class MinIOClient:
 
     def download_iq_data(
         self,
-        task_id: str,
-        websdr_id: int,
-    ) -> tuple[bool, np.ndarray | None]:
-        """Download IQ data from MinIO."""
+        task_id: str = None,
+        websdr_id: int = None,
+        s3_path: str = None,
+    ) -> bytes:
+        """
+        Download IQ data from MinIO.
+        
+        Args:
+            task_id: Task ID (legacy format)
+            websdr_id: WebSDR ID (legacy format)
+            s3_path: Direct S3 path (new format for real recordings)
+            
+        Returns:
+            Raw IQ data bytes
+            
+        Raises:
+            Exception if download fails
+        """
         try:
-            s3_path = f"sessions/{task_id}/websdr_{websdr_id}.npy"
+            if s3_path:
+                # Direct path provided (for real recordings)
+                # Remove bucket prefix if present
+                if s3_path.startswith(f"s3://{self.bucket_name}/"):
+                    s3_path = s3_path.replace(f"s3://{self.bucket_name}/", "")
+                elif s3_path.startswith("s3://"):
+                    # Extract path after bucket name
+                    parts = s3_path.replace("s3://", "").split("/", 1)
+                    s3_path = parts[1] if len(parts) > 1 else parts[0]
+                    
+                key = s3_path
+            else:
+                # Legacy format (task_id + websdr_id)
+                key = f"sessions/{task_id}/websdr_{websdr_id}.npy"
 
-            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=s3_path)
-
-            buffer = BytesIO(response["Body"].read())
-            iq_data = np.load(buffer)
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            iq_bytes = response["Body"].read()
 
             logger.info(
-                "Downloaded IQ data from s3://%s/%s (%d samples)",
+                "Downloaded IQ data from s3://%s/%s (%d bytes)",
                 self.bucket_name,
-                s3_path,
-                len(iq_data),
+                key,
+                len(iq_bytes),
             )
 
-            return True, iq_data
+            return iq_bytes
 
         except ClientError as e:
-            logger.error("Failed to download IQ data: %s", e)
-            return False, None
+            logger.error("Failed to download IQ data from %s: %s", key if 'key' in locals() else 'unknown', e)
+            raise
         except Exception as e:
             logger.exception("Unexpected error downloading IQ data: %s", e)
-            return False, None
+            raise
 
     def get_session_measurements(self, task_id: str) -> dict[int, dict]:
         """List all measurements from a session."""

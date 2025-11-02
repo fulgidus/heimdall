@@ -25,7 +25,9 @@ from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
 from .terrain import TerrainLookup
 from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
-from .rf_feature_extractor import RFFeatureExtractor, IQSample
+
+# Import from common module (PYTHONPATH=/app in Dockerfile)
+from common.feature_extraction import RFFeatureExtractor, IQSample
 
 logger = structlog.get_logger(__name__)
 

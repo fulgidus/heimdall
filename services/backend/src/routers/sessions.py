@@ -417,7 +417,7 @@ async def update_session_status(
     status: str = ...,
     celery_task_id: str | None = None,
 ):
-    """Update session status"""
+    """Update session status and trigger feature extraction if completed"""
     UUID(session_id)
     pool = get_pool()
 
@@ -450,6 +450,13 @@ async def update_session_status(
 
         if not row:
             raise HTTPException(status_code=404, detail="Session not found")
+
+        # Trigger feature extraction if session completed
+        if status == "completed":
+            from ..tasks.feature_extraction_task import extract_recording_features
+            
+            task = extract_recording_features.delay(session_id)
+            logger.info(f"Triggered feature extraction for session {session_id}, task_id={task.id}")
 
         return RecordingSession(**dict(row))
 
