@@ -26,7 +26,6 @@ from ..models.training import (
     TrainingStatus,
 )
 from ..storage.db_manager import get_db_manager
-from ..tasks.training_task import start_training_job
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +84,9 @@ async def create_training_job(request: TrainingJobRequest):
 
             logger.info(f"Created training job {job_id}: {request.job_name}")
 
-        # Queue Celery task
-        task = start_training_job.delay(str(job_id))
+        # Queue Celery task to training service
+        from ..main import celery_app
+        task = celery_app.send_task('start_training_job', args=[str(job_id)])
 
         # Update job with Celery task ID
         with db_manager.get_session() as session:
@@ -488,9 +488,9 @@ async def generate_synthetic_data(request: Any):
         
         logger.info(f"Created synthetic data generation job {job_id}")
         
-        # Queue Celery task
-        from ..tasks.training_task import generate_synthetic_data_task
-        generate_synthetic_data_task.delay(str(job_id))
+        # Queue Celery task to training service
+        from ..main import celery_app
+        celery_app.send_task('generate_synthetic_data_task', args=[str(job_id)])
         
         return {
             "job_id": job_id,

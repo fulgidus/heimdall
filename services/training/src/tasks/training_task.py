@@ -12,17 +12,13 @@ import uuid
 import json
 import sys
 import os
+import torch
+import torch.nn as nn
+import torch.optim as optim
 from io import BytesIO
-from typing import TYPE_CHECKING
 
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
-
-# Lazy imports for optional dependencies
-if TYPE_CHECKING:
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
 
 logger = get_task_logger(__name__)
 
@@ -57,9 +53,11 @@ def start_training_job(self, job_id: str):
     Returns:
         Dict with training results
     """
-    from ..storage.db_manager import get_db_manager
-    from ..storage.minio_client import MinIOClient
-    from ..config import settings
+    # Import backend storage modules
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../backend/src'))
+    from storage.db_manager import get_db_manager
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
     from sqlalchemy import text
     
     logger.info(f"Starting training job {job_id}")
@@ -102,11 +100,6 @@ def start_training_job(self, job_id: str):
         max_gdop = config.get("max_gdop", 5.0)
         
         logger.info(f"Training config: dataset={dataset_id}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
-        
-        # Add training service to Python path
-        training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
-        if training_path not in sys.path:
-            sys.path.insert(0, training_path)
         
         # Import training components
         from models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
@@ -173,9 +166,9 @@ def start_training_job(self, job_id: str):
         
         # Initialize MinIO client for checkpoints
         minio_client = MinIOClient(
-            endpoint_url=settings.minio_url,
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
+            endpoint_url=backend_settings.minio_url,
+            access_key=backend_settings.minio_access_key,
+            secret_key=backend_settings.minio_secret_key,
             bucket_name="models"
         )
         minio_client.ensure_bucket_exists()
@@ -534,9 +527,10 @@ def generate_synthetic_data_task(self, job_id: str):
     Returns:
         Dict with generation results
     """
-    from ..storage.db_manager import get_db_manager
+    # Import backend storage modules
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../backend/src'))
+    from storage.db_manager import get_db_manager
     from sqlalchemy import text
-    import json
     
     logger.info(f"Starting synthetic data generation job {job_id}")
     
@@ -566,19 +560,7 @@ def generate_synthetic_data_task(self, job_id: str):
             session.execute(update_query, {"job_id": job_id})
             session.commit()
         
-        # Generate synthetic data
-        # Import here to avoid circular dependencies
-        import sys
-        import os
-        
-        # Add training service to path using environment variable or relative path
-        training_path = os.environ.get('TRAINING_SERVICE_PATH')
-        if not training_path:
-            # Fallback to relative path from this file
-            training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
-        if training_path not in sys.path:
-            sys.path.insert(0, training_path)
-        
+        # Generate synthetic data - import training service modules
         from data.config import TrainingConfig, get_italian_receivers
         from data.propagation import RFPropagationModel
         from data.terrain import TerrainLookup
