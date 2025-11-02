@@ -38,9 +38,7 @@ export interface SyntheticDataset {
     name: string;
     description?: string;
     num_samples: number;
-    train_count?: number;
-    val_count?: number;
-    test_count?: number;
+    // NOTE: train_count, val_count, test_count removed - splits calculated at training time
     config: Record<string, any>;
     quality_metrics?: Record<string, any>;
     storage_table: string;

@@ -598,11 +598,11 @@ def generate_synthetic_data_task(self, job_id: str):
                 # Create new dataset
                 dataset_query = text("""
                     INSERT INTO heimdall.synthetic_datasets (
-                        id, name, description, num_samples, train_count, val_count, test_count,
+                        id, name, description, num_samples,
                         config, created_by_job_id
                     )
                     VALUES (
-                        :id, :name, :description, 0, 0, 0, 0,
+                        :id, :name, :description, 0,
                         CAST(:config AS jsonb), :job_id
                     )
                 """)

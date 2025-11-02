@@ -10,15 +10,17 @@ from pydantic import BaseModel, Field
 
 
 class SyntheticDataGenerationRequest(BaseModel):
-    """Request to generate synthetic training data."""
-    
+    """
+    Request to generate synthetic training data.
+
+    Note: Data splits (train/val/test) are NOT assigned during generation.
+    They are calculated at training time for maximum flexibility.
+    """
+
     name: str = Field(..., min_length=1, max_length=100, description="Dataset name")
     description: Optional[str] = Field(default=None, description="Dataset description")
     num_samples: int = Field(..., ge=1000, le=5000000, description="Number of samples to generate")
     inside_ratio: float = Field(default=0.7, ge=0.0, le=1.0, description="Ratio of TX inside receiver network")
-    train_ratio: float = Field(default=0.7, ge=0.0, le=1.0, description="Training set ratio")
-    val_ratio: float = Field(default=0.15, ge=0.0, le=1.0, description="Validation set ratio")
-    test_ratio: float = Field(default=0.15, ge=0.0, le=1.0, description="Test set ratio")
     frequency_mhz: float = Field(default=145.0, ge=0.5, le=3000.0, description="Frequency in MHz (HF/VHF/UHF/SHF)")
     tx_power_dbm: float = Field(default=37.0, ge=0.0, le=50.0, description="TX power in dBm")
     min_snr_db: float = Field(default=3.0, ge=0.0, description="Minimum SNR threshold")
@@ -27,21 +29,23 @@ class SyntheticDataGenerationRequest(BaseModel):
 
 
 class SyntheticDatasetResponse(BaseModel):
-    """Response with synthetic dataset details."""
-    
+    """
+    Response with synthetic dataset details.
+
+    Note: train_count, val_count, test_count are no longer stored.
+    Data splits are calculated dynamically at training time.
+    """
+
     id: UUID
     name: str
     description: Optional[str]
     num_samples: int
-    train_count: Optional[int]
-    val_count: Optional[int]
-    test_count: Optional[int]
     config: dict[str, Any]
     quality_metrics: Optional[dict[str, Any]]
     storage_table: str
     created_at: datetime
     created_by_job_id: Optional[UUID]
-    
+
     class Config:
         from_attributes = True
 

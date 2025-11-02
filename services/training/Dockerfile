@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS deps-train
+    FROM python:3.11-slim AS deps-train
 WORKDIR /build
 
 # Install system dependencies

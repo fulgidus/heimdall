@@ -652,9 +652,6 @@ async def list_synthetic_datasets(
                     sd.name,
                     sd.description,
                     COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
-                    sd.train_count,
-                    sd.val_count,
-                    sd.test_count,
                     sd.config,
                     sd.quality_metrics,
                     sd.storage_table,
@@ -662,9 +659,8 @@ async def list_synthetic_datasets(
                     sd.created_by_job_id
                 FROM heimdall.synthetic_datasets sd
                 LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
-                GROUP BY sd.id, sd.name, sd.description, sd.train_count, sd.val_count,
-                         sd.test_count, sd.config, sd.quality_metrics, sd.storage_table,
-                         sd.created_at, sd.created_by_job_id
+                GROUP BY sd.id, sd.name, sd.description, sd.config, sd.quality_metrics,
+                         sd.storage_table, sd.created_at, sd.created_by_job_id
                 ORDER BY sd.created_at DESC
                 LIMIT :limit OFFSET :offset
             """)
@@ -680,22 +676,19 @@ async def list_synthetic_datasets(
             datasets = []
             for row in results:
                 # JSONB columns are already dicts, not strings
-                config = row[7] if isinstance(row[7], dict) else (json.loads(row[7]) if row[7] else {})
-                quality_metrics = row[8] if isinstance(row[8], dict) else (json.loads(row[8]) if row[8] else None)
+                config = row[4] if isinstance(row[4], dict) else (json.loads(row[4]) if row[4] else {})
+                quality_metrics = row[5] if isinstance(row[5], dict) else (json.loads(row[5]) if row[5] else None)
 
                 datasets.append(SyntheticDatasetResponse(
                     id=row[0],
                     name=row[1],
                     description=row[2],
                     num_samples=row[3],
-                    train_count=row[4],
-                    val_count=row[5],
-                    test_count=row[6],
                     config=config,
                     quality_metrics=quality_metrics,
-                    storage_table=row[9],
-                    created_at=row[10],
-                    created_by_job_id=row[11]
+                    storage_table=row[6],
+                    created_at=row[7],
+                    created_by_job_id=row[8]
                 ))
             
             return SyntheticDatasetListResponse(datasets=datasets, total=total)
@@ -729,9 +722,6 @@ async def get_synthetic_dataset(dataset_id: UUID):
                     sd.name,
                     sd.description,
                     COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
-                    sd.train_count,
-                    sd.val_count,
-                    sd.test_count,
                     sd.config,
                     sd.quality_metrics,
                     sd.storage_table,
@@ -740,9 +730,8 @@ async def get_synthetic_dataset(dataset_id: UUID):
                 FROM heimdall.synthetic_datasets sd
                 LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
                 WHERE sd.id = :dataset_id
-                GROUP BY sd.id, sd.name, sd.description, sd.train_count, sd.val_count,
-                         sd.test_count, sd.config, sd.quality_metrics, sd.storage_table,
-                         sd.created_at, sd.created_by_job_id
+                GROUP BY sd.id, sd.name, sd.description, sd.config, sd.quality_metrics,
+                         sd.storage_table, sd.created_at, sd.created_by_job_id
             """)
 
             result = session.execute(query, {"dataset_id": str(dataset_id)}).fetchone()
@@ -752,22 +741,19 @@ async def get_synthetic_dataset(dataset_id: UUID):
             
             import json
             # JSONB columns are already dicts, not strings
-            config = result[7] if isinstance(result[7], dict) else (json.loads(result[7]) if result[7] else {})
-            quality_metrics = result[8] if isinstance(result[8], dict) else (json.loads(result[8]) if result[8] else None)
+            config = result[4] if isinstance(result[4], dict) else (json.loads(result[4]) if result[4] else {})
+            quality_metrics = result[5] if isinstance(result[5], dict) else (json.loads(result[5]) if result[5] else None)
 
             return SyntheticDatasetResponse(
                 id=result[0],
                 name=result[1],
                 description=result[2],
                 num_samples=result[3],
-                train_count=result[4],
-                val_count=result[5],
-                test_count=result[6],
                 config=config,
                 quality_metrics=quality_metrics,
-                storage_table=result[9],
-                created_at=result[10],
-                created_by_job_id=result[11]
+                storage_table=result[6],
+                created_at=result[7],
+                created_by_job_id=result[8]
             )
     
     except HTTPException:

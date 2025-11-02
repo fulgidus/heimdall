@@ -111,13 +111,11 @@ const TrainingDashboard: React.FC = () => {
   const [showDataModal, setShowDataModal] = useState(false);
   
   // Data generation form
+  // NOTE: train_ratio/val_ratio/test_ratio removed - splits calculated at training time
   const [dataForm, setDataForm] = useState({
     name: '',
     num_samples: 10000,
     inside_ratio: 0.7,
-    train_ratio: 0.7,
-    val_ratio: 0.15,
-    test_ratio: 0.15,
     // RF generation parameters (relaxed defaults for better success rate)
     frequency_mhz: 144.0,
     tx_power_dbm: 33.0,
@@ -190,9 +188,6 @@ const TrainingDashboard: React.FC = () => {
         name: '',
         num_samples: 10000,
         inside_ratio: 0.7,
-        train_ratio: 0.7,
-        val_ratio: 0.15,
-        test_ratio: 0.15,
         frequency_mhz: 144.0,
         tx_power_dbm: 33.0,
         min_snr_db: 0.0,
@@ -335,7 +330,6 @@ const TrainingDashboard: React.FC = () => {
                 <tr>
                   <th>Name</th>
                   <th>Samples</th>
-                  <th>Train/Val/Test</th>
                   <th>Quality Metrics</th>
                   <th>Created</th>
                   <th>Actions</th>
@@ -346,9 +340,6 @@ const TrainingDashboard: React.FC = () => {
                   <tr key={dataset.id}>
                     <td><strong>{dataset.name}</strong></td>
                     <td>{dataset.num_samples.toLocaleString()}</td>
-                    <td>
-                      {dataset.train_count}/{dataset.val_count}/{dataset.test_count}
-                    </td>
                     <td>
                       {dataset.quality_metrics ? (
                         <small>
@@ -580,48 +571,6 @@ const TrainingDashboard: React.FC = () => {
               />
               <Form.Text>1,000 - 100,000 samples (recommended: 10,000)</Form.Text>
             </Form.Group>
-
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Training Split</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={dataForm.train_ratio}
-                    onChange={(e) => setDataForm({ ...dataForm, train_ratio: parseFloat(e.target.value) })}
-                    step={0.05}
-                    min={0}
-                    max={1}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Validation Split</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={dataForm.val_ratio}
-                    onChange={(e) => setDataForm({ ...dataForm, val_ratio: parseFloat(e.target.value) })}
-                    step={0.05}
-                    min={0}
-                    max={1}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Test Split</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={dataForm.test_ratio}
-                    onChange={(e) => setDataForm({ ...dataForm, test_ratio: parseFloat(e.target.value) })}
-                    step={0.05}
-                    min={0}
-                    max={1}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
 
             <Form.Group className="mb-3">
               <Form.Label>Inside Network Ratio</Form.Label>

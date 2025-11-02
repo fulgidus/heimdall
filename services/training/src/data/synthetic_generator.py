@@ -264,9 +264,6 @@ class SyntheticDataGenerator:
         self,
         num_samples: int,
         inside_ratio: float = 0.7,
-        train_ratio: float = 0.7,
-        val_ratio: float = 0.15,
-        test_ratio: float = 0.15,
         frequency_mhz: float = 145.0,
         tx_power_dbm: float = 37.0,
         min_snr_db: float = 3.0,
@@ -276,20 +273,20 @@ class SyntheticDataGenerator:
     ) -> List[SyntheticSample]:
         """
         Generate synthetic training samples.
-        
+
+        Data splits (train/val/test) are NOT assigned here - they will be
+        calculated at training time to allow flexible dataset combination.
+
         Args:
             num_samples: Number of samples to generate
             inside_ratio: Ratio of transmitters inside receiver network (0.7 = 70%)
-            train_ratio: Ratio for training set
-            val_ratio: Ratio for validation set
-            test_ratio: Ratio for test set
             frequency_mhz: Transmission frequency in MHz
             tx_power_dbm: Transmitter power in dBm
             min_snr_db: Minimum SNR threshold for receiver
             min_receivers: Minimum number of receivers with signal
             max_gdop: Maximum GDOP for good geometry
             progress_callback: Optional callback(current, total, message)
-        
+
         Returns:
             List of SyntheticSample objects that pass quality filters
         """
@@ -305,7 +302,6 @@ class SyntheticDataGenerator:
             "Starting synthetic data generation",
             num_samples=num_samples,
             inside_ratio=inside_ratio,
-            splits=f"train:{train_ratio}, val:{val_ratio}, test:{test_ratio}",
             min_snr_db=min_snr_db,
             min_receivers=min_receivers,
             max_gdop=max_gdop
@@ -374,11 +370,8 @@ class SyntheticDataGenerator:
             if gdop > max_gdop:
                 rejected_gdop += 1
                 continue
-            
-            # Assign to split
-            split = self._assign_split(len(samples), num_samples, train_ratio, val_ratio, test_ratio)
-            
-            # Create sample
+
+            # Create sample (no split assignment - will be done at training time)
             sample = SyntheticSample(
                 tx_lat=tx_lat,
                 tx_lon=tx_lon,
@@ -426,36 +419,6 @@ class SyntheticDataGenerator:
         
         return lat, lon
     
-    def _assign_split(
-        self,
-        current_idx: int,
-        total: int,
-        train_ratio: float,
-        val_ratio: float,
-        test_ratio: float
-    ) -> str:
-        """
-        Assign sample to train/val/test split.
-        
-        Args:
-            current_idx: Current sample index
-            total: Total number of samples
-            train_ratio: Training set ratio
-            val_ratio: Validation set ratio
-            test_ratio: Test set ratio
-        
-        Returns:
-            'train', 'val', or 'test'
-        """
-        # Deterministic split based on index
-        normalized_idx = current_idx / total
-        
-        if normalized_idx < train_ratio:
-            return 'train'
-        elif normalized_idx < train_ratio + val_ratio:
-            return 'val'
-        else:
-            return 'test'
 
 
 def save_samples_to_db(samples: List[SyntheticSample], dataset_id: uuid.UUID, db_session) -> int:
