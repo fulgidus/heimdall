@@ -581,8 +581,10 @@ def generate_synthetic_data_task(self, job_id: str):
         
         from data.config import TrainingConfig, get_italian_receivers
         from data.propagation import RFPropagationModel
-        from data.terrain import TerrainLookup
         from data.synthetic_generator import SyntheticDataGenerator, save_samples_to_db, calculate_quality_metrics
+        
+        # Import terrain from common module (shared across services)
+        from common.terrain import TerrainLookup
         
         # Create training config
         receivers = get_italian_receivers()
