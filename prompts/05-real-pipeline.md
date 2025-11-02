@@ -3,13 +3,18 @@
 ## Objective
 
 Implement automatic feature extraction for real IQ recordings from WebSDR stations:
-1. Load IQ data from MinIO when recording completes
-2. Extract features using same `RFFeatureExtractor` as synthetic data
-3. Save to `measurement_features` table
+1. Load IQ data from **ALL receivers** in a recording session
+2. Extract features from each receiver using same `RFFeatureExtractor` as synthetic data
+3. Save **ONE record** per session with correlated multi-receiver features
 4. Handle errors gracefully (save error state, don't fail silently)
 5. Trigger automatically when recording session completes
 
 ## Context
+
+**CRITICAL**: Real recordings must match synthetic data structure for ML training.
+
+**Synthetic data**: 1 TX → features from 7 receivers → 1 database record
+**Real recordings**: 1 recording session → features from N receivers (2-7) → 1 database record
 
 Real recordings are stored in MinIO at:
 ```
@@ -17,8 +22,8 @@ heimdall-raw-iq/{year}/{month}/{day}/{station_id}/{frequency_hz}/{timestamp}.bin
 ```
 
 We need to:
-- Extract features from all receivers that recorded the signal
-- Handle variable-length recordings (chunk into 1000ms segments)
+- Extract features from **ALL receivers** that recorded the signal **simultaneously**
+- Group features by `recording_session_id` (NOT individual measurements)
 - Save error messages if extraction fails (antenna issue, corrupted file, etc.)
 - Use same chunking/aggregation as synthetic (1000ms → 5×200ms)
 
@@ -33,12 +38,15 @@ We need to:
 Celery task for extracting features from real IQ recordings.
 
 Automatically triggered when a recording session completes.
+
+IMPORTANT: Extracts features from ALL receivers in a session and saves
+as ONE correlated sample (matching synthetic data structure).
 """
 
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 import json
 
 import numpy as np
@@ -60,11 +68,15 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(bind=True, name='backend.tasks.extract_recording_features')
 class ExtractRecordingFeaturesTask(Task):
-    """Extract features from a completed recording session."""
+    """
+    Extract features from a completed recording session.
+
+    This creates ONE sample with features from ALL receivers (like synthetic data).
+    """
 
     def run(self, recording_session_id: str) -> dict:
         """
-        Extract features from all recordings in a session.
+        Extract features from ALL receivers in a recording session.
 
         Args:
             recording_session_id: UUID of recording session
@@ -72,7 +84,7 @@ class ExtractRecordingFeaturesTask(Task):
         Returns:
             dict with extraction results
         """
-        logger.info(f"Starting feature extraction for recording session {recording_session_id}")
+        logger.info(f"Starting multi-receiver feature extraction for session {recording_session_id}")
 
         try:
             # Get database pool
@@ -85,38 +97,38 @@ class ExtractRecordingFeaturesTask(Task):
                 logger.error(f"Recording session {recording_session_id} not found")
                 return {'success': False, 'error': 'Session not found'}
 
-            # Get all measurements for this session
+            # Get ALL measurements for this session (all receivers)
             measurements = self._get_session_measurements(pool, recording_session_id)
 
-            logger.info(f"Found {len(measurements)} measurements for session {recording_session_id}")
+            if not measurements:
+                logger.warning(f"No measurements found for session {recording_session_id}")
+                return {'success': False, 'error': 'No measurements found'}
 
-            # Extract features for each measurement
-            results = {
-                'total': len(measurements),
-                'success': 0,
-                'failed': 0,
-                'errors': []
-            }
+            logger.info(f"Found {len(measurements)} receivers for session {recording_session_id}")
 
-            for measurement in measurements:
-                try:
-                    self._extract_measurement_features(
-                        pool,
-                        measurement,
-                        session
-                    )
-                    results['success'] += 1
-                except Exception as e:
-                    logger.error(f"Error extracting features for measurement {measurement['id']}: {e}")
-                    results['failed'] += 1
-                    results['errors'].append(str(e))
+            # Extract features from ALL receivers
+            try:
+                self._extract_session_features(pool, session, measurements)
 
-                    # Save error to database
-                    self._save_extraction_error(pool, measurement['id'], str(e))
+                logger.info(f"Successfully extracted features from {len(measurements)} receivers")
 
-            logger.info(f"Feature extraction complete: {results['success']} success, {results['failed']} failed")
+                return {
+                    'success': True,
+                    'num_receivers': len(measurements),
+                    'session_id': recording_session_id
+                }
 
-            return results
+            except Exception as e:
+                logger.error(f"Error extracting features for session {recording_session_id}: {e}")
+
+                # Save error to database
+                self._save_extraction_error(pool, recording_session_id, str(e))
+
+                return {
+                    'success': False,
+                    'error': str(e),
+                    'session_id': recording_session_id
+                }
 
         except Exception as e:
             logger.exception(f"Fatal error in feature extraction task: {e}")
@@ -148,8 +160,12 @@ class ExtractRecordingFeaturesTask(Task):
                 'created_at': result[6]
             }
 
-    def _get_session_measurements(self, pool, session_id: str) -> list[dict]:
-        """Get all measurements for a recording session."""
+    def _get_session_measurements(self, pool, session_id: str) -> List[dict]:
+        """
+        Get ALL measurements for a recording session.
+
+        Returns one measurement per receiver that captured the session.
+        """
         query = text("""
             SELECT
                 m.id, m.websdr_station_id, m.frequency_hz,
@@ -159,6 +175,7 @@ class ExtractRecordingFeaturesTask(Task):
             WHERE m.created_at >= rs.created_at
               AND m.created_at <= rs.created_at + (rs.duration_seconds * INTERVAL '1 second')
               AND m.iq_data_location IS NOT NULL
+            ORDER BY m.websdr_station_id
         """)
 
         with pool.connect() as conn:
@@ -176,70 +193,118 @@ class ExtractRecordingFeaturesTask(Task):
                 for row in results
             ]
 
-    def _extract_measurement_features(
+    def _extract_session_features(
         self,
         pool,
-        measurement: dict,
-        session: dict
+        session: dict,
+        measurements: List[dict]
     ) -> None:
         """
-        Extract features from a single measurement.
+        Extract features from ALL receivers in a session.
+
+        This creates ONE database record with features from multiple receivers
+        (matching synthetic data structure for ML training).
 
         Args:
             pool: Database connection pool
-            measurement: Measurement dict
             session: Recording session dict
+            measurements: List of measurements (one per receiver)
         """
-        # Load IQ data from MinIO
-        iq_sample = self._load_iq_from_minio(
-            measurement['iq_data_location'],
-            measurement['frequency_hz'],
-            measurement['websdr_station_id'],
-            measurement['created_at']
-        )
+        logger.info(f"Extracting features from {len(measurements)} receivers")
 
-        # Initialize feature extractor
-        feature_extractor = RFFeatureExtractor(sample_rate_hz=iq_sample.sample_rate_hz)
+        # Extract features for EACH receiver
+        all_receiver_features = []
+        snr_values = []
+        confidence_scores = []
 
-        # Extract features (chunked)
-        features_dict = feature_extractor.extract_features_chunked(
-            iq_sample,
-            chunk_duration_ms=200.0,
-            num_chunks=5
-        )
+        for measurement in measurements:
+            try:
+                # Load IQ data from MinIO
+                iq_sample = self._load_iq_from_minio(
+                    measurement['iq_data_location'],
+                    measurement['frequency_hz'],
+                    measurement['websdr_station_id'],
+                    measurement['created_at']
+                )
 
-        # Wrap in receiver array (single receiver for real recordings)
-        receiver_features = [features_dict]
+                # Initialize feature extractor
+                feature_extractor = RFFeatureExtractor(sample_rate_hz=iq_sample.sample_rate_hz)
 
-        # Calculate quality metrics
-        overall_confidence = features_dict.get('delay_spread_confidence', {}).get('mean', 0.8)
-        mean_snr_db = features_dict.get('snr', {}).get('mean', 0.0)
-        num_receivers_detected = 1 if features_dict.get('signal_present', False) else 0
+                # Extract features (chunked: 1000ms → 5×200ms with aggregation)
+                features_dict = feature_extractor.extract_features_chunked(
+                    iq_sample,
+                    chunk_duration_ms=200.0,
+                    num_chunks=5
+                )
+
+                # Add to receiver features array
+                all_receiver_features.append(features_dict)
+
+                # Collect metrics for overall statistics
+                if features_dict.get('signal_present', False):
+                    snr_values.append(features_dict.get('snr', {}).get('mean', 0.0))
+                    confidence_scores.append(
+                        features_dict.get('delay_spread_confidence', {}).get('mean', 0.8)
+                    )
+
+                logger.info(f"Extracted features from {measurement['websdr_station_id']}: "
+                           f"SNR={features_dict.get('snr', {}).get('mean', 0.0):.1f} dB, "
+                           f"signal_present={features_dict.get('signal_present', False)}")
+
+            except Exception as e:
+                logger.error(f"Error extracting features from {measurement['websdr_station_id']}: {e}")
+                # Continue with other receivers (don't fail entire session)
+                continue
+
+        if not all_receiver_features:
+            raise Exception("No features extracted from any receiver")
+
+        # Calculate overall quality metrics
+        mean_snr_db = float(np.mean(snr_values)) if snr_values else 0.0
+        overall_confidence = float(np.mean(confidence_scores)) if confidence_scores else 0.0
+        num_receivers_detected = len([f for f in all_receiver_features if f.get('signal_present', False)])
+
+        # Calculate GDOP (if ≥3 receivers with signal)
+        gdop = None
+        if num_receivers_detected >= 3:
+            gdop = self._calculate_gdop(all_receiver_features)
 
         # Extraction metadata
         extraction_metadata = {
             'extraction_method': 'recorded',
-            'iq_duration_ms': iq_sample.duration_ms,
-            'sample_rate_hz': iq_sample.sample_rate_hz,
+            'iq_duration_ms': 1000.0,  # Standard duration
+            'sample_rate_hz': 200_000,
             'num_chunks': 5,
             'chunk_duration_ms': 200.0,
             'recording_session_id': str(session['id'])
         }
 
-        # Save to database
-        self._save_features_to_db(
+        # Check if this is a known beacon (ground truth available)
+        tx_known, tx_lat, tx_lon, tx_power = self._check_known_beacon(
             pool,
-            measurement['id'],
-            measurement['created_at'],
-            receiver_features,
-            extraction_metadata,
-            overall_confidence,
-            mean_snr_db,
-            num_receivers_detected
+            session['frequency_hz']
         )
 
-        logger.info(f"Extracted features for measurement {measurement['id']}: "
-                   f"SNR={mean_snr_db:.1f} dB, confidence={overall_confidence:.2f}")
+        # Save to database (ONE record with ALL receivers)
+        self._save_features_to_db(
+            pool,
+            recording_session_id=session['id'],
+            timestamp=session['created_at'],
+            receiver_features=all_receiver_features,
+            extraction_metadata=extraction_metadata,
+            overall_confidence=overall_confidence,
+            mean_snr_db=mean_snr_db,
+            num_receivers_detected=num_receivers_detected,
+            gdop=gdop,
+            tx_known=tx_known,
+            tx_latitude=tx_lat,
+            tx_longitude=tx_lon,
+            tx_power_dbm=tx_power
+        )
+
+        logger.info(f"Saved features for session {session['id']}: "
+                   f"{num_receivers_detected} receivers, SNR={mean_snr_db:.1f} dB, "
+                   f"confidence={overall_confidence:.2f}, GDOP={gdop}")
 
     def _load_iq_from_minio(
         self,
@@ -276,9 +341,8 @@ class ExtractRecordingFeaturesTask(Task):
         sample_rate_hz = 200_000
         duration_ms = len(iq_samples) / sample_rate_hz * 1000.0
 
-        # Get receiver coordinates (lookup from database)
-        # For now, use placeholder coordinates
-        rx_lat, rx_lon = 0.0, 0.0  # TODO: lookup from websdr_stations table
+        # Get receiver coordinates from database
+        rx_lat, rx_lon = self._get_receiver_coordinates(station_id)
 
         return IQSample(
             samples=iq_samples,
@@ -291,29 +355,119 @@ class ExtractRecordingFeaturesTask(Task):
             timestamp=timestamp.timestamp()
         )
 
+    def _get_receiver_coordinates(self, station_id: str) -> tuple[float, float]:
+        """Get receiver coordinates from websdr_stations table."""
+        # TODO: Implement actual database lookup
+        # For now, return placeholder coordinates
+        receiver_coords = {
+            'Torino': (45.044, 7.672),
+            'Milano': (45.464, 9.188),
+            'Bologna': (44.494, 11.342),
+            'Genova': (44.407, 8.934),
+            'Roma': (41.902, 12.496),
+            'Napoli': (40.852, 14.268),
+            'Palermo': (38.116, 13.361)
+        }
+        return receiver_coords.get(station_id, (0.0, 0.0))
+
+    def _check_known_beacon(
+        self,
+        pool,
+        frequency_hz: int
+    ) -> tuple[bool, Optional[float], Optional[float], Optional[float]]:
+        """
+        Check if this frequency matches a known beacon/transmitter.
+
+        Returns:
+            (tx_known, tx_latitude, tx_longitude, tx_power_dbm)
+        """
+        query = text("""
+            SELECT latitude, longitude, power_dbm
+            FROM heimdall.known_sources
+            WHERE frequency_hz = :frequency_hz
+            LIMIT 1
+        """)
+
+        with pool.connect() as conn:
+            result = conn.execute(query, {'frequency_hz': frequency_hz}).fetchone()
+
+            if result:
+                return (True, result[0], result[1], result[2])
+            else:
+                return (False, None, None, None)
+
+    def _calculate_gdop(self, receiver_features: List[dict]) -> Optional[float]:
+        """
+        Calculate Geometric Dilution of Precision.
+
+        Simplified GDOP calculation based on receiver geometry.
+        Lower GDOP = better geometry for localization.
+
+        Args:
+            receiver_features: List of receiver feature dicts
+
+        Returns:
+            GDOP value (or None if <3 receivers)
+        """
+        # Extract receiver positions with signal
+        positions = []
+        for features in receiver_features:
+            if features.get('signal_present', False):
+                positions.append((features['rx_lat'], features['rx_lon']))
+
+        if len(positions) < 3:
+            return None
+
+        # Simple GDOP estimation: inverse of area covered by receivers
+        # (Real GDOP requires full geometric calculation)
+        lats = [p[0] for p in positions]
+        lons = [p[1] for p in positions]
+
+        lat_range = max(lats) - min(lats)
+        lon_range = max(lons) - min(lons)
+
+        # Area proxy (larger area = better geometry = lower GDOP)
+        area = lat_range * lon_range
+
+        if area < 0.01:  # Too clustered
+            return 50.0  # High GDOP (bad geometry)
+
+        gdop = 10.0 / area  # Simplified GDOP
+        return min(gdop, 100.0)  # Cap at 100
+
     def _save_features_to_db(
         self,
         pool,
-        measurement_id: uuid.UUID,
+        recording_session_id: uuid.UUID,
         timestamp: datetime,
-        receiver_features: list[dict],
+        receiver_features: List[dict],
         extraction_metadata: dict,
         overall_confidence: float,
         mean_snr_db: float,
-        num_receivers_detected: int
+        num_receivers_detected: int,
+        gdop: Optional[float],
+        tx_known: bool,
+        tx_latitude: Optional[float],
+        tx_longitude: Optional[float],
+        tx_power_dbm: Optional[float]
     ) -> None:
-        """Save extracted features to database."""
+        """
+        Save extracted features to database.
+
+        ONE record per recording session with features from ALL receivers.
+        """
         query = text("""
             INSERT INTO heimdall.measurement_features (
-                timestamp, measurement_id, receiver_features, extraction_metadata,
-                overall_confidence, mean_snr_db, num_receivers_detected,
-                extraction_failed, created_at
+                recording_session_id, timestamp, receiver_features,
+                extraction_metadata, overall_confidence, mean_snr_db,
+                num_receivers_detected, gdop, tx_known, tx_latitude,
+                tx_longitude, tx_power_dbm, extraction_failed, created_at
             )
             VALUES (
-                :timestamp, :measurement_id, CAST(:receiver_features AS jsonb),
-                CAST(:extraction_metadata AS jsonb),
-                :overall_confidence, :mean_snr_db, :num_receivers_detected,
-                FALSE, NOW()
+                :recording_session_id, :timestamp, CAST(:receiver_features AS jsonb[]),
+                CAST(:extraction_metadata AS jsonb), :overall_confidence,
+                :mean_snr_db, :num_receivers_detected, :gdop, :tx_known,
+                :tx_latitude, :tx_longitude, :tx_power_dbm, FALSE, NOW()
             )
         """)
 
@@ -321,13 +475,18 @@ class ExtractRecordingFeaturesTask(Task):
             conn.execute(
                 query,
                 {
+                    'recording_session_id': recording_session_id,
                     'timestamp': timestamp,
-                    'measurement_id': measurement_id,
                     'receiver_features': json.dumps(receiver_features),
                     'extraction_metadata': json.dumps(extraction_metadata),
                     'overall_confidence': overall_confidence,
                     'mean_snr_db': mean_snr_db,
-                    'num_receivers_detected': num_receivers_detected
+                    'num_receivers_detected': num_receivers_detected,
+                    'gdop': gdop,
+                    'tx_known': tx_known,
+                    'tx_latitude': tx_latitude,
+                    'tx_longitude': tx_longitude,
+                    'tx_power_dbm': tx_power_dbm
                 }
             )
             conn.commit()
@@ -335,22 +494,21 @@ class ExtractRecordingFeaturesTask(Task):
     def _save_extraction_error(
         self,
         pool,
-        measurement_id: uuid.UUID,
+        recording_session_id: uuid.UUID,
         error_message: str
     ) -> None:
         """Save extraction error to database."""
         query = text("""
             INSERT INTO heimdall.measurement_features (
-                timestamp, measurement_id, receiver_features, extraction_metadata,
-                overall_confidence, mean_snr_db, num_receivers_detected,
-                extraction_failed, error_message, created_at
+                recording_session_id, timestamp, receiver_features,
+                extraction_metadata, overall_confidence, mean_snr_db,
+                num_receivers_detected, extraction_failed, error_message, created_at
             )
             VALUES (
-                NOW(), :measurement_id, ARRAY[]::jsonb[], '{}'::jsonb,
-                0.0, 0.0, 0,
-                TRUE, :error_message, NOW()
+                :recording_session_id, NOW(), ARRAY[]::jsonb[], '{}'::jsonb,
+                0.0, 0.0, 0, TRUE, :error_message, NOW()
             )
-            ON CONFLICT (timestamp, measurement_id) DO UPDATE
+            ON CONFLICT (recording_session_id) DO UPDATE
             SET extraction_failed = TRUE,
                 error_message = :error_message
         """)
@@ -359,7 +517,7 @@ class ExtractRecordingFeaturesTask(Task):
             conn.execute(
                 query,
                 {
-                    'measurement_id': measurement_id,
+                    'recording_session_id': recording_session_id,
                     'error_message': error_message
                 }
             )
@@ -404,7 +562,7 @@ async def complete_recording_session(
     # Trigger feature extraction task (async Celery task)
     task = ExtractRecordingFeaturesTask().apply_async(args=[session_id])
 
-    logger.info(f"Triggered feature extraction for session {session_id}, task_id={task.id}")
+    logger.info(f"Triggered multi-receiver feature extraction for session {session_id}, task_id={task.id}")
 
     return {
         "session_id": session_id,
@@ -452,7 +610,7 @@ task = ExtractRecordingFeaturesTask()
 result = task.run('your-recording-session-uuid-here')
 
 print(result)
-# Expected: {'total': N, 'success': N, 'failed': 0, 'errors': []}
+# Expected: {'success': True, 'num_receivers': 4, 'session_id': '...'}
 ```
 
 ### 2. Create Test Recording Session
@@ -466,13 +624,37 @@ From Recording Session UI:
 ### 3. Verify Database
 
 ```sql
--- Check features were extracted
-SELECT COUNT(*) FROM heimdall.measurement_features
-WHERE extraction_metadata->>'extraction_method' = 'recorded';
+-- Check features were extracted (one record per session)
+SELECT
+    recording_session_id,
+    jsonb_array_length(receiver_features) as num_receivers,
+    num_receivers_detected,
+    mean_snr_db,
+    gdop,
+    tx_known
+FROM heimdall.measurement_features
+WHERE extraction_metadata->>'extraction_method' = 'recorded'
+LIMIT 5;
+
+-- Expected: One row per session with 2-7 receivers in array
+
+-- Check multi-receiver structure
+SELECT
+    recording_session_id,
+    receiver_features[1]->>'rx_id' as rx1,
+    receiver_features[2]->>'rx_id' as rx2,
+    receiver_features[3]->>'rx_id' as rx3,
+    receiver_features[1]->'snr'->>'mean' as snr1,
+    receiver_features[2]->'snr'->>'mean' as snr2
+FROM heimdall.measurement_features
+WHERE extraction_metadata->>'extraction_method' = 'recorded'
+LIMIT 1;
+
+-- Expected: Multiple receivers (rx1=Torino, rx2=Milano, etc.)
 
 -- Check for errors
 SELECT
-    measurement_id,
+    recording_session_id,
     extraction_failed,
     error_message
 FROM heimdall.measurement_features
@@ -487,10 +669,15 @@ DOCKER_HOST="" docker compose logs backend | grep "feature extraction"
 
 Expected:
 ```
-Triggered feature extraction for session abc123, task_id=xyz789
-Starting feature extraction for recording session abc123
-Extracted features for measurement def456: SNR=18.5 dB, confidence=0.85
-Feature extraction complete: 7 success, 0 failed
+Triggered multi-receiver feature extraction for session abc123, task_id=xyz789
+Starting multi-receiver feature extraction for session abc123
+Found 4 receivers for session abc123
+Extracting features from 4 receivers
+Extracted features from Torino: SNR=22.5 dB, signal_present=True
+Extracted features from Milano: SNR=20.0 dB, signal_present=True
+Extracted features from Bologna: SNR=18.5 dB, signal_present=True
+Extracted features from Genova: SNR=16.0 dB, signal_present=True
+Saved features for session abc123: 4 receivers, SNR=19.3 dB, confidence=0.85, GDOP=8.5
 ```
 
 ## Error Handling
@@ -499,29 +686,71 @@ Feature extraction complete: 7 success, 0 failed
 
 1. **File Not Found in MinIO**:
    - Error message: "IQ file not found: {path}"
-   - Action: Mark as failed, save error message
+   - Action: Mark session as failed, save error message
    - User action: Re-record session
 
 2. **Corrupted IQ Data**:
    - Error message: "Invalid IQ data format"
-   - Action: Mark as failed, save error message
-   - User action: Check antenna/receiver hardware
+   - Action: Skip corrupted receiver, continue with others
+   - User action: Check antenna/receiver hardware for specific station
 
-3. **Insufficient Signal**:
-   - Error message: "Signal below detection threshold"
-   - Action: Extract features anyway (signal_present=False)
-   - No user action needed (valid measurement)
+3. **No Receivers Detected**:
+   - Error message: "No features extracted from any receiver"
+   - Action: Mark session as failed
+   - User action: Check signal strength, frequency, antenna connections
+
+4. **Insufficient Receivers for Localization**:
+   - Not an error (still save features)
+   - GDOP will be NULL if <3 receivers
+   - Can still be used for training with partial data
+
+## Data Structure Comparison
+
+### Synthetic Data (from Prompt 04)
+```python
+{
+    'recording_session_id': <synthetic_uuid>,
+    'receiver_features': [
+        {rx_id: "Torino", snr: {...}, ...},
+        {rx_id: "Milano", snr: {...}, ...},
+        # ... up to 7 receivers
+    ],
+    'tx_latitude': 45.123,  # Known (synthetic)
+    'tx_longitude': 7.456,
+    'tx_known': True
+}
+```
+
+### Real Recording (this prompt)
+```python
+{
+    'recording_session_id': <session_uuid>,
+    'receiver_features': [
+        {rx_id: "Torino", snr: {...}, ...},
+        {rx_id: "Milano", snr: {...}, ...},
+        {rx_id: "Bologna", snr: {...}, ...},
+        # ... 2-7 receivers (those that captured signal)
+    ],
+    'tx_latitude': None,  # Unknown (to be estimated)
+    'tx_longitude': None,
+    'tx_known': False
+}
+```
+
+**Perfect match for ML training!** ✅
 
 ## Success Criteria
 
-- ✅ Feature extraction task implemented
-- ✅ Automatic trigger on recording completion
-- ✅ Features saved to `measurement_features` table
+- ✅ Feature extraction processes **ALL receivers** in a session
+- ✅ **ONE record** per session (not per measurement)
+- ✅ Features saved to `measurement_features` table with `recording_session_id` as PRIMARY KEY
+- ✅ Multi-receiver array structure matches synthetic data
 - ✅ Error handling saves error messages
-- ✅ Task completes successfully for real recordings
+- ✅ Ground truth detection for known beacons
+- ✅ GDOP calculation for geometry quality
 - ✅ Same feature format as synthetic data
-- ✅ Logs show extraction progress
+- ✅ Logs show multi-receiver extraction progress
 
 ## Next Step
 
-Proceed to **`06-background-jobs.md`** to implement background processing for existing recordings without features.
+Proceed to **`06-background-jobs.md`** to implement background processing for existing recording sessions without features.

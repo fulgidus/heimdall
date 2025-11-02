@@ -6,17 +6,24 @@ This directory contains a series of incremental prompts for implementing the RF 
 
 The implementation adds IQ sample generation and feature extraction capabilities to enable ML training on both synthetic and real data.
 
+## ⚠️ IMPORTANT: Read This First
+
+**CRITICAL ARCHITECTURE CHANGE**: The original database schema was incorrect for multi-receiver localization.
+
+👉 **READ `00-IMPORTANT-CHANGES.md` BEFORE PROCEEDING** 👈
+
 ## Execution Order
 
 Execute these prompts **sequentially** in this exact order:
 
-1. **`01-database-schema.md`** - Create database tables and indexes
-2. **`02-feature-extractor-core.md`** - Implement core feature extraction module
-3. **`03-iq-generator.md`** - Implement synthetic IQ sample generator
-4. **`04-synthetic-pipeline.md`** - Update synthetic data generation pipeline
-5. **`05-real-pipeline.md`** - Implement feature extraction for recording sessions
-6. **`06-background-jobs.md`** - Add background processing for existing recordings
-7. **`07-tests.md`** - Comprehensive test suite
+1. ~~**`01-database-schema.md`**~~ - **SKIP THIS** (original schema is wrong)
+2. **`01b-fix-schema-for-localization.md`** - **START HERE** (corrected schema for multi-receiver)
+3. **`02-feature-extractor-core.md`** - Implement core feature extraction module
+4. **`03-iq-generator.md`** - Implement synthetic IQ sample generator
+5. **`04-synthetic-pipeline.md`** - Update synthetic data generation pipeline
+6. **`05-real-pipeline.md`** - Implement feature extraction for recording sessions (UPDATED for multi-receiver)
+7. **`06-background-jobs.md`** - Add background processing for existing recordings (UPDATED for session-based)
+8. **`07-tests.md`** - Comprehensive test suite
 
 ## Verification Between Steps
 

@@ -116,7 +116,7 @@ class BatchFeatureExtractionTask(Task):
         """
         Find recording sessions that don't have features.
 
-        Uses LEFT JOIN to find measurements without corresponding feature entries.
+        Uses LEFT JOIN to find sessions without corresponding feature entries.
 
         Args:
             pool: Database connection pool
@@ -130,22 +130,22 @@ class BatchFeatureExtractionTask(Task):
         limit = batch_size * max_batches if max_batches else batch_size
 
         query = text("""
-            SELECT DISTINCT
+            SELECT
                 rs.id as session_id,
                 rs.created_at,
                 rs.status,
-                COUNT(m.id) as num_measurements,
-                COUNT(mf.measurement_id) as num_features
+                COUNT(m.id) as num_measurements
             FROM heimdall.recording_sessions rs
-            JOIN heimdall.measurements m
+            LEFT JOIN heimdall.measurements m
                 ON m.created_at >= rs.created_at
                 AND m.created_at <= rs.created_at + (rs.duration_seconds * INTERVAL '1 second')
                 AND m.iq_data_location IS NOT NULL
             LEFT JOIN heimdall.measurement_features mf
-                ON mf.measurement_id = m.id
+                ON mf.recording_session_id = rs.id
             WHERE rs.status = 'completed'
+              AND mf.recording_session_id IS NULL  -- No features extracted yet
             GROUP BY rs.id, rs.created_at, rs.status
-            HAVING COUNT(mf.measurement_id) = 0  -- No features extracted yet
+            HAVING COUNT(m.id) > 0  -- Has at least one measurement with IQ data
             ORDER BY rs.created_at DESC
             LIMIT :limit
         """)
@@ -158,8 +158,7 @@ class BatchFeatureExtractionTask(Task):
                     'session_id': row[0],
                     'created_at': row[1],
                     'status': row[2],
-                    'num_measurements': row[3],
-                    'num_features': row[4]
+                    'num_measurements': row[3]
                 }
                 for row in results
             ]
@@ -320,16 +319,15 @@ async def get_feature_extraction_stats(
         WITH recording_stats AS (
             SELECT
                 COUNT(DISTINCT rs.id) as total_recordings,
-                COUNT(DISTINCT CASE WHEN mf.measurement_id IS NOT NULL THEN rs.id END) as recordings_with_features,
-                COUNT(m.id) as total_measurements,
-                COUNT(mf.measurement_id) as measurements_with_features
+                COUNT(DISTINCT mf.recording_session_id) as recordings_with_features,
+                COUNT(m.id) as total_measurements
             FROM heimdall.recording_sessions rs
             LEFT JOIN heimdall.measurements m
                 ON m.created_at >= rs.created_at
                 AND m.created_at <= rs.created_at + (rs.duration_seconds * INTERVAL '1 second')
                 AND m.iq_data_location IS NOT NULL
             LEFT JOIN heimdall.measurement_features mf
-                ON mf.measurement_id = m.id
+                ON mf.recording_session_id = rs.id
             WHERE rs.status = 'completed'
         )
         SELECT * FROM recording_stats
@@ -350,7 +348,6 @@ async def get_feature_extraction_stats(
         total_recordings = result[0]
         recordings_with_features = result[1]
         total_measurements = result[2]
-        measurements_with_features = result[3]
 
         coverage_percent = (
             recordings_with_features / total_recordings * 100
@@ -362,8 +359,6 @@ async def get_feature_extraction_stats(
             'recordings_with_features': recordings_with_features,
             'recordings_without_features': total_recordings - recordings_with_features,
             'total_measurements': total_measurements,
-            'measurements_with_features': measurements_with_features,
-            'measurements_without_features': total_measurements - measurements_with_features,
             'coverage_percent': round(coverage_percent, 2)
         }
 ```
