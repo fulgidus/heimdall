@@ -67,10 +67,11 @@ class RFPropagationModel:
         rx_lat: float,
         rx_lon: float,
         rx_alt: float,
-        terrain_lookup=None
+        terrain_lookup=None,
+        frequency_mhz: float = 145.0
     ) -> float:
         """
-        Calculate terrain blockage loss using line-of-sight check.
+        Calculate terrain blockage loss using line-of-sight check with Fresnel zone.
         
         Args:
             tx_lat: Transmitter latitude
@@ -79,32 +80,79 @@ class RFPropagationModel:
             rx_lat: Receiver latitude
             rx_lon: Receiver longitude
             rx_alt: Receiver altitude (meters ASL)
-            terrain_lookup: Optional terrain elevation lookup function
+            terrain_lookup: Optional terrain elevation lookup (TerrainLookup instance)
+            frequency_mhz: Frequency in MHz (for Fresnel zone calculation)
         
         Returns:
-            Terrain loss in dB (0 if LOS, 20-40 if blocked)
+            Terrain loss in dB (0 if LOS, 10-40 if blocked)
         """
-        # Simplified model: check if terrain blocks first Fresnel zone
-        # For Phase 5, we use a probabilistic model based on distance and altitude difference
-        
         distance_km = self._haversine_distance(tx_lat, tx_lon, rx_lat, rx_lon)
         
-        # Altitude difference
-        alt_diff = abs(tx_alt - rx_alt)
+        # If no terrain lookup provided, use simplified model
+        if terrain_lookup is None:
+            alt_diff = abs(tx_alt - rx_alt)
+            los_score = (alt_diff / 100.0) - (distance_km / 50.0)
+            
+            if los_score > 0:
+                return 0.0
+            elif los_score > -2:
+                return np.random.uniform(10.0, 25.0)
+            else:
+                return np.random.uniform(25.0, 40.0)
         
-        # Simplified LOS probability based on distance and altitude
-        # Higher altitude difference and shorter distance = better LOS
-        los_score = (alt_diff / 100.0) - (distance_km / 50.0)
+        # Real terrain-based LOS check
+        # Sample 20 points along the path TX→RX
+        num_samples = 20
+        earth_radius_km = 6371.0
+        wavelength_m = 299.792458 / frequency_mhz  # c/f in meters
         
-        if los_score > 0:
-            # Good LOS
+        max_intrusion_ratio = 0.0  # Track maximum Fresnel zone intrusion
+        
+        for i in range(1, num_samples):  # Skip endpoints
+            fraction = i / num_samples
+            
+            # Interpolate position along great circle path
+            sample_lat = tx_lat + fraction * (rx_lat - tx_lat)
+            sample_lon = tx_lon + fraction * (rx_lon - tx_lon)
+            
+            # Get terrain elevation at sample point
+            terrain_elevation = terrain_lookup.get_elevation(sample_lat, sample_lon)
+            
+            # Calculate LOS altitude at this point (with Earth curvature correction)
+            # LOS altitude = linear interpolation + curvature correction
+            linear_alt = tx_alt + fraction * (rx_alt - tx_alt)
+            
+            # Earth curvature correction
+            # Height correction = d1 * d2 / (2 * R) where d1, d2 are distances from endpoints
+            d1_km = distance_km * fraction
+            d2_km = distance_km * (1 - fraction)
+            curvature_correction = (d1_km * d2_km) / (2 * earth_radius_km)
+            
+            los_altitude = linear_alt + curvature_correction * 1000  # Convert to meters
+            
+            # Calculate first Fresnel zone radius at this point
+            # Radius = sqrt(wavelength * d1 * d2 / distance_total)
+            fresnel_radius = math.sqrt(wavelength_m * d1_km * d2_km / distance_km)
+            
+            # Check if terrain intrudes into Fresnel zone
+            clearance = los_altitude - terrain_elevation
+            if clearance < fresnel_radius:
+                intrusion_ratio = 1.0 - (clearance / fresnel_radius)
+                intrusion_ratio = max(0.0, min(1.0, intrusion_ratio))  # Clamp to [0, 1]
+                max_intrusion_ratio = max(max_intrusion_ratio, intrusion_ratio)
+        
+        # Calculate loss based on maximum Fresnel zone intrusion
+        if max_intrusion_ratio < 0.2:
+            # Clear LOS (< 20% intrusion)
             return 0.0
-        elif los_score > -2:
-            # Partial blockage
-            return np.random.uniform(10.0, 25.0)
+        elif max_intrusion_ratio < 0.6:
+            # Partial blockage (20-60% intrusion)
+            # Linear interpolation: 0-15 dB loss
+            return max_intrusion_ratio * 25.0
         else:
-            # Heavy blockage
-            return np.random.uniform(25.0, 40.0)
+            # Heavy blockage (> 60% intrusion)
+            # 25-40 dB loss
+            return 25.0 + (max_intrusion_ratio - 0.6) * 37.5
     
     def calculate_environment_loss(self) -> float:
         """
@@ -166,7 +214,7 @@ class RFPropagationModel:
         # Calculate losses
         fspl = self.calculate_fspl(distance_km, frequency_mhz)
         terrain_loss = self.calculate_terrain_loss(
-            tx_lat, tx_lon, tx_alt, rx_lat, rx_lon, rx_alt, terrain_lookup
+            tx_lat, tx_lon, tx_alt, rx_lat, rx_lon, rx_alt, terrain_lookup, frequency_mhz
         )
         env_loss = self.calculate_environment_loss()
         fading = self.calculate_fading()

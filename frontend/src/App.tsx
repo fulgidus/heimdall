@@ -21,6 +21,7 @@ const DataIngestion = lazy(() => import('./pages/DataIngestion'));
 const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
 const ImportExport = lazy(() => import('./pages/ImportExport'));
 const TrainingDashboard = lazy(() => import('./pages/TrainingDashboard'));
+const TerrainManagement = lazy(() => import('./pages/TerrainManagement'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -170,6 +171,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <TrainingDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/terrain"
+                element={
+                  <ProtectedRoute>
+                    <TerrainManagement />
                   </ProtectedRoute>
                 }
               />

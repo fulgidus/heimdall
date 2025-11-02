@@ -240,7 +240,8 @@ class SyntheticDataGenerator:
         self,
         training_config: TrainingConfig,
         propagation_model: Optional[RFPropagationModel] = None,
-        terrain_lookup: Optional[TerrainLookup] = None
+        terrain_lookup: Optional[TerrainLookup] = None,
+        use_srtm_terrain: bool = False
     ):
         """
         Initialize synthetic data generator.
@@ -249,15 +250,41 @@ class SyntheticDataGenerator:
             training_config: Training area configuration with receiver locations
             propagation_model: RF propagation model (default: new instance)
             terrain_lookup: Terrain elevation lookup (default: simplified model)
+            use_srtm_terrain: If True, create TerrainLookup with SRTM support
         """
         self.config = training_config
         self.propagation = propagation_model or RFPropagationModel()
-        self.terrain = terrain_lookup or TerrainLookup(use_srtm=False)
+        
+        # Initialize terrain lookup
+        if terrain_lookup is not None:
+            self.terrain = terrain_lookup
+        elif use_srtm_terrain:
+            # Create TerrainLookup with SRTM support and MinIO client
+            try:
+                import sys
+                sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+                from storage.minio_client import MinIOClient
+                from config import settings as backend_settings
+                
+                minio_client = MinIOClient(
+                    endpoint_url=backend_settings.minio_url,
+                    access_key=backend_settings.minio_access_key,
+                    secret_key=backend_settings.minio_secret_key,
+                    bucket_name="heimdall-terrain"
+                )
+                self.terrain = TerrainLookup(use_srtm=True, minio_client=minio_client)
+                logger.info("Using SRTM terrain data for synthetic generation")
+            except Exception as e:
+                logger.warning(f"Failed to initialize SRTM terrain: {e}, using simplified model")
+                self.terrain = TerrainLookup(use_srtm=False)
+        else:
+            self.terrain = TerrainLookup(use_srtm=False)
         
         logger.info(
             "Initialized synthetic data generator",
             num_receivers=len(self.config.receivers),
-            training_area_km2=self.config.training_bbox.width_km() * self.config.training_bbox.height_km()
+            training_area_km2=self.config.training_bbox.width_km() * self.config.training_bbox.height_km(),
+            using_srtm=self.terrain.use_srtm
         )
     
     def generate_samples(
