@@ -19,8 +19,12 @@ import {
   type HeimdallFile,
   type ImportResponse,
 } from '@/services/api/import-export';
+import { useAuthStore } from '@/store/authStore';
 
 export default function ImportExport() {
+  // Get authenticated user info
+  const { user } = useAuthStore();
+
   // State for metadata
   const [metadata, setMetadata] = useState<MetadataResponse | null>(null);
   const [loadingMetadata, setLoadingMetadata] = useState(true);
@@ -30,10 +34,10 @@ export default function ImportExport() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
 
-  // State for export form
+  // State for export form - username and name auto-populated from auth
   const [exportForm, setExportForm] = useState({
-    username: '',
-    name: '',
+    username: user?.email || '',
+    name: user?.name || '',
     description: '',
     include_settings: false,
     include_sources: true,
@@ -65,6 +69,17 @@ export default function ImportExport() {
     loadMetadata();
   }, []);
 
+  // Auto-populate username and name from authenticated user
+  useEffect(() => {
+    if (user) {
+      setExportForm(prev => ({
+        ...prev,
+        username: user.email || '',
+        name: user.name || '',
+      }));
+    }
+  }, [user]);
+
   const loadMetadata = async () => {
     try {
       setLoadingMetadata(true);
@@ -78,8 +93,8 @@ export default function ImportExport() {
   };
 
   const handleExport = async () => {
-    if (!exportForm.username) {
-      setExportError('Username is required');
+    if (!user) {
+      setExportError('You must be logged in to export data');
       return;
     }
 
@@ -90,8 +105,8 @@ export default function ImportExport() {
 
       const request: ExportRequest = {
         creator: {
-          username: exportForm.username,
-          name: exportForm.name || undefined,
+          username: user.email,
+          name: user.name || undefined,
         },
         description: exportForm.description || undefined,
         include_settings: exportForm.include_settings,
@@ -233,27 +248,35 @@ export default function ImportExport() {
                     Export Data
                   </h6>
 
-                  {/* Creator Info */}
+                  {/* Creator Info - Auto-populated from authenticated user */}
                   <div className="mb-3">
-                    <label className="form-label">Username *</label>
+                    <label className="form-label">Username (from your account)</label>
                     <input
                       type="text"
                       className="form-control"
                       value={exportForm.username}
-                      onChange={e => setExportForm({ ...exportForm, username: e.target.value })}
-                      placeholder="your-username"
+                      readOnly
+                      disabled
+                      placeholder="Not logged in"
                     />
+                    <small className="form-text text-muted">
+                      Automatically set from your logged-in account
+                    </small>
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label">Full Name</label>
+                    <label className="form-label">Full Name (from your account)</label>
                     <input
                       type="text"
                       className="form-control"
                       value={exportForm.name}
-                      onChange={e => setExportForm({ ...exportForm, name: e.target.value })}
-                      placeholder="John Doe"
+                      readOnly
+                      disabled
+                      placeholder="Not logged in"
                     />
+                    <small className="form-text text-muted">
+                      Automatically set from your logged-in account
+                    </small>
                   </div>
 
                   <div className="mb-3">
@@ -345,7 +368,7 @@ export default function ImportExport() {
                   <button
                     className="btn btn-primary w-100"
                     onClick={handleExport}
-                    disabled={exportLoading}
+                    disabled={exportLoading || !user}
                   >
                     {exportLoading ? (
                       <>
@@ -355,7 +378,7 @@ export default function ImportExport() {
                     ) : (
                       <>
                         <Download className="me-2" size={18} />
-                        Export & Download
+                        {!user ? 'Login Required to Export' : 'Export & Download'}
                       </>
                     )}
                   </button>
