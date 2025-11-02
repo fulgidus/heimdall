@@ -262,7 +262,7 @@ class SyntheticDataGenerator:
             # Create TerrainLookup with SRTM support and MinIO client
             try:
                 import sys
-                sys.path.insert(0, '/app/backend/src')
+                sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
                 from storage.minio_client import MinIOClient
                 from config import settings as backend_settings
                 

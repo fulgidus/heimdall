@@ -30,12 +30,22 @@ class TerrainLookup:
         self.use_srtm = use_srtm
         self.minio_client = minio_client
         self._tile_cache = {}  # Cache for loaded rasterio datasets
+        self._temp_files = []  # Track temporary files for cleanup
         
         if use_srtm and not minio_client:
             logger.warning("SRTM enabled but no MinIO client provided, using simplified terrain model")
             self.use_srtm = False
         elif use_srtm:
             logger.info("TerrainLookup initialized with SRTM data support")
+    
+    def __del__(self):
+        """Cleanup temporary files when instance is destroyed."""
+        for temp_file in self._temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+            except Exception as e:
+                logger.debug(f"Failed to cleanup temp file {temp_file}: {e}")
     
     @lru_cache(maxsize=10000)
     def get_elevation(self, lat: float, lon: float) -> float:
@@ -177,6 +187,9 @@ class TerrainLookup:
                     tmp.write(tile_data)
                     tmp_path = tmp.name
                 
+                # Track temp file for cleanup
+                self._temp_files.append(tmp_path)
+                
                 dataset = rasterio.open(tmp_path)
                 return dataset
         except Exception as e:
@@ -232,7 +245,7 @@ class SRTMDownloader:
         try:
             self.minio_client.s3_client.head_bucket(Bucket=self.bucket_name)
             logger.debug(f"Bucket {self.bucket_name} exists")
-        except:
+        except Exception:
             try:
                 self.minio_client.s3_client.create_bucket(Bucket=self.bucket_name)
                 logger.info(f"Created bucket {self.bucket_name}")

@@ -132,7 +132,7 @@ class RFPropagationModel:
             
             # Calculate first Fresnel zone radius at this point
             # Radius = sqrt(wavelength * d1 * d2 / distance_total)
-            fresnel_radius = math.sqrt(wavelength_m * d1_km * d2_km * 1000 / (distance_km * 1000))
+            fresnel_radius = math.sqrt(wavelength_m * d1_km * d2_km / distance_km)
             
             # Check if terrain intrudes into Fresnel zone
             clearance = los_altitude - terrain_elevation

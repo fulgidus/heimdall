@@ -7,10 +7,9 @@ Provides API for downloading, managing, and querying SRTM terrain tiles.
 import math
 import os
 import sys
-from typing import Optional
 
 import structlog
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy import text
 
 # Add training service path for terrain module
@@ -26,7 +25,6 @@ from ..models.terrain import (
     DownloadResponse,
     CoverageStatus,
     CoverageRegion,
-    ElevationQuery,
     ElevationResponse,
     TileDownloadResult
 )
@@ -42,6 +40,9 @@ router = APIRouter(
 )
 
 
+# Module-level singleton for terrain lookup to enable cache reuse
+_terrain_lookup_cache = None
+
 def get_minio_client() -> MinIOClient:
     """Get MinIO client for terrain storage."""
     return MinIOClient(
@@ -50,6 +51,14 @@ def get_minio_client() -> MinIOClient:
         secret_key=settings.minio_secret_key,
         bucket_name="heimdall-terrain"
     )
+
+
+def get_terrain_lookup(minio_client: MinIOClient = Depends(get_minio_client)) -> TerrainLookup:
+    """Get or create singleton TerrainLookup instance."""
+    global _terrain_lookup_cache
+    if _terrain_lookup_cache is None:
+        _terrain_lookup_cache = TerrainLookup(use_srtm=True, minio_client=minio_client)
+    return _terrain_lookup_cache
 
 
 @router.get("/tiles", response_model=TerrainTilesList)
@@ -291,9 +300,9 @@ async def get_coverage_status(db_session = Depends(get_db_session)):
 
 @router.get("/elevation", response_model=ElevationResponse)
 async def query_elevation(
-    lat: float,
-    lon: float,
-    minio_client: MinIOClient = Depends(get_minio_client)
+    lat: float = Query(..., ge=-90, le=90, description="Latitude in degrees"),
+    lon: float = Query(..., ge=-180, le=180, description="Longitude in degrees"),
+    terrain_lookup: TerrainLookup = Depends(get_terrain_lookup)
 ):
     """
     Query elevation at specific coordinates.
@@ -301,8 +310,6 @@ async def query_elevation(
     Returns elevation in meters ASL. Uses SRTM data if available,
     otherwise falls back to simplified terrain model.
     """
-    # Initialize terrain lookup with SRTM support
-    terrain_lookup = TerrainLookup(use_srtm=True, minio_client=minio_client)
     
     # Get elevation
     elevation = terrain_lookup.get_elevation(lat, lon)
