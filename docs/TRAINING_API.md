@@ -458,6 +458,66 @@ If training fails, the job status becomes `failed` and `error_message` contains 
 - Server closes connection when job completes/fails
 - Ping/pong keeps connection alive
 
+## Synthetic Data Generation
+
+### Random Receiver Configuration
+
+The synthetic data generation endpoint now supports random receiver placement for improved model generalization.
+
+**Default Behavior:** Random receivers are used by default (`use_random_receivers: true`)
+
+**Example Request:**
+```http
+POST /api/v1/training/synthetic/generate
+Content-Type: application/json
+
+{
+  "name": "Dataset with Random Receivers",
+  "description": "Training data with variable receiver configurations",
+  "num_samples": 10000,
+  "use_random_receivers": true,
+  "min_receivers_count": 4,
+  "max_receivers_count": 10,
+  "receiver_seed": 42,
+  "area_lat_min": 44.0,
+  "area_lat_max": 46.0,
+  "area_lon_min": 7.0,
+  "area_lon_max": 10.0,
+  "frequency_mhz": 145.0,
+  "tx_power_dbm": 37.0,
+  "min_snr_db": 3.0,
+  "min_receivers": 3,
+  "max_gdop": 10.0
+}
+```
+
+**Parameters:**
+- `use_random_receivers` (bool, default: true): Use random receivers instead of fixed Italian receivers
+- `min_receivers_count` (int, 3-15, default: 4): Minimum number of receivers to generate
+- `max_receivers_count` (int, 3-15, default: 10): Maximum number of receivers to generate
+- `receiver_seed` (int, optional): Random seed for reproducibility
+- `area_lat_min`, `area_lat_max` (float): Latitude bounds for receiver placement
+- `area_lon_min`, `area_lon_max` (float): Longitude bounds for receiver placement
+
+**Backward Compatibility:**
+To use the original fixed Italian receivers, set `use_random_receivers: false`:
+
+```json
+{
+  "name": "Dataset with Italian Receivers",
+  "num_samples": 10000,
+  "use_random_receivers": false,
+  "frequency_mhz": 145.0,
+  "tx_power_dbm": 37.0
+}
+```
+
+**Benefits:**
+- Model learns to work with different receiver geometries
+- Realistic altitude assignment from terrain data
+- Reproducible experiments with seed parameter
+- Better generalization to new deployments
+
 ## Next Steps
 
 1. **Phase 7 (Current)**: Frontend UI with Recharts visualization

@@ -20,12 +20,42 @@ class SyntheticDataGenerationRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Dataset name")
     description: Optional[str] = Field(default=None, description="Dataset description")
     num_samples: int = Field(..., ge=1000, le=5000000, description="Number of samples to generate")
-    inside_ratio: float = Field(default=0.7, ge=0.0, le=1.0, description="Ratio of TX inside receiver network")
-    frequency_mhz: float = Field(default=145.0, ge=0.5, le=3000.0, description="Frequency in MHz (HF/VHF/UHF/SHF)")
+    inside_ratio: float = Field(
+        default=0.7, ge=0.0, le=1.0, description="Ratio of TX inside receiver network"
+    )
+    frequency_mhz: float = Field(
+        default=145.0, ge=0.5, le=3000.0, description="Frequency in MHz (HF/VHF/UHF/SHF)"
+    )
     tx_power_dbm: float = Field(default=37.0, ge=0.0, le=50.0, description="TX power in dBm")
     min_snr_db: float = Field(default=3.0, ge=0.0, description="Minimum SNR threshold")
     min_receivers: int = Field(default=3, ge=2, le=7, description="Minimum receivers with signal")
     max_gdop: float = Field(default=10.0, ge=1.0, description="Maximum GDOP")
+
+    # Random receiver generation parameters
+    use_random_receivers: bool = Field(
+        default=True, description="Use random receivers instead of fixed Italian receivers"
+    )
+    min_receivers_count: int = Field(
+        default=4, ge=3, le=15, description="Minimum number of receivers (random generation)"
+    )
+    max_receivers_count: int = Field(
+        default=10, ge=3, le=15, description="Maximum number of receivers (random generation)"
+    )
+    receiver_seed: Optional[int] = Field(
+        default=None, description="Random seed for receiver generation (reproducibility)"
+    )
+    area_lat_min: float = Field(
+        default=44.0, ge=-90.0, le=90.0, description="Minimum latitude for receiver area"
+    )
+    area_lat_max: float = Field(
+        default=46.0, ge=-90.0, le=90.0, description="Maximum latitude for receiver area"
+    )
+    area_lon_min: float = Field(
+        default=7.0, ge=-180.0, le=180.0, description="Minimum longitude for receiver area"
+    )
+    area_lon_max: float = Field(
+        default=10.0, ge=-180.0, le=180.0, description="Maximum longitude for receiver area"
+    )
 
 
 class SyntheticDatasetResponse(BaseModel):
@@ -52,20 +82,20 @@ class SyntheticDatasetResponse(BaseModel):
 
 class SyntheticDatasetListResponse(BaseModel):
     """List of synthetic datasets."""
-    
+
     datasets: list[SyntheticDatasetResponse]
     total: int
 
 
 class TerrainDownloadRequest(BaseModel):
     """Request to download terrain data."""
-    
+
     force_redownload: bool = Field(default=False, description="Force redownload even if cached")
 
 
 class TerrainStatus(BaseModel):
     """Terrain download status."""
-    
+
     tiles_required: list[str]
     tiles_downloaded: list[str]
     tiles_pending: list[str]
@@ -76,7 +106,7 @@ class TerrainStatus(BaseModel):
 
 class ModelMetadataResponse(BaseModel):
     """Response with trained model metadata."""
-    
+
     id: UUID
     model_name: str
     version: int
@@ -97,47 +127,47 @@ class ModelMetadataResponse(BaseModel):
     test_metrics: Optional[dict[str, Any]]
     created_at: datetime
     trained_by_job_id: Optional[UUID]
-    
+
     class Config:
         from_attributes = True
 
 
 class ModelListResponse(BaseModel):
     """List of trained models."""
-    
+
     models: list[ModelMetadataResponse]
     total: int
 
 
 class ModelEvaluationRequest(BaseModel):
     """Request to evaluate a model."""
-    
+
     dataset_id: Optional[UUID] = Field(default=None, description="Dataset to evaluate on (uses test split)")
 
 
 class ModelEvaluationResponse(BaseModel):
     """Response with model evaluation results."""
-    
+
     id: UUID
     model_id: UUID
     dataset_id: Optional[UUID]
     metrics: dict[str, Any]
     visualization_paths: Optional[dict[str, Any]]
     evaluated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class ModelExportRequest(BaseModel):
     """Request to export model to ONNX."""
-    
+
     optimize: bool = Field(default=True, description="Apply ONNX optimizations")
 
 
 class ModelExportResponse(BaseModel):
     """Response with ONNX export details."""
-    
+
     onnx_path: str
     file_size_mb: float
     export_time_seconds: float
@@ -145,13 +175,13 @@ class ModelExportResponse(BaseModel):
 
 class ModelDeployRequest(BaseModel):
     """Request to deploy model (set as active)."""
-    
+
     set_production: bool = Field(default=False, description="Also set as production model")
 
 
 class SyntheticSampleResponse(BaseModel):
     """Individual synthetic sample response."""
-    
+
     id: int
     timestamp: datetime
     tx_lat: float
@@ -170,7 +200,7 @@ class SyntheticSampleResponse(BaseModel):
 
 class SyntheticSamplesListResponse(BaseModel):
     """List of samples with pagination."""
-    
+
     samples: list[SyntheticSampleResponse]
     total: int
     limit: int
