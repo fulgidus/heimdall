@@ -10,7 +10,7 @@ as ONE correlated sample (matching synthetic data structure).
 import logging
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, NamedTuple
 import json
 
 import numpy as np
@@ -25,6 +25,17 @@ logger = logging.getLogger(__name__)
 # Import feature extractor from common module
 # PYTHONPATH is set to /app in Dockerfile, so this will resolve to /app/common/feature_extraction
 from common.feature_extraction import RFFeatureExtractor, IQSample
+
+# Constants
+DEFAULT_SAMPLE_RATE_HZ = 200_000  # 200 kHz default for IQ recordings
+
+
+class BeaconInfo(NamedTuple):
+    """Ground truth information for known beacons."""
+    known: bool
+    latitude: Optional[float]
+    longitude: Optional[float]
+    power_dbm: Optional[float]
 
 
 @shared_task(bind=True, name='backend.tasks.extract_recording_features')
@@ -97,13 +108,6 @@ def extract_recording_features(self, recording_session_id: str) -> dict:
 
 async def _get_session_details(pool, session_id: str) -> Optional[dict]:
     """Get recording session details."""
-    query = text("""
-        SELECT
-            id, status, created_at
-        FROM heimdall.recording_sessions
-        WHERE id = :session_id
-    """)
-
     async with pool.acquire() as conn:
         result = await conn.fetchrow(
             "SELECT id, status, created_at FROM heimdall.recording_sessions WHERE id = $1",
@@ -258,7 +262,7 @@ async def _extract_session_features(
     }
 
     # Check if this is a known beacon (ground truth available)
-    tx_known, tx_lat, tx_lon, tx_power = await _check_known_beacon(pool, measurements[0]['frequency_hz'])
+    beacon = await _check_known_beacon(pool, measurements[0]['frequency_hz'])
 
     # Save to database (ONE record with ALL receivers)
     await _save_features_to_db(
@@ -271,10 +275,10 @@ async def _extract_session_features(
         mean_snr_db=mean_snr_db,
         num_receivers_detected=num_receivers_detected,
         gdop=gdop,
-        tx_known=tx_known,
-        tx_latitude=tx_lat,
-        tx_longitude=tx_lon,
-        tx_power_dbm=tx_power
+        tx_known=beacon.known,
+        tx_latitude=beacon.latitude,
+        tx_longitude=beacon.longitude,
+        tx_power_dbm=beacon.power_dbm
     )
 
     logger.info(f"Saved features for session {session['id']}: "
@@ -324,8 +328,8 @@ async def _load_iq_from_minio(
     # Parse binary format (complex64 numpy array)
     iq_samples = np.frombuffer(iq_bytes, dtype=np.complex64)
 
-    # Infer sample rate from file size and duration (assume 200 kHz default)
-    sample_rate_hz = 200_000
+    # Use default sample rate for IQ recordings
+    sample_rate_hz = DEFAULT_SAMPLE_RATE_HZ
 
     return IQSample(
         samples=iq_samples,
@@ -338,15 +342,16 @@ async def _load_iq_from_minio(
     )
 
 
-async def _check_known_beacon(
-    pool,
-    frequency_hz: int
-) -> tuple[bool, Optional[float], Optional[float], Optional[float]]:
+async def _check_known_beacon(pool, frequency_hz: int) -> BeaconInfo:
     """
     Check if this frequency matches a known beacon/transmitter.
 
+    Args:
+        pool: Database connection pool
+        frequency_hz: Frequency to check
+
     Returns:
-        (tx_known, tx_latitude, tx_longitude, tx_power_dbm)
+        BeaconInfo with ground truth data if beacon is known
     """
     async with pool.acquire() as conn:
         result = await conn.fetchrow("""
@@ -357,9 +362,14 @@ async def _check_known_beacon(
         """, frequency_hz)
 
         if result:
-            return (True, result['latitude'], result['longitude'], result['power_dbm'])
+            return BeaconInfo(
+                known=True,
+                latitude=result['latitude'],
+                longitude=result['longitude'],
+                power_dbm=result['power_dbm']
+            )
         else:
-            return (False, None, None, None)
+            return BeaconInfo(known=False, latitude=None, longitude=None, power_dbm=None)
 
 
 def _calculate_gdop(receiver_features: List[dict]) -> Optional[float]:
@@ -422,8 +432,9 @@ async def _save_features_to_db(
     ONE record per recording session with features from ALL receivers.
     """
     async with pool.acquire() as conn:
-        # Convert receiver_features to JSONB array format
-        receiver_features_json = [json.dumps(f) for f in receiver_features]
+        # asyncpg handles JSON serialization automatically - pass Python objects directly
+        # For jsonb[] type, we need to convert each element to JSON string then cast to jsonb
+        receiver_features_jsonb = [json.dumps(f) for f in receiver_features]
 
         await conn.execute("""
             INSERT INTO heimdall.measurement_features (
@@ -433,7 +444,7 @@ async def _save_features_to_db(
                 tx_longitude, tx_power_dbm, extraction_failed, created_at
             )
             VALUES (
-                $1, $2, $3::jsonb[], $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12, FALSE, NOW()
+                $1, $2, $3::jsonb[], $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE, NOW()
             )
             ON CONFLICT (recording_session_id) DO UPDATE
             SET receiver_features = EXCLUDED.receiver_features,
@@ -447,8 +458,8 @@ async def _save_features_to_db(
         """,
             recording_session_id,
             timestamp,
-            receiver_features_json,
-            json.dumps(extraction_metadata),
+            receiver_features_jsonb,
+            extraction_metadata,  # asyncpg handles dict -> jsonb conversion
             overall_confidence,
             mean_snr_db,
             num_receivers_detected,
