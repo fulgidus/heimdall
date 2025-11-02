@@ -12,10 +12,8 @@ import structlog
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy import text
 
-# Add training service path for terrain module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../../../training/src"))
-
-from data.terrain import SRTMDownloader, TerrainLookup
+# Import terrain module from common
+from common.terrain import SRTMDownloader, TerrainLookup
 
 from ..db import get_db_session
 from ..models.terrain import (
