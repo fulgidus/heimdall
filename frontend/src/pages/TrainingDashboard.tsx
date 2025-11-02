@@ -36,6 +36,8 @@ import {
   StopCircle,
   Eye,
   Copy,
+  Pause,
+  Play,
 } from 'lucide-react';
 import {
   listTrainingJobs,
@@ -43,6 +45,8 @@ import {
   listModels,
   generateSyntheticData,
   cancelTrainingJob,
+  pauseTrainingJob,
+  resumeTrainingJob,
   deleteTrainingJob,
   deleteSyntheticDataset,
   deleteModel,
@@ -239,6 +243,30 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  // Handle pause job
+  const handlePauseJob = async (jobId: string) => {
+    if (!confirm('Pause this training job? It will complete the current epoch before pausing.')) return;
+
+    try {
+      await pauseTrainingJob(jobId);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to pause job');
+    }
+  };
+
+  // Handle resume job
+  const handleResumeJob = async (jobId: string) => {
+    if (!confirm('Resume this training job from where it was paused?')) return;
+
+    try {
+      await resumeTrainingJob(jobId);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resume job');
+    }
+  };
+
   // Handle delete job
   const handleDeleteJob = async (jobId: string) => {
     if (!confirm('Delete this training job?')) return;
@@ -344,6 +372,7 @@ const TrainingDashboard: React.FC = () => {
       pending: { variant: 'secondary', icon: <Clock size={14} /> },
       queued: { variant: 'info', icon: <Clock size={14} /> },
       running: { variant: 'primary', icon: <Spinner animation="border" size="sm" /> },
+      paused: { variant: 'dark', icon: <Pause size={14} /> },
       completed: { variant: 'success', icon: <CheckCircle size={14} /> },
       failed: { variant: 'danger', icon: <XCircle size={14} /> },
       cancelled: { variant: 'warning', icon: <XCircle size={14} /> },
@@ -527,7 +556,29 @@ const TrainingDashboard: React.FC = () => {
                     <td>{new Date(job.created_at).toLocaleString()}</td>
                     <td>
                       <div className="d-flex gap-1">
-                        {/* Cancel button for running jobs */}
+                        {/* Pause button for running training jobs (not synthetic data) */}
+                        {job.status === 'running' && !isSyntheticDataJob(job) && (
+                          <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => handlePauseJob(job.id)}
+                            title="Pause training"
+                          >
+                            <Pause size={14} />
+                          </Button>
+                        )}
+                        {/* Resume button for paused jobs */}
+                        {job.status === 'paused' && (
+                          <Button
+                            variant="outline-success"
+                            size="sm"
+                            onClick={() => handleResumeJob(job.id)}
+                            title="Resume training"
+                          >
+                            <Play size={14} />
+                          </Button>
+                        )}
+                        {/* Cancel button for running/queued/pending jobs */}
                         {(job.status === 'running' || job.status === 'queued' || job.status === 'pending') && (
                           <Button
                             variant="outline-warning"
@@ -538,7 +589,7 @@ const TrainingDashboard: React.FC = () => {
                             <StopCircle size={14} />
                           </Button>
                         )}
-                        {/* Clone button for completed/cancelled jobs */}
+                        {/* Clone button for completed/cancelled/failed jobs */}
                         {(job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') && (
                           <Button
                             variant="outline-primary"
@@ -554,7 +605,7 @@ const TrainingDashboard: React.FC = () => {
                           variant="outline-danger"
                           size="sm"
                           onClick={() => handleDeleteJob(job.id)}
-                          disabled={job.status === 'running' || job.status === 'queued' || job.status === 'pending'}
+                          disabled={job.status === 'running' || job.status === 'queued' || job.status === 'pending' || job.status === 'paused'}
                           title="Delete job"
                         >
                           <Trash size={14} />

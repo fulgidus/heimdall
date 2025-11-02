@@ -16,7 +16,7 @@ import api from '@/lib/api';
 export interface TrainingJob {
     id: string;
     job_name: string;
-    status: 'pending' | 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+    status: 'pending' | 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
     created_at: string;
     started_at?: string;
     completed_at?: string;
@@ -116,6 +116,16 @@ export async function getTrainingJob(jobId: string): Promise<TrainingJob> {
 
 export async function cancelTrainingJob(jobId: string): Promise<{ status: string; job_id: string }> {
     const response = await api.post(`/v1/training/jobs/${jobId}/cancel`);
+    return response.data;
+}
+
+export async function pauseTrainingJob(jobId: string): Promise<{ status: string; job_id: string; message: string }> {
+    const response = await api.post(`/v1/training/jobs/${jobId}/pause`);
+    return response.data;
+}
+
+export async function resumeTrainingJob(jobId: string): Promise<{ status: string; job_id: string; celery_task_id: string; message: string }> {
+    const response = await api.post(`/v1/training/jobs/${jobId}/resume`);
     return response.data;
 }
 

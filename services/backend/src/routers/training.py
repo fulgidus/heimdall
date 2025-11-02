@@ -421,6 +421,178 @@ async def cancel_training_job(job_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to cancel training job: {e!s}")
 
 
+@router.post("/jobs/{job_id}/pause", status_code=200)
+async def pause_training_job(job_id: UUID):
+    """
+    Pause a running training job.
+
+    Sets the job status to 'paused' and saves a checkpoint at the end of the current epoch.
+    The training task will detect this status change and gracefully pause after completing
+    the current epoch.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status
+            check_query = text("""
+                SELECT status, total_epochs, current_epoch FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, total_epochs, current_epoch = result
+
+            # Can only pause running jobs
+            if status != "running":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot pause job in status '{status}'. Only running jobs can be paused."
+                )
+
+            # Don't allow pausing synthetic data generation jobs (total_epochs = 0)
+            if total_epochs == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot pause synthetic data generation jobs."
+                )
+
+            # Update job status to paused
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'paused'
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"job_id": str(job_id)})
+            session.commit()
+
+            logger.info(f"Paused training job {job_id} at epoch {current_epoch}/{total_epochs}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "paused",
+                    "action": "paused",
+                    "current_epoch": current_epoch,
+                }
+            })
+
+            return {
+                "status": "paused",
+                "job_id": str(job_id),
+                "current_epoch": current_epoch,
+                "total_epochs": total_epochs,
+                "message": "Training will pause after completing the current epoch"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error pausing training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to pause training job: {e!s}")
+
+
+@router.post("/jobs/{job_id}/resume", status_code=200)
+async def resume_training_job(job_id: UUID):
+    """
+    Resume a paused training job.
+
+    Restarts the training task from the pause checkpoint. The training will continue
+    from the epoch where it was paused.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status with new Celery task ID
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status
+            check_query = text("""
+                SELECT status, pause_checkpoint_path, current_epoch, total_epochs
+                FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, pause_checkpoint_path, current_epoch, total_epochs = result
+
+            # Can only resume paused jobs
+            if status != "paused":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot resume job in status '{status}'. Only paused jobs can be resumed."
+                )
+
+            # Verify pause checkpoint exists
+            if not pause_checkpoint_path:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No pause checkpoint found. Cannot resume training."
+                )
+
+            # Update job status to running and queue the training task
+            from tasks.training_task import start_training_job
+
+            task = start_training_job.apply_async(args=[str(job_id)])
+
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'queued', celery_task_id = :task_id, started_at = NOW()
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"job_id": str(job_id), "task_id": task.id})
+            session.commit()
+
+            logger.info(f"Resumed training job {job_id} from epoch {current_epoch}/{total_epochs} (task: {task.id})")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "queued",
+                    "action": "resumed",
+                    "current_epoch": current_epoch,
+                    "celery_task_id": task.id,
+                }
+            })
+
+            return {
+                "status": "queued",
+                "job_id": str(job_id),
+                "celery_task_id": task.id,
+                "current_epoch": current_epoch,
+                "total_epochs": total_epochs,
+                "message": f"Training resumed from epoch {current_epoch}"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resuming training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to resume training job: {e!s}")
+
+
 @router.delete("/jobs/{job_id}", status_code=204)
 async def delete_training_job(job_id: UUID):
     """

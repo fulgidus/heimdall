@@ -178,9 +178,47 @@ def start_training_job(self, job_id: str):
         best_val_loss = float('inf')
         best_epoch = 0
         patience_counter = 0
+        resume_epoch = 0
+        
+        # Check for pause checkpoint to resume from
+        with db_manager.get_session() as session:
+            pause_query = text("SELECT pause_checkpoint_path FROM heimdall.training_jobs WHERE id = :job_id")
+            pause_result = session.execute(pause_query, {"job_id": job_id}).fetchone()
+            pause_checkpoint_path = pause_result[0] if pause_result and pause_result[0] else None
+        
+        if pause_checkpoint_path:
+            logger.info(f"Resuming from pause checkpoint: {pause_checkpoint_path}")
+            try:
+                # Download checkpoint from MinIO
+                checkpoint_key = pause_checkpoint_path.replace("s3://models/", "")
+                response = minio_client.s3_client.get_object(Bucket="models", Key=checkpoint_key)
+                checkpoint_buffer = BytesIO(response['Body'].read())
+                checkpoint = torch.load(checkpoint_buffer, map_location=device)
+                
+                # Restore model, optimizer, and scheduler state
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+                resume_epoch = checkpoint['epoch']
+                best_val_loss = checkpoint.get('best_val_loss', float('inf'))
+                best_epoch = checkpoint.get('best_epoch', 0)
+                patience_counter = checkpoint.get('patience_counter', 0)
+                
+                logger.info(f"Resumed from epoch {resume_epoch}, best_val_loss={best_val_loss:.4f}")
+                
+                # Clear pause checkpoint path after successful resume
+                with db_manager.get_session() as session:
+                    session.execute(
+                        text("UPDATE heimdall.training_jobs SET pause_checkpoint_path = NULL WHERE id = :job_id"),
+                        {"job_id": job_id}
+                    )
+                    session.commit()
+            except Exception as e:
+                logger.warning(f"Failed to load pause checkpoint: {e}. Starting from scratch.")
+                resume_epoch = 0
         
         # Training loop
-        for epoch in range(1, epochs + 1):
+        for epoch in range(resume_epoch + 1, epochs + 1):
             model.train()
             train_loss_sum = 0.0
             train_distance_sum = 0.0
@@ -410,6 +448,59 @@ def start_training_job(self, job_id: str):
             if patience_counter >= early_stop_patience:
                 logger.info(f"Early stopping triggered at epoch {epoch} (patience={early_stop_patience})")
                 break
+            
+            # Check for pause request
+            with db_manager.get_session() as session:
+                status_query = text("SELECT status FROM heimdall.training_jobs WHERE id = :job_id")
+                status_result = session.execute(status_query, {"job_id": job_id}).fetchone()
+                current_status = status_result[0] if status_result else None
+            
+            if current_status == 'paused':
+                logger.info(f"Pause requested at epoch {epoch}. Saving pause checkpoint...")
+                
+                # Save pause checkpoint with full training state
+                pause_checkpoint = {
+                    'epoch': epoch,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': scheduler.state_dict(),
+                    'best_val_loss': best_val_loss,
+                    'best_epoch': best_epoch,
+                    'patience_counter': patience_counter,
+                    'train_loss': train_loss,
+                    'val_loss': val_loss,
+                    'val_rmse': val_rmse,
+                    'config': config
+                }
+                
+                buffer = BytesIO()
+                torch.save(pause_checkpoint, buffer)
+                buffer.seek(0)
+                
+                pause_checkpoint_path = f"checkpoints/{job_id}/pause_checkpoint.pth"
+                minio_client.s3_client.put_object(
+                    Bucket="models",
+                    Key=pause_checkpoint_path,
+                    Body=buffer.getvalue(),
+                    ContentType="application/octet-stream"
+                )
+                
+                # Update job with pause checkpoint path
+                with db_manager.get_session() as session:
+                    session.execute(
+                        text("UPDATE heimdall.training_jobs SET pause_checkpoint_path = :path WHERE id = :job_id"),
+                        {"path": f"s3://models/{pause_checkpoint_path}", "job_id": job_id}
+                    )
+                    session.commit()
+                
+                logger.info(f"Training paused at epoch {epoch}. Checkpoint saved to {pause_checkpoint_path}")
+                
+                return {
+                    "status": "paused",
+                    "job_id": job_id,
+                    "paused_at_epoch": epoch,
+                    "pause_checkpoint_path": f"s3://models/{pause_checkpoint_path}"
+                }
         
         # Save final checkpoint
         checkpoint = {
