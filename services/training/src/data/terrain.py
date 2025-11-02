@@ -67,7 +67,7 @@ class TerrainLookup:
         base_elevation = 200 + (lat - 44.0) * 300  # 200m at 44°N, 500m at 45°N
         
         # Add some noise for realistic variation (deterministic per coordinate)
-        seed = hash((round(lat, 6), round(lon, 6)))  # rounding to avoid floating point artifacts
+        seed = abs(hash((round(lat, 6), round(lon, 6))))  # abs() ensures non-negative seed
         rng = np.random.default_rng(seed)
         noise = rng.uniform(-50, 50)
         

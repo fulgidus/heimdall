@@ -68,6 +68,12 @@ const TrainingDashboard: React.FC = () => {
     train_ratio: 0.7,
     val_ratio: 0.15,
     test_ratio: 0.15,
+    // RF generation parameters (relaxed defaults for better success rate)
+    frequency_mhz: 144.0,
+    tx_power_dbm: 33.0,
+    min_snr_db: 0.0,       // More permissive (was 3.0)
+    min_receivers: 2,      // More permissive (was 3)
+    max_gdop: 100.0,       // Very permissive for ML training (was 10.0)
   });
 
   // Load data silently (no loading spinner after initial load)
@@ -137,6 +143,11 @@ const TrainingDashboard: React.FC = () => {
         train_ratio: 0.7,
         val_ratio: 0.15,
         test_ratio: 0.15,
+        frequency_mhz: 144.0,
+        tx_power_dbm: 33.0,
+        min_snr_db: 0.0,
+        min_receivers: 2,
+        max_gdop: 100.0,
       });
       loadData(); // Refresh
     } catch (err) {
@@ -536,6 +547,90 @@ const TrainingDashboard: React.FC = () => {
               />
               <Form.Text>70% inside, 30% outside recommended</Form.Text>
             </Form.Group>
+
+            <hr />
+            <h6 className="mb-3">Signal Quality Constraints</h6>
+            <Alert variant="info" className="mb-3">
+              These parameters control which synthetic samples are accepted.
+              Stricter values = higher quality but fewer samples.
+              Relaxing these values will increase sample generation success rate.
+            </Alert>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Frequency (MHz)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.frequency_mhz}
+                    onChange={(e) => setDataForm({ ...dataForm, frequency_mhz: parseFloat(e.target.value) })}
+                    step={0.1}
+                    min={50}
+                    max={3000}
+                  />
+                  <Form.Text>VHF/UHF frequency (e.g., 144.0 for 2m band)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>TX Power (dBm)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.tx_power_dbm}
+                    onChange={(e) => setDataForm({ ...dataForm, tx_power_dbm: parseFloat(e.target.value) })}
+                    step={1}
+                    min={0}
+                    max={60}
+                  />
+                  <Form.Text>Transmitter power (30-40 dBm typical)</Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Min SNR (dB)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.min_snr_db}
+                    onChange={(e) => setDataForm({ ...dataForm, min_snr_db: parseFloat(e.target.value) })}
+                    step={0.5}
+                    min={-5}
+                    max={20}
+                  />
+                  <Form.Text>Minimum signal-to-noise ratio (0 = more samples)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Min Receivers</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.min_receivers}
+                    onChange={(e) => setDataForm({ ...dataForm, min_receivers: parseInt(e.target.value) })}
+                    step={1}
+                    min={2}
+                    max={7}
+                  />
+                  <Form.Text>Minimum detecting stations (2 = more samples)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Max GDOP</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.max_gdop}
+                    onChange={(e) => setDataForm({ ...dataForm, max_gdop: parseFloat(e.target.value) })}
+                    step={5}
+                    min={5}
+                    max={200}
+                  />
+                  <Form.Text>Max geometric dilution (100 = balanced for ML)</Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
           </Form>
         </Modal.Body>
         <Modal.Footer>

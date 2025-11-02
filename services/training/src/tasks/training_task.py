@@ -54,7 +54,7 @@ def start_training_job(self, job_id: str):
         Dict with training results
     """
     # Import backend storage modules
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../backend/src'))
+    sys.path.insert(0, '/app/backend/src')
     from storage.db_manager import get_db_manager
     from storage.minio_client import MinIOClient
     from config import settings as backend_settings
@@ -81,7 +81,8 @@ def start_training_job(self, job_id: str):
             result = session.execute(config_query, {"job_id": job_id}).fetchone()
             if not result:
                 raise ValueError(f"Job {job_id} not found")
-            config = json.loads(result[0])
+            # Config is already a dict from JSONB column
+            config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
         
         # Extract configuration
         dataset_id = config.get("dataset_id")
@@ -528,7 +529,7 @@ def generate_synthetic_data_task(self, job_id: str):
         Dict with generation results
     """
     # Import backend storage modules
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../backend/src'))
+    sys.path.insert(0, '/app/backend/src')
     from storage.db_manager import get_db_manager
     from sqlalchemy import text
     
@@ -544,11 +545,12 @@ def generate_synthetic_data_task(self, job_id: str):
                 WHERE id = :job_id
             """)
             result = session.execute(load_query, {"job_id": job_id}).fetchone()
-            
+
             if not result:
                 raise ValueError(f"Job {job_id} not found")
-            
-            config = json.loads(result[0])
+
+            # Config is already a dict from JSONB column
+            config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
         
         # Update status to running
         with db_manager.get_session() as session:
@@ -561,6 +563,7 @@ def generate_synthetic_data_task(self, job_id: str):
             session.commit()
         
         # Generate synthetic data - import training service modules
+        sys.path.insert(0, '/app/src')
         from data.config import TrainingConfig, get_italian_receivers
         from data.propagation import RFPropagationModel
         from data.terrain import TerrainLookup
@@ -613,35 +616,82 @@ def generate_synthetic_data_task(self, job_id: str):
         val_count = sum(1 for s in samples if s.split == 'val')
         test_count = sum(1 for s in samples if s.split == 'test')
         
-        # Create dataset record
+        # Create dataset record (or update if exists)
         dataset_id = uuid.uuid4()
         with db_manager.get_session() as session:
-            dataset_query = text("""
-                INSERT INTO heimdall.synthetic_datasets (
-                    id, name, description, num_samples, train_count, val_count, test_count,
-                    config, quality_metrics, created_by_job_id
-                )
-                VALUES (
-                    :id, :name, :description, :num_samples, :train_count, :val_count, :test_count,
-                    :config::jsonb, :quality_metrics::jsonb, :job_id
-                )
+            # Check if dataset with this name already exists
+            check_query = text("""
+                SELECT id FROM heimdall.synthetic_datasets WHERE name = :name
             """)
-            
-            session.execute(
-                dataset_query,
-                {
-                    "id": str(dataset_id),
-                    "name": config['name'],
-                    "description": config.get('description'),
-                    "num_samples": len(samples),
-                    "train_count": train_count,
-                    "val_count": val_count,
-                    "test_count": test_count,
-                    "config": json.dumps(config),
-                    "quality_metrics": json.dumps(quality_metrics),
-                    "job_id": job_id
-                }
-            )
+            existing = session.execute(check_query, {"name": config['name']}).fetchone()
+
+            if existing:
+                # Update existing dataset
+                dataset_id = existing[0]
+
+                # Delete old samples first
+                delete_samples_query = text("""
+                    DELETE FROM heimdall.synthetic_training_samples
+                    WHERE dataset_id = :dataset_id
+                """)
+                session.execute(delete_samples_query, {"dataset_id": str(dataset_id)})
+
+                # Update dataset record
+                update_query = text("""
+                    UPDATE heimdall.synthetic_datasets
+                    SET num_samples = :num_samples,
+                        train_count = :train_count,
+                        val_count = :val_count,
+                        test_count = :test_count,
+                        config = CAST(:config AS jsonb),
+                        quality_metrics = CAST(:quality_metrics AS jsonb),
+                        created_by_job_id = :job_id
+                    WHERE id = :id
+                """)
+                session.execute(
+                    update_query,
+                    {
+                        "id": str(dataset_id),
+                        "num_samples": len(samples),
+                        "train_count": train_count,
+                        "val_count": val_count,
+                        "test_count": test_count,
+                        "config": json.dumps(config),
+                        "quality_metrics": json.dumps(quality_metrics),
+                        "job_id": job_id
+                    }
+                )
+                logger.info(f"Updated existing dataset {dataset_id} (replaced old samples)")
+            else:
+                # Create new dataset
+                dataset_query = text("""
+                    INSERT INTO heimdall.synthetic_datasets (
+                        id, name, description, num_samples, train_count, val_count, test_count,
+                        config, quality_metrics, created_by_job_id
+                    )
+                    VALUES (
+                        :id, :name, :description, :num_samples, :train_count, :val_count, :test_count,
+                        CAST(:config AS jsonb), CAST(:quality_metrics AS jsonb), :job_id
+                    )
+                """)
+
+                session.execute(
+                    dataset_query,
+                    {
+                        "id": str(dataset_id),
+                        "name": config['name'],
+                        "description": config.get('description'),
+                        "num_samples": len(samples),
+                        "train_count": train_count,
+                        "val_count": val_count,
+                        "test_count": test_count,
+                        "config": json.dumps(config),
+                        "quality_metrics": json.dumps(quality_metrics),
+                        "job_id": job_id
+                    }
+                )
+                logger.info(f"Created new dataset {dataset_id}")
+
             session.commit()
         
         logger.info(f"Created dataset {dataset_id}")

@@ -19,7 +19,7 @@ class SyntheticDataGenerationRequest(BaseModel):
     train_ratio: float = Field(default=0.7, ge=0.0, le=1.0, description="Training set ratio")
     val_ratio: float = Field(default=0.15, ge=0.0, le=1.0, description="Validation set ratio")
     test_ratio: float = Field(default=0.15, ge=0.0, le=1.0, description="Test set ratio")
-    frequency_mhz: float = Field(default=145.0, ge=144.0, le=148.0, description="Frequency in MHz")
+    frequency_mhz: float = Field(default=145.0, ge=0.5, le=3000.0, description="Frequency in MHz (HF/VHF/UHF/SHF)")
     tx_power_dbm: float = Field(default=37.0, ge=0.0, le=50.0, description="TX power in dBm")
     min_snr_db: float = Field(default=3.0, ge=0.0, description="Minimum SNR threshold")
     min_receivers: int = Field(default=3, ge=2, le=7, description="Minimum receivers with signal")

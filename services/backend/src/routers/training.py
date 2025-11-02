@@ -25,6 +25,7 @@ from ..models.training import (
     TrainingMetrics,
     TrainingStatus,
 )
+from ..models.synthetic_data import SyntheticDataGenerationRequest
 from ..storage.db_manager import get_db_manager
 
 logger = logging.getLogger(__name__)
@@ -86,7 +87,11 @@ async def create_training_job(request: TrainingJobRequest):
 
         # Queue Celery task to training service
         from ..main import celery_app
-        task = celery_app.send_task('start_training_job', args=[str(job_id)])
+        task = celery_app.send_task(
+            'src.tasks.training_task.start_training_job',
+            args=[str(job_id)],
+            queue='training'
+        )
 
         # Update job with Celery task ID
         with db_manager.get_session() as session:
@@ -450,23 +455,20 @@ async def get_training_metrics(
 # ============================================================================
 
 @router.post("/synthetic/generate", status_code=202)
-async def generate_synthetic_data(request: Any):
+async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
     """
     Generate synthetic training dataset.
-    
+
     Creates a background job to generate synthetic samples using RF propagation simulation.
-    
+
     Args:
         request: Synthetic data generation configuration
-    
+
     Returns:
         Job ID and status URL
     """
-    from ..models.synthetic_data import SyntheticDataGenerationRequest
-    
-    # Import here to avoid circular dependency
-    if not isinstance(request, dict):
-        request = request.model_dump() if hasattr(request, 'model_dump') else request
+    # Convert to dict for storage
+    request_dict = request.model_dump()
     
     db_manager = get_db_manager()
     
@@ -475,10 +477,10 @@ async def generate_synthetic_data(request: Any):
         with db_manager.get_session() as session:
             job_query = text("""
                 INSERT INTO heimdall.training_jobs (
-                    job_name, job_type, status, config
+                    job_name, job_type, status, config, total_epochs
                 )
                 VALUES (
-                    :job_name, 'synthetic_generation', 'pending', :config::jsonb
+                    :job_name, 'synthetic_generation', 'pending', CAST(:config AS jsonb), 0
                 )
                 RETURNING id, created_at
             """)
@@ -487,8 +489,8 @@ async def generate_synthetic_data(request: Any):
             result = session.execute(
                 job_query,
                 {
-                    "job_name": f"Synthetic Data: {request.get('name', 'Unnamed')}",
-                    "config": json.dumps(request)
+                    "job_name": f"Synthetic Data: {request_dict.get('name', 'Unnamed')}",
+                    "config": json.dumps(request_dict)
                 }
             )
             row = result.fetchone()
@@ -501,7 +503,11 @@ async def generate_synthetic_data(request: Any):
         
         # Queue Celery task to training service
         from ..main import celery_app
-        celery_app.send_task('generate_synthetic_data_task', args=[str(job_id)])
+        celery_app.send_task(
+            'src.tasks.training_task.generate_synthetic_data_task',
+            args=[str(job_id)],
+            queue='training'
+        )
 
         # Broadcast WebSocket update
         from .websocket import manager as ws_manager
@@ -566,6 +572,10 @@ async def list_synthetic_datasets(
             import json
             datasets = []
             for row in results:
+                # JSONB columns are already dicts, not strings
+                config = row[7] if isinstance(row[7], dict) else (json.loads(row[7]) if row[7] else {})
+                quality_metrics = row[8] if isinstance(row[8], dict) else (json.loads(row[8]) if row[8] else None)
+
                 datasets.append(SyntheticDatasetResponse(
                     id=row[0],
                     name=row[1],
@@ -574,8 +584,8 @@ async def list_synthetic_datasets(
                     train_count=row[4],
                     val_count=row[5],
                     test_count=row[6],
-                    config=json.loads(row[7]) if row[7] else {},
-                    quality_metrics=json.loads(row[8]) if row[8] else None,
+                    config=config,
+                    quality_metrics=quality_metrics,
                     storage_table=row[9],
                     created_at=row[10],
                     created_by_job_id=row[11]
@@ -618,6 +628,10 @@ async def get_synthetic_dataset(dataset_id: UUID):
                 raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
             
             import json
+            # JSONB columns are already dicts, not strings
+            config = result[7] if isinstance(result[7], dict) else (json.loads(result[7]) if result[7] else {})
+            quality_metrics = result[8] if isinstance(result[8], dict) else (json.loads(result[8]) if result[8] else None)
+
             return SyntheticDatasetResponse(
                 id=result[0],
                 name=result[1],
@@ -626,8 +640,8 @@ async def get_synthetic_dataset(dataset_id: UUID):
                 train_count=result[4],
                 val_count=result[5],
                 test_count=result[6],
-                config=json.loads(result[7]) if result[7] else {},
-                quality_metrics=json.loads(result[8]) if result[8] else None,
+                config=config,
+                quality_metrics=quality_metrics,
                 storage_table=result[9],
                 created_at=result[10],
                 created_by_job_id=result[11]
@@ -737,6 +751,11 @@ async def list_models(
             import json
             models = []
             for row in results:
+                # JSONB columns are already dicts, not strings
+                hyperparameters = row[15] if isinstance(row[15], dict) else (json.loads(row[15]) if row[15] else None)
+                training_metrics = row[16] if isinstance(row[16], dict) else (json.loads(row[16]) if row[16] else None)
+                test_metrics = row[17] if isinstance(row[17], dict) else (json.loads(row[17]) if row[17] else None)
+
                 models.append(ModelMetadataResponse(
                     id=row[0],
                     model_name=row[1],
@@ -753,9 +772,9 @@ async def list_models(
                     epoch=row[12],
                     is_active=row[13],
                     is_production=row[14],
-                    hyperparameters=json.loads(row[15]) if row[15] else None,
-                    training_metrics=json.loads(row[16]) if row[16] else None,
-                    test_metrics=json.loads(row[17]) if row[17] else None,
+                    hyperparameters=hyperparameters,
+                    training_metrics=training_metrics,
+                    test_metrics=test_metrics,
                     created_at=row[18],
                     trained_by_job_id=row[19]
                 ))
@@ -800,6 +819,11 @@ async def get_model(model_id: UUID):
                 raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
             
             import json
+            # JSONB columns are already dicts, not strings
+            hyperparameters = result[15] if isinstance(result[15], dict) else (json.loads(result[15]) if result[15] else None)
+            training_metrics = result[16] if isinstance(result[16], dict) else (json.loads(result[16]) if result[16] else None)
+            test_metrics = result[17] if isinstance(result[17], dict) else (json.loads(result[17]) if result[17] else None)
+
             return ModelMetadataResponse(
                 id=result[0],
                 model_name=result[1],
@@ -816,9 +840,9 @@ async def get_model(model_id: UUID):
                 epoch=result[12],
                 is_active=result[13],
                 is_production=result[14],
-                hyperparameters=json.loads(result[15]) if result[15] else None,
-                training_metrics=json.loads(result[16]) if result[16] else None,
-                test_metrics=json.loads(result[17]) if result[17] else None,
+                hyperparameters=hyperparameters,
+                training_metrics=training_metrics,
+                test_metrics=test_metrics,
                 created_at=result[18],
                 trained_by_job_id=result[19]
             )
