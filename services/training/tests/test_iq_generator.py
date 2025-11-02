@@ -1,6 +1,5 @@
 """Tests for SyntheticIQGenerator."""
 
-import pytest
 import numpy as np
 from data.iq_generator import SyntheticIQGenerator, IQSample
 

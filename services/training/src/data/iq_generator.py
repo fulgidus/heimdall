@@ -143,7 +143,6 @@ class SyntheticIQGenerator:
 
         # Add random phase modulation to simulate FM/PM
         # Modulation bandwidth proportional to signal bandwidth
-        mod_rate = bandwidth_hz / 10.0  # Modulation rate ~10% of signal BW
         phase_mod = self.rng.normal(0, 0.3, self.num_samples)  # Random phase deviation
         phase_mod = np.convolve(phase_mod, np.ones(10) / 10, mode='same')  # Smooth it
 
