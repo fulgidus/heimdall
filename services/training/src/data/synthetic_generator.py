@@ -24,8 +24,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
-from .terrain import TerrainLookup
 from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
+
+# Import terrain from common module (shared across services)
+from common.terrain import TerrainLookup
 
 # Import from common module (PYTHONPATH=/app in Dockerfile)
 from common.feature_extraction import RFFeatureExtractor, IQSample
