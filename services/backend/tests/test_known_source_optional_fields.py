@@ -210,5 +210,4 @@ def test_known_source_update_model():
     assert update3.frequency_hz is None
 
 
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+

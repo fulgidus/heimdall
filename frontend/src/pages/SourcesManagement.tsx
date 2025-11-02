@@ -7,6 +7,9 @@ import type { KnownSource, KnownSourceCreate, KnownSourceUpdate } from '../servi
 // Set Mapbox access token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+// Constants
+const DEFAULT_ERROR_MARGIN_METERS = '50';
+
 // Add pulse animation for temporary marker
 const style = document.createElement('style');
 style.textContent = `
@@ -66,7 +69,7 @@ const SourcesManagement: React.FC = () => {
     power_dbm: '',
     source_type: 'beacon',
     is_validated: false,
-    error_margin_meters: '50',
+    error_margin_meters: DEFAULT_ERROR_MARGIN_METERS,
   });
   const [formErrors, setFormErrors] = useState<Partial<SourceFormData>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -428,7 +431,7 @@ const SourcesManagement: React.FC = () => {
       power_dbm: source.power_dbm?.toString() || '',
       source_type: source.source_type || 'beacon',
       is_validated: source.is_validated,
-      error_margin_meters: source.error_margin_meters?.toString() || '50',
+      error_margin_meters: source.error_margin_meters?.toString() || DEFAULT_ERROR_MARGIN_METERS,
     });
     setIsFormVisible(true);
     setSelectedSource(null);
@@ -463,7 +466,7 @@ const SourcesManagement: React.FC = () => {
       power_dbm: '',
       source_type: 'beacon',
       is_validated: false,
-      error_margin_meters: '50',
+      error_margin_meters: DEFAULT_ERROR_MARGIN_METERS,
     });
     setFormErrors({});
 
