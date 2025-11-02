@@ -15,8 +15,10 @@ from ..db import get_pool
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, name='backend.tasks.batch_feature_extraction')
-def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optional[int] = None) -> dict:
+@shared_task(bind=True, name="backend.tasks.batch_feature_extraction")
+def batch_feature_extraction_task(
+    self, batch_size: int = 50, max_batches: int | None = None
+) -> dict:
     """
     Find recordings without features and queue extraction tasks.
 
@@ -27,7 +29,9 @@ def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optio
     Returns:
         dict with statistics
     """
-    logger.info(f"Starting batch feature extraction (batch_size={batch_size}, max_batches={max_batches})")
+    logger.info(
+        f"Starting batch feature extraction (batch_size={batch_size}, max_batches={max_batches})"
+    )
 
     try:
         # Get database pool and run async operations
@@ -38,18 +42,16 @@ def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optio
 
             # Find recordings without features
             recordings_without_features = await _find_recordings_without_features(
-                pool,
-                batch_size=batch_size,
-                max_batches=max_batches
+                pool, batch_size=batch_size, max_batches=max_batches
             )
 
             logger.info(f"Found {len(recordings_without_features)} recordings without features")
 
             if not recordings_without_features:
                 return {
-                    'total_found': 0,
-                    'tasks_queued': 0,
-                    'message': 'No recordings without features'
+                    "total_found": 0,
+                    "tasks_queued": 0,
+                    "message": "No recordings without features",
                 }
 
             # Queue extraction tasks
@@ -58,11 +60,11 @@ def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optio
                 try:
                     # Import celery_app from main module to access shared task
                     from ..main import celery_app
-                    
+
                     task = celery_app.send_task(
-                        'backend.tasks.extract_recording_features',
-                        args=[str(recording['session_id'])],
-                        queue='celery'  # Use default queue for background jobs
+                        "backend.tasks.extract_recording_features",
+                        args=[str(recording["session_id"])],
+                        queue="celery",  # Use default queue for background jobs
                     )
                     task_ids.append(task.id)
                 except Exception as e:
@@ -71,9 +73,9 @@ def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optio
             logger.info(f"Queued {len(task_ids)} feature extraction tasks")
 
             return {
-                'total_found': len(recordings_without_features),
-                'tasks_queued': len(task_ids),
-                'task_ids': task_ids[:10]  # Return first 10 task IDs
+                "total_found": len(recordings_without_features),
+                "tasks_queued": len(task_ids),
+                "task_ids": task_ids[:10],  # Return first 10 task IDs
             }
 
         # Use asyncio.run() for proper event loop management
@@ -81,17 +83,11 @@ def batch_feature_extraction_task(self, batch_size: int = 50, max_batches: Optio
 
     except Exception as e:
         logger.exception(f"Error in batch feature extraction: {e}")
-        return {
-            'error': str(e),
-            'total_found': 0,
-            'tasks_queued': 0
-        }
+        return {"error": str(e), "total_found": 0, "tasks_queued": 0}
 
 
 async def _find_recordings_without_features(
-    pool,
-    batch_size: int = 50,
-    max_batches: Optional[int] = None
+    pool, batch_size: int = 50, max_batches: int | None = None
 ) -> list[dict]:
     """
     Find recording sessions that don't have features.
@@ -135,16 +131,16 @@ async def _find_recordings_without_features(
 
         return [
             {
-                'session_id': row['session_id'],
-                'created_at': row['created_at'],
-                'status': row['status'],
-                'num_measurements': row['num_measurements']
+                "session_id": row["session_id"],
+                "created_at": row["created_at"],
+                "status": row["status"],
+                "num_measurements": row["num_measurements"],
             }
             for row in results
         ]
 
 
-@shared_task(bind=True, name='backend.tasks.backfill_all_features')
+@shared_task(bind=True, name="backend.tasks.backfill_all_features")
 def backfill_all_features(self) -> dict:
     """
     Backfill features for ALL recordings without features.
@@ -165,14 +161,14 @@ def backfill_all_features(self) -> dict:
         # Process in batches of 50
         result = batch_feature_extraction_task(batch_size=50, max_batches=1)
 
-        total_processed += result['total_found']
-        total_queued += result['tasks_queued']
+        total_processed += result["total_found"]
+        total_queued += result["tasks_queued"]
         batch_num += 1
 
         logger.info(f"Backfill batch {batch_num}: {result['tasks_queued']} tasks queued")
 
         # Stop if no more recordings found
-        if result['total_found'] == 0:
+        if result["total_found"] == 0:
             break
 
         # Safety limit: max 1000 batches (50,000 recordings)
@@ -180,10 +176,12 @@ def backfill_all_features(self) -> dict:
             logger.warning("Backfill safety limit reached (1000 batches)")
             break
 
-    logger.info(f"Backfill complete: {total_processed} recordings found, {total_queued} tasks queued")
+    logger.info(
+        f"Backfill complete: {total_processed} recordings found, {total_queued} tasks queued"
+    )
 
     return {
-        'total_recordings': total_processed,
-        'total_tasks_queued': total_queued,
-        'num_batches': batch_num
+        "total_recordings": total_processed,
+        "total_tasks_queued": total_queued,
+        "num_batches": batch_num,
     }

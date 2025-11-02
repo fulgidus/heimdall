@@ -32,14 +32,13 @@ async def trigger_batch_extraction(
     """
     try:
         task = batch_feature_extraction_task.apply_async(
-            kwargs={'batch_size': batch_size, 'max_batches': max_batches},
-            queue='celery'
+            kwargs={"batch_size": batch_size, "max_batches": max_batches}, queue="celery"
         )
 
         return {
             "task_id": task.id,
             "message": f"Batch extraction started (batch_size={batch_size}, max_batches={max_batches})",
-            "status": "queued"
+            "status": "queued",
         }
     except Exception as e:
         logger.error(f"Error triggering batch extraction: {e}")
@@ -57,12 +56,12 @@ async def trigger_full_backfill():
         Task result
     """
     try:
-        task = backfill_all_features.apply_async(queue='celery')
+        task = backfill_all_features.apply_async(queue="celery")
 
         return {
             "task_id": task.id,
             "message": "Full backfill started - this may take hours",
-            "status": "queued"
+            "status": "queued",
         }
     except Exception as e:
         logger.error(f"Error triggering full backfill: {e}")
@@ -70,9 +69,7 @@ async def trigger_full_backfill():
 
 
 @router.get("/features/stats")
-async def get_feature_extraction_stats(
-    pool=Depends(get_pool)
-):
+async def get_feature_extraction_stats(pool=Depends(get_pool)):
     """
     Get statistics about feature extraction coverage.
 
@@ -103,28 +100,27 @@ async def get_feature_extraction_stats(
 
             if not result:
                 return {
-                    'total_recordings': 0,
-                    'recordings_with_features': 0,
-                    'recordings_without_features': 0,
-                    'total_measurements': 0,
-                    'coverage_percent': 0.0
+                    "total_recordings": 0,
+                    "recordings_with_features": 0,
+                    "recordings_without_features": 0,
+                    "total_measurements": 0,
+                    "coverage_percent": 0.0,
                 }
 
-            total_recordings = result['total_recordings'] or 0
-            recordings_with_features = result['recordings_with_features'] or 0
-            total_measurements = result['total_measurements'] or 0
+            total_recordings = result["total_recordings"] or 0
+            recordings_with_features = result["recordings_with_features"] or 0
+            total_measurements = result["total_measurements"] or 0
 
             coverage_percent = (
-                recordings_with_features / total_recordings * 100
-                if total_recordings > 0 else 0.0
+                recordings_with_features / total_recordings * 100 if total_recordings > 0 else 0.0
             )
 
             return {
-                'total_recordings': total_recordings,
-                'recordings_with_features': recordings_with_features,
-                'recordings_without_features': total_recordings - recordings_with_features,
-                'total_measurements': total_measurements,
-                'coverage_percent': round(coverage_percent, 2)
+                "total_recordings": total_recordings,
+                "recordings_with_features": recordings_with_features,
+                "recordings_without_features": total_recordings - recordings_with_features,
+                "total_measurements": total_measurements,
+                "coverage_percent": round(coverage_percent, 2),
             }
 
     except Exception as e:
