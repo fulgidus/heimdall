@@ -7,6 +7,9 @@ import type { KnownSource, KnownSourceCreate, KnownSourceUpdate } from '../servi
 // Set Mapbox access token
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
+// Constants
+const DEFAULT_ERROR_MARGIN_METERS = '50';
+
 // Add pulse animation for temporary marker
 const style = document.createElement('style');
 style.textContent = `
@@ -66,7 +69,7 @@ const SourcesManagement: React.FC = () => {
     power_dbm: '',
     source_type: 'beacon',
     is_validated: false,
-    error_margin_meters: '50',
+    error_margin_meters: DEFAULT_ERROR_MARGIN_METERS,
   });
   const [formErrors, setFormErrors] = useState<Partial<SourceFormData>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -180,7 +183,7 @@ const SourcesManagement: React.FC = () => {
       // Add new markers
       knownSources.forEach(source => {
         // Skip sources without coordinates
-        if (source.latitude == null || source.longitude == null) {
+        if (source.latitude === null || source.longitude === null) {
           return;
         }
 
@@ -203,10 +206,16 @@ const SourcesManagement: React.FC = () => {
           .setLngLat([source.longitude, source.latitude])
           .addTo(map.current!);
 
-        // Add popup with conditional frequency display
+        // Add popup with conditional frequency and error margin display
         const frequencyHtml = source.frequency_hz
           ? `<p style="margin: 4px 0; font-size: 12px;">
                            <strong>Frequency:</strong> ${(source.frequency_hz / 1e6).toFixed(3)} MHz
+                       </p>`
+          : '';
+
+        const errorMarginHtml = source.error_margin_meters
+          ? `<p style="margin: 4px 0; font-size: 12px;">
+                           <strong>Error Margin:</strong> ${source.error_margin_meters}m
                        </p>`
           : '';
 
@@ -217,9 +226,7 @@ const SourcesManagement: React.FC = () => {
                         <p style="margin: 4px 0; font-size: 12px;">
                             <strong>Location:</strong> ${source.latitude.toFixed(4)}, ${source.longitude.toFixed(4)}
                         </p>
-                        <p style="margin: 4px 0; font-size: 12px;">
-                            <strong>Error Margin:</strong> ${source.error_margin_meters}m
-                        </p>
+                        ${errorMarginHtml}
                     </div>
                 `);
 
@@ -228,7 +235,7 @@ const SourcesManagement: React.FC = () => {
         // Handle marker click
         el.addEventListener('click', () => {
           setSelectedSource(source);
-          if (source.longitude != null && source.latitude != null) {
+          if (source.longitude !== null && source.latitude !== null) {
             map.current?.flyTo({
               center: [source.longitude, source.latitude],
               zoom: 10,
@@ -249,7 +256,7 @@ const SourcesManagement: React.FC = () => {
           } catch (error) {
             console.error('Failed to update source location:', error);
             showNotification('error', 'Failed to update source location');
-            if (source.longitude != null && source.latitude != null) {
+            if (source.longitude !== null && source.latitude !== null) {
               marker.setLngLat([source.longitude, source.latitude]);
             }
           }
@@ -257,43 +264,45 @@ const SourcesManagement: React.FC = () => {
 
         markers.current[source.id] = marker;
 
-        // Add error margin circle
-        if (map.current?.getSource(`source-circle-${source.id}`)) {
-          map.current.removeLayer(`source-circle-${source.id}`);
-          map.current.removeSource(`source-circle-${source.id}`);
+        // Add error margin circle (only if error_margin_meters is set)
+        if (source.error_margin_meters) {
+          if (map.current?.getSource(`source-circle-${source.id}`)) {
+            map.current.removeLayer(`source-circle-${source.id}`);
+            map.current.removeSource(`source-circle-${source.id}`);
+          }
+
+          map.current?.addSource(`source-circle-${source.id}`, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              geometry: {
+                type: 'Point',
+                coordinates: [source.longitude, source.latitude],
+              },
+              properties: {},
+            },
+          });
+
+          map.current?.addLayer({
+            id: `source-circle-${source.id}`,
+            type: 'circle',
+            source: `source-circle-${source.id}`,
+            paint: {
+              'circle-radius': {
+                stops: [
+                  [0, 0],
+                  [20, metersToPixels(source.error_margin_meters, source.latitude, 20)],
+                ],
+                base: 2,
+              },
+              'circle-color': source.is_validated ? '#10b981' : '#f59e0b',
+              'circle-opacity': 0.2,
+              'circle-stroke-width': 2,
+              'circle-stroke-color': source.is_validated ? '#10b981' : '#f59e0b',
+              'circle-stroke-opacity': 0.5,
+            },
+          });
         }
-
-        map.current?.addSource(`source-circle-${source.id}`, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [source.longitude, source.latitude],
-            },
-            properties: {},
-          },
-        });
-
-        map.current?.addLayer({
-          id: `source-circle-${source.id}`,
-          type: 'circle',
-          source: `source-circle-${source.id}`,
-          paint: {
-            'circle-radius': {
-              stops: [
-                [0, 0],
-                [20, metersToPixels(source.error_margin_meters, source.latitude, 20)],
-              ],
-              base: 2,
-            },
-            'circle-color': source.is_validated ? '#10b981' : '#f59e0b',
-            'circle-opacity': 0.2,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': source.is_validated ? '#10b981' : '#f59e0b',
-            'circle-stroke-opacity': 0.5,
-          },
-        });
       });
     };
 
@@ -422,7 +431,7 @@ const SourcesManagement: React.FC = () => {
       power_dbm: source.power_dbm?.toString() || '',
       source_type: source.source_type || 'beacon',
       is_validated: source.is_validated,
-      error_margin_meters: source.error_margin_meters.toString(),
+      error_margin_meters: source.error_margin_meters?.toString() || DEFAULT_ERROR_MARGIN_METERS,
     });
     setIsFormVisible(true);
     setSelectedSource(null);
@@ -457,7 +466,7 @@ const SourcesManagement: React.FC = () => {
       power_dbm: '',
       source_type: 'beacon',
       is_validated: false,
-      error_margin_meters: '50',
+      error_margin_meters: DEFAULT_ERROR_MARGIN_METERS,
     });
     setFormErrors({});
 
@@ -783,7 +792,7 @@ const SourcesManagement: React.FC = () => {
                         className={`list-group-item list-group-item-action ${selectedSource?.id === source.id ? 'active' : ''}`}
                         onClick={() => {
                           setSelectedSource(source);
-                          if (source.latitude != null && source.longitude != null) {
+                          if (source.latitude !== null && source.longitude !== null) {
                             map.current?.flyTo({
                               center: [source.longitude, source.latitude],
                               zoom: 10,
@@ -809,15 +818,17 @@ const SourcesManagement: React.FC = () => {
                                 {(source.frequency_hz / 1e6).toFixed(3)} MHz
                               </p>
                             )}
-                            {source.latitude != null && source.longitude != null && (
+                            {source.latitude !== null && source.longitude !== null && (
                               <p className="mb-1 f-12">
                                 <i className="ph ph-map-pin me-1"></i>
                                 {source.latitude.toFixed(4)}, {source.longitude.toFixed(4)}
                               </p>
                             )}
-                            <p className="mb-1 f-12">
-                              <i className="ph ph-circle me-1"></i>±{source.error_margin_meters}m
-                            </p>
+                            {source.error_margin_meters !== null && (
+                              <p className="mb-1 f-12">
+                                <i className="ph ph-circle me-1"></i>±{source.error_margin_meters}m
+                              </p>
+                            )}
                             {source.description && (
                               <p className="mb-1 f-12 text-muted">{source.description}</p>
                             )}

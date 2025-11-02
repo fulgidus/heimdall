@@ -14,9 +14,9 @@ class KnownSource(BaseModel):
     id: UUID
     name: str
     description: str | None = None
-    frequency_hz: int
-    latitude: float
-    longitude: float
+    frequency_hz: int | None = None  # Optional - may be unknown for amateur stations
+    latitude: float | None = None  # Optional - may be unknown initially
+    longitude: float | None = None  # Optional - may be unknown initially
     power_dbm: float | None = None
     source_type: str | None = None
     is_validated: bool = False
@@ -30,9 +30,9 @@ class KnownSourceCreate(BaseModel):
 
     name: str
     description: str | None = None
-    frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
-    latitude: float = Field(..., ge=-90, le=90)
-    longitude: float = Field(..., ge=-180, le=180)
+    frequency_hz: int | None = Field(None, gt=0, description="Frequency in Hz (optional)")
+    latitude: float | None = Field(None, ge=-90, le=90, description="Latitude (optional)")
+    longitude: float | None = Field(None, ge=-180, le=180, description="Longitude (optional)")
     power_dbm: float | None = None
     source_type: str | None = None
     is_validated: bool = False

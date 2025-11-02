@@ -30,7 +30,7 @@ export interface KnownSource {
   power_dbm?: number;
   source_type?: string;
   is_validated: boolean;
-  error_margin_meters: number;
+  error_margin_meters: number | null;
   created_at: string;
   updated_at: string;
 }
