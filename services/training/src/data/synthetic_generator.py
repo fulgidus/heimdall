@@ -25,7 +25,11 @@ from .config import TrainingConfig
 from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
 from .terrain import TerrainLookup
 from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
-from .rf_feature_extractor import RFFeatureExtractor, IQSample
+
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../common'))
+from feature_extraction import RFFeatureExtractor, IQSample
 
 logger = structlog.get_logger(__name__)
 
