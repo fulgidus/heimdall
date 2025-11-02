@@ -514,13 +514,15 @@ def start_training_job(self, job_id: str):
 @shared_task(bind=True, base=TrainingTask)
 def generate_synthetic_data_task(self, job_id: str):
     """
-    Generate synthetic training data.
+    Generate synthetic training data with IQ samples and feature extraction.
     
     This task:
     1. Loads training configuration from database
-    2. Generates synthetic samples using RF propagation
-    3. Saves samples to TimescaleDB
-    4. Updates job status
+    2. Generates IQ samples using RF propagation
+    3. Extracts features from IQ samples
+    4. Saves features to measurement_features table
+    5. Saves first 100 IQ samples to MinIO
+    6. Updates job status
     
     Args:
         job_id: Training job UUID
@@ -528,6 +530,8 @@ def generate_synthetic_data_task(self, job_id: str):
     Returns:
         Dict with generation results
     """
+    import asyncio
+    
     # Import backend storage modules
     sys.path.insert(0, '/app/backend/src')
     from storage.db_manager import get_db_manager
@@ -565,58 +569,13 @@ def generate_synthetic_data_task(self, job_id: str):
         # Generate synthetic data - import training service modules
         sys.path.insert(0, '/app/src')
         from data.config import TrainingConfig, get_italian_receivers
-        from data.propagation import RFPropagationModel
-        from data.terrain import TerrainLookup
-        from data.synthetic_generator import SyntheticDataGenerator, save_samples_to_db, calculate_quality_metrics
+        from data.synthetic_generator import generate_synthetic_data_with_iq
         
         # Create training config
         receivers = get_italian_receivers()
         training_config = TrainingConfig.from_receivers(receivers, margin_degrees=0.5)
         
-        # Create generator
-        propagation = RFPropagationModel()
-        terrain = TerrainLookup(use_srtm=False)
-        generator = SyntheticDataGenerator(training_config, propagation, terrain)
-        
-        # Progress callback
-        def progress_callback(current, total, message):
-            self.update_state(
-                state='PROGRESS',
-                meta={
-                    'current': current,
-                    'total': total,
-                    'message': message,
-                    'progress_percent': (current / total) * 100
-                }
-            )
-        
-        # Generate samples
-        logger.info(f"Generating {config['num_samples']} synthetic samples")
-        samples = generator.generate_samples(
-            num_samples=config['num_samples'],
-            inside_ratio=config.get('inside_ratio', 0.7),
-            train_ratio=config.get('train_ratio', 0.7),
-            val_ratio=config.get('val_ratio', 0.15),
-            test_ratio=config.get('test_ratio', 0.15),
-            frequency_mhz=config.get('frequency_mhz', 145.0),
-            tx_power_dbm=config.get('tx_power_dbm', 37.0),
-            min_snr_db=config.get('min_snr_db', 3.0),
-            min_receivers=config.get('min_receivers', 3),
-            max_gdop=config.get('max_gdop', 10.0),
-            progress_callback=progress_callback
-        )
-        
-        logger.info(f"Generated {len(samples)} samples")
-        
-        # Calculate quality metrics
-        quality_metrics = calculate_quality_metrics(samples)
-        
-        # Calculate split counts
-        train_count = sum(1 for s in samples if s.split == 'train')
-        val_count = sum(1 for s in samples if s.split == 'val')
-        test_count = sum(1 for s in samples if s.split == 'test')
-        
-        # Create dataset record (or update if exists)
+        # Create dataset record (or get existing)
         dataset_id = uuid.uuid4()
         with db_manager.get_session() as session:
             # Check if dataset with this name already exists
@@ -626,52 +585,18 @@ def generate_synthetic_data_task(self, job_id: str):
             existing = session.execute(check_query, {"name": config['name']}).fetchone()
 
             if existing:
-                # Update existing dataset
                 dataset_id = existing[0]
-
-                # Delete old samples first
-                delete_samples_query = text("""
-                    DELETE FROM heimdall.synthetic_training_samples
-                    WHERE dataset_id = :dataset_id
-                """)
-                session.execute(delete_samples_query, {"dataset_id": str(dataset_id)})
-
-                # Update dataset record
-                update_query = text("""
-                    UPDATE heimdall.synthetic_datasets
-                    SET num_samples = :num_samples,
-                        train_count = :train_count,
-                        val_count = :val_count,
-                        test_count = :test_count,
-                        config = CAST(:config AS jsonb),
-                        quality_metrics = CAST(:quality_metrics AS jsonb),
-                        created_by_job_id = :job_id
-                    WHERE id = :id
-                """)
-                session.execute(
-                    update_query,
-                    {
-                        "id": str(dataset_id),
-                        "num_samples": len(samples),
-                        "train_count": train_count,
-                        "val_count": val_count,
-                        "test_count": test_count,
-                        "config": json.dumps(config),
-                        "quality_metrics": json.dumps(quality_metrics),
-                        "job_id": job_id
-                    }
-                )
-                logger.info(f"Updated existing dataset {dataset_id} (replaced old samples)")
+                logger.info(f"Using existing dataset {dataset_id}")
             else:
                 # Create new dataset
                 dataset_query = text("""
                     INSERT INTO heimdall.synthetic_datasets (
                         id, name, description, num_samples, train_count, val_count, test_count,
-                        config, quality_metrics, created_by_job_id
+                        config, created_by_job_id
                     )
                     VALUES (
-                        :id, :name, :description, :num_samples, :train_count, :val_count, :test_count,
-                        CAST(:config AS jsonb), CAST(:quality_metrics AS jsonb), :job_id
+                        :id, :name, :description, 0, 0, 0, 0,
+                        CAST(:config AS jsonb), :job_id
                     )
                 """)
 
@@ -681,25 +606,75 @@ def generate_synthetic_data_task(self, job_id: str):
                         "id": str(dataset_id),
                         "name": config['name'],
                         "description": config.get('description'),
-                        "num_samples": len(samples),
-                        "train_count": train_count,
-                        "val_count": val_count,
-                        "test_count": test_count,
                         "config": json.dumps(config),
-                        "quality_metrics": json.dumps(quality_metrics),
                         "job_id": job_id
                     }
                 )
+                session.commit()
                 logger.info(f"Created new dataset {dataset_id}")
-
-            session.commit()
         
-        logger.info(f"Created dataset {dataset_id}")
+        # Progress callback (async wrapper for Celery)
+        async def progress_callback(current, total):
+            self.update_state(
+                state='PROGRESS',
+                meta={
+                    'current': current,
+                    'total': total,
+                    'message': f'Generated {current}/{total} samples',
+                    'progress_percent': (current / total) * 100
+                }
+            )
         
-        # Save samples to database
+        # Get async database pool
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from config import settings as backend_settings
+        
+        async_engine = create_async_engine(
+            backend_settings.database_url.replace('postgresql://', 'postgresql+asyncpg://'),
+            echo=False
+        )
+        
+        # Generate samples with IQ generation and feature extraction
+        logger.info(f"Generating {config['num_samples']} synthetic samples with IQ generation")
+        
+        async def run_generation():
+            async with async_engine.begin() as conn:
+                stats = await generate_synthetic_data_with_iq(
+                    dataset_id=dataset_id,
+                    num_samples=config['num_samples'],
+                    receivers_config=receivers,
+                    training_config=training_config,
+                    config=config,
+                    pool=conn,
+                    progress_callback=progress_callback,
+                    seed=config.get('seed')
+                )
+            return stats
+        
+        # Run async generation
+        stats = asyncio.run(run_generation())
+        
+        logger.info(f"Generation complete: {stats['total_generated']} samples, "
+                   f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
+        
+        # Update dataset record with final counts
+        # Note: Features are already saved to measurement_features table
+        # We just need to update the dataset metadata
         with db_manager.get_session() as session:
-            num_saved = save_samples_to_db(samples, dataset_id, session)
-            logger.info(f"Saved {num_saved} samples to database")
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets
+                SET num_samples = :num_samples
+                WHERE id = :id
+            """)
+            session.execute(
+                update_query,
+                {
+                    "id": str(dataset_id),
+                    "num_samples": stats['total_generated']
+                }
+            )
+            session.commit()
+            logger.info(f"Updated dataset {dataset_id} with {stats['total_generated']} samples")
         
         # Update job as completed
         with db_manager.get_session() as session:
@@ -717,8 +692,9 @@ def generate_synthetic_data_task(self, job_id: str):
             "status": "completed",
             "job_id": job_id,
             "dataset_id": str(dataset_id),
-            "num_samples": len(samples),
-            "quality_metrics": quality_metrics
+            "num_samples": stats['total_generated'],
+            "iq_samples_saved": stats['iq_samples_saved'],
+            "success_rate": stats['success_rate']
         }
     
     except Exception as e:
