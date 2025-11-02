@@ -25,7 +25,7 @@ logger = get_task_logger(__name__)
 
 class TrainingTask(Task):
     """Base task for training operations."""
-    
+
     autoretry_for = (Exception,)
     retry_kwargs = {"max_retries": 2}
     retry_backoff = True
@@ -59,11 +59,11 @@ def start_training_job(self, job_id: str):
     from storage.minio_client import MinIOClient
     from config import settings as backend_settings
     from sqlalchemy import text
-    
+
     logger.info(f"Starting training job {job_id}")
-    
+
     db_manager = get_db_manager()
-    
+
     try:
         # Update job status to running
         with db_manager.get_session() as session:
@@ -74,7 +74,7 @@ def start_training_job(self, job_id: str):
             """)
             session.execute(update_query, {"job_id": job_id})
             session.commit()
-        
+
         # Load job configuration
         with db_manager.get_session() as session:
             config_query = text("SELECT config FROM heimdall.training_jobs WHERE id = :job_id")
@@ -83,12 +83,12 @@ def start_training_job(self, job_id: str):
                 raise ValueError(f"Job {job_id} not found")
             # Config is already a dict from JSONB column
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
-        
+
         # Extract configuration
         dataset_id = config.get("dataset_id")
         if not dataset_id:
             raise ValueError("dataset_id is required in training configuration")
-        
+
         batch_size = config.get("batch_size", 32)
         num_workers = config.get("num_workers", 4)
         epochs = config.get("epochs", 100)
@@ -99,17 +99,17 @@ def start_training_job(self, job_id: str):
         early_stop_delta = config.get("early_stop_delta", 0.001)
         max_grad_norm = config.get("max_grad_norm", 1.0)
         max_gdop = config.get("max_gdop", 5.0)
-        
+
         logger.info(f"Training config: dataset={dataset_id}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
-        
+
         # Import training components
         from models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
         from data.triangulation_dataloader import create_triangulation_dataloader
-        
+
         # Determine device
         device = torch.device("cuda" if torch.cuda.is_available() and config.get("accelerator", "cpu") == "gpu" else "cpu")
         logger.info(f"Using device: {device}")
-        
+
         # Create dataloaders with proper context managers
         logger.info("Creating train dataloader...")
         train_session = db_manager.get_session()
@@ -123,7 +123,7 @@ def start_training_job(self, job_id: str):
                 shuffle=True,
                 max_receivers=7
             )
-        
+
         logger.info("Creating validation dataloader...")
         val_session = db_manager.get_session()
         with val_session:
@@ -136,7 +136,7 @@ def start_training_job(self, job_id: str):
                 shuffle=False,
                 max_receivers=7
             )
-        
+
         # Update dataset info in job
         train_samples = len(train_loader.dataset)
         val_samples = len(val_loader.dataset)
@@ -146,9 +146,9 @@ def start_training_job(self, job_id: str):
                 {"train": train_samples, "val": val_samples, "total": train_samples + val_samples, "job_id": job_id}
             )
             session.commit()
-        
+
         logger.info(f"Dataset loaded: {train_samples} train, {val_samples} val samples")
-        
+
         # Initialize model
         model = TriangulationModel(
             encoder_input_dim=6,
@@ -158,13 +158,13 @@ def start_training_job(self, job_id: str):
             head_hidden_dim=64,
             dropout=dropout_rate
         ).to(device)
-        
+
         logger.info(f"Model initialized with {sum(p.numel() for p in model.parameters())} parameters")
-        
+
         # Initialize optimizer and scheduler
         optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=learning_rate * 0.01)
-        
+
         # Initialize MinIO client for checkpoints
         minio_client = MinIOClient(
             endpoint_url=backend_settings.minio_url,
@@ -173,7 +173,7 @@ def start_training_job(self, job_id: str):
             bucket_name="models"
         )
         minio_client.ensure_bucket_exists()
-        
+
         # Training state
         best_val_loss = float('inf')
         best_epoch = 0
@@ -223,29 +223,29 @@ def start_training_job(self, job_id: str):
             train_loss_sum = 0.0
             train_distance_sum = 0.0
             train_batches = 0
-            
+
             # Training phase
             for batch in train_loader:
                 receiver_features = batch["receiver_features"].to(device)
                 signal_mask = batch["signal_mask"].to(device)
                 target_position = batch["target_position"].to(device)
-                
+
                 optimizer.zero_grad()
-                
+
                 # Forward pass
                 position, log_variance = model(receiver_features, signal_mask)
-                
+
                 # Calculate loss
                 loss = gaussian_nll_loss(position, log_variance, target_position)
-                
+
                 # Backward pass
                 loss.backward()
-                
+
                 # Gradient clipping
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
-                
+
                 optimizer.step()
-                
+
                 # Calculate distance error for monitoring
                 with torch.no_grad():
                     distances = haversine_distance_torch(
@@ -253,13 +253,13 @@ def start_training_job(self, job_id: str):
                         target_position[:, 0], target_position[:, 1]
                     )
                     train_distance_sum += distances.mean().item()
-                
+
                 train_loss_sum += loss.item()
                 train_batches += 1
-            
+
             train_loss = train_loss_sum / train_batches
             train_rmse = train_distance_sum / train_batches
-            
+
             # Validation phase
             model.eval()
             val_loss_sum = 0.0
@@ -267,43 +267,43 @@ def start_training_job(self, job_id: str):
             val_distance_good_geom_sum = 0.0
             val_good_geom_count = 0
             val_batches = 0
-            
+
             with torch.no_grad():
                 for batch in val_loader:
                     receiver_features = batch["receiver_features"].to(device)
                     signal_mask = batch["signal_mask"].to(device)
                     target_position = batch["target_position"].to(device)
                     gdop = batch["metadata"]["gdop"]
-                    
+
                     position, log_variance = model(receiver_features, signal_mask)
                     loss = gaussian_nll_loss(position, log_variance, target_position)
-                    
+
                     distances = haversine_distance_torch(
                         position[:, 0], position[:, 1],
                         target_position[:, 0], target_position[:, 1]
                     )
-                    
+
                     val_loss_sum += loss.item()
                     val_distance_sum += distances.mean().item()
-                    
+
                     # Track GDOP<5 subset for success criteria
                     good_geom_mask = gdop < max_gdop
                     if good_geom_mask.any():
                         val_distance_good_geom_sum += distances[good_geom_mask].mean().item()
                         val_good_geom_count += 1
-                    
+
                     val_batches += 1
-            
+
             val_loss = val_loss_sum / val_batches
             val_rmse = val_distance_sum / val_batches
             val_rmse_good_geom = (val_distance_good_geom_sum / val_good_geom_count) if val_good_geom_count > 0 else val_rmse
-            
+
             # Get current learning rate
             current_lr = optimizer.param_groups[0]['lr']
-            
+
             # Update learning rate
             scheduler.step()
-            
+
             # Log to database
             with db_manager.get_session() as session:
                 # Update job progress
@@ -331,7 +331,7 @@ def start_training_job(self, job_id: str):
                         "job_id": job_id
                     }
                 )
-                
+
                 # Store epoch metrics
                 session.execute(
                     text("""
@@ -355,12 +355,12 @@ def start_training_job(self, job_id: str):
                     }
                 )
                 session.commit()
-            
+
             logger.info(
                 f"Epoch {epoch}/{epochs}: train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, "
                 f"train_rmse={train_rmse:.1f}m, val_rmse={val_rmse:.1f}m, val_rmse_gdop<{max_gdop}={val_rmse_good_geom:.1f}m, lr={current_lr:.6f}"
             )
-            
+
             # Update Celery task state
             self.update_state(
                 state='PROGRESS',
@@ -374,14 +374,14 @@ def start_training_job(self, job_id: str):
                     'val_rmse': val_rmse
                 }
             )
-            
+
             # Check for best model
             is_best = val_loss < (best_val_loss - early_stop_delta)
             if is_best:
                 best_val_loss = val_loss
                 best_epoch = epoch
                 patience_counter = 0
-                
+
                 # Save best model checkpoint
                 checkpoint = {
                     'epoch': epoch,
@@ -393,11 +393,11 @@ def start_training_job(self, job_id: str):
                     'val_rmse': val_rmse,
                     'config': config
                 }
-                
+
                 buffer = BytesIO()
                 torch.save(checkpoint, buffer)
                 buffer.seek(0)
-                
+
                 checkpoint_path = f"checkpoints/{job_id}/best_model.pth"
                 minio_client.s3_client.put_object(
                     Bucket="models",
@@ -405,7 +405,7 @@ def start_training_job(self, job_id: str):
                     Body=buffer.getvalue(),
                     ContentType="application/octet-stream"
                 )
-                
+
                 # Update job with best model info
                 with db_manager.get_session() as session:
                     session.execute(
@@ -413,11 +413,11 @@ def start_training_job(self, job_id: str):
                         {"epoch": epoch, "loss": val_loss, "path": f"s3://models/{checkpoint_path}", "job_id": job_id}
                     )
                     session.commit()
-                
+
                 logger.info(f"Saved best model checkpoint at epoch {epoch}")
             else:
                 patience_counter += 1
-            
+
             # Save periodic checkpoints (every 10 epochs)
             if epoch % 10 == 0:
                 checkpoint = {
@@ -430,11 +430,11 @@ def start_training_job(self, job_id: str):
                     'val_rmse': val_rmse,
                     'config': config
                 }
-                
+
                 buffer = BytesIO()
                 torch.save(checkpoint, buffer)
                 buffer.seek(0)
-                
+
                 checkpoint_path = f"checkpoints/{job_id}/epoch_{epoch}.pth"
                 minio_client.s3_client.put_object(
                     Bucket="models",
@@ -443,7 +443,7 @@ def start_training_job(self, job_id: str):
                     ContentType="application/octet-stream"
                 )
                 logger.info(f"Saved checkpoint at epoch {epoch}")
-            
+
             # Early stopping check
             if patience_counter >= early_stop_patience:
                 logger.info(f"Early stopping triggered at epoch {epoch} (patience={early_stop_patience})")
@@ -513,11 +513,11 @@ def start_training_job(self, job_id: str):
             'val_rmse': val_rmse,
             'config': config
         }
-        
+
         buffer = BytesIO()
         torch.save(checkpoint, buffer)
         buffer.seek(0)
-        
+
         final_checkpoint_path = f"checkpoints/{job_id}/final_model.pth"
         minio_client.s3_client.put_object(
             Bucket="models",
@@ -525,7 +525,7 @@ def start_training_job(self, job_id: str):
             Body=buffer.getvalue(),
             ContentType="application/octet-stream"
         )
-        
+
         # Save model metadata to models table
         model_id = uuid.uuid4()
         with db_manager.get_session() as session:
@@ -558,7 +558,7 @@ def start_training_job(self, job_id: str):
                 }
             )
             session.commit()
-        
+
         # Update job as completed
         with db_manager.get_session() as session:
             session.execute(
@@ -570,7 +570,7 @@ def start_training_job(self, job_id: str):
                 {"job_id": job_id}
             )
             session.commit()
-        
+
         logger.info(f"Training job {job_id} completed successfully. Best epoch: {best_epoch}, Best val loss: {best_val_loss:.4f}")
         return {
             "status": "completed",
@@ -580,10 +580,10 @@ def start_training_job(self, job_id: str):
             "best_val_loss": float(best_val_loss),
             "final_val_rmse": val_rmse
         }
-    
+
     except Exception as e:
         logger.error(f"Error in training job {job_id}: {e}", exc_info=True)
-        
+
         # Update job as failed
         try:
             with db_manager.get_session() as session:
@@ -598,7 +598,7 @@ def start_training_job(self, job_id: str):
                 session.commit()
         except Exception as db_error:
             logger.error(f"Failed to update job status: {db_error}")
-        
+
         raise
 
 
@@ -622,16 +622,16 @@ def generate_synthetic_data_task(self, job_id: str):
         Dict with generation results
     """
     import asyncio
-    
+
     # Import backend storage modules
     sys.path.insert(0, '/app/backend/src')
     from storage.db_manager import get_db_manager
     from sqlalchemy import text
-    
+
     logger.info(f"Starting synthetic data generation job {job_id}")
-    
+
     db_manager = get_db_manager()
-    
+
     try:
         # Load job configuration
         with db_manager.get_session() as session:
@@ -646,7 +646,7 @@ def generate_synthetic_data_task(self, job_id: str):
 
             # Config is already a dict from JSONB column
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
-        
+
         # Update status to running and initialize progress tracking
         with db_manager.get_session() as session:
             update_query = text("""
@@ -663,16 +663,56 @@ def generate_synthetic_data_task(self, job_id: str):
                 "total_samples": config['num_samples']
             })
             session.commit()
-        
+
         # Generate synthetic data - import training service modules
         sys.path.insert(0, '/app/src')
-        from data.config import TrainingConfig, get_italian_receivers
+        from data.config import TrainingConfig, get_italian_receivers, generate_random_receivers, BoundingBox
         from data.synthetic_generator import generate_synthetic_data_with_iq
-        
-        # Create training config
-        receivers = get_italian_receivers()
+        from common.terrain import TerrainLookup
+
+        # Determine receiver generation strategy
+        use_random = config.get('use_random_receivers', True)
+
+        if use_random:
+            # Generate random receivers
+            minio_client = MinIOClient(
+                endpoint=backend_settings.MINIO_ENDPOINT,
+                access_key=backend_settings.MINIO_ACCESS_KEY,
+                secret_key=backend_settings.MINIO_SECRET_KEY,
+                secure=backend_settings.MINIO_SECURE
+            )
+
+            terrain = TerrainLookup(use_srtm=True, minio_client=minio_client)
+
+            # Define area based on config or default to Italian region
+            area_bbox = BoundingBox(
+                lat_min=config.get('area_lat_min', 44.0),
+                lat_max=config.get('area_lat_max', 46.0),
+                lon_min=config.get('area_lon_min', 7.0),
+                lon_max=config.get('area_lon_max', 10.0)
+            )
+
+            # Generate random number of receivers
+            min_rx = config.get('min_receivers_count', 4)
+            max_rx = config.get('max_receivers_count', 10)
+            import numpy as np
+            num_rx = np.random.randint(min_rx, max_rx + 1)
+
+            receivers = generate_random_receivers(
+                bbox=area_bbox,
+                num_receivers=num_rx,
+                terrain_lookup=terrain,
+                seed=config.get('receiver_seed')
+            )
+
+            logger.info(f"Generated {num_rx} random receivers for training")
+        else:
+            # Use fixed Italian receivers for backward compatibility
+            receivers = get_italian_receivers()
+            logger.info("Using fixed Italian receivers")
+
         training_config = TrainingConfig.from_receivers(receivers, margin_degrees=0.5)
-        
+
         # Create dataset record (or get existing)
         dataset_id = uuid.uuid4()
         with db_manager.get_session() as session:
@@ -710,7 +750,7 @@ def generate_synthetic_data_task(self, job_id: str):
                 )
                 session.commit()
                 logger.info(f"Created new dataset {dataset_id}")
-        
+
         # Progress callback (async wrapper for Celery)
         async def progress_callback(current, total):
             progress_pct = (current / total) * 100
@@ -753,19 +793,19 @@ def generate_synthetic_data_task(self, job_id: str):
                     logger.info(f"[PROGRESS] Database updated: {current}/{total}")
             except Exception as e:
                 logger.error(f"Failed to update progress in database: {e}", exc_info=True)
-        
+
         # Get async database pool
         from sqlalchemy.ext.asyncio import create_async_engine
         from config import settings as backend_settings
-        
+
         async_engine = create_async_engine(
             backend_settings.database_url.replace('postgresql://', 'postgresql+asyncpg://'),
             echo=False
         )
-        
+
         # Generate samples with IQ generation and feature extraction
         logger.info(f"Generating {config['num_samples']} synthetic samples with IQ generation")
-        
+
         async def run_generation():
             async with async_engine.begin() as conn:
                 stats = await generate_synthetic_data_with_iq(
@@ -779,13 +819,13 @@ def generate_synthetic_data_task(self, job_id: str):
                     seed=config.get('seed')
                 )
             return stats
-        
+
         # Run async generation
         stats = asyncio.run(run_generation())
-        
+
         logger.info(f"Generation complete: {stats['total_generated']} samples, "
-                   f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
-        
+                    f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
+
         # Update dataset record with final counts
         # Count actual samples saved to measurement_features table using dataset_id
         with db_manager.get_session() as session:
@@ -811,7 +851,7 @@ def generate_synthetic_data_task(self, job_id: str):
             )
             session.commit()
             logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']})")
-        
+
         # Update job as completed
         with db_manager.get_session() as session:
             complete_query = text("""
@@ -821,9 +861,9 @@ def generate_synthetic_data_task(self, job_id: str):
             """)
             session.execute(complete_query, {"job_id": job_id})
             session.commit()
-        
+
         logger.info(f"Synthetic data generation job {job_id} completed")
-        
+
         return {
             "status": "completed",
             "job_id": job_id,
@@ -832,10 +872,10 @@ def generate_synthetic_data_task(self, job_id: str):
             "iq_samples_saved": stats['iq_samples_saved'],
             "success_rate": stats['success_rate']
         }
-    
+
     except Exception as e:
         logger.error(f"Error in synthetic data generation job {job_id}: {e}", exc_info=True)
-        
+
         # Update job as failed
         with db_manager.get_session() as session:
             fail_query = text("""
@@ -845,7 +885,7 @@ def generate_synthetic_data_task(self, job_id: str):
             """)
             session.execute(fail_query, {"job_id": job_id, "error": str(e)})
             session.commit()
-        
+
         raise
 
 
@@ -862,10 +902,10 @@ def evaluate_model_task(self, model_id: str, dataset_id: str = None):
         Dict with evaluation results
     """
     logger.info(f"Evaluating model {model_id}")
-    
+
     # Placeholder for Phase 5
     logger.warning("Model evaluation not implemented yet")
-    
+
     return {"status": "not_implemented", "model_id": model_id}
 
 
@@ -882,8 +922,8 @@ def export_model_onnx_task(self, model_id: str, optimize: bool = True):
         Dict with export results
     """
     logger.info(f"Exporting model {model_id} to ONNX (optimize={optimize})")
-    
+
     # Placeholder for Phase 5
     logger.warning("ONNX export not implemented yet")
-    
+
     return {"status": "not_implemented", "model_id": model_id}
