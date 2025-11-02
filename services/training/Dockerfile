@@ -35,14 +35,18 @@ COPY --chown=appuser:appuser services/training/src/ ./src/
 # Copy common module
 COPY --chown=appuser:appuser services/common/ ./common/
 
+# Copy backend modules (needed for storage access)
+COPY --chown=appuser:appuser services/backend/src/ ./backend/src/
+
 # Set environment
 ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1 PYTHONPATH=/app
 
 USER appuser
 EXPOSE 8002
 
-# Health check
+# Health check - check if celery worker is responsive
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8002/ready || exit 1
+    CMD celery -A src.main:celery_app inspect ping -d celery@$HOSTNAME || exit 1
 
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]
+# Start Celery worker for training tasks (listening on 'training' queue)
+CMD ["celery", "-A", "src.main:celery_app", "worker", "--loglevel=INFO", "--concurrency=2", "--time-limit=21600", "--soft-time-limit=19800", "-Q", "training"]

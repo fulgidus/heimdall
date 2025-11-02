@@ -12,17 +12,13 @@ import uuid
 import json
 import sys
 import os
+import torch
+import torch.nn as nn
+import torch.optim as optim
 from io import BytesIO
-from typing import TYPE_CHECKING
 
 from celery import Task, shared_task
 from celery.utils.log import get_task_logger
-
-# Lazy imports for optional dependencies
-if TYPE_CHECKING:
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
 
 logger = get_task_logger(__name__)
 
@@ -57,9 +53,11 @@ def start_training_job(self, job_id: str):
     Returns:
         Dict with training results
     """
-    from ..storage.db_manager import get_db_manager
-    from ..storage.minio_client import MinIOClient
-    from ..config import settings
+    # Import backend storage modules
+    sys.path.insert(0, '/app/backend/src')
+    from storage.db_manager import get_db_manager
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
     from sqlalchemy import text
     
     logger.info(f"Starting training job {job_id}")
@@ -83,7 +81,8 @@ def start_training_job(self, job_id: str):
             result = session.execute(config_query, {"job_id": job_id}).fetchone()
             if not result:
                 raise ValueError(f"Job {job_id} not found")
-            config = json.loads(result[0])
+            # Config is already a dict from JSONB column
+            config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
         
         # Extract configuration
         dataset_id = config.get("dataset_id")
@@ -102,11 +101,6 @@ def start_training_job(self, job_id: str):
         max_gdop = config.get("max_gdop", 5.0)
         
         logger.info(f"Training config: dataset={dataset_id}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
-        
-        # Add training service to Python path
-        training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
-        if training_path not in sys.path:
-            sys.path.insert(0, training_path)
         
         # Import training components
         from models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
@@ -173,9 +167,9 @@ def start_training_job(self, job_id: str):
         
         # Initialize MinIO client for checkpoints
         minio_client = MinIOClient(
-            endpoint_url=settings.minio_url,
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
+            endpoint_url=backend_settings.minio_url,
+            access_key=backend_settings.minio_access_key,
+            secret_key=backend_settings.minio_secret_key,
             bucket_name="models"
         )
         minio_client.ensure_bucket_exists()
@@ -534,9 +528,10 @@ def generate_synthetic_data_task(self, job_id: str):
     Returns:
         Dict with generation results
     """
-    from ..storage.db_manager import get_db_manager
+    # Import backend storage modules
+    sys.path.insert(0, '/app/backend/src')
+    from storage.db_manager import get_db_manager
     from sqlalchemy import text
-    import json
     
     logger.info(f"Starting synthetic data generation job {job_id}")
     
@@ -550,11 +545,12 @@ def generate_synthetic_data_task(self, job_id: str):
                 WHERE id = :job_id
             """)
             result = session.execute(load_query, {"job_id": job_id}).fetchone()
-            
+
             if not result:
                 raise ValueError(f"Job {job_id} not found")
-            
-            config = json.loads(result[0])
+
+            # Config is already a dict from JSONB column
+            config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
         
         # Update status to running
         with db_manager.get_session() as session:
@@ -566,19 +562,8 @@ def generate_synthetic_data_task(self, job_id: str):
             session.execute(update_query, {"job_id": job_id})
             session.commit()
         
-        # Generate synthetic data
-        # Import here to avoid circular dependencies
-        import sys
-        import os
-        
-        # Add training service to path using environment variable or relative path
-        training_path = os.environ.get('TRAINING_SERVICE_PATH')
-        if not training_path:
-            # Fallback to relative path from this file
-            training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
-        if training_path not in sys.path:
-            sys.path.insert(0, training_path)
-        
+        # Generate synthetic data - import training service modules
+        sys.path.insert(0, '/app/src')
         from data.config import TrainingConfig, get_italian_receivers
         from data.propagation import RFPropagationModel
         from data.terrain import TerrainLookup
@@ -631,35 +616,82 @@ def generate_synthetic_data_task(self, job_id: str):
         val_count = sum(1 for s in samples if s.split == 'val')
         test_count = sum(1 for s in samples if s.split == 'test')
         
-        # Create dataset record
+        # Create dataset record (or update if exists)
         dataset_id = uuid.uuid4()
         with db_manager.get_session() as session:
-            dataset_query = text("""
-                INSERT INTO heimdall.synthetic_datasets (
-                    id, name, description, num_samples, train_count, val_count, test_count,
-                    config, quality_metrics, created_by_job_id
-                )
-                VALUES (
-                    :id, :name, :description, :num_samples, :train_count, :val_count, :test_count,
-                    :config::jsonb, :quality_metrics::jsonb, :job_id
-                )
+            # Check if dataset with this name already exists
+            check_query = text("""
+                SELECT id FROM heimdall.synthetic_datasets WHERE name = :name
             """)
-            
-            session.execute(
-                dataset_query,
-                {
-                    "id": str(dataset_id),
-                    "name": config['name'],
-                    "description": config.get('description'),
-                    "num_samples": len(samples),
-                    "train_count": train_count,
-                    "val_count": val_count,
-                    "test_count": test_count,
-                    "config": json.dumps(config),
-                    "quality_metrics": json.dumps(quality_metrics),
-                    "job_id": job_id
-                }
-            )
+            existing = session.execute(check_query, {"name": config['name']}).fetchone()
+
+            if existing:
+                # Update existing dataset
+                dataset_id = existing[0]
+
+                # Delete old samples first
+                delete_samples_query = text("""
+                    DELETE FROM heimdall.synthetic_training_samples
+                    WHERE dataset_id = :dataset_id
+                """)
+                session.execute(delete_samples_query, {"dataset_id": str(dataset_id)})
+
+                # Update dataset record
+                update_query = text("""
+                    UPDATE heimdall.synthetic_datasets
+                    SET num_samples = :num_samples,
+                        train_count = :train_count,
+                        val_count = :val_count,
+                        test_count = :test_count,
+                        config = CAST(:config AS jsonb),
+                        quality_metrics = CAST(:quality_metrics AS jsonb),
+                        created_by_job_id = :job_id
+                    WHERE id = :id
+                """)
+                session.execute(
+                    update_query,
+                    {
+                        "id": str(dataset_id),
+                        "num_samples": len(samples),
+                        "train_count": train_count,
+                        "val_count": val_count,
+                        "test_count": test_count,
+                        "config": json.dumps(config),
+                        "quality_metrics": json.dumps(quality_metrics),
+                        "job_id": job_id
+                    }
+                )
+                logger.info(f"Updated existing dataset {dataset_id} (replaced old samples)")
+            else:
+                # Create new dataset
+                dataset_query = text("""
+                    INSERT INTO heimdall.synthetic_datasets (
+                        id, name, description, num_samples, train_count, val_count, test_count,
+                        config, quality_metrics, created_by_job_id
+                    )
+                    VALUES (
+                        :id, :name, :description, :num_samples, :train_count, :val_count, :test_count,
+                        CAST(:config AS jsonb), CAST(:quality_metrics AS jsonb), :job_id
+                    )
+                """)
+
+                session.execute(
+                    dataset_query,
+                    {
+                        "id": str(dataset_id),
+                        "name": config['name'],
+                        "description": config.get('description'),
+                        "num_samples": len(samples),
+                        "train_count": train_count,
+                        "val_count": val_count,
+                        "test_count": test_count,
+                        "config": json.dumps(config),
+                        "quality_metrics": json.dumps(quality_metrics),
+                        "job_id": job_id
+                    }
+                )
+                logger.info(f"Created new dataset {dataset_id}")
+
             session.commit()
         
         logger.info(f"Created dataset {dataset_id}")

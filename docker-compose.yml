@@ -246,17 +246,20 @@ services:
     container_name: heimdall-training
     environment:
       SERVICE_NAME: training
-      SERVICE_PORT: ${TRAINING_PORT:-8002}
+      POSTGRES_USER: ${POSTGRES_USER:-heimdall_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-heimdall}
       DATABASE_URL: postgresql://${POSTGRES_USER:-heimdall_user}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-heimdall}
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
       CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-guest}:${RABBITMQ_DEFAULT_PASS:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
       MINIO_URL: http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DEBUG: ${DEBUG:-false}
-    ports:
-      - "${TRAINING_PORT:-8002}:${TRAINING_PORT:-8002}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -267,7 +270,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${TRAINING_PORT:-8002}/ready"]
+      test: ["CMD", "celery", "-A", "src.main:celery_app", "inspect", "ping", "-d", "celery@heimdall-training"]
       interval: 30s
       timeout: 10s
       retries: 3

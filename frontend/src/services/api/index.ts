@@ -14,3 +14,4 @@ export { default as analyticsService } from './analytics';
 export * as importExportService from './import-export';
 export * as trainingService from './training';
 export * as settingsService from './settings';
+export * as usersService from './users';

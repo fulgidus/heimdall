@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://redis:6379/0"
 
+    # Celery configuration
+    celery_broker_url: str = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@rabbitmq:5672//")
+    celery_result_backend_url: str = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
+
     # MLflow configuration - also built from environment variables
     mlflow_db_user: str = os.getenv("POSTGRES_USER", "heimdall_user")
     mlflow_db_password: str = os.getenv("POSTGRES_PASSWORD", "changeme")

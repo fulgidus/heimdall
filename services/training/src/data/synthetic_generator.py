@@ -105,13 +105,20 @@ class SyntheticDataGenerator:
         """
         samples = []
         attempts = 0
-        max_attempts = num_samples * 3  # Allow retries for quality filtering
-        
+        max_attempts = num_samples * 100  # Allow many retries for quality filtering (low success rate expected)
+
+        # Track rejection reasons
+        rejected_min_receivers = 0
+        rejected_gdop = 0
+
         logger.info(
             "Starting synthetic data generation",
             num_samples=num_samples,
             inside_ratio=inside_ratio,
-            splits=f"train:{train_ratio}, val:{val_ratio}, test:{test_ratio}"
+            splits=f"train:{train_ratio}, val:{val_ratio}, test:{test_ratio}",
+            min_snr_db=min_snr_db,
+            min_receivers=min_receivers,
+            max_gdop=max_gdop
         )
         
         while len(samples) < num_samples and attempts < max_attempts:
@@ -162,18 +169,20 @@ class SyntheticDataGenerator:
             
             # Quality check: minimum receivers
             if receivers_with_signal < min_receivers:
+                rejected_min_receivers += 1
                 continue
-            
+
             # Calculate GDOP
             receiver_positions = [
-                (m['lat'], m['lon']) 
-                for m in receiver_measurements 
+                (m['lat'], m['lon'])
+                for m in receiver_measurements
                 if m['signal_present'] == 1
             ]
             gdop = calculate_gdop(receiver_positions, (tx_lat, tx_lon))
-            
+
             # Quality check: GDOP
             if gdop > max_gdop:
+                rejected_gdop += 1
                 continue
             
             # Assign to split
@@ -201,7 +210,11 @@ class SyntheticDataGenerator:
             "Synthetic data generation complete",
             samples_generated=len(samples),
             attempts=attempts,
-            success_rate=f"{len(samples)/attempts*100:.1f}%"
+            success_rate=f"{len(samples)/attempts*100:.1f}%",
+            rejected_min_receivers=rejected_min_receivers,
+            rejected_gdop=rejected_gdop,
+            rejection_rate_receivers=f"{rejected_min_receivers/attempts*100:.1f}%",
+            rejection_rate_gdop=f"{rejected_gdop/attempts*100:.1f}%"
         )
         
         return samples
@@ -275,7 +288,7 @@ def save_samples_to_db(samples: List[SyntheticSample], dataset_id: uuid.UUID, db
             receivers, gdop, num_receivers, split, created_at
         ) VALUES (
             :timestamp, :dataset_id, :tx_lat, :tx_lon, :tx_power_dbm, :frequency_hz,
-            :receivers::jsonb, :gdop, :num_receivers, :split, :created_at
+            CAST(:receivers AS jsonb), :gdop, :num_receivers, :split, :created_at
         )
     """)
     

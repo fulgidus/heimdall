@@ -2,6 +2,7 @@ import os
 import sys
 from datetime import datetime
 
+from celery import Celery
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -9,7 +10,7 @@ from fastapi.responses import JSONResponse
 # Add parent directory to path for common module
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from common.dependency_checkers import check_minio, check_postgresql
+from common.dependency_checkers import check_celery, check_minio, check_postgresql
 
 # Import common health utilities
 from common.health import HealthChecker
@@ -22,6 +23,27 @@ SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8002
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
+
+# Initialize Celery for training tasks
+celery_app = Celery(
+    SERVICE_NAME, 
+    broker=settings.celery_broker_url, 
+    backend=settings.celery_result_backend_url
+)
+
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+    task_track_started=True,
+    task_time_limit=3600 * 6,  # 6 hours for training
+    task_soft_time_limit=3600 * 5.5,  # 5.5 hours
+)
+
+# Auto-discover tasks in tasks module
+celery_app.autodiscover_tasks(['src.tasks'])
 
 app.add_middleware(
     CORSMiddleware,

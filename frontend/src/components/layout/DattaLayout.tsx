@@ -50,6 +50,13 @@ const DattaLayout: React.FC<DattaLayoutProps> = ({ children }) => {
       ],
     },
     {
+      caption: 'ML & Training',
+      icon: 'ph-brain',
+      items: [
+        { label: 'Training Dashboard', path: '/training', icon: 'ph-graduation-cap' },
+      ],    
+    },
+    {
       caption: 'Settings',
       icon: 'ph-gear',
       items: [

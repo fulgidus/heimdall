@@ -1,13 +1,16 @@
 /**
  * Training Dashboard
- * 
+ *
  * Main page for ML training pipeline:
  * - Synthetic data generation
- * - Training job management  
+ * - Training job management
  * - Model management
+ *
+ * Real-time updates via WebSocket (silent background refresh)
  */
 
 import React, { useEffect, useState } from 'react';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import {
   Container,
   Row,
@@ -46,11 +49,14 @@ import {
 } from '@/services/api/training';
 
 const TrainingDashboard: React.FC = () => {
+  // WebSocket for real-time updates
+  const { subscribe } = useWebSocket();
+
   // State
   const [jobs, setJobs] = useState<TrainingJob[]>([]);
   const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
   const [models, setModels] = useState<TrainedModel[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
   
@@ -62,12 +68,18 @@ const TrainingDashboard: React.FC = () => {
     train_ratio: 0.7,
     val_ratio: 0.15,
     test_ratio: 0.15,
+    // RF generation parameters (relaxed defaults for better success rate)
+    frequency_mhz: 144.0,
+    tx_power_dbm: 33.0,
+    min_snr_db: 0.0,       // More permissive (was 3.0)
+    min_receivers: 2,      // More permissive (was 3)
+    max_gdop: 100.0,       // Very permissive for ML training (was 10.0)
   });
 
-  // Load data
-  const loadData = async () => {
+  // Load data silently (no loading spinner after initial load)
+  const loadData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setInitialLoading(true);
       const [jobsResp, datasetsResp, modelsResp] = await Promise.all([
         listTrainingJobs(undefined, 10, 0),
         listSyntheticDatasets(10, 0),
@@ -79,19 +91,45 @@ const TrainingDashboard: React.FC = () => {
       setModels(modelsResp.models);
       setError(null);
     } catch (err) {
+      console.error('Failed to load training data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
-      setLoading(false);
+      if (!silent) setInitialLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadData(false);
     
-    // Refresh every 5 seconds
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    // Silent refresh every 10 seconds (backup for WebSocket)
+    const interval = setInterval(() => loadData(true), 10000);
+    
+    // WebSocket real-time updates (silent and transparent)
+    const unsubscribeTrainingJob = subscribe('training_job_update', (data: any) => {
+      console.log('[TrainingDashboard] Received training job update:', data);
+      // Refresh jobs silently without spinner
+      loadData(true);
+    });
+
+    const unsubscribeDataset = subscribe('dataset_update', (data: any) => {
+      console.log('[TrainingDashboard] Received dataset update:', data);
+      // Refresh datasets silently
+      loadData(true);
+    });
+
+    const unsubscribeModel = subscribe('model_update', (data: any) => {
+      console.log('[TrainingDashboard] Received model update:', data);
+      // Refresh models silently
+      loadData(true);
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribeTrainingJob();
+      unsubscribeDataset();
+      unsubscribeModel();
+    };
+  }, [subscribe]);
 
   // Handle data generation
   const handleGenerateData = async () => {
@@ -105,6 +143,11 @@ const TrainingDashboard: React.FC = () => {
         train_ratio: 0.7,
         val_ratio: 0.15,
         test_ratio: 0.15,
+        frequency_mhz: 144.0,
+        tx_power_dbm: 33.0,
+        min_snr_db: 0.0,
+        min_receivers: 2,
+        max_gdop: 100.0,
       });
       loadData(); // Refresh
     } catch (err) {
@@ -179,7 +222,7 @@ const TrainingDashboard: React.FC = () => {
     );
   };
 
-  if (loading && jobs.length === 0) {
+  if (initialLoading) {
     return (
       <Container className="mt-4">
         <div className="text-center">
@@ -504,6 +547,90 @@ const TrainingDashboard: React.FC = () => {
               />
               <Form.Text>70% inside, 30% outside recommended</Form.Text>
             </Form.Group>
+
+            <hr />
+            <h6 className="mb-3">Signal Quality Constraints</h6>
+            <Alert variant="info" className="mb-3">
+              These parameters control which synthetic samples are accepted.
+              Stricter values = higher quality but fewer samples.
+              Relaxing these values will increase sample generation success rate.
+            </Alert>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Frequency (MHz)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.frequency_mhz}
+                    onChange={(e) => setDataForm({ ...dataForm, frequency_mhz: parseFloat(e.target.value) })}
+                    step={0.1}
+                    min={50}
+                    max={3000}
+                  />
+                  <Form.Text>VHF/UHF frequency (e.g., 144.0 for 2m band)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>TX Power (dBm)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.tx_power_dbm}
+                    onChange={(e) => setDataForm({ ...dataForm, tx_power_dbm: parseFloat(e.target.value) })}
+                    step={1}
+                    min={0}
+                    max={60}
+                  />
+                  <Form.Text>Transmitter power (30-40 dBm typical)</Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Min SNR (dB)</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.min_snr_db}
+                    onChange={(e) => setDataForm({ ...dataForm, min_snr_db: parseFloat(e.target.value) })}
+                    step={0.5}
+                    min={-5}
+                    max={20}
+                  />
+                  <Form.Text>Minimum signal-to-noise ratio (0 = more samples)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Min Receivers</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.min_receivers}
+                    onChange={(e) => setDataForm({ ...dataForm, min_receivers: parseInt(e.target.value) })}
+                    step={1}
+                    min={2}
+                    max={7}
+                  />
+                  <Form.Text>Minimum detecting stations (2 = more samples)</Form.Text>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Max GDOP</Form.Label>
+                  <Form.Control
+                    type="number"
+                    value={dataForm.max_gdop}
+                    onChange={(e) => setDataForm({ ...dataForm, max_gdop: parseFloat(e.target.value) })}
+                    step={5}
+                    min={5}
+                    max={200}
+                  />
+                  <Form.Text>Max geometric dilution (100 = balanced for ML)</Form.Text>
+                </Form.Group>
+              </Col>
+            </Row>
           </Form>
         </Modal.Body>
         <Modal.Footer>
