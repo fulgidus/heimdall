@@ -343,12 +343,14 @@ const TrainingDashboard: React.FC = () => {
                     <td>{dataset.num_samples.toLocaleString()}</td>
                     <td>
                       {dataset.quality_metrics ? (
-                        <small>
-                          SNR: {dataset.quality_metrics.avg_snr_db?.toFixed(1)}dB,
-                          GDOP: {dataset.quality_metrics.avg_gdop?.toFixed(2)}
-                        </small>
+                        <div style={{ fontSize: '0.875rem' }}>
+                          <div><strong>SNR:</strong> {dataset.quality_metrics.avg_snr_db?.toFixed(1)}dB (min: {dataset.quality_metrics.min_snr_db?.toFixed(1)}, max: {dataset.quality_metrics.max_snr_db?.toFixed(1)})</div>
+                          <div><strong>GDOP:</strong> {dataset.quality_metrics.avg_gdop?.toFixed(2)} (min: {dataset.quality_metrics.min_gdop?.toFixed(2)}, max: {dataset.quality_metrics.max_gdop?.toFixed(2)})</div>
+                          <div><strong>Receivers:</strong> {dataset.quality_metrics.avg_receivers?.toFixed(1)} avg</div>
+                          <div><strong>Distance:</strong> {dataset.quality_metrics.avg_distance_km?.toFixed(1)}km avg (max: {dataset.quality_metrics.max_distance_km?.toFixed(1)}km)</div>
+                        </div>
                       ) : (
-                        '-'
+                        <span className="text-muted">-</span>
                       )}
                     </td>
                     <td>{new Date(dataset.created_at).toLocaleString()}</td>
