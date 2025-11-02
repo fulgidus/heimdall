@@ -17,12 +17,16 @@ from common.health import HealthChecker
 
 from .config import settings
 from .models.health import HealthResponse
+from .api import synthetic
 
 SERVICE_NAME = "training"
 SERVICE_VERSION = "0.1.0"
 SERVICE_PORT = 8002
 
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
+
+# Include API routers
+app.include_router(synthetic.router, prefix="/v1/training")
 
 # Initialize Celery for training tasks
 celery_app = Celery(

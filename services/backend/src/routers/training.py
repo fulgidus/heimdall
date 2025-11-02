@@ -763,6 +763,99 @@ async def get_synthetic_dataset(dataset_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to get dataset: {e!s}")
 
 
+@router.get("/synthetic/datasets/{dataset_id}/samples")
+async def get_dataset_samples(
+    dataset_id: UUID,
+    limit: int = Query(default=10, ge=1, le=100, description="Number of samples to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+    split: str = Query(default=None, description="Filter by split (train/val/test)")
+):
+    """
+    Get samples from a synthetic dataset.
+    
+    Args:
+        dataset_id: UUID of the dataset
+        limit: Maximum number of samples to return (1-100)
+        offset: Number of samples to skip
+        split: Optional filter by split type
+    
+    Returns:
+        List of samples with pagination info
+    """
+    from ..models.synthetic_data import SyntheticSampleResponse, SyntheticSamplesListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Build query - samples are in measurement_features table
+            where_clause = "WHERE dataset_id = :dataset_id"
+            params = {"dataset_id": str(dataset_id), "limit": limit, "offset": offset}
+            
+            # Note: split filter not applicable for measurement_features (no split column)
+            # Splits are calculated at training time, not stored per-sample
+            
+            # Count total
+            count_query = text(f"""
+                SELECT COUNT(*) as total
+                FROM heimdall.measurement_features
+                {where_clause}
+            """)
+            
+            count_result = session.execute(count_query, params).fetchone()
+            total = count_result[0] if count_result else 0
+            
+            # Fetch samples from measurement_features
+            samples_query = text(f"""
+                SELECT recording_session_id, timestamp, tx_latitude, tx_longitude,
+                       tx_power_dbm, extraction_metadata->>'frequency_hz' as frequency_hz,
+                       receiver_features, gdop, num_receivers_detected, 
+                       mean_snr_db, overall_confidence, created_at
+                FROM heimdall.measurement_features
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+            
+            rows = session.execute(samples_query, params).fetchall()
+            
+            samples = []
+            for row in rows:
+                # Convert receiver_features array to dict for response
+                receivers_data = {
+                    "num_receivers": row[8],
+                    "mean_snr_db": row[9],
+                    "overall_confidence": row[10],
+                    "receiver_features": row[6]  # JSONB array
+                }
+                
+                samples.append(SyntheticSampleResponse(
+                    id=hash(str(row[0])),  # Use hash of UUID as int ID
+                    timestamp=row[1],
+                    tx_lat=row[2] or 0.0,
+                    tx_lon=row[3] or 0.0,
+                    tx_power_dbm=row[4] or 0.0,
+                    frequency_hz=float(row[5]) if row[5] else 0.0,
+                    receivers=receivers_data,
+                    gdop=row[7] or 0.0,
+                    num_receivers=row[8] or 0,
+                    split="",  # Not stored at sample level
+                    created_at=row[11]
+                ))
+            
+            return SyntheticSamplesListResponse(
+                samples=samples,
+                total=total,
+                limit=limit,
+                offset=offset,
+                dataset_id=str(dataset_id)
+            )
+    
+    except Exception as e:
+        logger.error(f"Error getting samples for dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get samples: {e!s}")
+
+
 @router.delete("/synthetic/datasets/{dataset_id}", status_code=204)
 async def delete_synthetic_dataset(dataset_id: UUID):
     """

@@ -147,3 +147,32 @@ class ModelDeployRequest(BaseModel):
     """Request to deploy model (set as active)."""
     
     set_production: bool = Field(default=False, description="Also set as production model")
+
+
+class SyntheticSampleResponse(BaseModel):
+    """Individual synthetic sample response."""
+    
+    id: int
+    timestamp: datetime
+    tx_lat: float
+    tx_lon: float
+    tx_power_dbm: float
+    frequency_hz: float
+    receivers: dict[str, Any]  # JSON data with receiver details
+    gdop: float
+    num_receivers: int
+    split: str  # train/val/test
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SyntheticSamplesListResponse(BaseModel):
+    """List of samples with pagination."""
+    
+    samples: list[SyntheticSampleResponse]
+    total: int
+    limit: int
+    offset: int
+    dataset_id: str

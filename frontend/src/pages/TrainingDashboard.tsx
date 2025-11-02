@@ -34,6 +34,7 @@ import {
   XCircle,
   Clock,
   StopCircle,
+  Eye,
 } from 'lucide-react';
 import {
   listTrainingJobs,
@@ -45,9 +46,11 @@ import {
   deleteSyntheticDataset,
   deleteModel,
   deployModel,
+  getSyntheticDatasetSamples,
   type TrainingJob,
   type SyntheticDataset,
   type TrainedModel,
+  type SyntheticSampleResponse,
 } from '@/services/api/training';
 
 /**
@@ -109,6 +112,23 @@ const TrainingDashboard: React.FC = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDataModal, setShowDataModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedDataset, setSelectedDataset] = useState<SyntheticDataset | null>(null);
+  const [datasetSamples, setDatasetSamples] = useState<SyntheticSampleResponse[]>([]);
+  const [loadingSamples, setLoadingSamples] = useState(false);
+  
+  // Power unit toggle (Watt or dBm)
+  const [powerUnit, setPowerUnit] = useState<'watt' | 'dbm'>('watt');
+  const [powerValueWatt, setPowerValueWatt] = useState(2.0); // Default 2W = ~33dBm
+  
+  // Helper functions for power conversion
+  const wattToDbm = (watt: number): number => {
+    return 10 * Math.log10(watt * 1000);
+  };
+  
+  const dbmToWatt = (dbm: number): number => {
+    return Math.pow(10, dbm / 10) / 1000;
+  };
   
   // Data generation form
   // NOTE: train_ratio/val_ratio/test_ratio removed - splits calculated at training time
@@ -118,7 +138,7 @@ const TrainingDashboard: React.FC = () => {
     inside_ratio: 0.7,
     // RF generation parameters (relaxed defaults for better success rate)
     frequency_mhz: 144.0,
-    tx_power_dbm: 33.0,
+    tx_power_dbm: wattToDbm(2.0), // 2W = ~33dBm
     min_snr_db: 0.0,       // More permissive (was 3.0)
     min_receivers: 2,      // More permissive (was 3)
     max_gdop: 500.0,       // VERY permissive - accept poor geometry for ML training
@@ -185,15 +205,19 @@ const TrainingDashboard: React.FC = () => {
     try {
       await generateSyntheticData(dataForm);
       setShowDataModal(false);
+      // Reset form
+      setPowerValueWatt(2.0);
+      setPowerUnit('watt');
       setDataForm({
         name: '',
         num_samples: 10000,
         inside_ratio: 0.7,
         frequency_mhz: 144.0,
-        tx_power_dbm: 33.0,
+        tx_power_dbm: wattToDbm(2.0),
         min_snr_db: 0.0,
         min_receivers: 2,
         max_gdop: 100.0,
+        use_real_terrain: false,
       });
       loadData(); // Refresh
     } catch (err) {
@@ -256,6 +280,25 @@ const TrainingDashboard: React.FC = () => {
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to deploy model');
+    }
+  };
+
+  // Handle view dataset details
+  const handleViewDetails = async (dataset: SyntheticDataset) => {
+    setSelectedDataset(dataset);
+    setShowDetailsModal(true);
+    setLoadingSamples(true);
+    
+    try {
+      // Fetch real samples from backend
+      const response = await getSyntheticDatasetSamples(dataset.id, 10, 0);
+      setDatasetSamples(response.samples);
+    } catch (err) {
+      console.error('Failed to load samples:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load samples');
+      setDatasetSamples([]);
+    } finally {
+      setLoadingSamples(false);
     }
   };
 
@@ -355,6 +398,14 @@ const TrainingDashboard: React.FC = () => {
                     </td>
                     <td>{new Date(dataset.created_at).toLocaleString()}</td>
                     <td>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => handleViewDetails(dataset)}
+                      >
+                        <Eye size={14} />
+                      </Button>
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -546,6 +597,160 @@ const TrainingDashboard: React.FC = () => {
         </Card.Body>
       </Card>
 
+      {/* Dataset Details Modal */}
+      <Modal
+        show={showDetailsModal}
+        onHide={() => setShowDetailsModal(false)}
+        size="xl"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <Database className="me-2" />
+            Dataset Details: {selectedDataset?.name}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedDataset && (
+            <>
+              {/* Dataset Overview */}
+              <Card className="mb-3">
+                <Card.Header>
+                  <h6 className="mb-0">Overview</h6>
+                </Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>ID:</strong> <code>{selectedDataset.id}</code></p>
+                      <p><strong>Name:</strong> {selectedDataset.name}</p>
+                      <p><strong>Description:</strong> {selectedDataset.description || 'N/A'}</p>
+                      <p><strong>Total Samples:</strong> {selectedDataset.num_samples.toLocaleString()}</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Storage Table:</strong> <code>{selectedDataset.storage_table}</code></p>
+                      <p><strong>Created:</strong> {new Date(selectedDataset.created_at).toLocaleString()}</p>
+                      <p><strong>Created by Job:</strong> {selectedDataset.created_by_job_id ? <code>{selectedDataset.created_by_job_id}</code> : 'N/A'}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Generation Config */}
+              <Card className="mb-3">
+                <Card.Header>
+                  <h6 className="mb-0">Generation Configuration</h6>
+                </Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>Frequency:</strong> {selectedDataset.config.frequency_mhz || 'N/A'} MHz</p>
+                      <p><strong>TX Power:</strong> {selectedDataset.config.tx_power_dbm || 'N/A'} dBm</p>
+                      <p><strong>Inside Ratio:</strong> {selectedDataset.config.inside_ratio ? (selectedDataset.config.inside_ratio * 100).toFixed(0) + '%' : 'N/A'}</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Min SNR:</strong> {selectedDataset.config.min_snr_db ?? 'N/A'} dB</p>
+                      <p><strong>Min Receivers:</strong> {selectedDataset.config.min_receivers || 'N/A'}</p>
+                      <p><strong>Max GDOP:</strong> {selectedDataset.config.max_gdop || 'N/A'}</p>
+                      <p><strong>Real Terrain:</strong> {selectedDataset.config.use_real_terrain ? 'Yes (SRTM)' : 'No'}</p>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              {/* Quality Metrics */}
+              {selectedDataset.quality_metrics && (
+                <Card className="mb-3">
+                  <Card.Header>
+                    <h6 className="mb-0">Quality Metrics</h6>
+                  </Card.Header>
+                  <Card.Body>
+                    <Row>
+                      <Col md={6}>
+                        <h6 className="text-primary">Signal-to-Noise Ratio (SNR)</h6>
+                        <p><strong>Average:</strong> {selectedDataset.quality_metrics.avg_snr_db?.toFixed(2)} dB</p>
+                        <p><strong>Minimum:</strong> {selectedDataset.quality_metrics.min_snr_db?.toFixed(2)} dB</p>
+                        <p><strong>Maximum:</strong> {selectedDataset.quality_metrics.max_snr_db?.toFixed(2)} dB</p>
+                      </Col>
+                      <Col md={6}>
+                        <h6 className="text-primary">Geometric Dilution of Precision (GDOP)</h6>
+                        <p><strong>Average:</strong> {selectedDataset.quality_metrics.avg_gdop?.toFixed(3)}</p>
+                        <p><strong>Minimum:</strong> {selectedDataset.quality_metrics.min_gdop?.toFixed(3)}</p>
+                        <p><strong>Maximum:</strong> {selectedDataset.quality_metrics.max_gdop?.toFixed(3)}</p>
+                      </Col>
+                    </Row>
+                    <Row className="mt-3">
+                      <Col md={6}>
+                        <h6 className="text-primary">Receiver Coverage</h6>
+                        <p><strong>Average Receivers:</strong> {selectedDataset.quality_metrics.avg_receivers?.toFixed(2)}</p>
+                      </Col>
+                      <Col md={6}>
+                        <h6 className="text-primary">Distance Statistics</h6>
+                        <p><strong>Average Distance:</strong> {selectedDataset.quality_metrics.avg_distance_km?.toFixed(2)} km</p>
+                        <p><strong>Maximum Distance:</strong> {selectedDataset.quality_metrics.max_distance_km?.toFixed(2)} km</p>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* Sample Preview */}
+              <Card>
+                <Card.Header>
+                  <h6 className="mb-0">Sample Preview (first 10 samples)</h6>
+                </Card.Header>
+                <Card.Body>
+                  {loadingSamples ? (
+                    <div className="text-center p-3">
+                      <Spinner animation="border" size="sm" />
+                      <p className="mt-2 mb-0">Loading samples...</p>
+                    </div>
+                  ) : datasetSamples.length > 0 ? (
+                    <Table striped hover size="sm">
+                      <thead>
+                        <tr>
+                          <th>Sample ID</th>
+                          <th>Timestamp</th>
+                          <th>TX Latitude</th>
+                          <th>TX Longitude</th>
+                          <th>Frequency</th>
+                          <th>TX Power</th>
+                          <th>Receivers</th>
+                          <th>GDOP</th>
+                          <th>Split</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {datasetSamples.map((sample) => (
+                          <tr key={sample.id}>
+                            <td>{sample.id}</td>
+                            <td>{new Date(sample.timestamp).toLocaleString()}</td>
+                            <td>{sample.tx_lat.toFixed(6)}°</td>
+                            <td>{sample.tx_lon.toFixed(6)}°</td>
+                            <td>{(sample.frequency_hz / 1e6).toFixed(2)} MHz</td>
+                            <td>{sample.tx_power_dbm.toFixed(1)} dBm</td>
+                            <td>{sample.num_receivers}</td>
+                            <td>{sample.gdop.toFixed(2)}</td>
+                            <td><Badge bg="secondary">{sample.split}</Badge></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <Alert variant="warning">
+                      No samples available for this dataset.
+                    </Alert>
+                  )}
+                </Card.Body>
+              </Card>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {/* Data Generation Modal */}
       <Modal show={showDataModal} onHide={() => setShowDataModal(false)} size="lg">
         <Modal.Header closeButton>
@@ -613,16 +818,64 @@ const TrainingDashboard: React.FC = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
-                  <Form.Label>TX Power (dBm)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={dataForm.tx_power_dbm}
-                    onChange={(e) => setDataForm({ ...dataForm, tx_power_dbm: parseFloat(e.target.value) })}
-                    step={1}
-                    min={0}
-                    max={60}
-                  />
-                  <Form.Text>Transmitter power (30-40 dBm typical)</Form.Text>
+                  <Form.Label className="d-flex align-items-center justify-content-between">
+                    <span>TX Power</span>
+                    <div className="btn-group btn-group-sm">
+                      <button
+                        type="button"
+                        className={`btn ${powerUnit === 'watt' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                        onClick={() => setPowerUnit('watt')}
+                        aria-pressed={powerUnit === 'watt'}
+                      >
+                        Watt
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${powerUnit === 'dbm' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                        onClick={() => setPowerUnit('dbm')}
+                        aria-pressed={powerUnit === 'dbm'}
+                      >
+                        dBm
+                      </button>
+                    </div>
+                  </Form.Label>
+                  {powerUnit === 'watt' ? (
+                    <>
+                      <Form.Control
+                        type="number"
+                        value={powerValueWatt}
+                        onChange={(e) => {
+                          const watt = parseFloat(e.target.value);
+                          setPowerValueWatt(watt);
+                          setDataForm({ ...dataForm, tx_power_dbm: wattToDbm(watt) });
+                        }}
+                        step={0.1}
+                        min={0.001}
+                        max={100}
+                      />
+                      <Form.Text>
+                        Transmitter power in Watt (2W typical) = {dataForm.tx_power_dbm.toFixed(2)} dBm
+                      </Form.Text>
+                    </>
+                  ) : (
+                    <>
+                      <Form.Control
+                        type="number"
+                        value={dataForm.tx_power_dbm}
+                        onChange={(e) => {
+                          const dbm = parseFloat(e.target.value);
+                          setDataForm({ ...dataForm, tx_power_dbm: dbm });
+                          setPowerValueWatt(dbmToWatt(dbm));
+                        }}
+                        step={1}
+                        min={0}
+                        max={60}
+                      />
+                      <Form.Text>
+                        Transmitter power in dBm (30-40 dBm typical) = {powerValueWatt.toFixed(3)} W
+                      </Form.Text>
+                    </>
+                  )}
                 </Form.Group>
               </Col>
             </Row>

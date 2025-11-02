@@ -154,6 +154,39 @@ export async function deleteSyntheticDataset(datasetId: string): Promise<void> {
     await api.delete(`/v1/training/synthetic/datasets/${datasetId}`);
 }
 
+export interface SyntheticSampleResponse {
+    id: number;
+    timestamp: string;
+    tx_lat: number;
+    tx_lon: number;
+    tx_power_dbm: number;
+    frequency_hz: number;
+    receivers: Record<string, any>;
+    gdop: number;
+    num_receivers: number;
+    split: string;
+    created_at: string;
+}
+
+export async function getSyntheticDatasetSamples(
+    datasetId: string,
+    limit: number = 10,
+    offset: number = 0,
+    split?: string
+): Promise<{ samples: SyntheticSampleResponse[]; total: number; limit: number; offset: number; dataset_id: string }> {
+    const params: Record<string, string> = {
+        limit: limit.toString(),
+        offset: offset.toString(),
+    };
+    
+    if (split) {
+        params.split = split;
+    }
+    
+    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/samples`, { params });
+    return response.data;
+}
+
 // ============================================================================
 // MODELS API
 // ============================================================================
