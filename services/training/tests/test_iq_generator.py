@@ -1,7 +1,7 @@
 """Tests for SyntheticIQGenerator."""
 
 import numpy as np
-from data.iq_generator import SyntheticIQGenerator, IQSample
+from src.data.iq_generator import SyntheticIQGenerator, SyntheticIQSample
 
 
 def test_iq_generator_initialization():
@@ -30,7 +30,7 @@ def test_generate_iq_sample_shape():
         timestamp=1234567890.0
     )
 
-    assert isinstance(iq_sample, IQSample)
+    assert isinstance(iq_sample, SyntheticIQSample)
     assert iq_sample.samples.dtype == np.complex64
     assert len(iq_sample.samples) == 200_000
     assert iq_sample.sample_rate_hz == 200_000

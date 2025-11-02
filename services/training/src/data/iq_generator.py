@@ -9,12 +9,13 @@ Generates realistic complex IQ samples with:
 
 import numpy as np
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 
 
 @dataclass
-class IQSample:
-    """Container for IQ sample data."""
+class SyntheticIQSample:
+    """Container for synthetic IQ sample data with additional metadata."""
     samples: np.ndarray  # Complex64 array
     sample_rate_hz: float
     duration_ms: float
@@ -33,6 +34,10 @@ class IQSample:
     def time_axis(self) -> np.ndarray:
         """Time axis in seconds."""
         return np.arange(self.num_samples) / self.sample_rate_hz
+
+    def to_datetime(self) -> datetime:
+        """Convert float timestamp to datetime."""
+        return datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
 
 
 class SyntheticIQGenerator:
@@ -74,7 +79,7 @@ class SyntheticIQGenerator:
         timestamp: float,
         enable_multipath: bool = True,
         enable_fading: bool = True
-    ) -> IQSample:
+    ) -> 'SyntheticIQSample':
         """
         Generate a single IQ sample for one receiver.
 
@@ -93,7 +98,7 @@ class SyntheticIQGenerator:
             enable_fading: Add Rayleigh fading
 
         Returns:
-            IQSample with complex samples
+            SyntheticIQSample with complex samples
         """
         # 1. Generate clean signal (complex exponential with frequency offset)
         signal = self._generate_clean_signal(frequency_offset_hz, bandwidth_hz)
@@ -112,7 +117,7 @@ class SyntheticIQGenerator:
         # 5. Add AWGN noise
         signal = self._add_awgn(signal, noise_floor_dbm, snr_db)
 
-        return IQSample(
+        return SyntheticIQSample(
             samples=signal.astype(np.complex64),
             sample_rate_hz=self.sample_rate_hz,
             duration_ms=self.duration_ms,
@@ -299,25 +304,3 @@ class SyntheticIQGenerator:
         noise = noise_i + 1j * noise_q
 
         return signal + noise
-
-
-# Example usage (not in production code):
-if __name__ == "__main__":
-    generator = SyntheticIQGenerator(sample_rate_hz=200_000, duration_ms=1000.0, seed=42)
-
-    iq_sample = generator.generate_iq_sample(
-        center_frequency_hz=144_000_000,  # 144 MHz
-        signal_power_dbm=-65.0,           # Signal power
-        noise_floor_dbm=-87.0,            # Noise floor
-        snr_db=22.0,                      # SNR
-        frequency_offset_hz=-15.0,        # Doppler offset
-        bandwidth_hz=12500.0,             # FM signal bandwidth
-        rx_id="Torino",
-        rx_lat=45.044,
-        rx_lon=7.672,
-        timestamp=1234567890.0
-    )
-
-    print(f"Generated {iq_sample.num_samples} complex samples")
-    print(f"Duration: {iq_sample.duration_ms} ms")
-    print(f"Sample rate: {iq_sample.sample_rate_hz / 1000:.1f} kHz")
