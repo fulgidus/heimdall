@@ -24,6 +24,7 @@ from .routers.acquisition import router as acquisition_router
 from .routers.health import router as health_router
 from .routers.import_export import router as import_export_router
 from .routers.sessions import router as sessions_router
+from .routers.settings import router as settings_router
 from .routers.training import router as training_router
 from .routers.websocket import router as websocket_router
 
@@ -189,6 +190,7 @@ async def shutdown_event():
 app.include_router(acquisition_router)
 app.include_router(health_router)
 app.include_router(sessions_router)
+app.include_router(settings_router)
 app.include_router(training_router)
 app.include_router(websocket_router)
 app.include_router(import_export_router)
