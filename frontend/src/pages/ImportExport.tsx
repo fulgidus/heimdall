@@ -39,12 +39,12 @@ export default function ImportExport() {
     username: user?.email || '',
     name: user?.name || '',
     description: '',
-    include_settings: false,
+    include_settings: true,
     include_sources: true,
     include_websdrs: true,
-    include_sessions: false,
-    include_training_model: false,
-    include_inference_model: false,
+    include_sessions: true,
+    include_training_model: true,
+    include_inference_model: true,
   });
 
   // State for import
@@ -55,12 +55,12 @@ export default function ImportExport() {
 
   // State for import form
   const [importForm, setImportForm] = useState({
-    import_settings: false,
+    import_settings: true,
     import_sources: true,
     import_websdrs: true,
-    import_sessions: false,
-    import_training_model: false,
-    import_inference_model: false,
+    import_sessions: true,
+    import_training_model: true,
+    import_inference_model: true,
     overwrite_existing: false,
   });
 

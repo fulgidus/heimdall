@@ -87,6 +87,15 @@ static_resources:
                             timeout: 30s
                           name: "api_v1"
 
+                        # API routes (catch-all for /api/*) - goes to backend
+                        - match:
+                            prefix: "/api/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/"
+                            timeout: 30s
+                          name: "api_routes"
+
                         # WebSocket routes for real-time updates
                         - match:
                             prefix: "/ws"
@@ -124,7 +133,7 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
                 
                 common_http_protocol_options:
-                  idle_timeout: 1s
+                  idle_timeout: 10s
 
   clusters:
     # Backend cluster - FastAPI services
