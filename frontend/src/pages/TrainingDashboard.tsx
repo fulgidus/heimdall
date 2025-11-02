@@ -35,6 +35,7 @@ import {
   Clock,
   StopCircle,
   Eye,
+  Copy,
 } from 'lucide-react';
 import {
   listTrainingJobs,
@@ -302,6 +303,40 @@ const TrainingDashboard: React.FC = () => {
     }
   };
 
+  // Handle clone job - opens modal with pre-filled values from selected job
+  const handleCloneJob = (job: TrainingJob) => {
+    const config = job.config;
+    
+    // Pre-fill the form with job config values
+    const newDataForm = {
+      name: `${config.name || job.job_name} (Copy)`,
+      num_samples: config.num_samples || 10000,
+      inside_ratio: config.inside_ratio || 0.7,
+      frequency_mhz: config.frequency_mhz || 144.0,
+      tx_power_dbm: config.tx_power_dbm || 33.0,
+      min_snr_db: config.min_snr_db !== undefined ? config.min_snr_db : 0.0,
+      min_receivers: config.min_receivers || 2,
+      max_gdop: config.max_gdop || 500.0,
+      use_real_terrain: config.use_real_terrain || false,
+    };
+    
+    setDataForm(newDataForm);
+    
+    // Update power value and unit based on cloned job
+    const powerInWatt = dbmToWatt(newDataForm.tx_power_dbm);
+    setPowerValueWatt(powerInWatt);
+    
+    // Auto-select Watt if the value is a "nice" number in watts, otherwise use dBm
+    if (powerInWatt >= 1 && powerInWatt <= 100 && Number.isInteger(powerInWatt)) {
+      setPowerUnit('watt');
+    } else {
+      setPowerUnit('dbm');
+    }
+    
+    // Open the modal
+    setShowDataModal(true);
+  };
+
   // Get status badge
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { variant: string; icon: React.ReactNode }> = {
@@ -500,6 +535,17 @@ const TrainingDashboard: React.FC = () => {
                             title="Cancel job"
                           >
                             <StopCircle size={14} />
+                          </Button>
+                        )}
+                        {/* Clone button for completed/cancelled jobs */}
+                        {(job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') && (
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleCloneJob(job)}
+                            title="Clone job configuration"
+                          >
+                            <Copy size={14} />
                           </Button>
                         )}
                         {/* Delete button for non-running jobs */}
