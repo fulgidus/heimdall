@@ -10,12 +10,11 @@ import sys
 
 import structlog
 from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy import text
 
 # Import terrain module from common
 from common.terrain import SRTMDownloader, TerrainLookup
 
-from ..db import get_db_session
+from ..db import get_pool
 from ..models.terrain import (
     TerrainTile,
     TerrainTilesList,
@@ -60,13 +59,13 @@ def get_terrain_lookup(minio_client: MinIOClient = Depends(get_minio_client)) ->
 
 
 @router.get("/tiles", response_model=TerrainTilesList)
-async def list_tiles(db_session = Depends(get_db_session)):
+async def list_tiles():
     """
     List all terrain tiles in the database.
     
     Returns tile information including status, size, and download metadata.
     """
-    query = text("""
+    query = """
         SELECT 
             id, tile_name, lat_min, lat_max, lon_min, lon_max,
             minio_bucket, minio_path, file_size_bytes,
@@ -74,50 +73,50 @@ async def list_tiles(db_session = Depends(get_db_session)):
             downloaded_at, created_at, updated_at
         FROM heimdall.terrain_tiles
         ORDER BY tile_name
-    """)
+    """
     
-    result = await db_session.execute(query)
-    rows = result.fetchall()
-    
-    tiles = []
-    status_counts = {"ready": 0, "downloading": 0, "failed": 0, "pending": 0}
-    
-    for row in rows:
-        tile = TerrainTile(
-            id=str(row.id),
-            tile_name=row.tile_name,
-            lat_min=row.lat_min,
-            lat_max=row.lat_max,
-            lon_min=row.lon_min,
-            lon_max=row.lon_max,
-            minio_bucket=row.minio_bucket,
-            minio_path=row.minio_path,
-            file_size_bytes=row.file_size_bytes,
-            status=row.status,
-            error_message=row.error_message,
-            checksum_sha256=row.checksum_sha256,
-            source_url=row.source_url,
-            downloaded_at=row.downloaded_at,
-            created_at=row.created_at,
-            updated_at=row.updated_at
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query)
+        
+        tiles = []
+        status_counts = {"ready": 0, "downloading": 0, "failed": 0, "pending": 0}
+        
+        for row in rows:
+            tile = TerrainTile(
+                id=str(row['id']),
+                tile_name=row['tile_name'],
+                lat_min=row['lat_min'],
+                lat_max=row['lat_max'],
+                lon_min=row['lon_min'],
+                lon_max=row['lon_max'],
+                minio_bucket=row['minio_bucket'],
+                minio_path=row['minio_path'],
+                file_size_bytes=row['file_size_bytes'],
+                status=row['status'],
+                error_message=row['error_message'],
+                checksum_sha256=row['checksum_sha256'],
+                source_url=row['source_url'],
+                downloaded_at=row['downloaded_at'],
+                created_at=row['created_at'],
+                updated_at=row['updated_at']
+            )
+            tiles.append(tile)
+            status_counts[row['status']] = status_counts.get(row['status'], 0) + 1
+        
+        return TerrainTilesList(
+            tiles=tiles,
+            total=len(tiles),
+            ready=status_counts["ready"],
+            downloading=status_counts["downloading"],
+            failed=status_counts["failed"],
+            pending=status_counts["pending"]
         )
-        tiles.append(tile)
-        status_counts[row.status] = status_counts.get(row.status, 0) + 1
-    
-    return TerrainTilesList(
-        tiles=tiles,
-        total=len(tiles),
-        ready=status_counts["ready"],
-        downloading=status_counts["downloading"],
-        failed=status_counts["failed"],
-        pending=status_counts["pending"]
-    )
 
 
 @router.post("/download", response_model=DownloadResponse)
 async def download_tiles(
     request: DownloadRequest,
-    db_session = Depends(get_db_session),
     minio_client: MinIOClient = Depends(get_minio_client)
 ):
     """
@@ -130,6 +129,8 @@ async def download_tiles(
     if not api_key:
         raise HTTPException(status_code=500, detail="OPENTOPOGRAPHY_API_KEY not configured")
     
+    pool = get_pool()
+    
     # Determine bounds
     if request.bounds:
         lat_min = request.bounds.lat_min
@@ -138,22 +139,23 @@ async def download_tiles(
         lon_max = request.bounds.lon_max
     else:
         # Auto-detect from WebSDR stations
-        query = text("""
+        query = """
             SELECT MIN(latitude) as lat_min, MAX(latitude) as lat_max,
                    MIN(longitude) as lon_min, MAX(longitude) as lon_max
             FROM heimdall.websdr_stations
-            WHERE active = true
-        """)
-        result = await db_session.execute(query)
-        bounds_row = result.fetchone()
+            WHERE is_active = true
+        """
         
-        if not bounds_row or bounds_row.lat_min is None:
+        async with pool.acquire() as conn:
+            bounds_row = await conn.fetchrow(query)
+        
+        if not bounds_row or bounds_row['lat_min'] is None:
             raise HTTPException(status_code=400, detail="No active WebSDR stations found")
         
-        lat_min = bounds_row.lat_min
-        lat_max = bounds_row.lat_max
-        lon_min = bounds_row.lon_min
-        lon_max = bounds_row.lon_max
+        lat_min = bounds_row['lat_min']
+        lat_max = bounds_row['lat_max']
+        lon_min = bounds_row['lon_min']
+        lon_max = bounds_row['lon_max']
     
     # Calculate required tiles (1°×1° tiles)
     tile_coords = []
@@ -175,7 +177,7 @@ async def download_tiles(
     # Initialize downloader
     downloader = SRTMDownloader(
         minio_client=minio_client,
-        db_session=db_session,
+        db_pool=pool,
         api_key=api_key
     )
     
@@ -203,29 +205,32 @@ async def download_tiles(
 
 
 @router.get("/coverage", response_model=CoverageStatus)
-async def get_coverage_status(db_session = Depends(get_db_session)):
+async def get_coverage_status():
     """
     Get terrain coverage status for WebSDR region.
     
     Shows which tiles are needed, ready, downloading, failed, or missing.
     """
+    pool = get_pool()
+    
     # Get WebSDR bounds
-    bounds_query = text("""
+    bounds_query = """
         SELECT MIN(latitude) as lat_min, MAX(latitude) as lat_max,
                MIN(longitude) as lon_min, MAX(longitude) as lon_max
         FROM heimdall.websdr_stations
-        WHERE active = true
-    """)
-    bounds_result = await db_session.execute(bounds_query)
-    bounds_row = bounds_result.fetchone()
+        WHERE is_active = true
+    """
     
-    if not bounds_row or bounds_row.lat_min is None:
+    async with pool.acquire() as conn:
+        bounds_row = await conn.fetchrow(bounds_query)
+    
+    if not bounds_row or bounds_row['lat_min'] is None:
         raise HTTPException(status_code=400, detail="No active WebSDR stations found")
     
-    lat_min = float(bounds_row.lat_min)
-    lat_max = float(bounds_row.lat_max)
-    lon_min = float(bounds_row.lon_min)
-    lon_max = float(bounds_row.lon_max)
+    lat_min = float(bounds_row['lat_min'])
+    lat_max = float(bounds_row['lat_max'])
+    lon_min = float(bounds_row['lon_min'])
+    lon_max = float(bounds_row['lon_max'])
     
     # Calculate needed tiles
     needed_tiles = []
@@ -242,15 +247,16 @@ async def get_coverage_status(db_session = Depends(get_db_session)):
             needed_tiles.append(tile_name)
     
     # Get tile status from DB
-    tiles_query = text("""
+    tiles_query = """
         SELECT tile_name, status
         FROM heimdall.terrain_tiles
-        WHERE tile_name = ANY(:tile_names)
-    """)
-    tiles_result = await db_session.execute(tiles_query, {"tile_names": needed_tiles})
-    tiles_rows = tiles_result.fetchall()
+        WHERE tile_name = ANY($1::text[])
+    """
     
-    tile_status_map = {row.tile_name: row.status for row in tiles_rows}
+    async with pool.acquire() as conn:
+        tiles_rows = await conn.fetch(tiles_query, needed_tiles)
+    
+    tile_status_map = {row['tile_name']: row['status'] for row in tiles_rows}
     
     # Categorize tiles
     tiles_ready = []
@@ -334,44 +340,45 @@ async def query_elevation(
 @router.delete("/tiles/{tile_name}")
 async def delete_tile(
     tile_name: str,
-    db_session = Depends(get_db_session),
     minio_client: MinIOClient = Depends(get_minio_client)
 ):
     """
     Delete terrain tile from database and MinIO storage.
     """
+    pool = get_pool()
+    
     # Check if tile exists
-    check_query = text("""
+    check_query = """
         SELECT id, minio_path
         FROM heimdall.terrain_tiles
-        WHERE tile_name = :tile_name
-    """)
-    result = await db_session.execute(check_query, {"tile_name": tile_name})
-    tile_row = result.fetchone()
+        WHERE tile_name = $1
+    """
     
-    if not tile_row:
-        raise HTTPException(status_code=404, detail=f"Tile {tile_name} not found")
-    
-    # Delete from MinIO
-    try:
-        object_name = tile_row.minio_path
-        minio_client.s3_client.delete_object(
-            Bucket="heimdall-terrain",
-            Key=object_name
-        )
-        logger.info(f"Deleted tile {tile_name} from MinIO")
-    except Exception as e:
-        logger.error(f"Failed to delete tile {tile_name} from MinIO: {e}")
-        # Continue with DB deletion even if MinIO deletion fails
-    
-    # Delete from database
-    delete_query = text("""
-        DELETE FROM heimdall.terrain_tiles
-        WHERE tile_name = :tile_name
-    """)
-    await db_session.execute(delete_query, {"tile_name": tile_name})
-    await db_session.commit()
-    
-    logger.info(f"Deleted tile {tile_name} from database")
-    
-    return {"success": True, "message": f"Tile {tile_name} deleted"}
+    async with pool.acquire() as conn:
+        tile_row = await conn.fetchrow(check_query, tile_name)
+        
+        if not tile_row:
+            raise HTTPException(status_code=404, detail=f"Tile {tile_name} not found")
+        
+        # Delete from MinIO
+        try:
+            object_name = tile_row['minio_path']
+            minio_client.s3_client.delete_object(
+                Bucket="heimdall-terrain",
+                Key=object_name
+            )
+            logger.info(f"Deleted tile {tile_name} from MinIO")
+        except Exception as e:
+            logger.error(f"Failed to delete tile {tile_name} from MinIO: {e}")
+            # Continue with DB deletion even if MinIO deletion fails
+        
+        # Delete from database
+        delete_query = """
+            DELETE FROM heimdall.terrain_tiles
+            WHERE tile_name = $1
+        """
+        await conn.execute(delete_query, tile_name)
+        
+        logger.info(f"Deleted tile {tile_name} from database")
+        
+        return {"success": True, "message": f"Tile {tile_name} deleted"}
