@@ -122,6 +122,7 @@ const TrainingDashboard: React.FC = () => {
     min_snr_db: 0.0,       // More permissive (was 3.0)
     min_receivers: 2,      // More permissive (was 3)
     max_gdop: 500.0,       // VERY permissive - accept poor geometry for ML training
+    use_real_terrain: false, // Use SRTM terrain data
   });
 
   // Load data silently (no loading spinner after initial load)
@@ -668,6 +669,20 @@ const TrainingDashboard: React.FC = () => {
                 </Form.Group>
               </Col>
             </Row>
+
+            <hr />
+            <h6 className="mb-3">Terrain Options</h6>
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                label="Use Real Terrain Data (SRTM)"
+                checked={dataForm.use_real_terrain}
+                onChange={(e) => setDataForm({ ...dataForm, use_real_terrain: e.target.checked })}
+              />
+              <Form.Text className="text-muted">
+                Enable realistic RF propagation with SRTM elevation data. Requires terrain tiles to be downloaded in Terrain Management.
+              </Form.Text>
+            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
