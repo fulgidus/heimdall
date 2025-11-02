@@ -19,6 +19,7 @@ export interface LocalizationLayerProps {
   localizations: LocalizationResult[];
   onLocalizationClick?: (localization: LocalizationResult) => void;
   maxPoints?: number; // Maximum number of points to display (default: 100)
+  totalWebSDRs?: number; // Total number of configured WebSDRs (for popup display)
 }
 
 const LAYER_IDS = {
@@ -36,7 +37,11 @@ const SOURCE_IDS = {
 /**
  * Create popup HTML for localization result
  */
-function createPopupHTML(localization: LocalizationResult): string {
+function createPopupHTML(localization: LocalizationResult, totalWebSDRs?: number): string {
+  const websdrDisplay = totalWebSDRs
+    ? `${localization.websdr_count}/${totalWebSDRs}`
+    : `${localization.websdr_count}`;
+
   return `
         <div style="min-width: 250px;">
             <h6 class="mb-2">Localization Result</h6>
@@ -72,7 +77,7 @@ function createPopupHTML(localization: LocalizationResult): string {
                     </tr>
                     <tr>
                         <td class="text-muted">Receivers:</td>
-                        <td>${localization.websdr_count}/7</td>
+                        <td>${websdrDisplay}</td>
                     </tr>
                 </tbody>
             </table>
@@ -85,6 +90,7 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
   localizations,
   onLocalizationClick,
   maxPoints = 100,
+  totalWebSDRs,
 }) => {
   const popupsRef = useRef<mapboxgl.Popup[]>([]);
   const layersInitialized = useRef(false);
@@ -207,7 +213,7 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
             closeOnClick: false,
           })
             .setLngLat([localization.longitude, localization.latitude])
-            .setHTML(createPopupHTML(localization))
+            .setHTML(createPopupHTML(localization, totalWebSDRs))
             .addTo(map);
 
           popupsRef.current.push(popup);
@@ -246,7 +252,7 @@ const LocalizationLayer: React.FC<LocalizationLayerProps> = ({
         map.off('mouseleave', LAYER_IDS.POINTS, mouseLeaveHandlerRef.current);
       }
     };
-  }, [map, localizations, onLocalizationClick]);
+  }, [map, localizations, onLocalizationClick, totalWebSDRs]);
 
   /**
    * Update localization data on the map

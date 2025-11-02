@@ -114,6 +114,7 @@ const MapContainer: React.FC<MapContainerProps> = ({
             map={map}
             localizations={localizations}
             onLocalizationClick={onLocalizationClick}
+            totalWebSDRs={websdrs.length}
           />
         </>
       )}

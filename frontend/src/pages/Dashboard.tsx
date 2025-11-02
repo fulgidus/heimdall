@@ -16,32 +16,12 @@ import { WidgetPicker } from '../components/widgets/WidgetPicker';
 import type { WidgetType } from '@/types/widgets';
 
 const Dashboard: React.FC = () => {
-  const { metrics, error, fetchDashboardData, lastUpdate } = useDashboardStore();
 
   const { widgets, resetToDefault } = useWidgetStore();
-  const { connectionState, isConnected, connect, subscribe } = useWebSocket();
+  const { connectionState, connect, subscribe } = useWebSocket();
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const isMountedRef = useRef(true);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    // Fetch initial data
-    fetchDashboardData();
-
-    // Setup polling fallback (only if WebSocket not connected)
-    const interval = setInterval(() => {
-      if (!isConnected && isMountedRef.current) {
-        fetchDashboardData();
-      }
-    }, 30000); // Poll every 30 seconds as fallback
-
-    return () => {
-      isMountedRef.current = false;
-      clearInterval(interval);
-    };
-  }, [fetchDashboardData, isConnected]);
 
   // Subscribe to WebSocket events
   useEffect(() => {
@@ -108,12 +88,6 @@ const Dashboard: React.FC = () => {
     };
   }, [subscribe]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchDashboardData();
-    setIsRefreshing(false);
-  };
-
   const handleReconnect = async () => {
     await connect();
   };
@@ -139,7 +113,7 @@ const Dashboard: React.FC = () => {
   const renderWidget = (widgetConfig: (typeof widgets)[0]) => {
     let WidgetComponent;
 
-    switch (widgetConfig.type as WidgetType) {
+    switch (widgetConfig.type) {
       case 'websdr-status':
         WidgetComponent = WebSDRStatusWidget;
         break;
@@ -213,14 +187,6 @@ const Dashboard: React.FC = () => {
                     </button>
                   )}
                   <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={handleRefresh}
-                    disabled={isRefreshing}
-                    title="Refresh data"
-                  >
-                    <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
-                  </button>
-                  <button
                     className="btn btn-sm btn-primary"
                     onClick={() => setShowWidgetPicker(true)}
                     title="Add widget"
@@ -241,94 +207,7 @@ const Dashboard: React.FC = () => {
         </div>
       </nav>
 
-      {/* Error Alert */}
-      {error && (
-        <div
-          className="alert alert-danger alert-dismissible fade show"
-          role="alert"
-          aria-live="assertive"
-          aria-atomic="true"
-        >
-          <strong>Error!</strong> {error}
-          <button
-            type="button"
-            className="btn-close"
-            data-bs-dismiss="alert"
-            aria-label="Close error message"
-          ></button>
-        </div>
-      )}
 
-      {/* Stats Overview Cards */}
-      <section aria-label="Quick Stats" className="row mb-3">
-        {/* Active WebSDR Card */}
-        <div className="col-6 col-md-3 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <p className="text-muted mb-1 small">Active WebSDRs</p>
-                  <h3 className="mb-0">
-                    {metrics.activeWebSDRs}/{metrics.totalWebSDRs}
-                  </h3>
-                </div>
-                <i className="ph ph-radio-button fs-1 text-primary"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Signal Detections Card */}
-        <div className="col-6 col-md-3 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <p className="text-muted mb-1 small">Detections (24h)</p>
-                  <h3 className="mb-0">{metrics.signalDetections || 0}</h3>
-                </div>
-                <i className="ph ph-chart-line fs-1 text-warning"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* System Uptime Card */}
-        <div className="col-6 col-md-3 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <p className="text-muted mb-1 small">System Uptime</p>
-                  <h3 className="mb-0">
-                    {metrics.systemUptime > 0
-                      ? `${(metrics.systemUptime / 3600).toFixed(1)}h`
-                      : '0h'}
-                  </h3>
-                </div>
-                <i className="ph ph-activity fs-1 text-success"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Model Accuracy Card */}
-        <div className="col-6 col-md-3 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <div className="d-flex align-items-center justify-content-between">
-                <div>
-                  <p className="text-muted mb-1 small">Model Accuracy</p>
-                  <h3 className="mb-0">
-                    {metrics.averageAccuracy > 0 ? `${metrics.averageAccuracy.toFixed(1)}%` : 'N/A'}
-                  </h3>
-                </div>
-                <i className="ph ph-brain fs-1 text-info"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Widgets Grid */}
       <section aria-label="Dashboard Widgets">
@@ -352,13 +231,6 @@ const Dashboard: React.FC = () => {
           )}
         </div>
       </section>
-
-      {/* Last Updated */}
-      {lastUpdate && (
-        <div className="text-center text-muted small mt-3">
-          Last updated: {new Date(lastUpdate).toLocaleTimeString()}
-        </div>
-      )}
 
       {/* Widget Picker Modal */}
       <WidgetPicker show={showWidgetPicker} onClose={() => setShowWidgetPicker(false)} />
