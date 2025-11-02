@@ -38,9 +38,12 @@ class TrainingPhase(str, Enum):
 class TrainingConfig(BaseModel):
     """Training configuration parameters."""
 
+    # Dataset
+    dataset_id: str = Field(..., description="Synthetic dataset UUID to train on (required)")
+
     # Model architecture
-    model_architecture: str = Field(default="convnext_large", description="Model architecture")
-    pretrained: bool = Field(default=True, description="Use pretrained weights")
+    model_architecture: str = Field(default="triangulation", description="Model architecture")
+    pretrained: bool = Field(default=False, description="Use pretrained weights")
     freeze_backbone: bool = Field(default=False, description="Freeze backbone layers")
 
     # Data parameters
@@ -64,14 +67,19 @@ class TrainingConfig(BaseModel):
     warmup_epochs: int = Field(default=5, ge=0, description="Warmup epochs")
 
     # Early stopping
-    early_stop_patience: int = Field(default=10, ge=1, description="Early stopping patience")
+    early_stop_patience: int = Field(default=20, ge=1, description="Early stopping patience")
+    early_stop_delta: float = Field(default=0.001, ge=0.0, description="Minimum change for early stopping")
+
+    # Gradient clipping
+    max_grad_norm: float = Field(default=1.0, gt=0.0, description="Maximum gradient norm for clipping")
 
     # Hardware
-    accelerator: str = Field(default="gpu", description="Training device")
+    accelerator: str = Field(default="cpu", description="Training device")
     devices: int = Field(default=1, ge=1, description="Number of devices")
 
     # Data filters
     min_snr_db: Optional[float] = Field(default=10.0, description="Minimum SNR for training samples")
+    max_gdop: Optional[float] = Field(default=5.0, description="Maximum GDOP for validation metrics")
     only_approved: bool = Field(default=True, description="Use only approved recordings")
 
 
