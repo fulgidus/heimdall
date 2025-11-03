@@ -74,7 +74,7 @@ export const useSessionWebSocket = () => {
       unsubscribeCompleted();
       unsubscribeSourceAssigned();
     };
-  }, [isConnected, subscribe, store]);
+  }, [isConnected, subscribe]); // store is stable in Zustand, no need to include in deps
 
   return {
     isConnected,

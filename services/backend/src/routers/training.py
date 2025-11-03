@@ -392,9 +392,13 @@ async def cancel_training_job(job_id: UUID):
             # Cancel Celery task
             if celery_task_id:
                 try:
+                    from celery.result import AsyncResult
                     from celery import current_app
 
-                    current_app.control.revoke(celery_task_id, terminate=True, signal='SIGTERM')
+                    # Use AsyncResult.revoke() for direct task termination
+                    task = AsyncResult(celery_task_id, app=current_app)
+                    # Terminate with SIGKILL for immediate termination (SIGTERM can be ignored)
+                    task.revoke(terminate=True, signal='SIGKILL')
                     logger.info(f"Cancelled Celery task {celery_task_id} for job {job_id}")
                 except Exception as e:
                     logger.warning(f"Failed to cancel Celery task: {e}")
@@ -931,6 +935,8 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
     Generate synthetic training dataset.
 
     Creates a background job to generate synthetic samples using RF propagation simulation.
+    
+    If expand_dataset_id is provided, adds samples to existing dataset instead of creating new one.
 
     Args:
         request: Synthetic data generation configuration
@@ -938,12 +944,34 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
     Returns:
         Job ID and status URL
     """
-    # Convert to dict for storage
-    request_dict = request.model_dump()
+    # Convert to dict for storage (mode='json' converts UUID to string)
+    request_dict = request.model_dump(mode='json')
     
     db_manager = get_db_manager()
     
     try:
+        # If expanding existing dataset, set up continuation flags
+        if request.expand_dataset_id:
+            # Verify dataset exists
+            with db_manager.get_session() as session:
+                check_query = text("""
+                    SELECT id, num_samples FROM heimdall.synthetic_datasets
+                    WHERE id = :dataset_id
+                """)
+                result = session.execute(check_query, {"dataset_id": str(request.expand_dataset_id)})
+                row = result.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail=f"Dataset {request.expand_dataset_id} not found")
+                
+                existing_samples = row[1]
+            
+            # Set continuation flags in config
+            request_dict['is_continuation'] = True
+            request_dict['existing_dataset_id'] = str(request.expand_dataset_id)
+            request_dict['samples_offset'] = existing_samples
+            
+            logger.info(f"Expanding dataset {request.expand_dataset_id}: adding {request.num_samples} samples (offset: {existing_samples})")
+        
         # Create job record
         with db_manager.get_session() as session:
             job_query = text("""
@@ -957,11 +985,24 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
             """)
             
             import json
+            from uuid import UUID
+            
+            # Custom JSON encoder to handle UUID objects
+            class UUIDEncoder(json.JSONEncoder):
+                def default(self, o):
+                    if isinstance(o, UUID):
+                        return str(o)
+                    return super().default(o)
+            
+            job_name = f"Synthetic Data: {request_dict.get('name', 'Unnamed')}"
+            if request.expand_dataset_id:
+                job_name = f"Expand Dataset: {request_dict.get('name', 'Unnamed')} (+{request.num_samples} samples)"
+            
             result = session.execute(
                 job_query,
                 {
-                    "job_name": f"Synthetic Data: {request_dict.get('name', 'Unnamed')}",
-                    "config": json.dumps(request_dict)
+                    "job_name": job_name,
+                    "config": json.dumps(request_dict, cls=UUIDEncoder)
                 }
             )
             row = result.fetchone()
@@ -974,11 +1015,23 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
         
         # Queue Celery task to training service
         from ..main import celery_app
-        celery_app.send_task(
+        task = celery_app.send_task(
             'src.tasks.training_task.generate_synthetic_data_task',
             args=[str(job_id)],
             queue='training'
         )
+        
+        # Save celery_task_id to database
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET celery_task_id = :task_id
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"task_id": task.id, "job_id": str(job_id)})
+            session.commit()
+        
+        logger.info(f"Queued Celery task {task.id} for job {job_id}")
 
         # Broadcast WebSocket update
         from .websocket import manager as ws_manager

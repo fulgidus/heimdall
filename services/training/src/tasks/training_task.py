@@ -858,6 +858,10 @@ def generate_synthetic_data_task(self, job_id: str):
                     session.commit()
                     logger.info(f"Created new dataset {dataset_id}")
 
+        # Initialize event publisher for real-time WebSocket updates
+        from events.publisher import get_event_publisher
+        event_publisher = get_event_publisher()
+
         # Progress callback (async wrapper for Celery)
         # For continuations, show cumulative progress
         async def progress_callback(current, total):
@@ -910,6 +914,17 @@ def generate_synthetic_data_task(self, job_id: str):
                     logger.info(f"[PROGRESS] Database updated: {cumulative_current if is_continuation else current}/{total_samples}")
             except Exception as e:
                 logger.error(f"Failed to update progress in database: {e}", exc_info=True)
+
+            # Publish progress event to RabbitMQ for WebSocket clients
+            try:
+                event_publisher.publish_dataset_generation_progress(
+                    job_id=job_id,
+                    current=cumulative_current if is_continuation else current,
+                    total=total_samples,
+                    message=message
+                )
+            except Exception as e:
+                logger.error(f"Failed to publish progress event: {e}", exc_info=True)
 
         # Get async database pool
         from sqlalchemy.ext.asyncio import create_async_engine

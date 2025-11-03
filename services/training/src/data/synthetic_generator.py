@@ -641,6 +641,10 @@ async def generate_synthetic_data_with_iq(
     generated_samples = []
     iq_samples_to_save = {}  # First 100 IQ samples
 
+    # Track time for progress updates (every 1 second)
+    import time
+    last_progress_time = time.time()
+    
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = {executor.submit(_generate_single_sample, args): args[0]
                   for args in args_list}
@@ -674,26 +678,14 @@ async def generate_synthetic_data_with_iq(
                 # Validation checks
                 if quality_metrics['num_receivers_detected'] < min_receivers:
                     logger.debug(f"Sample {sample_idx}: rejected (receivers={quality_metrics['num_receivers_detected']} < {min_receivers})")
-                    # Still update progress for rejected samples
-                    if progress_callback and processed % 10 == 0:
-                        await progress_callback(processed, num_samples)
-                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 if quality_metrics['mean_snr_db'] < min_snr_db:
                     logger.debug(f"Sample {sample_idx}: rejected (SNR={quality_metrics['mean_snr_db']:.1f} < {min_snr_db})")
-                    # Still update progress for rejected samples
-                    if progress_callback and processed % 10 == 0:
-                        await progress_callback(processed, num_samples)
-                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 if quality_metrics['gdop'] > max_gdop:
                     logger.debug(f"Sample {sample_idx}: rejected (GDOP={quality_metrics['gdop']:.1f} > {max_gdop})")
-                    # Still update progress for rejected samples
-                    if progress_callback and processed % 10 == 0:
-                        await progress_callback(processed, num_samples)
-                        logger.info(f"Progress: {processed}/{num_samples} samples processed ({len(generated_samples)} valid)")
                     continue
 
                 # Store sample
@@ -721,18 +713,16 @@ async def generate_synthetic_data_with_iq(
                     except Exception as e:
                         logger.error(f"Failed to incrementally save samples: {e}")
 
-                # Progress update (for valid samples)
-                if progress_callback and processed % 10 == 0:
-                    await progress_callback(processed, num_samples)
-                    logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
-
             except Exception as e:
                 logger.error(f"Error generating sample {sample_idx}: {e}")
-                # Still update progress even on error
-                if progress_callback and processed % 10 == 0:
-                    await progress_callback(processed, num_samples)
-                    logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
                 continue
+            
+            # Progress update every 1 second (time-based instead of sample-based)
+            current_time = time.time()
+            if progress_callback and (current_time - last_progress_time) >= 1.0:
+                await progress_callback(processed, num_samples)
+                logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
+                last_progress_time = current_time
 
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
 

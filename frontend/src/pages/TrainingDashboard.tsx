@@ -440,12 +440,12 @@ const TrainingDashboard: React.FC = () => {
         </Alert>
       )}
 
-      {/* Synthetic Datasets Section */}
+      {/* Synthetic Generation Jobs Section */}
       <Card className="mb-4">
         <Card.Header className="d-flex justify-content-between align-items-center">
           <h5 className="mb-0">
             <Database className="me-2" />
-            Synthetic Datasets
+            Synthetic Data Generation Jobs
           </h5>
           <Button 
             variant="primary" 
@@ -455,6 +455,113 @@ const TrainingDashboard: React.FC = () => {
             <PlusCircle size={16} className="me-1" />
             Generate New Dataset
           </Button>
+        </Card.Header>
+        <Card.Body>
+          {jobs.filter(isSyntheticJob).length === 0 ? (
+            <Alert variant="info">
+              No synthetic generation jobs yet. Click "Generate New Dataset" to get started.
+            </Alert>
+          ) : (
+            <Table striped hover responsive>
+              <thead>
+                <tr>
+                  <th>Job Name</th>
+                  <th>Status</th>
+                  <th>Progress</th>
+                  <th>Dataset ID</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.filter(isSyntheticJob).map((job) => (
+                  <tr key={job.id}>
+                    <td><strong>{job.job_name}</strong></td>
+                    <td>{getStatusBadge(job.status)}</td>
+                    <td>
+                      {job.status === 'running' ? (
+                        <div>
+                          <div className="progress mb-1">
+                            <div
+                              className="progress-bar progress-bar-striped progress-bar-animated"
+                              style={{ width: `${job.progress_percent}%` }}
+                            />
+                          </div>
+                          <small className="d-block">
+                            {job.current || 0}/{job.total || 0} samples ({job.progress_percent.toFixed(1)}%)
+                          </small>
+                          <small className="text-muted d-block">ETA: {calculateETA(job)}</small>
+                        </div>
+                      ) : (
+                        `${job.progress_percent.toFixed(0)}%`
+                      )}
+                    </td>
+                    <td>
+                      {job.dataset_id ? <code>{job.dataset_id.substring(0, 8)}...</code> : 'N/A'}
+                    </td>
+                    <td>{new Date(job.created_at).toLocaleString()}</td>
+                    <td>
+                      <div className="d-flex gap-1">
+                        {/* Continue button for cancelled synthetic jobs with progress */}
+                        {job.status === 'cancelled' && (job.current ?? 0) > 0 && (
+                          <Button
+                            variant="outline-info"
+                            size="sm"
+                            onClick={() => handleContinueSyntheticJob(job.id)}
+                            title="Continue from where it left off"
+                          >
+                            <Play size={14} />
+                          </Button>
+                        )}
+                        {/* Cancel button for running/queued/pending jobs */}
+                        {(job.status === 'running' || job.status === 'queued' || job.status === 'pending') && (
+                          <Button
+                            variant="outline-warning"
+                            size="sm"
+                            onClick={() => handleCancelJob(job.id)}
+                            title="Cancel job"
+                          >
+                            <StopCircle size={14} />
+                          </Button>
+                        )}
+                        {/* Clone button for completed/cancelled/failed jobs */}
+                        {(job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') && (
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => handleCloneJob(job)}
+                            title="Clone job configuration"
+                          >
+                            <Copy size={14} />
+                          </Button>
+                        )}
+                        {/* Delete button for non-running jobs */}
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDeleteJob(job.id)}
+                          disabled={job.status === 'running' || job.status === 'queued' || job.status === 'pending'}
+                          title="Delete job"
+                        >
+                          <Trash size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Card.Body>
+      </Card>
+
+      {/* Synthetic Datasets Section */}
+      <Card className="mb-4">
+        <Card.Header>
+          <h5 className="mb-0">
+            <Database className="me-2" />
+            Synthetic Datasets
+          </h5>
         </Card.Header>
         <Card.Body>
           {datasets.length === 0 ? (
@@ -519,12 +626,12 @@ const TrainingDashboard: React.FC = () => {
       <Card className="mb-4">
         <Card.Header>
           <h5 className="mb-0">
-            <PlayCircle className="me-2" />
-            Recent Training Jobs
+            <Brain className="me-2" />
+            Model Training Jobs
           </h5>
         </Card.Header>
         <Card.Body>
-          {jobs.length === 0 ? (
+          {jobs.filter(isTrainingJob).length === 0 ? (
             <Alert variant="info">
               No training jobs yet.
             </Alert>
@@ -541,7 +648,7 @@ const TrainingDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {jobs.map((job) => (
+                {jobs.filter(isTrainingJob).map((job) => (
                   <tr key={job.id}>
                     <td><strong>{job.job_name}</strong></td>
                     <td>{getStatusBadge(job.status)}</td>

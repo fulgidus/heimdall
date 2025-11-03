@@ -15,6 +15,7 @@ interface JobCardProps {
 
 const statusBadges: Record<string, string> = {
   pending: 'bg-light-warning',
+  queued: 'bg-light-info',
   running: 'bg-light-primary',
   paused: 'bg-light-secondary',
   completed: 'bg-light-success',
@@ -55,7 +56,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
     setIsLoading(true);
     try {
       await cancelJob(job.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to cancel job:', error);
     } finally {
       setIsLoading(false);
@@ -177,24 +178,25 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
           )}
           
           {job.status === 'paused' && (
-            <>
-              <button
-                onClick={handleResume}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-primary flex-fill"
-              >
-                <i className="ph ph-play me-1"></i>
-                {isLoading ? 'Resuming...' : 'Resume'}
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-danger flex-fill"
-              >
-                <i className="ph ph-x me-1"></i>
-                {isLoading ? 'Cancelling...' : 'Cancel'}
-              </button>
-            </>
+            <button
+              onClick={handleResume}
+              disabled={isLoading}
+              className="btn btn-sm btn-outline-primary w-100"
+            >
+              <i className="ph ph-play me-1"></i>
+              {isLoading ? 'Resuming...' : 'Resume'}
+            </button>
+          )}
+
+          {(job.status === 'pending' || job.status === 'queued') && (
+            <button
+              onClick={handleCancel}
+              disabled={isLoading}
+              className="btn btn-sm btn-outline-danger w-100"
+            >
+              <i className="ph ph-x me-1"></i>
+              {isLoading ? 'Cancelling...' : 'Cancel'}
+            </button>
           )}
 
           {/* Delete button for completed/failed/cancelled jobs */}

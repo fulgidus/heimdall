@@ -14,6 +14,7 @@ interface GenerationJobCardProps {
 
 const statusBadges: Record<string, string> = {
   pending: 'bg-light-warning',
+  queued: 'bg-light-info',
   running: 'bg-light-primary',
   paused: 'bg-light-secondary',
   completed: 'bg-light-success',
@@ -22,36 +23,14 @@ const statusBadges: Record<string, string> = {
 };
 
 export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => {
-  const { pauseGenerationJob, resumeGenerationJob, cancelGenerationJob, deleteGenerationJob } = useTrainingStore();
+  const { cancelGenerationJob, deleteGenerationJob } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
-
-  const handlePause = async () => {
-    setIsLoading(true);
-    try {
-      await pauseGenerationJob(job.id);
-    } catch (error) {
-      console.error('Failed to pause generation job:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResume = async () => {
-    setIsLoading(true);
-    try {
-      await resumeGenerationJob(job.id);
-    } catch (error) {
-      console.error('Failed to resume generation job:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleCancel = async () => {
     setIsLoading(true);
     try {
       await cancelGenerationJob(job.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to cancel generation job:', error);
     } finally {
       setIsLoading(false);
@@ -70,8 +49,8 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
   };
 
   const progressPercent = job.progress_percent || 0;
-  const currentSamples = job.current_samples || 0;
-  const totalSamples = job.total_samples || job.config.num_samples;
+  const currentSamples = job.current || 0;
+  const totalSamples = job.total || job.config.num_samples;
 
   return (
     <div className="card">
@@ -90,7 +69,7 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
         </div>
 
         {/* Progress Bar */}
-        {(job.status === 'running' || job.status === 'paused') && (
+        {job.status === 'running' && (
           <div className="mb-3">
             <div className="d-flex justify-content-between small text-muted mb-1">
               <span>
@@ -177,49 +156,8 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
 
         {/* Action Buttons */}
         <div className="d-flex gap-2">
-          {job.status === 'running' && (
-            <>
-              <button
-                onClick={handlePause}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-warning flex-fill"
-              >
-                <i className="ph ph-pause me-1"></i>
-                {isLoading ? 'Pausing...' : 'Pause'}
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-danger flex-fill"
-              >
-                <i className="ph ph-x me-1"></i>
-                {isLoading ? 'Cancelling...' : 'Cancel'}
-              </button>
-            </>
-          )}
-          
-          {job.status === 'paused' && (
-            <>
-              <button
-                onClick={handleResume}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-primary flex-fill"
-              >
-                <i className="ph ph-play me-1"></i>
-                {isLoading ? 'Resuming...' : 'Resume'}
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={isLoading}
-                className="btn btn-sm btn-outline-danger flex-fill"
-              >
-                <i className="ph ph-x me-1"></i>
-                {isLoading ? 'Cancelling...' : 'Cancel'}
-              </button>
-            </>
-          )}
-
-          {job.status === 'pending' && (
+          {/* Cancel button for pending, queued, or running jobs */}
+          {(job.status === 'pending' || job.status === 'queued' || job.status === 'running') && (
             <button
               onClick={handleCancel}
               disabled={isLoading}

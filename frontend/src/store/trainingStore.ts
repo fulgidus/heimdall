@@ -138,7 +138,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   pauseJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/pause/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/pause`);
       
       // Update job status locally
       set(state => ({
@@ -158,7 +158,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   resumeJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/resume/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/resume`);
       
       // Update job status locally
       set(state => ({
@@ -481,7 +481,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   pauseGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/pause/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/pause`);
       
       // Update job status locally
       set(state => ({
@@ -501,7 +501,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   resumeGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/resume/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/resume`);
       
       // Update job status locally
       set(state => ({
@@ -521,7 +521,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   cancelGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.delete(`/v1/training/jobs/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/cancel`);
       
       // Update job status locally
       set(state => ({

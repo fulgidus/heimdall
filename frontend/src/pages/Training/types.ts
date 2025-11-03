@@ -183,8 +183,8 @@ export interface SyntheticGenerationJob {
   completed_at?: string;
   config: SyntheticDataRequest;
   progress_percent?: number;
-  current_samples?: number;
-  total_samples: number;
+  current?: number;
+  total: number;
   estimated_completion?: string;
   error_message?: string;
   dataset_id?: string;

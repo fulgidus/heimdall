@@ -20,6 +20,7 @@ class SyntheticDataGenerationRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100, description="Dataset name")
     description: Optional[str] = Field(default=None, description="Dataset description")
     num_samples: int = Field(..., ge=1000, le=5000000, description="Number of samples to generate")
+    expand_dataset_id: Optional[UUID] = Field(default=None, description="If provided, adds samples to existing dataset instead of creating new one")
     inside_ratio: float = Field(
         default=0.7, ge=0.0, le=1.0, description="Ratio of TX inside receiver network"
     )

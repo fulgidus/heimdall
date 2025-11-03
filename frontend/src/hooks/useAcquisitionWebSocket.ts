@@ -46,7 +46,7 @@ export const useAcquisitionWebSocket = () => {
       unsubscribeComplete();
       unsubscribeError();
     };
-  }, [isConnected, subscribe, store]);
+  }, [isConnected, subscribe]); // store is stable in Zustand, no need to include in deps
 
   return {
     isConnected,

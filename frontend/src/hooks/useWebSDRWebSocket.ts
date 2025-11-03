@@ -79,7 +79,7 @@ export const useWebSDRWebSocket = () => {
             unsubscribeHealth();
             hasRequestedData.current = false;
         };
-    }, [isConnected, manager, subscribe, store]);
+    }, [isConnected, manager, subscribe]); // store is stable in Zustand, no need to include in deps
 
     return {
         isConnected,
