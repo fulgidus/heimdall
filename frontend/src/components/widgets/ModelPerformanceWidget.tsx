@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { inferenceService } from '@/services/api';
+import React from 'react';
+import { useDashboardStore } from '@/store';
 import type { ModelInfo } from '@/services/api/types';
 
 interface ModelPerformanceWidgetProps {
@@ -7,35 +7,12 @@ interface ModelPerformanceWidgetProps {
 }
 
 export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () => {
-  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchModelInfo = async () => {
-      try {
-        const info = await inferenceService.getModelInfo();
-        if (isMounted) {
-          setModelInfo(info);
-        }
-      } catch (error) {
-        console.error('Failed to fetch model info:', error);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchModelInfo();
-    const interval = setInterval(fetchModelInfo, 30000); // Refresh every 30s
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
+  const { data } = useDashboardStore();
+  
+  // Extract model info from inference service health data (WebSocket-driven)
+  const inferenceHealth = data.servicesHealth?.inference;
+  const modelInfo = inferenceHealth?.model_info as ModelInfo | null;
+  const isLoading = !inferenceHealth;
 
   if (isLoading) {
     return (

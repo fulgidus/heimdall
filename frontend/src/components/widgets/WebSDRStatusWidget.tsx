@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useDashboardStore } from '@/store';
 import { useWebSDRStore } from '@/store';
 
 interface WebSDRStatusWidgetProps {
@@ -6,20 +7,15 @@ interface WebSDRStatusWidgetProps {
 }
 
 export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = () => {
-  const { websdrs, healthStatus, fetchWebSDRs, checkHealth, isLoading } = useWebSDRStore();
+  const { websdrs, fetchWebSDRs, isLoading } = useWebSDRStore();
+  const { data } = useDashboardStore();
+  const healthStatus = data.websdrsHealth || {};
 
   useEffect(() => {
-    // Initial fetch
+    // Initial fetch of WebSDR configurations (once)
     fetchWebSDRs();
-    checkHealth();
-
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-      checkHealth();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [fetchWebSDRs, checkHealth]);
+    // Health status updates come via WebSocket (no polling needed)
+  }, [fetchWebSDRs]);
 
   // Defensive: ensure websdrs is an array
   const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];

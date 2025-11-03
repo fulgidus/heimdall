@@ -53,13 +53,36 @@ async def check_microservice_health(service_name: str, base_url: str, timeout: i
                 
                 if resp.status == 200:
                     data = await resp.json()
-                    return {
+                    result = {
                         "service": service_name,
                         "status": "healthy",
                         "response_time_ms": round(response_time_ms, 2),
                         "version": data.get("version", "unknown"),
                         "last_check": end_time.isoformat(),
                     }
+                    
+                    # For inference service, fetch additional model info
+                    if service_name == "inference":
+                        try:
+                            model_info_url = f"{base_url}/api/v1/analytics/model/info"
+                            async with session.get(model_info_url, timeout=timeout_obj) as model_resp:
+                                if model_resp.status == 200:
+                                    model_data = await model_resp.json()
+                                    result["model_info"] = {
+                                        "active_version": model_data.get("active_version"),
+                                        "health_status": model_data.get("health_status"),
+                                        "accuracy": model_data.get("accuracy"),
+                                        "predictions_total": model_data.get("predictions_total"),
+                                        "predictions_successful": model_data.get("predictions_successful"),
+                                        "latency_p95_ms": model_data.get("latency_p95_ms"),
+                                        "cache_hit_rate": model_data.get("cache_hit_rate"),
+                                        "uptime_seconds": model_data.get("uptime_seconds"),
+                                    }
+                        except Exception as model_error:
+                            logger.debug(f"Could not fetch model info for inference service: {model_error}")
+                            # Non-critical, continue without model info
+                    
+                    return result
                 else:
                     return {
                         "service": service_name,
@@ -320,6 +343,7 @@ def monitor_comprehensive_health(self):
                     last_check=health_data.get("last_check"),
                     message=health_data.get("message"),
                     type=health_data.get("type"),
+                    model_info=health_data.get("model_info"),  # For inference service
                 )
             
             logger.debug(f"Published health updates to RabbitMQ for {len(health_results)} components")
