@@ -112,7 +112,17 @@ async def check_postgresql_health() -> dict:
     """Check PostgreSQL/TimescaleDB health."""
     try:
         from ..db import get_pool
-        pool = get_pool()
+        try:
+            pool = get_pool()
+        except RuntimeError as re:
+            return {
+                "service": "postgresql",
+                "status": "unhealthy",
+                "message": "Database pool not initialized",
+                "type": "database",
+                "error": str(re),
+                "last_check": datetime.utcnow().isoformat(),
+            }
         async with pool.acquire() as conn:
             result = await conn.fetchval("SELECT 1")
             if result == 1:
@@ -295,7 +305,7 @@ def monitor_comprehensive_health(self):
             ]
             
             # Synchronous checks (wrap in executor)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             infra_tasks.extend([
                 loop.run_in_executor(None, check_redis_health),
                 loop.run_in_executor(None, check_rabbitmq_health),
@@ -320,8 +330,7 @@ def monitor_comprehensive_health(self):
             all_results = await asyncio.gather(*infra_tasks, *microservice_tasks)
             return all_results
         
-        loop = asyncio.get_event_loop()
-        all_results = loop.run_until_complete(run_all_checks())
+        all_results = asyncio.run(run_all_checks())
         
         for result in all_results:
             health_results[result["service"]] = result
