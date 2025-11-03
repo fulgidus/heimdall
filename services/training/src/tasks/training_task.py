@@ -771,10 +771,9 @@ def generate_synthetic_data_task(self, job_id: str):
         if use_random:
             # Generate random receivers
             minio_client = MinIOClient(
-                endpoint=backend_settings.MINIO_ENDPOINT,
-                access_key=backend_settings.MINIO_ACCESS_KEY,
-                secret_key=backend_settings.MINIO_SECRET_KEY,
-                secure=backend_settings.MINIO_SECURE
+                endpoint_url=backend_settings.minio_url,
+                access_key=backend_settings.minio_access_key,
+                secret_key=backend_settings.minio_secret_key
             )
 
             terrain = TerrainLookup(use_srtm=True, minio_client=minio_client)

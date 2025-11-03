@@ -13,7 +13,7 @@ import api from '@/lib/api';
 // TYPES
 // ============================================================================
 
-export interface TrainingJob {
+export interface BaseJob {
     id: string;
     job_name: string;
     status: 'pending' | 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -21,17 +21,28 @@ export interface TrainingJob {
     started_at?: string;
     completed_at?: string;
     config: Record<string, any>;
-    current_epoch: number;
-    total_epochs: number;
     progress_percent: number;
-    train_loss?: number;
-    val_loss?: number;
     error_message?: string;
-    model_architecture?: string;
-    current?: number;  // For synthetic data generation: current samples
-    total?: number;    // For synthetic data generation: total samples
     message?: string;  // Progress message from task
 }
+
+export interface TrainingJob extends BaseJob {
+    job_type: 'training';
+    current_epoch: number;
+    total_epochs: number;
+    train_loss?: number;
+    val_loss?: number;
+    model_architecture?: string;
+}
+
+export interface SyntheticGenerationJobAPI extends BaseJob {
+    job_type: 'synthetic_generation';
+    current?: number;  // Current samples generated
+    total?: number;    // Total samples requested
+    dataset_id?: string;
+}
+
+export type AnyTrainingJob = TrainingJob | SyntheticGenerationJobAPI;
 
 export interface SyntheticDataset {
     id: string;
@@ -86,7 +97,7 @@ export interface SyntheticDataRequest {
 // TRAINING JOBS API
 // ============================================================================
 
-export async function createTrainingJob(config: Record<string, any>): Promise<TrainingJob> {
+export async function createTrainingJob(config: Record<string, any>): Promise<AnyTrainingJob> {
     const response = await api.post('/v1/training/jobs', config);
     return response.data;
 }
@@ -95,7 +106,7 @@ export async function listTrainingJobs(
     status?: string,
     limit: number = 50,
     offset: number = 0
-): Promise<{ jobs: TrainingJob[]; total: number }> {
+): Promise<{ jobs: AnyTrainingJob[]; total: number }> {
     const params: Record<string, string> = {
         limit: limit.toString(),
         offset: offset.toString(),
@@ -109,7 +120,7 @@ export async function listTrainingJobs(
     return response.data;
 }
 
-export async function getTrainingJob(jobId: string): Promise<TrainingJob> {
+export async function getTrainingJob(jobId: string): Promise<AnyTrainingJob> {
     const response = await api.get(`/v1/training/jobs/${jobId}`);
     return response.data;
 }
