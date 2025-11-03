@@ -271,6 +271,13 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "celery", "-A", "src.main:celery_app", "inspect", "ping", "-d", "celery@heimdall-training"]
       interval: 30s
