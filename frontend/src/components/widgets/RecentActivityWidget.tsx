@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useSessionStore } from '@/store/sessionStore';
+import { useDashboardStore } from '@/store';
 import { Link } from 'react-router-dom';
 
 interface RecentActivityWidgetProps {
@@ -8,10 +9,11 @@ interface RecentActivityWidgetProps {
 
 export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
   const { sessions, isLoading, fetchSessions } = useSessionStore();
+  const { lastUpdate } = useDashboardStore();
 
   useEffect(() => {
     fetchSessions({ page: 1, per_page: 5 });
-  }, [fetchSessions]);
+  }, [fetchSessions, lastUpdate]); // Re-fetch when lastUpdate changes (WebSocket session events)
 
   const recentSessions = sessions.slice(0, 5);
 

@@ -84,6 +84,13 @@ const Dashboard: React.FC = () => {
       useDashboardStore.setState({ lastUpdate: new Date() });
     };
 
+    const handleSessionUpdate = (data: any) => {
+      if (!isMountedRef.current) return;
+      console.log('[Dashboard] Received session status update:', data);
+      // Trigger last update to notify components that data may have changed
+      useDashboardStore.setState({ lastUpdate: new Date() });
+    };
+
     // Subscribe to events and store unsubscribe functions
     const unsubscribeServiceHealth = subscribe('service:health', handleServiceHealth);
     const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
@@ -92,6 +99,7 @@ const Dashboard: React.FC = () => {
       'localizations:updated',
       handleLocalizationUpdate
     );
+    const unsubscribeSessionUpdate = subscribe('session:status_update', handleSessionUpdate);
 
     // Cleanup: unsubscribe from all events
     return () => {
@@ -100,6 +108,7 @@ const Dashboard: React.FC = () => {
       unsubscribeWebSDRUpdate();
       unsubscribeSignalDetected();
       unsubscribeLocalizationUpdate();
+      unsubscribeSessionUpdate();
     };
   }, [subscribe]);
 
