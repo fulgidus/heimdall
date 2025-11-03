@@ -109,6 +109,7 @@ class TrainingJobResponse(BaseModel):
 
     id: UUID
     job_name: str
+    job_type: str  # Job type: 'training', 'synthetic_generation', etc.
     status: TrainingStatus
     created_at: datetime
     started_at: Optional[datetime] = None
