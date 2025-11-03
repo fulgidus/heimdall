@@ -10,6 +10,7 @@ from .batch_feature_extraction import (
     backfill_all_features,
     batch_feature_extraction_task,
 )
+from .comprehensive_health_monitor import monitor_comprehensive_health
 from .services_health_monitor import monitor_services_health
 from .uptime_monitor import (
     calculate_uptime_percentage,
@@ -24,6 +25,7 @@ __all__ = [
     "monitor_websdrs_uptime",
     "calculate_uptime_percentage",
     "monitor_services_health",
+    "monitor_comprehensive_health",
     "batch_feature_extraction_task",
     "backfill_all_features",
 ]

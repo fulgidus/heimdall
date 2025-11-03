@@ -1,36 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { systemService } from '@/services/api';
-import type { ServiceHealth } from '@/services/api/types';
+import React from 'react';
+import { useDashboardStore } from '@/store';
 
 interface SystemHealthWidgetProps {
   widgetId: string;
 }
 
 export const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = () => {
-  const [services, setServices] = useState<Record<string, ServiceHealth>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const { data } = useDashboardStore();
+  const services = data.servicesHealth || {};
 
-  useEffect(() => {
-    const fetchHealth = async () => {
-      try {
-        const health = await systemService.checkAllServicesHealth();
-        setServices(health);
-      } catch (error) {
-        console.error('Failed to fetch services health:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchHealth();
-    const interval = setInterval(fetchHealth, 15000); // Refresh every 15s
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const servicesList = Object.entries(services || {});
+  const servicesList = Object.entries(services);
   const healthyCount = servicesList.filter(([_, s]) => s?.status === 'healthy').length;
   const totalCount = servicesList.length;
+  const isLoading = totalCount === 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {

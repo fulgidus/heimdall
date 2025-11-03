@@ -27,13 +27,28 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!isMountedRef.current) return;
 
-    const handleServicesHealth = (data: any) => {
+    const handleServiceHealth = (data: any) => {
       if (!isMountedRef.current) return;
-      console.log('[Dashboard] Received services health update:', data);
+      console.log('[Dashboard] Received service health update:', data);
+      
+      // Individual service health event - aggregate into servicesHealth map
+      const { service, status, ...rest } = data;
+      if (!service) {
+        console.warn('[Dashboard] Service health event missing service name', data);
+        return;
+      }
+      
       useDashboardStore.setState(state => ({
         data: {
           ...state.data,
-          servicesHealth: data,
+          servicesHealth: {
+            ...state.data.servicesHealth,
+            [service]: {
+              service,
+              status,
+              ...rest,
+            },
+          },
         },
         lastUpdate: new Date(),
       }));
@@ -69,22 +84,31 @@ const Dashboard: React.FC = () => {
       useDashboardStore.setState({ lastUpdate: new Date() });
     };
 
+    const handleSessionUpdate = (data: any) => {
+      if (!isMountedRef.current) return;
+      console.log('[Dashboard] Received session status update:', data);
+      // Trigger last update to notify components that data may have changed
+      useDashboardStore.setState({ lastUpdate: new Date() });
+    };
+
     // Subscribe to events and store unsubscribe functions
-    const unsubscribeServicesHealth = subscribe('services:health', handleServicesHealth);
+    const unsubscribeServiceHealth = subscribe('service:health', handleServiceHealth);
     const unsubscribeWebSDRUpdate = subscribe('websdrs_update', handleWebSDRUpdate);
     const unsubscribeSignalDetected = subscribe('signals:detected', handleSignalDetected);
     const unsubscribeLocalizationUpdate = subscribe(
       'localizations:updated',
       handleLocalizationUpdate
     );
+    const unsubscribeSessionUpdate = subscribe('session:status_update', handleSessionUpdate);
 
     // Cleanup: unsubscribe from all events
     return () => {
       isMountedRef.current = false;
-      unsubscribeServicesHealth();
+      unsubscribeServiceHealth();
       unsubscribeWebSDRUpdate();
       unsubscribeSignalDetected();
       unsubscribeLocalizationUpdate();
+      unsubscribeSessionUpdate();
     };
   }, [subscribe]);
 
