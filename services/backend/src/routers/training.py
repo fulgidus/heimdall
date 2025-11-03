@@ -14,7 +14,8 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi.responses import Response
 from sqlalchemy import text
 
 from ..models.training import (
@@ -27,6 +28,9 @@ from ..models.training import (
 )
 from ..models.synthetic_data import SyntheticDataGenerationRequest
 from ..storage.db_manager import get_db_manager
+from ..storage.minio_client import MinIOClient
+from ..export.heimdall_format import HeimdallExporter, HeimdallImporter, HeimdallBundle
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -1528,3 +1532,148 @@ async def delete_model(model_id: UUID):
     except Exception as e:
         logger.error(f"Error deleting model {model_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to delete model: {e!s}")
+
+
+@router.get("/models/{model_id}/export", response_class=Response)
+async def export_model_heimdall(
+    model_id: str,
+    include_config: bool = Query(True, description="Include training configuration"),
+    include_metrics: bool = Query(True, description="Include performance metrics"),
+    include_normalization: bool = Query(True, description="Include normalization stats"),
+    include_samples: bool = Query(True, description="Include sample predictions"),
+    num_samples: int = Query(5, description="Number of sample predictions to include", ge=0, le=100),
+    description: str = Query(None, description="Optional description for the bundle")
+):
+    """
+    Export a trained model as a .heimdall bundle file.
+    
+    The bundle includes:
+    - ONNX model (base64-encoded)
+    - Model architecture details
+    - Training configuration (optional)
+    - Performance metrics (optional)
+    - Normalization statistics (optional)
+    - Sample predictions for validation (optional)
+    
+    Args:
+        model_id: UUID of the model to export
+        include_config: Include training hyperparameters
+        include_metrics: Include accuracy and performance metrics
+        include_normalization: Include feature normalization parameters
+        include_samples: Include sample predictions for validation
+        num_samples: Number of sample predictions (0-100)
+        description: Optional description added to bundle metadata
+        
+    Returns:
+        Downloadable .heimdall JSON file
+    """
+    try:
+        db_manager = get_db_manager()
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-models"
+        )
+        exporter = HeimdallExporter(db_manager, minio_client.s3_client)
+        
+        logger.info(f"Exporting model {model_id} as .heimdall bundle")
+        
+        # Create bundle
+        bundle = exporter.export_model(
+            model_id=model_id,
+            include_config=include_config,
+            include_metrics=include_metrics,
+            include_normalization=include_normalization,
+            include_samples=include_samples,
+            num_samples=num_samples,
+            description=description
+        )
+        
+        # Serialize to JSON
+        bundle_json = bundle.model_dump_json(indent=2)
+        
+        # Get model name for filename
+        model_name = bundle.model.model_name.replace(" ", "_")
+        version = bundle.model.version
+        filename = f"{model_name}-v{version}.heimdall"
+        
+        logger.info(f"Successfully exported model {model_id} to {filename} ({len(bundle_json)} bytes)")
+        
+        # Return as downloadable file
+        return Response(
+            content=bundle_json,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Bundle-ID": bundle.bundle_metadata.bundle_id,
+                "X-Model-ID": model_id
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to export model: {e!s}")
+
+
+@router.post("/models/import", status_code=201)
+async def import_model_heimdall(
+    file: UploadFile = File(..., description=".heimdall bundle file to import")
+):
+    """
+    Import a trained model from a .heimdall bundle file.
+    
+    The bundle is validated, the ONNX model is uploaded to MinIO,
+    and the model is registered in the database.
+    
+    Args:
+        file: Uploaded .heimdall bundle file
+        
+    Returns:
+        Model ID and registration details
+    """
+    try:
+        # Validate file extension
+        if not file.filename.endswith(".heimdall"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file format. Expected .heimdall file"
+            )
+        
+        logger.info(f"Importing model from {file.filename}")
+        
+        # Read bundle contents
+        bundle_json = await file.read()
+        
+        # Parse bundle
+        bundle = HeimdallBundle.model_validate_json(bundle_json)
+        
+        # Import model
+        db_manager = get_db_manager()
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-models"
+        )
+        importer = HeimdallImporter(db_manager, minio_client.s3_client)
+        
+        result = importer.import_model(bundle)
+        model_id = result["model_id"]
+        
+        logger.info(f"Successfully imported model from {file.filename} as {model_id}")
+        
+        return {
+            "status": "success",
+            "model_id": str(model_id),
+            "filename": file.filename,
+            "message": f"Model imported successfully with ID {model_id}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing model from {file.filename}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}")

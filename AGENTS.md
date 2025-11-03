@@ -169,10 +169,10 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 ---
 
 ### ✅ Phase 5: Training Pipeline
-**Status**: COMPLETE (2025-10-22)  
-**Duration**: 3 days
+**Status**: COMPLETE (2025-11-03)  
+**Duration**: 4 days (extended for export/import)
 
-**Objective**: Implement PyTorch Lightning training pipeline for neural network localization model.
+**Objective**: Implement PyTorch Lightning training pipeline for neural network localization model with export/import capabilities.
 
 **Deliverables**:
 - LocalizationNet architecture (ResNet-18 backbone)
@@ -180,6 +180,8 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Feature extraction utilities (mel-spectrogram + MFCC)
 - PyTorch Lightning trainer with MLflow tracking
 - ONNX export functionality for production inference
+- Real-time event broadcasting (RabbitMQ pattern)
+- .heimdall bundle export/import system (REST API + CLI)
 
 **Checkpoints**:
 - ✅ Model forward pass works (output shapes verified)
@@ -188,13 +190,20 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - ✅ ONNX export successful and in MinIO bucket
 - ✅ Model registered in MLflow
 - ✅ 50+ test cases, >90% coverage
+- ✅ Real-time training events broadcast via WebSocket
+- ✅ Export/import REST API endpoints functional
+- ✅ CLI tool complete (list, export, import)
+- ✅ Round-trip integrity verified (MD5 hash matching)
 
 **Architecture Decision**:
 - CNN (ResNet-18) chosen over Transformer for faster inference
 - Gaussian NLL loss for uncertainty quantification
 - Mel-spectrogram features (128 bins) for input
+- RabbitMQ event bus for training progress updates
+- JSON bundles with base64-encoded ONNX for portability
 
-→ [Phase 5 Details](docs/agents/20251022_080000_phase5_document_index.md)
+→ [Phase 5 Training Events](docs/agents/20251103_phase5_training_events_integration_complete.md)  
+→ [Phase 5 Export/Import](docs/agents/20251103_phase5_heimdall_export_import_complete.md)
 
 ---
 
