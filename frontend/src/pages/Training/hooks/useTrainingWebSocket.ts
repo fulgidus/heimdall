@@ -17,6 +17,10 @@ export const useTrainingWebSocket = (jobId: string | null) => {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
   const store = useTrainingStore();
+  
+  // Extract store methods to stable refs to prevent reconnection loops
+  const storeRef = useRef(store);
+  storeRef.current = store;
 
   useEffect(() => {
     // Don't connect if no jobId
@@ -34,7 +38,7 @@ export const useTrainingWebSocket = (jobId: string | null) => {
 
         socket.onopen = () => {
           console.log('[useTrainingWebSocket] Connected to training job:', jobId);
-          store.setWsConnected(true);
+          storeRef.current.setWsConnected(true);
           reconnectAttempts.current = 0;
         };
 
@@ -44,8 +48,13 @@ export const useTrainingWebSocket = (jobId: string | null) => {
             console.log('[useTrainingWebSocket] Received message:', message);
 
             switch (message.event) {
+              case 'connected':
+                // Initial connection confirmation from server
+                console.log('[useTrainingWebSocket] Server confirmed connection');
+                break;
+
               case 'training_started':
-                store.handleJobUpdate({
+                storeRef.current.handleJobUpdate({
                   id: message.job_id,
                   status: 'running',
                   started_at: message.timestamp,
@@ -57,10 +66,10 @@ export const useTrainingWebSocket = (jobId: string | null) => {
                 // Could be job update or metric update
                 if ('epoch' in message.data) {
                   // It's a metric update
-                  store.handleMetricUpdate(message.data as TrainingMetric);
+                  storeRef.current.handleMetricUpdate(message.data as TrainingMetric);
                 } else {
                   // It's a job update
-                  store.handleJobUpdate({
+                  storeRef.current.handleJobUpdate({
                     id: message.job_id,
                     ...message.data as Partial<TrainingJob>,
                   });
@@ -68,7 +77,7 @@ export const useTrainingWebSocket = (jobId: string | null) => {
                 break;
 
               case 'training_completed':
-                store.handleJobUpdate({
+                storeRef.current.handleJobUpdate({
                   id: message.job_id,
                   status: 'completed',
                   completed_at: message.timestamp,
@@ -78,7 +87,7 @@ export const useTrainingWebSocket = (jobId: string | null) => {
                 break;
 
               case 'training_failed':
-                store.handleJobUpdate({
+                storeRef.current.handleJobUpdate({
                   id: message.job_id,
                   status: 'failed',
                   completed_at: message.timestamp,
@@ -101,7 +110,7 @@ export const useTrainingWebSocket = (jobId: string | null) => {
 
         socket.onclose = () => {
           console.log('[useTrainingWebSocket] Disconnected from training job:', jobId);
-          store.setWsConnected(false);
+          storeRef.current.setWsConnected(false);
           socketRef.current = null;
 
           // Attempt to reconnect with exponential backoff
@@ -136,9 +145,9 @@ export const useTrainingWebSocket = (jobId: string | null) => {
         socketRef.current = null;
       }
 
-      store.setWsConnected(false);
+      storeRef.current.setWsConnected(false);
     };
-  }, [jobId, store]);
+  }, [jobId]); // Only reconnect when jobId changes
 
   return {
     isConnected: store.wsConnected,
