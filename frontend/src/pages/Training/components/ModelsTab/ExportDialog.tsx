@@ -52,14 +52,11 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ model, isOpen, onClo
 
       return () => {
         document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM using safer approach
-        // Use setTimeout to let React finish rendering before removal
-        setTimeout(() => {
-          if (modalRoot && modalRoot.parentNode === document.body) {
-            document.body.removeChild(modalRoot);
-            isMountedRef.current = false;
-          }
-        }, 0);
+        // Clean up: remove the modal root from DOM
+        if (modalRoot && modalRoot.parentNode === document.body) {
+          document.body.removeChild(modalRoot);
+          isMountedRef.current = false;
+        }
       };
     }
   }, [isOpen]);

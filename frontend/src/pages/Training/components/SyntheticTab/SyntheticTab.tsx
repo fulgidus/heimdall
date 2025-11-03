@@ -4,7 +4,7 @@
  * Tab for managing synthetic dataset generation with real-time WebSocket updates
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { useWebSocket } from '../../../../contexts/WebSocketContext';
 import { DatasetCard } from './DatasetCard';
@@ -38,7 +38,8 @@ export const SyntheticTab: React.FC = () => {
       unsubscribeJob();
       unsubscribeDataset();
     };
-  }, [fetchDatasets, fetchGenerationJobs, subscribe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Zustand actions are stable, safe to omit from dependencies
 
   return (
     <>

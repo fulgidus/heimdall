@@ -205,9 +205,13 @@ def monitor_websdrs_uptime(self):
 
             return results
 
-        # Run async health check
-        loop = asyncio.get_event_loop()
-        health_results = loop.run_until_complete(direct_health_check())
+        # Run async health check (create new event loop for Celery worker thread)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            health_results = loop.run_until_complete(direct_health_check())
+        finally:
+            loop.close()
 
         logger.info(f"Health check results: {health_results}")
 

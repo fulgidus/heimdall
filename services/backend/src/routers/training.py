@@ -120,6 +120,7 @@ async def create_training_job(request: TrainingJobRequest):
         from .websocket import manager as ws_manager
         await ws_manager.broadcast({
             "event": "training_job_update",
+            "timestamp": datetime.utcnow().isoformat(),
             "data": {
                 "job_id": str(job_id),
                 "status": TrainingStatus.QUEUED.value,
@@ -413,6 +414,7 @@ async def cancel_training_job(job_id: UUID):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "job_id": str(job_id),
                     "status": "cancelled",
@@ -489,6 +491,7 @@ async def pause_training_job(job_id: UUID):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "job_id": str(job_id),
                     "status": "paused",
@@ -576,6 +579,7 @@ async def resume_training_job(job_id: UUID):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "job_id": str(job_id),
                     "status": "queued",
@@ -762,6 +766,7 @@ async def continue_synthetic_job(job_id: UUID):
         from .websocket import manager as ws_manager
         await ws_manager.broadcast({
             "event": "dataset_update",
+            "timestamp": datetime.utcnow().isoformat(),
             "data": {
                 "job_id": str(new_job_id),
                 "parent_job_id": str(job_id),
@@ -841,6 +846,7 @@ async def delete_training_job(job_id: UUID):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "job_id": str(job_id),
                     "action": "deleted",
@@ -978,6 +984,7 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
         from .websocket import manager as ws_manager
         await ws_manager.broadcast({
             "event": "dataset_update",
+            "timestamp": datetime.utcnow().isoformat(),
             "data": {
                 "job_id": str(job_id),
                 "status": "pending",
@@ -1475,6 +1482,7 @@ async def deploy_model(model_id: UUID, set_production: bool = False):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "model_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "model_id": str(model_id),
                     "action": "deployed",
@@ -1525,6 +1533,7 @@ async def delete_model(model_id: UUID):
             from .websocket import manager as ws_manager
             await ws_manager.broadcast({
                 "event": "model_update",
+                "timestamp": datetime.utcnow().isoformat(),
                 "data": {
                     "model_id": str(model_id),
                     "action": "deleted",

@@ -37,7 +37,8 @@ export const MetricsTab: React.FC = () => {
         return () => clearInterval(interval);
       }
     }
-  }, [selectedJobId, jobs, fetchMetrics]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJobId]); // Only re-run when job selection changes, not on every jobs update
 
   const selectedMetrics = selectedJobId ? metrics.get(selectedJobId) || [] : [];
   const selectedJob = jobs.find(j => j.id === selectedJobId);

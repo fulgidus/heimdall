@@ -43,19 +43,19 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
       document.body.style.overflow = 'hidden';
     }
 
-    if (!show && isMountedRef.current) {
-      // Restore body scroll
-      document.body.style.overflow = '';
-      // Use timeout to allow React to finish rendering before removing
-      const timeoutId = setTimeout(() => {
+    // Cleanup function runs on unmount or when show changes
+    return () => {
+      if (isMountedRef.current && modalRoot) {
+        // Restore body scroll
+        document.body.style.overflow = '';
+        
+        // Remove from DOM if present
         if (modalRoot.parentNode === document.body) {
           document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
         }
-      }, 0);
-      
-      return () => clearTimeout(timeoutId);
-    }
+        isMountedRef.current = false;
+      }
+    };
   }, [show]);
 
   const handleConfirm = async () => {

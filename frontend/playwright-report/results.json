@@ -82,7 +82,7 @@
           "column": 6,
           "specs": [
             {
-              "title": "WebSDRModal should open/close safely with WebSocket updates",
+              "title": "Training Export/Import dialogs should open/close safely",
               "ok": false,
               "tags": [],
               "tests": [
@@ -96,107 +96,145 @@
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 4,
+                      "status": "timedOut",
+                      "duration": 30960,
                       "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+                        "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m",
+                        "stack": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n    at /home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts:18:8",
+                        "location": {
+                          "file": "/home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts",
+                          "column": 8,
+                          "line": 18
+                        },
+                        "snippet": "  16 |\n  17 | test.describe('Modal Portal Stability - DOM Manipulation Safety', () => {\n> 18 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  19 |     await setupRequestLogging(page);\n  20 |     await login(page);\n  21 |     "
                       },
                       "errors": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:52.289Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-b8cf927d3daa7fa893fa",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 35,
-              "column": 3
-            },
-            {
-              "title": "SessionEditModal should open/close safely",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 1,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 9,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
+                          "location": {
+                            "file": "/home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts",
+                            "column": 8,
+                            "line": 18
+                          },
+                          "message": "\u001b[31mTest timeout of 30000ms exceeded while running \"beforeEach\" hook.\u001b[39m\n\n  16 |\n  17 | test.describe('Modal Portal Stability - DOM Manipulation Safety', () => {\n> 18 |   test.beforeEach(async ({ page }) => {\n     |        ^\n  19 |     await setupRequestLogging(page);\n  20 |     await login(page);\n  21 |     \n    at /home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts:18:8"
+                        },
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+                          "location": {
+                            "file": "/home/fulgidus/Documents/Projects/heimdall/frontend/e2e/helpers/test-utils.ts",
+                            "column": 16,
+                            "line": 111
+                          },
+                          "message": "Error: page.fill: Test timeout of 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"email\"]')\u001b[22m\n\n\n   at helpers/test-utils.ts:111\n\n  109 |\n  110 |     // Fill login form\n> 111 |     await page.fill('input[type=\"email\"]', email);\n      |                ^\n  112 |     await page.fill('input[type=\"password\"]', password);\n  113 |\n  114 |     // Setup listener for API Gateway auth endpoint BEFORE clicking submit\n    at login (/home/fulgidus/Documents/Projects/heimdall/frontend/e2e/helpers/test-utils.ts:111:16)\n    at /home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts:20:5"
                         }
                       ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:53.044Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-71926e7ee394fc10aae5",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 78,
-              "column": 3
-            },
-            {
-              "title": "Training Export/Import dialogs should open/close safely",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 2,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 8,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
+                      "stdout": [
                         {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
+                          "text": "🔐 Logging in as admin@heimdall.local\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/index.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/settings.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/index.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/types.ts\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/websdr.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/acquisition.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/inference.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/system.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/session.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/analytics.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/import-export.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/training.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/users.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/settings.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/types.ts\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/websdr.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/acquisition.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/inference.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📤 Request: GET http://localhost:3001/src/services/api/schemas.ts?t=1762205288542\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/system.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/session.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/users.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/analytics.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/import-export.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/training.ts?t=1762205345321\n"
+                        },
+                        {
+                          "text": "📥 Response: 200 http://localhost:3001/src/services/api/schemas.ts?t=1762205288542\n"
                         }
                       ],
-                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2025-11-03T21:04:53.817Z",
+                      "startTime": "2025-11-03T21:48:27.706Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "/home/fulgidus/Documents/Projects/heimdall/frontend/test-results/modal-portal-stability-Mod-91e56-gs-should-open-close-safely-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "/home/fulgidus/Documents/Projects/heimdall/frontend/test-results/modal-portal-stability-Mod-91e56-gs-should-open-close-safely-chromium/video.webm"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/home/fulgidus/Documents/Projects/heimdall/frontend/test-results/modal-portal-stability-Mod-91e56-gs-should-open-close-safely-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/home/fulgidus/Documents/Projects/heimdall/frontend/e2e/modal-portal-stability.spec.ts",
+                        "column": 8,
+                        "line": 18
+                      }
                     }
                   ],
                   "status": "unexpected"
@@ -206,174 +244,6 @@
               "file": "modal-portal-stability.spec.ts",
               "line": 106,
               "column": 3
-            },
-            {
-              "title": "WidgetPicker should open/close safely on Dashboard",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 3,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 3,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:54.706Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-c581b9a155bb44298544",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 156,
-              "column": 3
-            },
-            {
-              "title": "DeleteConfirmModal should open/close safely",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 4,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 4,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:55.486Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-e5bedd9e5aaf9a34e5c5",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 181,
-              "column": 3
-            },
-            {
-              "title": "Multiple modals in sequence should not cause DOM errors",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 5,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 4,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:56.391Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-6fd0890490e28d85cc48",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 207,
-              "column": 3
-            },
-            {
-              "title": "Rapid modal open/close should not cause race conditions",
-              "ok": false,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 30000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 6,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 4,
-                      "error": {
-                        "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                        "stack": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                      },
-                      "errors": [
-                        {
-                          "message": "Error: browserType.launch: Executable doesn't exist at /home/fulgidus/.cache/ms-playwright/chromium_headless_shell-1194/chrome-linux/headless_shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                        }
-                      ],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2025-11-03T21:04:57.163Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "unexpected"
-                }
-              ],
-              "id": "51bfd6fbb6a4038a286d-98e90236cf2c2ec40b2a",
-              "file": "modal-portal-stability.spec.ts",
-              "line": 249,
-              "column": 3
             }
           ]
         }
@@ -382,11 +252,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-11-03T21:04:50.220Z",
-    "duration": 7032.804,
+    "startTime": "2025-11-03T21:48:26.992Z",
+    "duration": 32021.967999999997,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 7,
+    "unexpected": 1,
     "flaky": 0
   }
 }

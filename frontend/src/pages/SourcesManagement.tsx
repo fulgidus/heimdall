@@ -10,22 +10,6 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN || '';
 // Constants
 const DEFAULT_ERROR_MARGIN_METERS = '50';
 
-// Add pulse animation for temporary marker
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.7;
-      transform: scale(1.1);
-    }
-  }
-`;
-document.head.appendChild(style);
-
 interface SourceFormData {
   name: string;
   description: string;
@@ -78,6 +62,40 @@ const SourcesManagement: React.FC = () => {
     message: string;
   } | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
+
+  // Add pulse animation CSS for temporary marker (once per mount)
+  useEffect(() => {
+    const styleId = 'pulse-animation-style';
+    
+    // Check if style already exists
+    if (document.getElementById(styleId)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.7;
+          transform: scale(1.1);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      // Cleanup: remove style element on unmount
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle && existingStyle.parentNode === document.head) {
+        document.head.removeChild(existingStyle);
+      }
+    };
+  }, []);
 
   // Initialize map
   useEffect(() => {

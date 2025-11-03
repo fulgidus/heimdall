@@ -4,7 +4,8 @@
  * Dialog for expanding an existing synthetic dataset with additional samples
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { SyntheticDataset } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 
@@ -23,6 +24,38 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
   const [numSamples, setNumSamples] = useState(10000);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(false);
+
+  // Initialize modal root once outside render
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
+
+  // Mount and unmount the modal root element
+  useEffect(() => {
+    if (isOpen) {
+      const modalRoot = modalRootRef.current;
+      if (!modalRoot) return;
+
+      // Only append if not already mounted
+      if (!isMountedRef.current) {
+        document.body.appendChild(modalRoot);
+        isMountedRef.current = true;
+      }
+      
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = '';
+        // Clean up: remove the modal root from DOM
+        if (modalRoot && modalRoot.parentNode === document.body) {
+          document.body.removeChild(modalRoot);
+          isMountedRef.current = false;
+        }
+      };
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,10 +87,22 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content">
+  return createPortal(
+    <>
+      {/* Bootstrap Modal Backdrop */}
+      <div 
+        className="modal-backdrop fade show"
+        onClick={handleClose}
+      ></div>
+
+      {/* Bootstrap Modal */}
+      <div 
+        className="modal fade show d-block" 
+        tabIndex={-1}
+        style={{ display: 'block' }}
+      >
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title">
               <i className="ph ph-plus-circle me-2"></i>
@@ -171,8 +216,10 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
               </button>
             </div>
           </form>
+          </div>
         </div>
       </div>
-    </div>
+    </>,
+    modalRootRef.current
   );
 };

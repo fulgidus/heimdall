@@ -22,7 +22,8 @@ export const JobsTab: React.FC = () => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchJobs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Zustand actions are stable, safe to omit from dependencies
 
   return (
     <div>

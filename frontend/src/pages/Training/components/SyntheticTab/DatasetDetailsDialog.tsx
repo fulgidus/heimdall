@@ -4,7 +4,8 @@
  * Modal for viewing synthetic dataset samples
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { SyntheticDataset, SyntheticSample } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 
@@ -23,6 +24,38 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
   const [samples, setSamples] = useState<SyntheticSample[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(false);
+
+  // Initialize modal root once outside render
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
+
+  // Mount and unmount the modal root element
+  useEffect(() => {
+    if (isOpen) {
+      const modalRoot = modalRootRef.current;
+      if (!modalRoot) return;
+
+      // Only append if not already mounted
+      if (!isMountedRef.current) {
+        document.body.appendChild(modalRoot);
+        isMountedRef.current = true;
+      }
+      
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = '';
+        // Clean up: remove the modal root from DOM
+        if (modalRoot && modalRoot.parentNode === document.body) {
+          document.body.removeChild(modalRoot);
+          isMountedRef.current = false;
+        }
+      };
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,7 +78,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
       {/* Bootstrap Modal Backdrop */}
       <div 
@@ -156,6 +189,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    modalRootRef.current
   );
 };

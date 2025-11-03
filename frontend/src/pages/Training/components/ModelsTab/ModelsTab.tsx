@@ -15,7 +15,8 @@ export const ModelsTab: React.FC = () => {
 
   useEffect(() => {
     fetchModels();
-  }, [fetchModels]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Zustand actions are stable, safe to omit from dependencies
 
   return (
     <div>
