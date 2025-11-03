@@ -218,7 +218,8 @@ const TrainingDashboard: React.FC = () => {
       unsubscribeDataset();
       unsubscribeModel();
     };
-  }, [subscribe]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // subscribe is stable via useCallback, safe to omit from deps
 
   // Handle data generation
   const handleGenerateData = async () => {

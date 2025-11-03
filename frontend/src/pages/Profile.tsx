@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store';
-import { getCurrentUserProfile, updateCurrentUserProfile, UserProfile } from '../services/api/users';
+import { getCurrentUserProfile, updateCurrentUserProfile, type UserProfile } from '../services/api/users';
 
 const Profile: React.FC = () => {
   const { user } = useAuthStore();
@@ -63,7 +63,7 @@ const Profile: React.FC = () => {
           email: userProfile.email || user?.email || '',
           phone: userProfile.phone || '',
           organization: userProfile.organization || '',
-          role: userProfile.roles?.[0] || user?.role || 'user',
+          role: (userProfile.roles?.[0] || user?.role || 'user') as 'admin' | 'user' | 'viewer',
           location: userProfile.location || '',
           bio: userProfile.bio || '',
         });

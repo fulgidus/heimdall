@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { terrainApi, TerrainTile, CoverageStatus } from '../services/api/terrain';
+import { terrainApi, type TerrainTile, type CoverageStatus } from '../services/api/terrain';
 
 interface TerrainState {
   // Data
@@ -64,16 +64,13 @@ export const useTerrainStore = create<TerrainState>((set, get) => ({
   downloadWebSDRRegion: async () => {
     set({ downloading: true, error: null });
     try {
-      const result = await terrainApi.downloadTiles();
+      await terrainApi.downloadTiles();
       
       // Refresh tiles and coverage after download
       await get().fetchTiles();
       await get().fetchCoverage();
       
       set({ downloading: false });
-      
-      // Return result for UI feedback
-      return result;
     } catch (error: any) {
       set({ 
         error: error.response?.data?.detail || 'Failed to download tiles',

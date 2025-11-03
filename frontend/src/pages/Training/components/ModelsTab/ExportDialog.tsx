@@ -4,7 +4,7 @@
  * Modal for configuring .heimdall model export options
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { TrainedModel, ExportOptions } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
@@ -19,7 +19,8 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ model, isOpen, onClo
   const { downloadModel } = useTrainingStore();
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [modalRoot] = useState(() => document.createElement('div'));
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(false);
 
   const [options, setOptions] = useState<ExportOptions>({
     include_config: true,
@@ -30,20 +31,38 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ model, isOpen, onClo
     description: '',
   });
 
+  // Initialize modal root once outside render
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
+
   // Mount and unmount the modal root element
   useEffect(() => {
     if (isOpen) {
-      document.body.appendChild(modalRoot);
+      const modalRoot = modalRootRef.current;
+      if (!modalRoot) return;
+
+      // Only append if not already mounted
+      if (!isMountedRef.current) {
+        document.body.appendChild(modalRoot);
+        isMountedRef.current = true;
+      }
+      
       document.body.style.overflow = 'hidden';
 
       return () => {
         document.body.style.overflow = '';
-        if (document.body.contains(modalRoot)) {
-          document.body.removeChild(modalRoot);
-        }
+        // Clean up: remove the modal root from DOM using safer approach
+        // Use setTimeout to let React finish rendering before removal
+        setTimeout(() => {
+          if (modalRoot && modalRoot.parentNode === document.body) {
+            document.body.removeChild(modalRoot);
+            isMountedRef.current = false;
+          }
+        }, 0);
       };
     }
-  }, [isOpen, modalRoot]);
+  }, [isOpen]);
 
   const handleCheckboxChange = (key: keyof ExportOptions) => {
     setOptions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -259,7 +278,7 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ model, isOpen, onClo
           </div>
         </div>
       </div>
-    </>,
-    modalRoot
+      </>,
+    modalRootRef.current
   );
 };

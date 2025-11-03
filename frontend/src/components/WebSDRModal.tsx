@@ -4,7 +4,7 @@
  * Bootstrap 5 modal for creating and editing WebSDR stations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { WebSDRConfig } from '@/services/api/types';
 
@@ -57,12 +57,26 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [modalRoot] = useState(() => document.createElement('div'));
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(false);
+
+  // Initialize modal root once outside render
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
 
   // Mount and unmount the modal root element
   useEffect(() => {
     if (show) {
-      document.body.appendChild(modalRoot);
+      const modalRoot = modalRootRef.current;
+      if (!modalRoot) return;
+
+      // Only append if not already mounted
+      if (!isMountedRef.current) {
+        document.body.appendChild(modalRoot);
+        isMountedRef.current = true;
+      }
+      
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
 
@@ -70,13 +84,16 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
         // Restore body scroll
         document.body.style.overflow = '';
         // Clean up: remove the modal root from DOM using safer approach
-        // Check if element is still in DOM before attempting removal
-        if (document.body.contains(modalRoot)) {
-          document.body.removeChild(modalRoot);
-        }
+        // Use setTimeout to let React finish rendering before removal
+        setTimeout(() => {
+          if (modalRoot && modalRoot.parentNode === document.body) {
+            document.body.removeChild(modalRoot);
+            isMountedRef.current = false;
+          }
+        }, 0);
       };
     }
-  }, [show, modalRoot]);
+  }, [show]);
 
   // Populate form when editing
   useEffect(() => {
@@ -659,8 +676,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
           </div>
         </div>
       </div>
-    </>,
-    modalRoot
+      </>,
+    modalRootRef.current
   );
 };
 

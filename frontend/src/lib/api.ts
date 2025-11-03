@@ -6,11 +6,16 @@ import { useAuthStore } from '../store';
 // Browser connects directly to http://localhost/api (port 80)
 export const getAPIBaseURL = () => {
     // If environment variable is set, use it
-    if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.startsWith('/')) {
+    if (import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
 
-    // Otherwise, construct URL to connect directly to API Gateway on port 80
+    // In development with Vite dev server, use relative path for proxy
+    if (import.meta.env.DEV) {
+        return '/api';
+    }
+
+    // In production, construct URL to connect directly to API Gateway on port 80
     const protocol = window.location.protocol; // http: or https:
     const host = window.location.hostname; // localhost, hostname, etc.
     return `${protocol}//${host}/api`;

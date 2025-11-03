@@ -23,14 +23,14 @@ import {
 export interface KnownSource {
   id: string;
   name: string;
-  description?: string;
-  frequency_hz?: number;
-  latitude?: number;
-  longitude?: number;
-  power_dbm?: number;
-  source_type?: string;
+  description?: string | null;
+  frequency_hz?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  power_dbm?: number | null;
+  source_type?: string | null;
   is_validated: boolean;
-  error_margin_meters: number | null;
+  error_margin_meters?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,7 +61,7 @@ export interface KnownSourceUpdate {
 
 export interface RecordingSession {
   id: string; // UUID as string
-  known_source_id: string | null; // UUID as string, null for unknown sources
+  known_source_id?: string | null; // UUID as string, null or undefined for unknown sources
   session_name: string;
   session_start: string; // ISO datetime
   session_end?: string | null; // ISO datetime, optional
@@ -75,11 +75,12 @@ export interface RecordingSession {
 }
 
 export interface RecordingSessionWithDetails extends RecordingSession {
-  source_name?: string;
-  source_frequency?: number;
-  source_latitude?: number;
-  source_longitude?: number;
+  source_name?: string | null;
+  source_frequency?: number | null;
+  source_latitude?: number | null;
+  source_longitude?: number | null;
   measurements_count?: number;
+  notes?: string | null;
 }
 
 export interface RecordingSessionCreate {

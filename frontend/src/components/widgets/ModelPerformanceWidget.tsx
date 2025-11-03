@@ -11,7 +11,8 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
   
   // Extract model info from inference service health data (WebSocket-driven)
   const inferenceHealth = data.servicesHealth?.inference;
-  const modelInfo = inferenceHealth?.model_info as ModelInfo | null;
+  // Model info is in the details field - safely cast after null check
+  const modelInfo = (inferenceHealth?.details?.model_info ?? null) as ModelInfo | null;
   const isLoading = !inferenceHealth;
 
   if (isLoading) {

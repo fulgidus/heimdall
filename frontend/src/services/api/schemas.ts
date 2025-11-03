@@ -15,14 +15,14 @@ export const WebSDRConfigSchema = z.object({
     id: z.string().uuid(),
     name: z.string(),
     url: z.string().url(),
-    location_description: z.string().nullable().optional(),
+    location_description: z.string().nullish(),
     country: z.string().optional(),
-    admin_email: z.string().email().nullable().optional(),
-    altitude_asl: z.number().nullable().optional(),
+    admin_email: z.string().email().nullish(),
+    altitude_asl: z.number().nullish(),
     latitude: z.number().min(-90).max(90),
     longitude: z.number().min(-180).max(180),
-    frequency_min_hz: z.number().nullable().optional(),
-    frequency_max_hz: z.number().nullable().optional(),
+    frequency_min_hz: z.number().nullish(),
+    frequency_max_hz: z.number().nullish(),
     is_active: z.boolean(),
     timeout_seconds: z.number().positive(),
     retry_count: z.number().nonnegative(),
@@ -35,29 +35,29 @@ export const WebSDRFetchInfoRequestSchema = z.object({
 });
 
 export const WebSDRFetchInfoResponseSchema = z.object({
-    receiver_name: z.string().nullable().optional(),
-    location: z.string().nullable().optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
-    altitude_asl: z.number().nullable().optional(),
-    admin_email: z.string().nullable().optional(),
-    frequency_min_hz: z.number().nullable().optional(),
-    frequency_max_hz: z.number().nullable().optional(),
+    receiver_name: z.string().nullish(),
+    location: z.string().nullish(),
+    latitude: z.number().min(-90).max(90).nullish(),
+    longitude: z.number().min(-180).max(180).nullish(),
+    altitude_asl: z.number().nullish(),
+    admin_email: z.string().nullish(),
+    frequency_min_hz: z.number().nullish(),
+    frequency_max_hz: z.number().nullish(),
     sdr_count: z.number().nonnegative(),
     profile_count: z.number().nonnegative(),
     success: z.boolean(),
-    error_message: z.string().nullable().optional(),
+    error_message: z.string().nullish(),
 });
 
 export const WebSDRHealthStatusSchema = z.object({
     websdr_id: z.string().uuid(),
     name: z.string(),
     status: z.enum(['online', 'offline', 'unknown']),
-    response_time_ms: z.number().nullable().optional(),
+    response_time_ms: z.number().nullish(),
     last_check: z.string(),
-    error_message: z.string().nullable().optional(),
-    uptime: z.number().nullable().optional(),
-    avg_snr: z.number().nullable().optional(),
+    error_message: z.string().nullish(),
+    uptime: z.number().nullish(),
+    avg_snr: z.number().nullish(),
 });
 
 // ============================================================================
@@ -85,7 +85,7 @@ export const AcquisitionStatusResponseSchema = z.object({
     progress: z.number().min(0).max(100),
     message: z.string(),
     measurements_collected: z.number().nonnegative(),
-    errors: z.array(z.string()).nullable().optional(),
+    errors: z.array(z.string()).nullish(),
     result: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -167,7 +167,7 @@ export const DependencyHealthSchema = z.object({
     name: z.string(),
     status: z.enum(['up', 'down', 'degraded', 'unknown']),
     response_time_ms: z.string(), // Backend returns as string formatted number
-    error_message: z.string().nullable().optional(),
+    error_message: z.string().nullish(),
 });
 
 // Component health status for detailed health check
@@ -208,27 +208,27 @@ export const SystemMetricsSchema = z.object({
 
 export const RecordingSessionSchema = z.object({
     id: z.string().uuid(), // Backend sends UUID as string, not number
-    known_source_id: z.string().uuid().nullable(), // null for unknown sources
+    known_source_id: z.string().uuid().nullish(), // null or undefined for unknown sources
     session_name: z.string(),
     session_start: z.string().datetime(),
-    session_end: z.string().datetime().nullable().optional(),
-    duration_seconds: z.number().positive().nullable().optional(), // Can be null/undefined
-    celery_task_id: z.string().nullable().optional(),
+    session_end: z.string().datetime().nullish(),
+    duration_seconds: z.number().positive().nullish(), // Can be null/undefined
+    celery_task_id: z.string().nullish(),
     status: z.enum(['pending', 'in_progress', 'processing', 'completed', 'failed']),
     approval_status: z.enum(['pending', 'approved', 'rejected']).optional(),
-    notes: z.string().nullable().optional(),
+    notes: z.string().nullish(),
     created_at: z.string().datetime(),
     updated_at: z.string().datetime(),
 });
 
 export const RecordingSessionWithDetailsSchema = RecordingSessionSchema.extend({
-    source_name: z.string().nullable().optional(), // null when source is unknown
-    source_frequency: z.number().nullable().optional(),
-    source_latitude: z.number().nullable().optional(),
-    source_longitude: z.number().nullable().optional(),
+    source_name: z.string().nullish(), // null when source is unknown
+    source_frequency: z.number().nullish(),
+    source_latitude: z.number().nullish(),
+    source_longitude: z.number().nullish(),
     measurements_count: z.number().optional(),
     approval_status: z.enum(['pending', 'approved', 'rejected']).optional(),
-    notes: z.string().optional(),
+    notes: z.string().nullish(),
 });
 
 export const SessionListResponseSchema = z.object({
@@ -241,14 +241,14 @@ export const SessionListResponseSchema = z.object({
 export const KnownSourceSchema = z.object({
     id: z.string().uuid(),
     name: z.string(),
-    description: z.string().nullable().optional(),
-    frequency_hz: z.number().nullable().optional(),
-    latitude: z.number().min(-90).max(90).nullable().optional(),
-    longitude: z.number().min(-180).max(180).nullable().optional(),
-    power_dbm: z.number().nullable().optional(),
-    source_type: z.string().nullable().optional(),
+    description: z.string().nullish(),
+    frequency_hz: z.number().nullish(),
+    latitude: z.number().min(-90).max(90).nullish(),
+    longitude: z.number().min(-180).max(180).nullish(),
+    power_dbm: z.number().nullish(),
+    source_type: z.string().nullish(),
     is_validated: z.boolean(),
-    error_margin_meters: z.number().nonnegative().nullable().optional(),
+    error_margin_meters: z.number().nonnegative().nullish(),
     created_at: z.string(),
     updated_at: z.string(),
 });

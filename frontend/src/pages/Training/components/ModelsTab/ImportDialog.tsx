@@ -19,22 +19,41 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [modalRoot] = useState(() => document.createElement('div'));
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  const isMountedRef = useRef(false);
+
+  // Initialize modal root once outside render
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
 
   // Mount and unmount the modal root element
   useEffect(() => {
     if (isOpen) {
-      document.body.appendChild(modalRoot);
+      const modalRoot = modalRootRef.current;
+      if (!modalRoot) return;
+
+      // Only append if not already mounted
+      if (!isMountedRef.current) {
+        document.body.appendChild(modalRoot);
+        isMountedRef.current = true;
+      }
+      
       document.body.style.overflow = 'hidden';
 
       return () => {
         document.body.style.overflow = '';
-        if (document.body.contains(modalRoot)) {
-          document.body.removeChild(modalRoot);
-        }
+        // Clean up: remove the modal root from DOM using safer approach
+        // Use setTimeout to let React finish rendering before removal
+        setTimeout(() => {
+          if (modalRoot && modalRoot.parentNode === document.body) {
+            document.body.removeChild(modalRoot);
+            isMountedRef.current = false;
+          }
+        }, 0);
       };
     }
-  }, [isOpen, modalRoot]);
+  }, [isOpen]);
 
   const handleFileSelect = (file: File) => {
     setError(null);
@@ -262,7 +281,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
           </div>
         </div>
       </div>
-    </>,
-    modalRoot
+      </>,
+    modalRootRef.current
   );
 };
