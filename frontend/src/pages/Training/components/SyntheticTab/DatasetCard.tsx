@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import type { SyntheticDataset } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { DatasetDetailsDialog } from './DatasetDetailsDialog';
+import { ExpandDatasetDialog } from './ExpandDatasetDialog';
 
 interface DatasetCardProps {
   dataset: SyntheticDataset;
@@ -17,6 +18,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
   const { deleteDataset } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [isExpandDialogOpen, setIsExpandDialogOpen] = useState(false);
 
   const formatNumber = (num: number | undefined) => {
     if (num === undefined) return 'N/A';
@@ -131,6 +133,13 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
               View Samples
             </button>
             <button
+              onClick={() => setIsExpandDialogOpen(true)}
+              className="btn btn-primary d-flex align-items-center justify-content-center gap-2"
+            >
+              <i className="ph ph-plus-circle"></i>
+              Expand Dataset
+            </button>
+            <button
               onClick={handleDelete}
               disabled={isLoading}
               className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2"
@@ -147,6 +156,13 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
         dataset={dataset}
         isOpen={isDetailsDialogOpen}
         onClose={() => setIsDetailsDialogOpen(false)}
+      />
+
+      {/* Expand Dataset Dialog */}
+      <ExpandDatasetDialog
+        dataset={dataset}
+        isOpen={isExpandDialogOpen}
+        onClose={() => setIsExpandDialogOpen(false)}
       />
     </>
   );

@@ -164,3 +164,33 @@ export interface SyntheticSamplesResponse {
   offset: number;
   dataset_id: string;
 }
+
+export type SyntheticJobStatus = 
+  | 'pending'
+  | 'running'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface SyntheticGenerationJob {
+  id: string;
+  name: string;
+  job_type: 'synthetic_generation';
+  status: SyntheticJobStatus;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  config: SyntheticDataRequest;
+  progress_percent?: number;
+  current_samples?: number;
+  total_samples: number;
+  estimated_completion?: string;
+  error_message?: string;
+  dataset_id?: string;
+}
+
+export interface ExpandDatasetRequest {
+  dataset_id: string;
+  num_additional_samples: number;
+}

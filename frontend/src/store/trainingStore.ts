@@ -16,6 +16,8 @@ import type {
   SyntheticDataset,
   SyntheticDataRequest,
   SyntheticSamplesResponse,
+  SyntheticGenerationJob,
+  ExpandDatasetRequest,
 } from '../pages/Training/types';
 
 interface TrainingStore {
@@ -24,6 +26,7 @@ interface TrainingStore {
   metrics: Map<string, TrainingMetric[]>;
   models: TrainedModel[];
   datasets: SyntheticDataset[];
+  generationJobs: SyntheticGenerationJob[];
   wsConnected: boolean;
   isLoading: boolean;
   error: string | null;
@@ -46,10 +49,18 @@ interface TrainingStore {
   deleteModel: (modelId: string) => Promise<void>;
 
   // Actions - Synthetic Datasets
-  fetchDatasets: () => Promise<void>;
+  fetchDatasets: (silent?: boolean) => Promise<void>;
   generateSyntheticData: (request: SyntheticDataRequest) => Promise<string>;
   deleteDataset: (datasetId: string) => Promise<void>;
   fetchDatasetSamples: (datasetId: string, limit?: number) => Promise<SyntheticSamplesResponse>;
+  expandDataset: (request: ExpandDatasetRequest) => Promise<string>;
+
+  // Actions - Synthetic Generation Jobs
+  fetchGenerationJobs: (silent?: boolean) => Promise<void>;
+  pauseGenerationJob: (jobId: string) => Promise<void>;
+  resumeGenerationJob: (jobId: string) => Promise<void>;
+  cancelGenerationJob: (jobId: string) => Promise<void>;
+  deleteGenerationJob: (jobId: string) => Promise<void>;
 
   // WebSocket handlers
   handleJobUpdate: (job: Partial<TrainingJob> & { id: string }) => void;
@@ -66,6 +77,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   metrics: new Map(),
   models: [],
   datasets: [],
+  generationJobs: [],
   wsConnected: false,
   isLoading: false,
   error: null,
@@ -339,8 +351,10 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   },
 
   // Fetch all synthetic datasets
-  fetchDatasets: async () => {
-    set({ isLoading: true, error: null });
+  fetchDatasets: async (silent = false) => {
+    if (!silent) {
+      set({ isLoading: true, error: null });
+    }
     try {
       const response = await api.get('/v1/training/synthetic/datasets');
       set({ datasets: response.data.datasets || response.data, isLoading: false });
@@ -400,6 +414,143 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch dataset samples';
       set({ error: errorMessage });
       console.error('Dataset samples fetch error:', error);
+      throw error;
+    }
+  },
+
+  // Expand an existing dataset with more samples
+  expandDataset: async (request: ExpandDatasetRequest) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Get the original dataset to copy its config
+      const dataset = get().datasets.find(d => d.id === request.dataset_id);
+      if (!dataset) {
+        throw new Error('Dataset not found');
+      }
+
+      // Create a new generation request based on existing config
+      const generationRequest: SyntheticDataRequest = {
+        ...dataset.config,
+        name: `${dataset.name} (Expansion)`,
+        description: `Additional ${request.num_additional_samples} samples for ${dataset.name}`,
+        num_samples: request.num_additional_samples,
+      };
+
+      // Use the same endpoint, but it will add to the existing dataset
+      const response = await api.post('/v1/training/synthetic/generate', {
+        ...generationRequest,
+        expand_dataset_id: request.dataset_id, // Signal this is an expansion
+      });
+      
+      set({ isLoading: false });
+      
+      // Refresh generation jobs list
+      await get().fetchGenerationJobs();
+      
+      return response.data.job_id;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to expand dataset';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Dataset expansion error:', error);
+      throw error;
+    }
+  },
+
+  // Fetch all synthetic generation jobs
+  fetchGenerationJobs: async (silent = false) => {
+    if (!silent) {
+      set({ isLoading: true, error: null });
+    }
+    try {
+      const response = await api.get('/v1/training/jobs', {
+        params: { job_type: 'synthetic_generation' },
+      });
+      const jobs = response.data.jobs || response.data;
+      set({ 
+        generationJobs: jobs.filter((j: any) => j.job_type === 'synthetic_generation'),
+        isLoading: false 
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch generation jobs';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Generation jobs fetch error:', error);
+    }
+  },
+
+  // Pause a running generation job
+  pauseGenerationJob: async (jobId: string) => {
+    set({ error: null });
+    try {
+      await api.post(`/v1/training/pause/${jobId}`);
+      
+      // Update job status locally
+      set(state => ({
+        generationJobs: state.generationJobs.map(job =>
+          job.id === jobId ? { ...job, status: 'paused' as const } : job
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to pause generation job';
+      set({ error: errorMessage });
+      console.error('Generation job pause error:', error);
+      throw error;
+    }
+  },
+
+  // Resume a paused generation job
+  resumeGenerationJob: async (jobId: string) => {
+    set({ error: null });
+    try {
+      await api.post(`/v1/training/resume/${jobId}`);
+      
+      // Update job status locally
+      set(state => ({
+        generationJobs: state.generationJobs.map(job =>
+          job.id === jobId ? { ...job, status: 'running' as const } : job
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resume generation job';
+      set({ error: errorMessage });
+      console.error('Generation job resume error:', error);
+      throw error;
+    }
+  },
+
+  // Cancel a running or paused generation job
+  cancelGenerationJob: async (jobId: string) => {
+    set({ error: null });
+    try {
+      await api.delete(`/v1/training/jobs/${jobId}`);
+      
+      // Update job status locally
+      set(state => ({
+        generationJobs: state.generationJobs.map(job =>
+          job.id === jobId ? { ...job, status: 'cancelled' as const } : job
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to cancel generation job';
+      set({ error: errorMessage });
+      console.error('Generation job cancellation error:', error);
+      throw error;
+    }
+  },
+
+  // Delete a completed/failed/cancelled generation job
+  deleteGenerationJob: async (jobId: string) => {
+    set({ error: null });
+    try {
+      await api.delete(`/v1/training/jobs/${jobId}`);
+      
+      // Remove job from list
+      set(state => ({
+        generationJobs: state.generationJobs.filter(job => job.id !== jobId),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete generation job';
+      set({ error: errorMessage });
+      console.error('Generation job deletion error:', error);
       throw error;
     }
   },
