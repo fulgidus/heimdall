@@ -43,9 +43,11 @@ export default function ImportExport() {
     include_sources: true,
     include_websdrs: true,
     include_sessions: true,
-    include_training_model: true,
-    include_inference_model: true,
   });
+
+  // State for selected sample sets and models
+  const [selectedSampleSets, setSelectedSampleSets] = useState<Set<string>>(new Set());
+  const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
 
   // State for import
   const [importLoading, setImportLoading] = useState(false);
@@ -59,8 +61,8 @@ export default function ImportExport() {
     import_sources: true,
     import_websdrs: true,
     import_sessions: true,
-    import_training_model: true,
-    import_inference_model: true,
+    import_sample_sets: true,
+    import_models: true,
     overwrite_existing: false,
   });
 
@@ -113,8 +115,8 @@ export default function ImportExport() {
         include_sources: exportForm.include_sources,
         include_websdrs: exportForm.include_websdrs,
         include_sessions: exportForm.include_sessions,
-        include_training_model: exportForm.include_training_model,
-        include_inference_model: exportForm.include_inference_model,
+        sample_set_ids: selectedSampleSets.size > 0 ? Array.from(selectedSampleSets) : null,
+        model_ids: selectedModels.size > 0 ? Array.from(selectedModels) : null,
       };
 
       const response = await exportData(request);
@@ -161,8 +163,8 @@ export default function ImportExport() {
         import_sources: importForm.import_sources,
         import_websdrs: importForm.import_websdrs,
         import_sessions: importForm.import_sessions,
-        import_training_model: importForm.import_training_model,
-        import_inference_model: importForm.import_inference_model,
+        import_sample_sets: importForm.import_sample_sets,
+        import_models: importForm.import_models,
         overwrite_existing: importForm.overwrite_existing,
       };
 
@@ -209,26 +211,36 @@ export default function ImportExport() {
                   ) : metadata ? (
                     <div className="mt-2">
                       <div className="row">
-                        <div className="col-md-3">
+                        <div className="col-md-2">
                           <small className="d-block text-muted">Sources</small>
                           <strong>{metadata.sources_count}</strong>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-md-2">
                           <small className="d-block text-muted">WebSDRs</small>
                           <strong>{metadata.websdrs_count}</strong>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-md-2">
                           <small className="d-block text-muted">Sessions</small>
                           <strong>{metadata.sessions_count}</strong>
                         </div>
-                        <div className="col-md-3">
-                          <small className="d-block text-muted">Estimated Size</small>
+                        <div className="col-md-2">
+                          <small className="d-block text-muted">Sample Sets</small>
+                          <strong>{metadata.sample_sets.length}</strong>
+                        </div>
+                        <div className="col-md-2">
+                          <small className="d-block text-muted">Models</small>
+                          <strong>{metadata.models.length}</strong>
+                        </div>
+                        <div className="col-md-2">
+                          <small className="d-block text-muted">Est. Size</small>
                           <strong>
                             {formatBytes(
                               metadata.estimated_sizes.sources +
                                 metadata.estimated_sizes.websdrs +
                                 metadata.estimated_sizes.sessions +
-                                metadata.estimated_sizes.settings
+                                metadata.estimated_sizes.settings +
+                                metadata.estimated_sizes.sample_sets +
+                                metadata.estimated_sizes.models
                             )}
                           </strong>
                         </div>
@@ -349,6 +361,99 @@ export default function ImportExport() {
                         Recording Sessions ({metadata?.sessions_count || 0})
                       </label>
                     </div>
+
+                    {/* Sample Sets Selection */}
+                    {metadata && metadata.sample_sets && metadata.sample_sets.length > 0 && (
+                      <div className="mt-3">
+                        <label className="form-label d-block">
+                          <strong>Sample Sets ({metadata.sample_sets.length})</strong>
+                        </label>
+                        <div
+                          style={{
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            border: '1px solid #dee2e6',
+                            borderRadius: '4px',
+                            padding: '8px',
+                          }}
+                        >
+                          {metadata.sample_sets.map(sampleSet => (
+                            <div key={sampleSet.id} className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id={`sample-set-${sampleSet.id}`}
+                                checked={selectedSampleSets.has(sampleSet.id)}
+                                onChange={e => {
+                                  const newSet = new Set(selectedSampleSets);
+                                  if (e.target.checked) {
+                                    newSet.add(sampleSet.id);
+                                  } else {
+                                    newSet.delete(sampleSet.id);
+                                  }
+                                  setSelectedSampleSets(newSet);
+                                }}
+                              />
+                              <label
+                                className="form-check-label"
+                                htmlFor={`sample-set-${sampleSet.id}`}
+                              >
+                                {sampleSet.name} ({sampleSet.num_samples} samples)
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <small className="form-text text-muted">
+                          {selectedSampleSets.size} of {metadata.sample_sets.length} selected
+                        </small>
+                      </div>
+                    )}
+
+                    {/* Models Selection */}
+                    {metadata && metadata.models && metadata.models.length > 0 && (
+                      <div className="mt-3">
+                        <label className="form-label d-block">
+                          <strong>Models ({metadata.models.length})</strong>
+                        </label>
+                        <div
+                          style={{
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            border: '1px solid #dee2e6',
+                            borderRadius: '4px',
+                            padding: '8px',
+                          }}
+                        >
+                          {metadata.models.map(model => (
+                            <div key={model.id} className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id={`model-${model.id}`}
+                                checked={selectedModels.has(model.id)}
+                                onChange={e => {
+                                  const newSet = new Set(selectedModels);
+                                  if (e.target.checked) {
+                                    newSet.add(model.id);
+                                  } else {
+                                    newSet.delete(model.id);
+                                  }
+                                  setSelectedModels(newSet);
+                                }}
+                                disabled={!model.has_onnx}
+                              />
+                              <label className="form-check-label" htmlFor={`model-${model.id}`}>
+                                {model.model_name} v{model.version}
+                                {!model.has_onnx && ' (No ONNX)'}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <small className="form-text text-muted">
+                          {selectedModels.size} of {metadata.models.length} selected
+                        </small>
+                      </div>
+                    )}
                   </div>
 
                   {exportError && (
@@ -485,6 +590,38 @@ export default function ImportExport() {
                             </label>
                           </div>
                         )}
+                        {importFile.sections.sample_sets && (
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="import-sample-sets"
+                              checked={importForm.import_sample_sets}
+                              onChange={e =>
+                                setImportForm({ ...importForm, import_sample_sets: e.target.checked })
+                              }
+                            />
+                            <label className="form-check-label" htmlFor="import-sample-sets">
+                              Sample Sets ({importFile.sections.sample_sets.length})
+                            </label>
+                          </div>
+                        )}
+                        {importFile.sections.models && (
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="import-models"
+                              checked={importForm.import_models}
+                              onChange={e =>
+                                setImportForm({ ...importForm, import_models: e.target.checked })
+                              }
+                            />
+                            <label className="form-check-label" htmlFor="import-models">
+                              Models ({importFile.sections.models.length})
+                            </label>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mb-3">
@@ -531,6 +668,12 @@ export default function ImportExport() {
                         </small>
                         <small className="d-block">
                           Sessions: {importSuccess.imported_counts.sessions || 0}
+                        </small>
+                        <small className="d-block">
+                          Sample Sets: {importSuccess.imported_counts.sample_sets || 0}
+                        </small>
+                        <small className="d-block">
+                          Models: {importSuccess.imported_counts.models || 0}
                         </small>
                       </div>
                       {importSuccess.errors.length > 0 && (

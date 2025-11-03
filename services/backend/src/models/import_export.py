@@ -22,8 +22,8 @@ class SectionSizes(BaseModel):
     sources: int = 0
     websdrs: int = 0
     sessions: int = 0
-    training_model: int = 0
-    inference_model: int = 0
+    sample_sets: int = 0
+    models: int = 0
 
 
 class ExportMetadata(BaseModel):
@@ -93,13 +93,17 @@ class ExportedSession(BaseModel):
 class ExportedModel(BaseModel):
     """ML model metadata for export."""
 
-    model_type: str  # "training" or "inference"
+    id: str
     model_name: str
-    version: str
+    version: int
+    model_type: str
     created_at: str
-    file_path: str | None = None
-    metrics: dict | None = None
-    # Note: Actual model file encoding not implemented yet
+    # ONNX model binary encoded as base64
+    onnx_model_base64: str | None = None
+    # Model metrics and configuration
+    accuracy_meters: float | None = None
+    hyperparameters: dict | None = None
+    training_metrics: dict | None = None
 
 
 class UserSettings(BaseModel):
@@ -112,6 +116,20 @@ class UserSettings(BaseModel):
     # Add more settings as needed
 
 
+class ExportedSampleSet(BaseModel):
+    """Synthetic dataset (sample set) for export."""
+
+    id: str
+    name: str
+    description: str | None = None
+    num_samples: int
+    config: dict | None = None
+    quality_metrics: dict | None = None
+    created_at: str
+    # Sample data is stored separately due to size
+    samples: list[dict] | None = None
+
+
 class ExportSections(BaseModel):
     """All exportable data sections."""
 
@@ -119,8 +137,8 @@ class ExportSections(BaseModel):
     sources: list[ExportedSource] | None = None
     websdrs: list[ExportedWebSDR] | None = None
     sessions: list[ExportedSession] | None = None
-    training_model: ExportedModel | None = None
-    inference_model: ExportedModel | None = None
+    sample_sets: list[ExportedSampleSet] | None = None
+    models: list[ExportedModel] | None = None
 
 
 class HeimdallFile(BaseModel):
@@ -139,8 +157,10 @@ class ExportRequest(BaseModel):
     include_sources: bool = True
     include_websdrs: bool = True
     include_sessions: bool = False
-    include_training_model: bool = False
-    include_inference_model: bool = False
+    # Sample sets (synthetic datasets) - list of IDs or None for none
+    sample_set_ids: list[str] | None = None
+    # Models - list of IDs or None for none
+    model_ids: list[str] | None = None
 
 
 class ImportRequest(BaseModel):
@@ -151,8 +171,8 @@ class ImportRequest(BaseModel):
     import_sources: bool = True
     import_websdrs: bool = True
     import_sessions: bool = False
-    import_training_model: bool = False
-    import_inference_model: bool = False
+    import_sample_sets: bool = False
+    import_models: bool = False
     overwrite_existing: bool = False
 
 
@@ -172,12 +192,31 @@ class ImportResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class AvailableSampleSet(BaseModel):
+    """Available sample set for export."""
+
+    id: str
+    name: str
+    num_samples: int
+    created_at: str
+
+
+class AvailableModel(BaseModel):
+    """Available model for export."""
+
+    id: str
+    model_name: str
+    version: int
+    created_at: str
+    has_onnx: bool
+
+
 class MetadataResponse(BaseModel):
     """Response with available data for export."""
 
     sources_count: int = 0
     websdrs_count: int = 0
     sessions_count: int = 0
-    has_training_model: bool = False
-    has_inference_model: bool = False
+    sample_sets: list[AvailableSampleSet] = Field(default_factory=list)
+    models: list[AvailableModel] = Field(default_factory=list)
     estimated_sizes: SectionSizes = Field(default_factory=SectionSizes)

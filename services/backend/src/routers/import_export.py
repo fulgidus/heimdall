@@ -3,6 +3,7 @@
 Provides endpoints to export system state to .heimdall files and import them back.
 """
 
+import base64
 import json
 import logging
 
@@ -10,6 +11,8 @@ from fastapi import APIRouter, HTTPException
 
 from ..db import get_pool
 from ..models.import_export import (
+    ExportedModel,
+    ExportedSampleSet,
     ExportedSession,
     ExportedSource,
     ExportedWebSDR,
@@ -24,6 +27,8 @@ from ..models.import_export import (
     SectionSizes,
     UserSettings,
 )
+from ..storage.minio_client import MinIOClient
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +40,7 @@ async def get_export_metadata():
     """
     Get metadata about available data for export.
 
-    Returns counts of sources, WebSDRs, sessions, and models.
+    Returns counts and lists of sources, WebSDRs, sessions, sample sets, and models.
     """
     pool = get_pool()
 
@@ -49,25 +54,77 @@ async def get_export_metadata():
         # Count sessions
         sessions_count = await conn.fetchval("SELECT COUNT(*) FROM heimdall.recording_sessions")
 
+        # Get available sample sets
+        sample_sets_rows = await conn.fetch(
+            """
+            SELECT 
+                sd.id, 
+                sd.name, 
+                COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
+                sd.created_at
+            FROM heimdall.synthetic_datasets sd
+            LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
+            GROUP BY sd.id, sd.name, sd.created_at
+            ORDER BY sd.created_at DESC
+        """
+        )
+        
+        sample_sets = [
+            {
+                "id": str(row["id"]),
+                "name": row["name"],
+                "num_samples": row["num_samples"],
+                "created_at": row["created_at"].isoformat(),
+            }
+            for row in sample_sets_rows
+        ]
+
+        # Get available models
+        models_rows = await conn.fetch(
+            """
+            SELECT 
+                id, 
+                model_name, 
+                COALESCE(version, 1) as version,
+                created_at,
+                onnx_model_location
+            FROM heimdall.models
+            ORDER BY created_at DESC
+        """
+        )
+        
+        models = [
+            {
+                "id": str(row["id"]),
+                "model_name": row["model_name"],
+                "version": row["version"],
+                "created_at": row["created_at"].isoformat(),
+                "has_onnx": row["onnx_model_location"] is not None,
+            }
+            for row in models_rows
+        ]
+
         # Estimate section sizes (rough estimates)
-        settings_size = 256  # Fixed size for settings
+        settings_size = 256
         sources_size = sources_count * 500 if sources_count else 0
         websdrs_size = websdrs_count * 400 if websdrs_count else 0
         sessions_size = sessions_count * 600 if sessions_count else 0
+        sample_sets_size = sum(s["num_samples"] * 200 for s in sample_sets)
+        models_size = len(models) * 50000000  # ~50MB per model (rough estimate)
 
         return MetadataResponse(
             sources_count=sources_count or 0,
             websdrs_count=websdrs_count or 0,
             sessions_count=sessions_count or 0,
-            has_training_model=False,  # TODO: Check for models
-            has_inference_model=False,  # TODO: Check for models
+            sample_sets=sample_sets,
+            models=models,
             estimated_sizes=SectionSizes(
                 settings=settings_size,
                 sources=sources_size,
                 websdrs=websdrs_size,
                 sessions=sessions_size,
-                training_model=0,
-                inference_model=0,
+                sample_sets=sample_sets_size,
+                models=models_size,
             ),
         )
 
@@ -201,11 +258,135 @@ async def export_data(request: ExportRequest):
                 )
             sections.sessions = sessions
 
-        # TODO: Export models if requested
-        # if request.include_training_model:
-        #     sections.training_model = ...
-        # if request.include_inference_model:
-        #     sections.inference_model = ...
+        # Export sample sets if requested
+        if request.sample_set_ids:
+            sample_sets = []
+            for dataset_id in request.sample_set_ids:
+                # Get dataset metadata
+                dataset_row = await conn.fetchrow(
+                    """
+                    SELECT 
+                        sd.id, sd.name, sd.description, sd.config, 
+                        sd.quality_metrics, sd.created_at,
+                        COALESCE(COUNT(mf.recording_session_id), 0) as num_samples
+                    FROM heimdall.synthetic_datasets sd
+                    LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
+                    WHERE sd.id = $1
+                    GROUP BY sd.id, sd.name, sd.description, sd.config, 
+                             sd.quality_metrics, sd.created_at
+                    """,
+                    dataset_id,
+                )
+                
+                if not dataset_row:
+                    logger.warning(f"Sample set {dataset_id} not found, skipping")
+                    continue
+
+                # Get sample data (limit to reasonable size for export)
+                samples_rows = await conn.fetch(
+                    """
+                    SELECT 
+                        tx_lat, tx_lon, tx_power_dbm, frequency_hz,
+                        extraction_metadata, mean_snr_db, overall_confidence, gdop
+                    FROM heimdall.measurement_features
+                    WHERE dataset_id = $1
+                    LIMIT 10000
+                    """,
+                    dataset_id,
+                )
+                
+                samples = []
+                for sample_row in samples_rows:
+                    samples.append({
+                        "tx_lat": float(sample_row["tx_lat"]),
+                        "tx_lon": float(sample_row["tx_lon"]),
+                        "tx_power_dbm": float(sample_row["tx_power_dbm"]) if sample_row["tx_power_dbm"] else None,
+                        "frequency_hz": float(sample_row["frequency_hz"]) if sample_row["frequency_hz"] else None,
+                        "mean_snr_db": float(sample_row["mean_snr_db"]) if sample_row["mean_snr_db"] else None,
+                        "overall_confidence": float(sample_row["overall_confidence"]) if sample_row["overall_confidence"] else None,
+                        "gdop": float(sample_row["gdop"]) if sample_row["gdop"] else None,
+                        "extraction_metadata": sample_row["extraction_metadata"],
+                    })
+
+                sample_sets.append(
+                    ExportedSampleSet(
+                        id=str(dataset_row["id"]),
+                        name=dataset_row["name"],
+                        description=dataset_row["description"],
+                        num_samples=dataset_row["num_samples"],
+                        config=dataset_row["config"],
+                        quality_metrics=dataset_row["quality_metrics"],
+                        created_at=dataset_row["created_at"].isoformat(),
+                        samples=samples[:10000],  # Limit to 10k samples max
+                    )
+                )
+            
+            sections.sample_sets = sample_sets if sample_sets else None
+
+        # Export models if requested
+        if request.model_ids:
+            minio_client = MinIOClient(
+                endpoint_url=settings.minio_url,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                bucket_name="heimdall-models",
+            )
+            
+            models = []
+            for model_id in request.model_ids:
+                # Get model metadata
+                model_row = await conn.fetchrow(
+                    """
+                    SELECT 
+                        id, model_name, COALESCE(version, 1) as version, model_type,
+                        onnx_model_location, accuracy_meters, hyperparameters,
+                        training_metrics, created_at
+                    FROM heimdall.models
+                    WHERE id = $1
+                    """,
+                    model_id,
+                )
+                
+                if not model_row:
+                    logger.warning(f"Model {model_id} not found, skipping")
+                    continue
+
+                # Download ONNX model from MinIO if available
+                onnx_base64 = None
+                if model_row["onnx_model_location"]:
+                    try:
+                        # Parse s3://bucket/key format
+                        s3_path = model_row["onnx_model_location"]
+                        if s3_path.startswith("s3://"):
+                            s3_path = s3_path[5:]
+                        
+                        parts = s3_path.split("/", 1)
+                        bucket = parts[0]
+                        key = parts[1] if len(parts) > 1 else ""
+                        
+                        # Download from MinIO
+                        response = minio_client.s3_client.get_object(Bucket=bucket, Key=key)
+                        onnx_bytes = response["Body"].read()
+                        onnx_base64 = base64.b64encode(onnx_bytes).decode("utf-8")
+                        logger.info(f"Downloaded ONNX model from {s3_path} ({len(onnx_bytes)} bytes)")
+                    except Exception as e:
+                        logger.error(f"Failed to download ONNX model for {model_id}: {e}")
+
+                models.append(
+                    ExportedModel(
+                        id=str(model_row["id"]),
+                        model_name=model_row["model_name"],
+                        version=model_row["version"],
+                        model_type=model_row["model_type"],
+                        created_at=model_row["created_at"].isoformat(),
+                        onnx_model_base64=onnx_base64,
+                        accuracy_meters=model_row["accuracy_meters"],
+                        hyperparameters=model_row["hyperparameters"],
+                        training_metrics=model_row["training_metrics"],
+                    )
+                )
+            
+            sections.models = models if models else None
 
     # Calculate section sizes
     section_sizes = SectionSizes()
@@ -217,6 +398,10 @@ async def export_data(request: ExportRequest):
         section_sizes.websdrs = len(json.dumps([w.model_dump() for w in sections.websdrs]))
     if sections.sessions:
         section_sizes.sessions = len(json.dumps([s.model_dump() for s in sections.sessions]))
+    if sections.sample_sets:
+        section_sizes.sample_sets = len(json.dumps([s.model_dump() for s in sections.sample_sets]))
+    if sections.models:
+        section_sizes.models = len(json.dumps([m.model_dump() for m in sections.models]))
 
     # Create metadata
     metadata = ExportMetadata(
@@ -254,8 +439,8 @@ async def import_data(request: ImportRequest):
         "sources": 0,
         "websdrs": 0,
         "sessions": 0,
-        "training_model": 0,
-        "inference_model": 0,
+        "sample_sets": 0,
+        "models": 0,
     }
     errors = []
 
@@ -470,11 +655,168 @@ async def import_data(request: ImportRequest):
                                 f"Error importing session {session.session_name}: {str(e)}"
                             )
 
-                # TODO: Import models
-                # if request.import_training_model and request.heimdall_file.sections.training_model:
-                #     ...
-                # if request.import_inference_model and request.heimdall_file.sections.inference_model:
-                #     ...
+                # Import sample sets
+                if request.import_sample_sets and request.heimdall_file.sections.sample_sets:
+                    for sample_set in request.heimdall_file.sections.sample_sets:
+                        try:
+                            # Insert or update dataset metadata
+                            if request.overwrite_existing:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.synthetic_datasets
+                                    (id, name, description, num_samples, config, 
+                                     quality_metrics, created_at)
+                                    VALUES ($1, $2, $3, $4, CAST($5 AS jsonb), CAST($6 AS jsonb), $7)
+                                    ON CONFLICT (id) DO UPDATE SET
+                                        name = EXCLUDED.name,
+                                        description = EXCLUDED.description,
+                                        num_samples = EXCLUDED.num_samples,
+                                        config = EXCLUDED.config,
+                                        quality_metrics = EXCLUDED.quality_metrics,
+                                        updated_at = NOW()
+                                    """,
+                                    sample_set.id,
+                                    sample_set.name,
+                                    sample_set.description,
+                                    sample_set.num_samples,
+                                    json.dumps(sample_set.config) if sample_set.config else None,
+                                    json.dumps(sample_set.quality_metrics) if sample_set.quality_metrics else None,
+                                    sample_set.created_at,
+                                )
+                            else:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.synthetic_datasets
+                                    (id, name, description, num_samples, config, 
+                                     quality_metrics, created_at)
+                                    VALUES ($1, $2, $3, $4, CAST($5 AS jsonb), CAST($6 AS jsonb), $7)
+                                    ON CONFLICT (id) DO NOTHING
+                                    """,
+                                    sample_set.id,
+                                    sample_set.name,
+                                    sample_set.description,
+                                    sample_set.num_samples,
+                                    json.dumps(sample_set.config) if sample_set.config else None,
+                                    json.dumps(sample_set.quality_metrics) if sample_set.quality_metrics else None,
+                                    sample_set.created_at,
+                                )
+
+                            # Import sample data if present
+                            if sample_set.samples:
+                                for sample in sample_set.samples:
+                                    try:
+                                        await conn.execute(
+                                            """
+                                            INSERT INTO heimdall.measurement_features
+                                            (dataset_id, tx_latitude, tx_longitude, tx_power_dbm,
+                                             extraction_metadata, mean_snr_db, overall_confidence, gdop)
+                                            VALUES ($1, $2, $3, $4, CAST($5 AS jsonb), $6, $7, $8)
+                                            ON CONFLICT DO NOTHING
+                                            """,
+                                            sample_set.id,
+                                            sample.get("tx_lat"),
+                                            sample.get("tx_lon"),
+                                            sample.get("tx_power_dbm"),
+                                            json.dumps(sample.get("extraction_metadata")) if sample.get("extraction_metadata") else None,
+                                            sample.get("mean_snr_db"),
+                                            sample.get("overall_confidence"),
+                                            sample.get("gdop"),
+                                        )
+                                    except Exception as e:
+                                        logger.warning(f"Error importing sample: {e}")
+                                        # Continue with other samples even if one fails
+
+                            imported_counts["sample_sets"] += 1
+                        except Exception as e:
+                            errors.append(f"Error importing sample set {sample_set.name}: {str(e)}")
+
+                # Import models
+                if request.import_models and request.heimdall_file.sections.models:
+                    minio_client = MinIOClient(
+                        endpoint_url=settings.minio_url,
+                        access_key=settings.minio_access_key,
+                        secret_key=settings.minio_secret_key,
+                        bucket_name="heimdall-models",
+                    )
+                    
+                    for model in request.heimdall_file.sections.models:
+                        try:
+                            # Upload ONNX model to MinIO if present
+                            onnx_location = None
+                            if model.onnx_model_base64:
+                                try:
+                                    import io
+                                    onnx_bytes = base64.b64decode(model.onnx_model_base64)
+                                    onnx_key = f"imported/{model.model_name}-v{model.version}.onnx"
+                                    
+                                    minio_client.s3_client.put_object(
+                                        Bucket="heimdall-models",
+                                        Key=onnx_key,
+                                        Body=io.BytesIO(onnx_bytes),
+                                        ContentLength=len(onnx_bytes),
+                                    )
+                                    
+                                    onnx_location = f"s3://heimdall-models/{onnx_key}"
+                                    logger.info(f"Uploaded ONNX model to {onnx_location}")
+                                except Exception as e:
+                                    logger.error(f"Failed to upload ONNX model: {e}")
+                                    errors.append(f"Failed to upload ONNX for {model.model_name}: {str(e)}")
+
+                            # Insert or update model metadata
+                            if request.overwrite_existing:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.models
+                                    (id, model_name, version, model_type, onnx_model_location,
+                                     accuracy_meters, hyperparameters, training_metrics, 
+                                     is_active, created_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6, CAST($7 AS jsonb), 
+                                            CAST($8 AS jsonb), FALSE, $9)
+                                    ON CONFLICT (id) DO UPDATE SET
+                                        model_name = EXCLUDED.model_name,
+                                        version = EXCLUDED.version,
+                                        model_type = EXCLUDED.model_type,
+                                        onnx_model_location = EXCLUDED.onnx_model_location,
+                                        accuracy_meters = EXCLUDED.accuracy_meters,
+                                        hyperparameters = EXCLUDED.hyperparameters,
+                                        training_metrics = EXCLUDED.training_metrics,
+                                        updated_at = NOW()
+                                    """,
+                                    model.id,
+                                    f"{model.model_name} (Imported)",
+                                    model.version,
+                                    model.model_type,
+                                    onnx_location,
+                                    model.accuracy_meters,
+                                    json.dumps(model.hyperparameters) if model.hyperparameters else None,
+                                    json.dumps(model.training_metrics) if model.training_metrics else None,
+                                    model.created_at,
+                                )
+                            else:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.models
+                                    (id, model_name, version, model_type, onnx_model_location,
+                                     accuracy_meters, hyperparameters, training_metrics, 
+                                     is_active, created_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6, CAST($7 AS jsonb), 
+                                            CAST($8 AS jsonb), FALSE, $9)
+                                    ON CONFLICT (id) DO NOTHING
+                                    """,
+                                    model.id,
+                                    f"{model.model_name} (Imported)",
+                                    model.version,
+                                    model.model_type,
+                                    onnx_location,
+                                    model.accuracy_meters,
+                                    json.dumps(model.hyperparameters) if model.hyperparameters else None,
+                                    json.dumps(model.training_metrics) if model.training_metrics else None,
+                                    model.created_at,
+                                )
+                            
+                            imported_counts["models"] += 1
+                        except Exception as e:
+                            errors.append(f"Error importing model {model.model_name}: {str(e)}")
 
             except Exception as e:
                 logger.error(f"Import failed: {e}")

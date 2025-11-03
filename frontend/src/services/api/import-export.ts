@@ -21,8 +21,8 @@ export interface SectionSizes {
   sources: number;
   websdrs: number;
   sessions: number;
-  training_model: number;
-  inference_model: number;
+  sample_sets: number;
+  models: number;
 }
 
 export interface ExportMetadata {
@@ -81,13 +81,27 @@ export interface ExportedSession {
   measurements_count: number;
 }
 
-export interface ExportedModel {
-  model_type: string;
-  model_name: string;
-  version: string;
+export interface ExportedSampleSet {
+  id: string;
+  name: string;
+  description?: string;
+  num_samples: number;
+  config?: Record<string, unknown>;
+  quality_metrics?: Record<string, unknown>;
   created_at: string;
-  file_path?: string;
-  metrics?: Record<string, unknown>;
+  samples?: Record<string, unknown>[];
+}
+
+export interface ExportedModel {
+  id: string;
+  model_name: string;
+  version: number;
+  model_type: string;
+  created_at: string;
+  onnx_model_base64?: string;
+  accuracy_meters?: number;
+  hyperparameters?: Record<string, unknown>;
+  training_metrics?: Record<string, unknown>;
 }
 
 export interface UserSettings {
@@ -102,8 +116,8 @@ export interface ExportSections {
   sources?: ExportedSource[];
   websdrs?: ExportedWebSDR[];
   sessions?: ExportedSession[];
-  training_model?: ExportedModel;
-  inference_model?: ExportedModel;
+  sample_sets?: ExportedSampleSet[];
+  models?: ExportedModel[];
 }
 
 export interface HeimdallFile {
@@ -118,8 +132,8 @@ export interface ExportRequest {
   include_sources?: boolean;
   include_websdrs?: boolean;
   include_sessions?: boolean;
-  include_training_model?: boolean;
-  include_inference_model?: boolean;
+  sample_set_ids?: string[] | null;
+  model_ids?: string[] | null;
 }
 
 export interface ExportResponse {
@@ -133,8 +147,8 @@ export interface ImportRequest {
   import_sources?: boolean;
   import_websdrs?: boolean;
   import_sessions?: boolean;
-  import_training_model?: boolean;
-  import_inference_model?: boolean;
+  import_sample_sets?: boolean;
+  import_models?: boolean;
   overwrite_existing?: boolean;
 }
 
@@ -145,12 +159,27 @@ export interface ImportResponse {
   errors: string[];
 }
 
+export interface AvailableSampleSet {
+  id: string;
+  name: string;
+  num_samples: number;
+  created_at: string;
+}
+
+export interface AvailableModel {
+  id: string;
+  model_name: string;
+  version: number;
+  created_at: string;
+  has_onnx: boolean;
+}
+
 export interface MetadataResponse {
   sources_count: number;
   websdrs_count: number;
   sessions_count: number;
-  has_training_model: boolean;
-  has_inference_model: boolean;
+  sample_sets: AvailableSampleSet[];
+  models: AvailableModel[];
   estimated_sizes: SectionSizes;
 }
 
