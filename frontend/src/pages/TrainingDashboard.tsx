@@ -53,27 +53,36 @@ import {
   deleteModel,
   deployModel,
   getSyntheticDatasetSamples,
+  type AnyTrainingJob,
   type TrainingJob,
+  type SyntheticGenerationJobAPI,
   type SyntheticDataset,
   type TrainedModel,
   type SyntheticSampleResponse,
 } from '@/services/api/training';
 
 /**
- * Helper function to detect if a job is synthetic data generation
+ * Type guard: Check if job is a training job
  */
-const isSyntheticDataJob = (job: TrainingJob): boolean => {
-  return job.total_epochs === 0 || job.job_name.toLowerCase().includes('synthetic');
+const isTrainingJob = (job: AnyTrainingJob): job is TrainingJob => {
+  return job.job_type === 'training';
+};
+
+/**
+ * Type guard: Check if job is a synthetic generation job
+ */
+const isSyntheticJob = (job: AnyTrainingJob): job is SyntheticGenerationJobAPI => {
+  return job.job_type === 'synthetic_generation';
 };
 
 /**
  * Calculate ETA for a running job
  */
-const calculateETA = (job: TrainingJob): string => {
+const calculateETA = (job: AnyTrainingJob): string => {
   if (!job.started_at) return 'Calculating...';
 
   // For synthetic data jobs, use current/total samples
-  if (isSyntheticDataJob(job)) {
+  if (isSyntheticJob(job)) {
     if (!job.current || !job.total || job.current === 0) return 'Calculating...';
 
     const elapsed = Date.now() - new Date(job.started_at).getTime();
@@ -91,20 +100,24 @@ const calculateETA = (job: TrainingJob): string => {
   }
 
   // For training jobs, use current_epoch/total_epochs
-  if (!job.current_epoch || !job.total_epochs || job.current_epoch === 0) return 'Calculating...';
+  if (isTrainingJob(job)) {
+    if (!job.current_epoch || !job.total_epochs || job.current_epoch === 0) return 'Calculating...';
 
-  const elapsed = Date.now() - new Date(job.started_at).getTime();
-  const rate = job.current_epoch / elapsed; // epochs per ms
-  const remaining = job.total_epochs - job.current_epoch;
-  const etaMs = remaining / rate;
+    const elapsed = Date.now() - new Date(job.started_at).getTime();
+    const rate = job.current_epoch / elapsed; // epochs per ms
+    const remaining = job.total_epochs - job.current_epoch;
+    const etaMs = remaining / rate;
 
-  const hours = Math.floor(etaMs / 3600000);
-  const minutes = Math.floor((etaMs % 3600000) / 60000);
-  const seconds = Math.floor((etaMs % 60000) / 1000);
+    const hours = Math.floor(etaMs / 3600000);
+    const minutes = Math.floor((etaMs % 3600000) / 60000);
+    const seconds = Math.floor((etaMs % 60000) / 1000);
 
-  if (hours > 0) return `~${hours}h ${minutes}m`;
-  if (minutes > 0) return `~${minutes}m ${seconds}s`;
-  return `~${seconds}s`;
+    if (hours > 0) return `~${hours}h ${minutes}m`;
+    if (minutes > 0) return `~${minutes}m ${seconds}s`;
+    return `~${seconds}s`;
+  }
+
+  return 'Calculating...';
 };
 
 const TrainingDashboard: React.FC = () => {
@@ -112,7 +125,7 @@ const TrainingDashboard: React.FC = () => {
   const { subscribe } = useWebSocket();
 
   // State
-  const [jobs, setJobs] = useState<TrainingJob[]>([]);
+  const [jobs, setJobs] = useState<AnyTrainingJob[]>([]);
   const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
   const [models, setModels] = useState<TrainedModel[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -347,7 +360,7 @@ const TrainingDashboard: React.FC = () => {
   };
 
   // Handle clone job - opens modal with pre-filled values from selected job
-  const handleCloneJob = (job: TrainingJob) => {
+  const handleCloneJob = (job: AnyTrainingJob) => {
     const config = job.config;
     
     // Pre-fill the form with job config values
@@ -541,15 +554,15 @@ const TrainingDashboard: React.FC = () => {
                             />
                           </div>
                           <small className="d-block">
-                            {isSyntheticDataJob(job) ? (
+                            {isSyntheticJob(job) ? (
                               <>
                                 {job.current || 0}/{job.total || 0} samples ({job.progress_percent.toFixed(1)}%)
                               </>
-                            ) : (
+                            ) : isTrainingJob(job) ? (
                               <>
                                 {job.current_epoch}/{job.total_epochs} epochs
                               </>
-                            )}
+                            ) : null}
                           </small>
                           <small className="text-muted d-block">ETA: {calculateETA(job)}</small>
                         </div>
@@ -558,10 +571,14 @@ const TrainingDashboard: React.FC = () => {
                       )}
                     </td>
                     <td>
-                      {job.train_loss && job.val_loss ? (
+                      {isTrainingJob(job) && job.train_loss && job.val_loss ? (
                         <small>
                           Train: {job.train_loss.toFixed(4)}<br />
                           Val: {job.val_loss.toFixed(4)}
+                        </small>
+                      ) : isSyntheticJob(job) ? (
+                        <small className="text-muted">
+                          Dataset ID: {job.dataset_id ? <code>{job.dataset_id.substring(0, 8)}...</code> : 'N/A'}
                         </small>
                       ) : (
                         '-'
@@ -571,7 +588,7 @@ const TrainingDashboard: React.FC = () => {
                     <td>
                       <div className="d-flex gap-1">
                         {/* Pause button for running training jobs (not synthetic data) */}
-                        {job.status === 'running' && !isSyntheticDataJob(job) && (
+                        {job.status === 'running' && isTrainingJob(job) && (
                           <Button
                             variant="outline-secondary"
                             size="sm"
@@ -593,7 +610,7 @@ const TrainingDashboard: React.FC = () => {
                           </Button>
                         )}
                         {/* Continue button for cancelled synthetic jobs with progress */}
-                        {job.status === 'cancelled' && isSyntheticDataJob(job) && (job.current_progress ?? 0) > 0 && (
+                        {job.status === 'cancelled' && isSyntheticJob(job) && (job.current ?? 0) > 0 && (
                           <Button
                             variant="outline-info"
                             size="sm"
@@ -614,8 +631,8 @@ const TrainingDashboard: React.FC = () => {
                             <StopCircle size={14} />
                           </Button>
                         )}
-                        {/* Clone button for completed/cancelled/failed jobs */}
-                        {(job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') && (
+                        {/* Clone button for completed/cancelled/failed synthetic jobs only */}
+                        {(job.status === 'completed' || job.status === 'cancelled' || job.status === 'failed') && isSyntheticJob(job) && (
                           <Button
                             variant="outline-primary"
                             size="sm"
