@@ -160,7 +160,7 @@ Comprehensive test script that:
 **Run**: `python scripts/test_pause_resume.py`
 
 ### Manual Test Plan
-**File**: `docs/testing/PAUSE_RESUME_TEST_PLAN.md`
+**File**: `docs/TESTING.md`
 
 Comprehensive test plan covering:
 - ✅ Basic pause/resume flow
@@ -192,7 +192,7 @@ docker compose restart backend training
 python scripts/test_pause_resume.py
 
 # Manual testing
-# Follow test plan in docs/testing/PAUSE_RESUME_TEST_PLAN.md
+# Follow test plan in docs/TESTING.md
 ```
 
 ### 4. Verify in UI
@@ -309,10 +309,10 @@ if status_result[0] == 'paused':
 
 ## 📚 References
 
-- [Training Architecture](../ARCHITECTURE.md#training-pipeline)
-- [API Documentation](../API.md#training-endpoints)
-- [Development Guide](../DEVELOPMENT.md)
-- [Test Plan](testing/PAUSE_RESUME_TEST_PLAN.md)
+- [Training Architecture](ARCHITECTURE.md#training-pipeline)
+- [API Documentation](API.md#training-endpoints)
+- [Development Guide](DEVELOPMENT.md)
+- [Test Plan](TESTING.md)
 
 ---
 
