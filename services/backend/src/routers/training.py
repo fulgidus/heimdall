@@ -59,10 +59,10 @@ async def create_training_job(request: TrainingJobRequest):
             job_id = None
             query = text("""
                 INSERT INTO heimdall.training_jobs (
-                    job_name, status, config, total_epochs, model_architecture
+                    job_name, job_type, status, config, total_epochs, model_architecture
                 )
                 VALUES (
-                    :job_name, :status, CAST(:config AS jsonb), :total_epochs, :model_architecture
+                    :job_name, :job_type, :status, CAST(:config AS jsonb), :total_epochs, :model_architecture
                 )
                 RETURNING id, created_at
             """)
@@ -71,6 +71,7 @@ async def create_training_job(request: TrainingJobRequest):
                 query,
                 {
                     "job_name": request.job_name,
+                    "job_type": "training",
                     "status": TrainingStatus.PENDING.value,
                     "config": request.config.model_dump_json(),
                     "total_epochs": request.config.epochs,
@@ -130,6 +131,7 @@ async def create_training_job(request: TrainingJobRequest):
         return TrainingJobResponse(
             id=job_id,
             job_name=request.job_name,
+            job_type="training",
             status=TrainingStatus.QUEUED,
             created_at=created_at,
             config=request.config.model_dump(),
