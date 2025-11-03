@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
-use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SaveFileRequest {
@@ -43,33 +42,41 @@ pub async fn save_heimdall_file(
     });
     
     // Use native file dialog
-    let file_path = tauri::api::dialog::blocking::FileDialogBuilder::new()
+    let file_path = tauri_plugin_dialog::FileDialogBuilder::new(app.dialog().clone())
         .set_title("Save Heimdall Export File")
         .add_filter("Heimdall Files", &["heimdall"])
         .add_filter("All Files", &["*"])
         .set_file_name(&filename)
-        .save_file();
+        .blocking_save_file();
     
     match file_path {
         Some(path) => {
-            match fs::write(&path, content) {
-                Ok(_) => {
-                    log::info!("File saved successfully to: {:?}", path);
-                    Ok(SaveFileResponse {
-                        success: true,
-                        message: "File saved successfully".to_string(),
-                        path: Some(path.to_string_lossy().to_string()),
-                    })
+            if let Some(path_buf) = path.as_path() {
+                match fs::write(path_buf, content) {
+                    Ok(_) => {
+                        log::info!("File saved successfully to: {:?}", path_buf);
+                        Ok(SaveFileResponse {
+                            success: true,
+                            message: "File saved successfully".to_string(),
+                            path: Some(path_buf.to_string_lossy().to_string()),
+                        })
+                    }
+                    Err(e) => {
+                        let error_msg = format!("Failed to write file: {}", e);
+                        log::error!("{}", error_msg);
+                        Ok(SaveFileResponse {
+                            success: false,
+                            message: error_msg,
+                            path: None,
+                        })
+                    }
                 }
-                Err(e) => {
-                    let error_msg = format!("Failed to write file: {}", e);
-                    log::error!("{}", error_msg);
-                    Ok(SaveFileResponse {
-                        success: false,
-                        message: error_msg,
-                        path: None,
-                    })
-                }
+            } else {
+                Ok(SaveFileResponse {
+                    success: false,
+                    message: "Invalid file path".to_string(),
+                    path: None,
+                })
             }
         }
         None => {
@@ -89,32 +96,40 @@ pub async fn load_heimdall_file(app: tauri::AppHandle) -> Result<LoadFileRespons
     log::info!("load_heimdall_file command called");
     
     // Use native file dialog
-    let file_path = tauri::api::dialog::blocking::FileDialogBuilder::new()
+    let file_path = tauri_plugin_dialog::FileDialogBuilder::new(app.dialog().clone())
         .set_title("Open Heimdall Export File")
         .add_filter("Heimdall Files", &["heimdall"])
         .add_filter("All Files", &["*"])
-        .pick_file();
+        .blocking_pick_file();
     
     match file_path {
         Some(path) => {
-            match fs::read_to_string(&path) {
-                Ok(content) => {
-                    log::info!("File loaded successfully from: {:?}", path);
-                    Ok(LoadFileResponse {
-                        success: true,
-                        content: Some(content),
-                        message: format!("File loaded: {}", path.to_string_lossy()),
-                    })
+            if let Some(path_buf) = path.as_path() {
+                match fs::read_to_string(path_buf) {
+                    Ok(content) => {
+                        log::info!("File loaded successfully from: {:?}", path_buf);
+                        Ok(LoadFileResponse {
+                            success: true,
+                            content: Some(content),
+                            message: format!("File loaded: {}", path_buf.to_string_lossy()),
+                        })
+                    }
+                    Err(e) => {
+                        let error_msg = format!("Failed to read file: {}", e);
+                        log::error!("{}", error_msg);
+                        Ok(LoadFileResponse {
+                            success: false,
+                            content: None,
+                            message: error_msg,
+                        })
+                    }
                 }
-                Err(e) => {
-                    let error_msg = format!("Failed to read file: {}", e);
-                    log::error!("{}", error_msg);
-                    Ok(LoadFileResponse {
-                        success: false,
-                        content: None,
-                        message: error_msg,
-                    })
-                }
+            } else {
+                Ok(LoadFileResponse {
+                    success: false,
+                    content: None,
+                    message: "Invalid file path".to_string(),
+                })
             }
         }
         None => {
@@ -131,7 +146,7 @@ pub async fn load_heimdall_file(app: tauri::AppHandle) -> Result<LoadFileRespons
 /// Load .heimdall file from specific path (without dialog)
 #[tauri::command]
 pub async fn load_heimdall_file_from_path(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     path: String,
 ) -> Result<LoadFileResponse, String> {
     log::info!("load_heimdall_file_from_path command called with path: {}", path);
@@ -160,7 +175,7 @@ pub async fn load_heimdall_file_from_path(
 /// Save .heimdall file to specific path (without dialog)
 #[tauri::command]
 pub async fn save_heimdall_file_to_path(
-    app: tauri::AppHandle,
+    _app: tauri::AppHandle,
     content: String,
     path: String,
 ) -> Result<SaveFileResponse, String> {
