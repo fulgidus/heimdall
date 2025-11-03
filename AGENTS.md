@@ -390,7 +390,8 @@ publisher.publish_websdr_health(health_data)
 **Applied In**:
 - `tasks/uptime_monitor.py`: WebSDR health status
 - `tasks/services_health_monitor.py`: Microservice health
-- Future: Training progress, signal detection, localization results
+- `services/training/src/tasks/training_task.py`: Training progress updates
+- Future: Signal detection, localization results
 
 → [Full Knowledge Base](docs/standards/KNOWLEDGE_BASE.md)
 

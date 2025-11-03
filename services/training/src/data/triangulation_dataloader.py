@@ -60,19 +60,38 @@ class SyntheticTriangulationDataset(Dataset):
         """Load sample IDs from database."""
         from sqlalchemy import text
         
+        # Query measurement_features table instead of synthetic_training_samples
         query = text("""
-            SELECT id
-            FROM heimdall.synthetic_training_samples
-            WHERE dataset_id = :dataset_id AND split = :split
+            SELECT recording_session_id
+            FROM heimdall.measurement_features
+            WHERE dataset_id = :dataset_id
             ORDER BY timestamp
         """)
         
         result = self.db_session.execute(
             query,
-            {"dataset_id": self.dataset_id, "split": self.split}
+            {"dataset_id": self.dataset_id}
         )
         
-        sample_ids = [str(row[0]) for row in result]
+        all_sample_ids = [str(row[0]) for row in result]
+        
+        # Implement deterministic 80/20 train/val split based on hash of UUID
+        # This ensures consistent splits across runs
+        if self.split == 'train':
+            # Take first 80% of sorted samples
+            split_idx = int(len(all_sample_ids) * 0.8)
+            sample_ids = all_sample_ids[:split_idx]
+        elif self.split == 'val':
+            # Take last 20% of sorted samples
+            split_idx = int(len(all_sample_ids) * 0.8)
+            sample_ids = all_sample_ids[split_idx:]
+        elif self.split == 'test':
+            # For test split, use last 10% (overlaps with val, but separate use case)
+            split_idx = int(len(all_sample_ids) * 0.9)
+            sample_ids = all_sample_ids[split_idx:]
+        else:
+            raise ValueError(f"Invalid split: {self.split}, must be 'train', 'val', or 'test'")
+        
         return sample_ids
     
     def __len__(self) -> int:
@@ -92,13 +111,13 @@ class SyntheticTriangulationDataset(Dataset):
         """
         sample_id = self.sample_ids[idx]
         
-        # Load sample from database
+        # Load sample from measurement_features table
         from sqlalchemy import text
         
         query = text("""
-            SELECT tx_lat, tx_lon, receivers, gdop
-            FROM heimdall.synthetic_training_samples
-            WHERE id = :sample_id
+            SELECT tx_latitude, tx_longitude, receiver_features, gdop, num_receivers_detected
+            FROM heimdall.measurement_features
+            WHERE recording_session_id = :sample_id
         """)
         
         result = self.db_session.execute(query, {"sample_id": sample_id}).fetchone()
@@ -106,25 +125,34 @@ class SyntheticTriangulationDataset(Dataset):
         if result is None:
             raise ValueError(f"Sample {sample_id} not found")
         
-        tx_lat, tx_lon, receivers_json, gdop = result
-        receivers = json.loads(receivers_json)
+        tx_lat, tx_lon, receiver_features_jsonb, gdop, num_receivers_detected = result
         
-        # Extract receiver features
+        # Extract receiver features from JSONB array
+        # Each receiver has extensive features, we need: snr_db (mean), psd_dbm_per_hz (mean), 
+        # frequency_offset_hz (mean), rx_lat, rx_lon, signal_present
         receiver_features = []
         signal_mask = []
         
-        for rx in receivers:
+        for rx in receiver_features_jsonb:
+            # Extract mean values from feature distributions
+            snr = rx['snr_db']['mean'] if 'snr_db' in rx and rx['snr_db'] else 0.0
+            psd = rx['psd_dbm_per_hz']['mean'] if 'psd_dbm_per_hz' in rx and rx['psd_dbm_per_hz'] else -100.0
+            freq_offset = rx['frequency_offset_hz']['mean'] if 'frequency_offset_hz' in rx and rx['frequency_offset_hz'] else 0.0
+            rx_lat = rx['rx_lat']
+            rx_lon = rx['rx_lon']
+            signal_present = rx.get('signal_present', True)
+            
             # Features: [snr, psd, freq_offset, rx_lat, rx_lon, signal_present]
             features = [
-                rx['snr'],
-                rx['psd'],
-                rx['freq_offset'],
-                rx['lat'],
-                rx['lon'],
-                float(rx['signal_present'])
+                snr,
+                psd,
+                freq_offset,
+                rx_lat,
+                rx_lon,
+                float(signal_present)
             ]
             receiver_features.append(features)
-            signal_mask.append(rx['signal_present'] == 0)  # True if no signal
+            signal_mask.append(not signal_present)  # True if no signal
         
         # Pad to max_receivers if needed
         num_receivers = len(receiver_features)
@@ -145,7 +173,7 @@ class SyntheticTriangulationDataset(Dataset):
             "target_position": target_position_tensor,
             "metadata": {
                 "sample_id": sample_id,
-                "gdop": gdop,
+                "gdop": gdop if gdop else 50.0,  # Default GDOP if missing
                 "num_receivers": num_receivers
             }
         }

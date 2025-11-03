@@ -187,21 +187,57 @@ class EventPublisher:
         self._publish('localization.complete', event)
         logger.info(f"Published localization result: ({latitude}, {longitude}) ±{accuracy_meters}m")
 
+    def publish_training_started(
+        self,
+        job_id: str,
+        config: Dict[str, Any],
+        dataset_size: int,
+        train_samples: int,
+        val_samples: int
+    ) -> None:
+        """
+        Publish training job started event.
+
+        Args:
+            job_id: Training job UUID
+            config: Training configuration
+            dataset_size: Total dataset size
+            train_samples: Number of training samples
+            val_samples: Number of validation samples
+        """
+        event = {
+            'event': 'training:started',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'status': 'running',
+                'config': config,
+                'dataset_size': dataset_size,
+                'train_samples': train_samples,
+                'val_samples': val_samples
+            }
+        }
+
+        self._publish(f'training.started.{job_id}', event)
+        logger.info(f"Published training started: job {job_id} ({train_samples} train, {val_samples} val)")
+
     def publish_training_progress(
         self,
         job_id: str,
         epoch: int,
         total_epochs: int,
-        metrics: Dict[str, float]
+        metrics: Dict[str, float],
+        is_best: bool = False
     ) -> None:
         """
-        Publish training progress update.
+        Publish training progress update (per epoch).
 
         Args:
             job_id: Training job UUID
             epoch: Current epoch
             total_epochs: Total epochs
-            metrics: Training metrics (loss, accuracy, etc.)
+            metrics: Training metrics (train_loss, val_loss, train_acc, val_acc, lr, etc.)
+            is_best: Whether this is the best epoch so far
         """
         event = {
             'event': 'training:progress',
@@ -211,12 +247,86 @@ class EventPublisher:
                 'epoch': epoch,
                 'total_epochs': total_epochs,
                 'progress_percent': (epoch / total_epochs * 100) if total_epochs > 0 else 0,
-                'metrics': metrics
+                'metrics': metrics,
+                'is_best': is_best
             }
         }
 
         self._publish(f'training.progress.{job_id}', event)
         logger.debug(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}")
+
+    def publish_training_completed(
+        self,
+        job_id: str,
+        status: str,
+        best_epoch: Optional[int] = None,
+        best_val_loss: Optional[float] = None,
+        checkpoint_path: Optional[str] = None,
+        onnx_model_path: Optional[str] = None,
+        mlflow_run_id: Optional[str] = None,
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        Publish training job completed event.
+
+        Args:
+            job_id: Training job UUID
+            status: Final status (completed, failed, cancelled)
+            best_epoch: Best epoch number
+            best_val_loss: Best validation loss
+            checkpoint_path: Path to best checkpoint
+            onnx_model_path: Path to ONNX model
+            mlflow_run_id: MLflow run ID
+            error_message: Error message if failed
+        """
+        event = {
+            'event': 'training:completed',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'status': status,
+                'best_epoch': best_epoch,
+                'best_val_loss': best_val_loss,
+                'checkpoint_path': checkpoint_path,
+                'onnx_model_path': onnx_model_path,
+                'mlflow_run_id': mlflow_run_id,
+                'error_message': error_message
+            }
+        }
+
+        self._publish(f'training.completed.{job_id}', event)
+        logger.info(f"Published training completed: job {job_id}, status={status}")
+
+    def publish_dataset_generation_progress(
+        self,
+        job_id: str,
+        current: int,
+        total: int,
+        message: str
+    ) -> None:
+        """
+        Publish synthetic dataset generation progress.
+
+        Args:
+            job_id: Job UUID
+            current: Current progress (samples generated)
+            total: Total samples to generate
+            message: Progress message
+        """
+        event = {
+            'event': 'dataset:generation_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'message': message
+            }
+        }
+
+        self._publish(f'dataset.generation.{job_id}', event)
+        logger.debug(f"Published dataset generation progress: job {job_id}, {current}/{total}")
 
     def publish_terrain_tile_progress(
         self,

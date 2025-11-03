@@ -58,11 +58,19 @@ def start_training_job(self, job_id: str):
     from storage.db_manager import get_db_manager
     from storage.minio_client import MinIOClient
     from config import settings as backend_settings
+    from events.publisher import get_event_publisher
     from sqlalchemy import text
 
     logger.info(f"Starting training job {job_id}")
+    
+    # Initialize event publisher for real-time updates
+    event_publisher = get_event_publisher()
 
     db_manager = get_db_manager()
+    
+    # Initialize session variables for dataloaders (will be closed in finally block)
+    train_session = None
+    val_session = None
 
     try:
         # Update job status to running
@@ -102,40 +110,40 @@ def start_training_job(self, job_id: str):
 
         logger.info(f"Training config: dataset={dataset_id}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
 
-        # Import training components
-        from models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
-        from data.triangulation_dataloader import create_triangulation_dataloader
+        # Import training components (using absolute imports from /app)
+        from src.models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
+        from src.data.triangulation_dataloader import create_triangulation_dataloader
 
         # Determine device
         device = torch.device("cuda" if torch.cuda.is_available() and config.get("accelerator", "cpu") == "gpu" else "cpu")
         logger.info(f"Using device: {device}")
 
-        # Create dataloaders with proper context managers
+        # Create persistent sessions for dataloaders (will be closed in finally block)
+        # Note: We cannot use context managers here because dataloaders need sessions
+        # to stay alive during the entire training loop
         logger.info("Creating train dataloader...")
-        train_session = db_manager.get_session()
-        with train_session:
-            train_loader = create_triangulation_dataloader(
-                dataset_id=dataset_id,
-                split="train",
-                db_session=train_session,
-                batch_size=batch_size,
-                num_workers=0,  # Avoid multiprocessing issues with DB connections
-                shuffle=True,
-                max_receivers=7
-            )
+        train_session = db_manager.SessionLocal()
+        train_loader = create_triangulation_dataloader(
+            dataset_id=dataset_id,
+            split="train",
+            db_session=train_session,
+            batch_size=batch_size,
+            num_workers=0,  # Avoid multiprocessing issues with DB connections
+            shuffle=True,
+            max_receivers=7
+        )
 
         logger.info("Creating validation dataloader...")
-        val_session = db_manager.get_session()
-        with val_session:
-            val_loader = create_triangulation_dataloader(
-                dataset_id=dataset_id,
-                split="val",
-                db_session=val_session,
-                batch_size=batch_size,
-                num_workers=0,
-                shuffle=False,
-                max_receivers=7
-            )
+        val_session = db_manager.SessionLocal()
+        val_loader = create_triangulation_dataloader(
+            dataset_id=dataset_id,
+            split="val",
+            db_session=val_session,
+            batch_size=batch_size,
+            num_workers=0,
+            shuffle=False,
+            max_receivers=7
+        )
 
         # Update dataset info in job
         train_samples = len(train_loader.dataset)
@@ -148,6 +156,15 @@ def start_training_job(self, job_id: str):
             session.commit()
 
         logger.info(f"Dataset loaded: {train_samples} train, {val_samples} val samples")
+
+        # Publish training started event
+        event_publisher.publish_training_started(
+            job_id=job_id,
+            config=config,
+            dataset_size=train_samples + val_samples,
+            train_samples=train_samples,
+            val_samples=val_samples
+        )
 
         # Initialize model
         model = TriangulationModel(
@@ -375,6 +392,22 @@ def start_training_job(self, job_id: str):
                 }
             )
 
+            # Publish training progress event
+            event_publisher.publish_training_progress(
+                job_id=job_id,
+                epoch=epoch,
+                total_epochs=epochs,
+                metrics={
+                    'train_loss': float(train_loss),
+                    'val_loss': float(val_loss),
+                    'train_rmse': float(train_rmse),
+                    'val_rmse': float(val_rmse),
+                    'val_rmse_good_geom': float(val_rmse_good_geom),
+                    'learning_rate': float(current_lr)
+                },
+                is_best=False  # Will update below if this is best
+            )
+
             # Check for best model
             is_best = val_loss < (best_val_loss - early_stop_delta)
             if is_best:
@@ -415,6 +448,22 @@ def start_training_job(self, job_id: str):
                     session.commit()
 
                 logger.info(f"Saved best model checkpoint at epoch {epoch}")
+                
+                # Publish updated progress event with is_best=True
+                event_publisher.publish_training_progress(
+                    job_id=job_id,
+                    epoch=epoch,
+                    total_epochs=epochs,
+                    metrics={
+                        'train_loss': float(train_loss),
+                        'val_loss': float(val_loss),
+                        'train_rmse': float(train_rmse),
+                        'val_rmse': float(val_rmse),
+                        'val_rmse_good_geom': float(val_rmse_good_geom),
+                        'learning_rate': float(current_lr)
+                    },
+                    is_best=True
+                )
             else:
                 patience_counter += 1
 
@@ -495,6 +544,13 @@ def start_training_job(self, job_id: str):
                 
                 logger.info(f"Training paused at epoch {epoch}. Checkpoint saved to {pause_checkpoint_path}")
                 
+                # Publish pause event
+                event_publisher.publish_training_completed(
+                    job_id=job_id,
+                    status='paused',
+                    checkpoint_path=f"s3://models/{pause_checkpoint_path}"
+                )
+                
                 return {
                     "status": "paused",
                     "job_id": job_id,
@@ -540,7 +596,7 @@ def start_training_job(self, job_id: str):
                     VALUES (
                         :id, :name, 1, 'triangulation', :dataset_id,
                         :location, :rmse, :rmse_good, :loss, :epoch,
-                        FALSE, FALSE, :hyperparams::jsonb, :metrics::jsonb, :job_id
+                        FALSE, FALSE, CAST(:hyperparams AS jsonb), CAST(:metrics AS jsonb), :job_id
                     )
                 """),
                 {
@@ -572,6 +628,18 @@ def start_training_job(self, job_id: str):
             session.commit()
 
         logger.info(f"Training job {job_id} completed successfully. Best epoch: {best_epoch}, Best val loss: {best_val_loss:.4f}")
+        
+        # Publish training completed event
+        event_publisher.publish_training_completed(
+            job_id=job_id,
+            status='completed',
+            best_epoch=best_epoch,
+            best_val_loss=float(best_val_loss),
+            checkpoint_path=f"s3://models/checkpoints/{job_id}/best_model.pth",
+            onnx_model_path=None,
+            mlflow_run_id=None
+        )
+        
         return {
             "status": "completed",
             "job_id": job_id,
@@ -583,6 +651,16 @@ def start_training_job(self, job_id: str):
 
     except Exception as e:
         logger.error(f"Error in training job {job_id}: {e}", exc_info=True)
+
+        # Publish training failed event
+        try:
+            event_publisher.publish_training_completed(
+                job_id=job_id,
+                status='failed',
+                error_message=str(e)
+            )
+        except Exception as pub_error:
+            logger.error(f"Failed to publish failure event: {pub_error}")
 
         # Update job as failed
         try:
@@ -600,6 +678,22 @@ def start_training_job(self, job_id: str):
             logger.error(f"Failed to update job status: {db_error}")
 
         raise
+    
+    finally:
+        # Clean up database sessions used by dataloaders
+        if train_session is not None:
+            try:
+                train_session.close()
+                logger.debug("Closed train dataloader session")
+            except Exception as e:
+                logger.warning(f"Error closing train session: {e}")
+        
+        if val_session is not None:
+            try:
+                val_session.close()
+                logger.debug("Closed val dataloader session")
+            except Exception as e:
+                logger.warning(f"Error closing val session: {e}")
 
 
 @shared_task(bind=True, base=TrainingTask)
@@ -626,6 +720,8 @@ def generate_synthetic_data_task(self, job_id: str):
     # Import backend storage modules
     sys.path.insert(0, '/app/backend/src')
     from storage.db_manager import get_db_manager
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
     from sqlalchemy import text
 
     logger.info(f"Starting synthetic data generation job {job_id}")
@@ -665,9 +761,8 @@ def generate_synthetic_data_task(self, job_id: str):
             session.commit()
 
         # Generate synthetic data - import training service modules
-        sys.path.insert(0, '/app/src')
-        from data.config import TrainingConfig, get_italian_receivers, generate_random_receivers, BoundingBox
-        from data.synthetic_generator import generate_synthetic_data_with_iq
+        from src.data.config import TrainingConfig, get_italian_receivers, generate_random_receivers, BoundingBox
+        from src.data.synthetic_generator import generate_synthetic_data_with_iq
         from common.terrain import TerrainLookup
 
         # Determine receiver generation strategy
