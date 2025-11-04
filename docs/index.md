@@ -24,6 +24,9 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 ### ML & Training
 - **[Training Guide](TRAINING.md)** - Machine learning model training
 - **[Training API](TRAINING_API.md)** - Training endpoints and workflow
+- **[GPU Infrastructure](GPU_INFRASTRUCTURE.md)** - GPU setup, CUDA, and performance tuning
+- **[CUDA Migration Guide](CUDA_MIGRATION_GUIDE.md)** - Upgrade to CUDA 12.6
+- **[Docker Image Policy](DOCKER_IMAGE_POLICY.md)** - Container maintenance procedures
 - **[SRTM Terrain Data](SRTM.md)** - Real terrain integration for RF propagation
 
 ### Features & Workflows
