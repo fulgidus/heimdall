@@ -49,10 +49,13 @@ class SyntheticTriangulationDataset(Dataset):
         """
         self.dataset_ids = dataset_ids
         self.split = split
-        # DO NOT store db_session - causes pickling errors with multiprocessing DataLoader
         self.max_receivers = max_receivers
         self.cache_size = cache_size
         self.use_cache = use_cache
+        
+        # Store the session (safe since we're using num_workers=0)
+        # If we ever use num_workers>0, we'd need to store only the URL and create new sessions
+        self.db_session = db_session
         
         # Setup cache directory
         if self.use_cache:
@@ -178,9 +181,9 @@ class SyntheticTriangulationDataset(Dataset):
         
         sample_id = self.sample_ids[idx]
         
-        # Create a new session for this worker process
-        # Each DataLoader worker gets its own connection pool
-        session = self._get_db_session()
+        # Use the stored session (works with num_workers=0)
+        # Note: With num_workers>0 we'd need to create new sessions per worker
+        session = self.db_session
         
         try:
             # Load sample from measurement_features table
@@ -259,9 +262,9 @@ class SyntheticTriangulationDataset(Dataset):
                     logger.warning(f"Cache write failed for idx {idx}: {e}")
             
             return sample_data
-        finally:
-            # Always close the session to avoid connection leaks
-            session.close()
+        except Exception as e:
+            logger.error(f"Error loading sample {idx}: {e}")
+            raise
 
 
 def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:

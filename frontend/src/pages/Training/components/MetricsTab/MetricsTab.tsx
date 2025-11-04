@@ -9,6 +9,11 @@ import { useTrainingStore } from '../../../../store/trainingStore';
 import { LossChart } from './LossChart';
 import { AccuracyChart } from './AccuracyChart';
 import { LearningRateChart } from './LearningRateChart';
+import { DistanceErrorChart } from './DistanceErrorChart';
+import { DistancePercentilesChart } from './DistancePercentilesChart';
+import { UncertaintyCalibrationChart } from './UncertaintyCalibrationChart';
+import { GDOPHealthChart } from './GDOPHealthChart';
+import { GradientHealthChart } from './GradientHealthChart';
 
 export const MetricsTab: React.FC = () => {
   const { jobs, metrics, fetchMetrics, error } = useTrainingStore();
@@ -67,7 +72,7 @@ export const MetricsTab: React.FC = () => {
             >
               {trainingJobs.map(job => (
                 <option key={job.id} value={job.id}>
-                  {job.name} ({job.status}) - Epoch {job.current_epoch || 0}/{job.total_epochs}
+                  {job.name || job.config.job_name || 'Unnamed Job'} ({job.status}) - Epoch {job.current_epoch || 0}/{job.total_epochs}
                 </option>
               ))}
             </select>
@@ -134,6 +139,10 @@ export const MetricsTab: React.FC = () => {
 
       {selectedJobId && selectedMetrics.length > 0 && (
         <div className="row g-4">
+          {/* Basic Metrics */}
+          <div className="col-12">
+            <h5 className="mb-3">Basic Metrics</h5>
+          </div>
           <div className="col-12">
             <LossChart metrics={selectedMetrics} />
           </div>
@@ -142,6 +151,36 @@ export const MetricsTab: React.FC = () => {
           </div>
           <div className="col-12">
             <LearningRateChart metrics={selectedMetrics} />
+          </div>
+
+          {/* Distance Errors */}
+          <div className="col-12 mt-5">
+            <h5 className="mb-3">Distance Errors</h5>
+          </div>
+          <div className="col-12">
+            <DistanceErrorChart metrics={selectedMetrics} />
+          </div>
+          <div className="col-12">
+            <DistancePercentilesChart metrics={selectedMetrics} />
+          </div>
+
+          {/* Model Quality */}
+          <div className="col-12 mt-5">
+            <h5 className="mb-3">Model Quality</h5>
+          </div>
+          <div className="col-12">
+            <UncertaintyCalibrationChart metrics={selectedMetrics} />
+          </div>
+          <div className="col-12">
+            <GDOPHealthChart metrics={selectedMetrics} />
+          </div>
+
+          {/* Training Health */}
+          <div className="col-12 mt-5">
+            <h5 className="mb-3">Training Health</h5>
+          </div>
+          <div className="col-12">
+            <GradientHealthChart metrics={selectedMetrics} />
           </div>
         </div>
       )}

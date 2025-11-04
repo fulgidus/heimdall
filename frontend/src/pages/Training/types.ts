@@ -48,6 +48,19 @@ export interface TrainingMetric {
   val_accuracy?: number;
   learning_rate: number;
   epoch_duration_seconds?: number;
+  // Advanced localization metrics (Phase 7 - Nov 2025)
+  train_rmse_km?: number;
+  val_rmse_km?: number;
+  val_rmse_good_geom_km?: number;
+  val_distance_p50_km?: number;
+  val_distance_p68_km?: number;  // Project KPI: ±30m @ 68% confidence
+  val_distance_p95_km?: number;
+  mean_predicted_uncertainty_km?: number;
+  uncertainty_calibration_error?: number;
+  mean_gdop?: number;
+  gdop_below_5_percent?: number;
+  gradient_norm?: number;
+  weight_norm?: number;
 }
 
 export interface FinalMetrics {

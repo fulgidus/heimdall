@@ -316,6 +316,7 @@ def start_training_job(self, job_id: str):
             train_loss_sum = 0.0
             train_distance_sum = 0.0
             train_batches = 0
+            train_grad_norm_sum = 0.0
 
             # Training phase
             for batch in train_loader:
@@ -333,6 +334,15 @@ def start_training_job(self, job_id: str):
 
                 # Backward pass
                 loss.backward()
+
+                # Calculate gradient norm before clipping
+                total_grad_norm = 0.0
+                for p in model.parameters():
+                    if p.grad is not None:
+                        param_norm = p.grad.data.norm(2)
+                        total_grad_norm += param_norm.item() ** 2
+                total_grad_norm = total_grad_norm ** 0.5
+                train_grad_norm_sum += total_grad_norm
 
                 # Gradient clipping
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
@@ -352,6 +362,7 @@ def start_training_job(self, job_id: str):
 
             train_loss = train_loss_sum / train_batches
             train_rmse = train_distance_sum / train_batches
+            train_avg_grad_norm = train_grad_norm_sum / train_batches
 
             # Validation phase
             model.eval()
@@ -360,6 +371,11 @@ def start_training_job(self, job_id: str):
             val_distance_good_geom_sum = 0.0
             val_good_geom_count = 0
             val_batches = 0
+            
+            # Collect all validation distances and uncertainties for percentile/distribution calculations
+            all_val_distances = []
+            all_val_uncertainties = []
+            all_val_gdop = []
 
             with torch.no_grad():
                 for batch in val_loader:
@@ -375,6 +391,16 @@ def start_training_job(self, job_id: str):
                         position[:, 0], position[:, 1],
                         target_position[:, 0], target_position[:, 1]
                     )
+                    
+                    # Calculate predicted uncertainty (standard deviation from log_variance)
+                    # log_variance has shape [batch, 2] for lat/lon
+                    # Take mean across lat/lon dimensions for overall uncertainty
+                    predicted_std = torch.exp(log_variance / 2.0).mean(dim=1)  # [batch]
+                    
+                    # Store for percentile calculations
+                    all_val_distances.append(distances.cpu())
+                    all_val_uncertainties.append(predicted_std.cpu())
+                    all_val_gdop.append(gdop)
 
                     val_loss_sum += loss.item()
                     val_distance_sum += distances.mean().item()
@@ -392,11 +418,50 @@ def start_training_job(self, job_id: str):
                 val_loss = val_loss_sum / val_batches
                 val_rmse = val_distance_sum / val_batches
                 val_rmse_good_geom = (val_distance_good_geom_sum / val_good_geom_count) if val_good_geom_count > 0 else val_rmse
+                
+                # Calculate advanced metrics from collected tensors
+                all_val_distances_tensor = torch.cat(all_val_distances)  # [total_val_samples]
+                all_val_uncertainties_tensor = torch.cat(all_val_uncertainties)  # [total_val_samples]
+                all_val_gdop_tensor = torch.cat(all_val_gdop)  # [total_val_samples]
+                
+                # Distance percentiles (convert meters to km)
+                val_distance_p50 = torch.quantile(all_val_distances_tensor, 0.50).item() / 1000.0  # median
+                val_distance_p68 = torch.quantile(all_val_distances_tensor, 0.68).item() / 1000.0  # project KPI!
+                val_distance_p95 = torch.quantile(all_val_distances_tensor, 0.95).item() / 1000.0  # worst-case
+                
+                # Uncertainty metrics (convert to km)
+                mean_predicted_uncertainty = all_val_uncertainties_tensor.mean().item() / 1000.0
+                
+                # Uncertainty calibration: compare predicted uncertainty vs actual error
+                # Ideal: predicted_uncertainty ≈ actual_error
+                actual_error = all_val_distances_tensor.mean().item() / 1000.0
+                uncertainty_calibration_error = abs(mean_predicted_uncertainty - actual_error)
+                
+                # GDOP metrics
+                mean_gdop = all_val_gdop_tensor.mean().item()
+                gdop_below_5_count = (all_val_gdop_tensor < 5.0).sum().item()
+                gdop_below_5_percent = (gdop_below_5_count / len(all_val_gdop_tensor)) * 100.0
+                
+                # Model weight norm (L2)
+                weight_norm = 0.0
+                for p in model.parameters():
+                    weight_norm += p.data.norm(2).item() ** 2
+                weight_norm = weight_norm ** 0.5
+                
             else:
                 logger.warning("No validation batches - setting validation metrics to high default values")
                 val_loss = 999999.0
                 val_rmse = 999999.0
                 val_rmse_good_geom = 999999.0
+                val_distance_p50 = 999999.0
+                val_distance_p68 = 999999.0
+                val_distance_p95 = 999999.0
+                mean_predicted_uncertainty = 999999.0
+                uncertainty_calibration_error = 999999.0
+                mean_gdop = 999.0
+                gdop_below_5_percent = 0.0
+                weight_norm = 0.0
+                train_avg_grad_norm = 0.0
             
             # Sanitize metrics to ensure JSON compatibility (NaN/Inf -> high default)
             # Use explicit None check since 0.0 is a valid metric value
@@ -442,16 +507,26 @@ def start_training_job(self, job_id: str):
                     }
                 )
 
-                # Store epoch metrics
+                # Store epoch metrics (including advanced metrics)
                 session.execute(
                     text("""
                         INSERT INTO heimdall.training_metrics (
                             training_job_id, epoch, train_loss, val_loss,
-                            train_accuracy, val_accuracy, learning_rate, phase, timestamp
+                            train_accuracy, val_accuracy, learning_rate, phase, timestamp,
+                            train_rmse_km, val_rmse_km, val_rmse_good_geom_km,
+                            val_distance_p50_km, val_distance_p68_km, val_distance_p95_km,
+                            mean_predicted_uncertainty_km, uncertainty_calibration_error,
+                            mean_gdop, gdop_below_5_percent,
+                            gradient_norm, weight_norm
                         )
                         VALUES (
                             :job_id, :epoch, :train_loss, :val_loss,
-                            :train_rmse, :val_rmse, :lr, 'train', NOW()
+                            :train_rmse, :val_rmse, :lr, 'train', NOW(),
+                            :train_rmse_km, :val_rmse_km, :val_rmse_good_geom_km,
+                            :val_distance_p50, :val_distance_p68, :val_distance_p95,
+                            :mean_predicted_uncertainty, :uncertainty_calibration_error,
+                            :mean_gdop, :gdop_below_5_percent,
+                            :gradient_norm, :weight_norm
                         )
                     """),
                     {
@@ -461,7 +536,20 @@ def start_training_job(self, job_id: str):
                         "val_loss": val_loss,
                         "train_rmse": train_rmse,
                         "val_rmse": val_rmse,
-                        "lr": current_lr
+                        "lr": current_lr,
+                        # Advanced metrics
+                        "train_rmse_km": train_rmse / 1000.0,  # convert meters to km
+                        "val_rmse_km": val_rmse / 1000.0,
+                        "val_rmse_good_geom_km": val_rmse_good_geom / 1000.0,
+                        "val_distance_p50": val_distance_p50,
+                        "val_distance_p68": val_distance_p68,
+                        "val_distance_p95": val_distance_p95,
+                        "mean_predicted_uncertainty": mean_predicted_uncertainty,
+                        "uncertainty_calibration_error": uncertainty_calibration_error,
+                        "mean_gdop": mean_gdop,
+                        "gdop_below_5_percent": gdop_below_5_percent,
+                        "gradient_norm": train_avg_grad_norm,
+                        "weight_norm": weight_norm
                     }
                 )
                 session.commit()
@@ -485,7 +573,7 @@ def start_training_job(self, job_id: str):
                 }
             )
 
-            # Publish training progress event
+            # Publish training progress event (including advanced localization metrics)
             event_publisher.publish_training_progress(
                 job_id=job_id,
                 epoch=epoch,
@@ -496,7 +584,20 @@ def start_training_job(self, job_id: str):
                     'train_rmse': float(train_rmse),
                     'val_rmse': float(val_rmse),
                     'val_rmse_good_geom': float(val_rmse_good_geom),
-                    'learning_rate': float(current_lr)
+                    'learning_rate': float(current_lr),
+                    # Advanced localization metrics (Phase 7)
+                    'train_rmse_km': float(train_rmse / 1000.0),
+                    'val_rmse_km': float(val_rmse / 1000.0),
+                    'val_rmse_good_geom_km': float(val_rmse_good_geom / 1000.0),
+                    'val_distance_p50_km': float(val_distance_p50),
+                    'val_distance_p68_km': float(val_distance_p68),
+                    'val_distance_p95_km': float(val_distance_p95),
+                    'mean_predicted_uncertainty_km': float(mean_predicted_uncertainty),
+                    'uncertainty_calibration_error': float(uncertainty_calibration_error),
+                    'mean_gdop': float(mean_gdop),
+                    'gdop_below_5_percent': float(gdop_below_5_percent),
+                    'gradient_norm': float(train_avg_grad_norm),
+                    'weight_norm': float(weight_norm)
                 },
                 is_best=False  # Will update below if this is best
             )
