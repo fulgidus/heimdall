@@ -5,7 +5,7 @@ import { inferenceService } from '../services/api';
 import { useSystemWebSocket } from '../hooks/useSystemWebSocket';
 
 const SystemStatus: React.FC = () => {
-  const { servicesHealth, isLoading, checkAllServices, fetchModelPerformance } = useSystemStore();
+  const { servicesHealth, infrastructureHealth, isLoading, checkAllServices, fetchModelPerformance } = useSystemStore();
   const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [modelInfo, setModelInfo] = useState<any>(null);
@@ -54,11 +54,39 @@ const SystemStatus: React.FC = () => {
     name: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
     status: health.status,
     rawName: name,
+    health,
+  }));
+
+  const infrastructure = Object.entries(infrastructureHealth).map(([name, health]) => ({
+    name: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    status: health.status,
+    rawName: name,
+    health,
   }));
 
   const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
   const onlineWebSDRCount = Object.values(healthStatus).filter(h => h?.status === 'online').length;
   const totalWebSDRCount = safeWebsdrs.length;
+
+  // Helper to get icon for component type
+  const getComponentIcon = (type?: string) => {
+    switch (type) {
+      case 'database':
+        return 'ph-database';
+      case 'cache':
+        return 'ph-lightning';
+      case 'queue':
+        return 'ph-queue';
+      case 'storage':
+        return 'ph-package';
+      case 'worker':
+        return 'ph-cpu';
+      case 'receiver':
+        return 'ph-radio-button';
+      default:
+        return 'ph-circle';
+    }
+  };
 
   return (
     <>
@@ -117,6 +145,18 @@ const SystemStatus: React.FC = () => {
                 </div>
                 <div className="col-md-3">
                   <div className="d-grid">
+                    <div className="bg-light-secondary p-3 rounded text-center">
+                      <i className="ph ph-database f-40 text-secondary mb-2"></i>
+                      <h6 className="mb-0">Infrastructure</h6>
+                      <h3 className="mb-0 mt-2">
+                        {infrastructure.filter(c => c.status === 'healthy').length}/{infrastructure.length || '...'}
+                      </h3>
+                      <p className="text-muted f-12 mb-0">Healthy</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="d-grid">
                     <div className="bg-light-success p-3 rounded text-center">
                       <i className="ph ph-radio-button f-40 text-success mb-2"></i>
                       <h6 className="mb-0">WebSDR Receivers</h6>
@@ -129,25 +169,18 @@ const SystemStatus: React.FC = () => {
                 </div>
                 <div className="col-md-3">
                   <div className="d-grid">
-                    <div className="bg-light-warning p-3 rounded text-center">
-                      <i className="ph ph-brain f-40 text-warning mb-2"></i>
-                      <h6 className="mb-0">ML Model</h6>
-                      <h3 className="mb-0 mt-2">
-                        {modelInfo?.is_ready ? 'Ready' : 'Not Ready'}
-                      </h3>
-                      <p className="text-muted f-12 mb-0">Status</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-3">
-                  <div className="d-grid">
                     <div className="bg-light-info p-3 rounded text-center">
                       <i className="ph ph-activity f-40 text-info mb-2"></i>
                       <h6 className="mb-0">System Health</h6>
                       <h3 className="mb-0 mt-2">
-                        {services.length > 0 && services.filter(s => s.status === 'healthy').length === services.length
+                        {services.length > 0 && 
+                         infrastructure.length > 0 &&
+                         services.filter(s => s.status === 'healthy').length === services.length &&
+                         infrastructure.filter(c => c.status === 'healthy').length === infrastructure.length
                           ? 'Good'
-                          : 'Degraded'}
+                          : infrastructure.length === 0
+                            ? 'Loading...'
+                            : 'Degraded'}
                       </h3>
                       <p className="text-muted f-12 mb-0">Overall</p>
                     </div>
@@ -340,6 +373,91 @@ const SystemStatus: React.FC = () => {
                 <div className="text-center py-5">
                   <i className="ph ph-radio-button f-40 text-muted mb-3"></i>
                   <p className="text-muted mb-0">No WebSDR receivers configured</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Infrastructure Components */}
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Infrastructure Components</h5>
+            </div>
+            <div className="card-body">
+              {infrastructure.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Component</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {infrastructure.map(component => {
+                        const isHealthy = component.status === 'healthy';
+                        const isWarning = component.status === 'warning';
+                        
+                        return (
+                          <tr key={component.rawName}>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                  <div
+                                    className={`avtar avtar-s ${
+                                      isHealthy
+                                        ? 'bg-light-success'
+                                        : isWarning
+                                          ? 'bg-light-warning'
+                                          : 'bg-light-danger'
+                                    }`}
+                                  >
+                                    <i className={`ph ${getComponentIcon(component.health.type)}`}></i>
+                                  </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                  <h6 className="mb-0">{component.name}</h6>
+                                  <small className="text-muted">{component.health.type || 'system'}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  isHealthy
+                                    ? 'bg-light-success'
+                                    : isWarning
+                                      ? 'bg-light-warning'
+                                      : 'bg-light-danger'
+                                }`}
+                              >
+                                {component.status}
+                              </span>
+                            </td>
+                            <td>
+                              <small className="text-muted">
+                                {component.health.message || 
+                                 (component.health.response_time_ms 
+                                   ? `${component.health.response_time_ms.toFixed(1)}ms` 
+                                   : component.health.error || 'N/A')}
+                              </small>
+                              {component.health.worker_count !== undefined && (
+                                <div><small className="text-muted">Workers: {component.health.worker_count}</small></div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-5">
+                  <i className="ph ph-circle-notch f-40 text-muted mb-3"></i>
+                  <p className="text-muted mb-0">Waiting for infrastructure health data...</p>
                 </div>
               )}
             </div>

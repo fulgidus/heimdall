@@ -337,11 +337,16 @@ def monitor_comprehensive_health(self):
         
         logger.info(f"Health check completed for {len(health_results)} components")
         
-        # Publish individual health updates to RabbitMQ for WebSocket broadcasting
+        # Publish comprehensive health update as single aggregated event + individual updates
         try:
             from ..events.publisher import get_event_publisher
             
             publisher = get_event_publisher()
+            
+            # Publish aggregated comprehensive health (all components at once)
+            publisher.publish_comprehensive_health(health_results)
+            
+            # Also publish individual health updates for backwards compatibility
             for service_name, health_data in health_results.items():
                 publisher.publish_service_health(
                     service_name=service_name,
@@ -353,9 +358,12 @@ def monitor_comprehensive_health(self):
                     message=health_data.get("message"),
                     type=health_data.get("type"),
                     model_info=health_data.get("model_info"),  # For inference service
+                    worker_count=health_data.get("worker_count"),  # For celery
+                    online_count=health_data.get("online_count"),  # For websdrs
+                    total_count=health_data.get("total_count"),  # For websdrs
                 )
             
-            logger.debug(f"Published health updates to RabbitMQ for {len(health_results)} components")
+            logger.debug(f"Published comprehensive + individual health updates for {len(health_results)} components")
         
         except Exception as publish_error:
             logger.warning(f"Failed to publish health updates to RabbitMQ: {publish_error}")
