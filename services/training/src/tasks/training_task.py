@@ -375,9 +375,15 @@ def start_training_job(self, job_id: str):
             train_distance_sum = 0.0
             train_batches = 0
             train_grad_norm_sum = 0.0
+            
+            # Track time for batch progress updates (send every ~1 second)
+            import time
+            last_batch_update_time = time.time()
+            batch_update_interval = 1.0  # Send update every 1 second
+            total_train_batches = len(train_loader)
 
             # Training phase
-            for batch in train_loader:
+            for batch_idx, batch in enumerate(train_loader, 1):
                 receiver_features = batch["receiver_features"].to(device)
                 signal_mask = batch["signal_mask"].to(device)
                 target_position = batch["target_position"].to(device)
@@ -417,6 +423,21 @@ def start_training_job(self, job_id: str):
 
                 train_loss_sum += loss.item()
                 train_batches += 1
+                
+                # Send batch-level progress update every ~1 second for real-time UI updates
+                current_time = time.time()
+                if current_time - last_batch_update_time >= batch_update_interval:
+                    avg_batch_loss = train_loss_sum / train_batches
+                    event_publisher.publish_training_batch_progress(
+                        job_id=job_id,
+                        epoch=epoch,
+                        total_epochs=epochs,
+                        batch=batch_idx,
+                        total_batches=total_train_batches,
+                        current_loss=avg_batch_loss,
+                        phase='train'
+                    )
+                    last_batch_update_time = current_time
 
             train_loss = train_loss_sum / train_batches
             train_rmse = train_distance_sum / train_batches

@@ -255,6 +255,51 @@ class EventPublisher:
         self._publish(f'training.progress.{job_id}', event)
         logger.info(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}, metrics={metrics}")
 
+    def publish_training_batch_progress(
+        self,
+        job_id: str,
+        epoch: int,
+        total_epochs: int,
+        batch: int,
+        total_batches: int,
+        current_loss: float,
+        phase: str = 'train'
+    ) -> None:
+        """
+        Publish training batch-level progress update (real-time, every ~1 second).
+
+        Args:
+            job_id: Training job UUID
+            epoch: Current epoch
+            total_epochs: Total epochs
+            batch: Current batch number
+            total_batches: Total batches in epoch
+            current_loss: Current batch loss
+            phase: Training phase ('train' or 'val')
+        """
+        # Calculate overall progress (epoch + batch within epoch)
+        epoch_progress = (epoch - 1) / total_epochs  # Previous epochs
+        batch_progress = (batch / total_batches) / total_epochs  # Current epoch progress
+        overall_progress = (epoch_progress + batch_progress) * 100
+
+        event = {
+            'event': 'training:batch_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'epoch': epoch,
+                'total_epochs': total_epochs,
+                'batch': batch,
+                'total_batches': total_batches,
+                'progress_percent': overall_progress,
+                'current_loss': current_loss,
+                'phase': phase
+            }
+        }
+
+        self._publish(f'training.batch_progress.{job_id}', event)
+        logger.debug(f"Published batch progress: job {job_id}, epoch {epoch}/{total_epochs}, batch {batch}/{total_batches}, loss={current_loss:.4f}")
+
     def publish_training_completed(
         self,
         job_id: str,

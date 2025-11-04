@@ -6,16 +6,79 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { useWebSocket } from '../../../../contexts/WebSocketContext';
 import { JobCard } from './JobCard';
 import { CreateJobDialog } from './CreateJobDialog';
 
 export const JobsTab: React.FC = () => {
-  const { jobs, fetchJobs, isLoading, error } = useTrainingStore();
+  const { jobs, fetchJobs, handleJobUpdate, isLoading, error } = useTrainingStore();
+  const { subscribe } = useWebSocket();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  // Fetch jobs on mount (WebSocket will handle real-time updates)
+  // Fetch jobs on mount and subscribe to real-time WebSocket updates
   useEffect(() => {
     fetchJobs();
+    
+    // Subscribe to real-time training job updates
+    const unsubscribeProgress = subscribe('training:progress', (data: any) => {
+      console.log('[JobsTab] Received training:progress event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, ...data });
+      }
+    });
+
+    // Subscribe to batch-level progress updates (real-time, every ~1 second)
+    const unsubscribeBatchProgress = subscribe('training:batch_progress', (data: any) => {
+      console.log('[JobsTab] Received training:batch_progress event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, ...data });
+      }
+    });
+
+    const unsubscribeStarted = subscribe('training:started', (data: any) => {
+      console.log('[JobsTab] Received training:started event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, status: 'running', ...data });
+      }
+    });
+
+    const unsubscribeCompleted = subscribe('training:completed', (data: any) => {
+      console.log('[JobsTab] Received training:completed event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, status: 'completed', ...data });
+      }
+    });
+
+    const unsubscribeFailed = subscribe('training:failed', (data: any) => {
+      console.log('[JobsTab] Received training:failed event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, status: 'failed', ...data });
+      }
+    });
+
+    const unsubscribePaused = subscribe('training:paused', (data: any) => {
+      console.log('[JobsTab] Received training:paused event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, status: 'paused', ...data });
+      }
+    });
+
+    const unsubscribeResumed = subscribe('training:resumed', (data: any) => {
+      console.log('[JobsTab] Received training:resumed event:', data);
+      if (data.job_id) {
+        handleJobUpdate({ id: data.job_id, status: 'running', ...data });
+      }
+    });
+    
+    return () => {
+      unsubscribeProgress();
+      unsubscribeBatchProgress();
+      unsubscribeStarted();
+      unsubscribeCompleted();
+      unsubscribeFailed();
+      unsubscribePaused();
+      unsubscribeResumed();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Zustand actions are stable, safe to omit from dependencies
 
