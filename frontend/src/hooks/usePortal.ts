@@ -57,18 +57,17 @@ export function usePortal(isOpen: boolean): HTMLDivElement | null {
       // This allows the portal to be removed again on next close
       isCleaningUpRef.current = false;
 
-      // Mount portal if not already mounted AND not in DOM
-      if (!isMountedRef.current && portal.parentNode !== document.body) {
+      // Mount portal if not already mounted
+      if (!isMountedRef.current) {
         try {
           document.body.appendChild(portal);
           isMountedRef.current = true;
+          // Prevent body scroll when modal is open (set once on mount)
+          document.body.style.overflow = 'hidden';
         } catch (error) {
           console.error('Failed to mount portal:', error);
         }
       }
-
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
     }
 
     // Cleanup function (runs on dependency change or unmount)
