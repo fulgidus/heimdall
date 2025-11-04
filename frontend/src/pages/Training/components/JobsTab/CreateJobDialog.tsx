@@ -23,7 +23,7 @@ const modelArchitectures = [
 ];
 
 export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClose }) => {
-  const { createJob } = useTrainingStore();
+  const { createJob, datasets, fetchDatasets } = useTrainingStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRootRef = useRef<HTMLDivElement>(document.createElement('div'));
@@ -31,12 +31,15 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
 
   const [formData, setFormData] = useState<CreateJobRequest>({
     job_name: '',
-    epochs: 50,
-    batch_size: 32,
-    learning_rate: 0.001,
-    model_architecture: 'ResNet-18',
-    validation_split: 0.2,
-    early_stopping_patience: 5,
+    config: {
+      dataset_ids: [],
+      epochs: 50,
+      batch_size: 32,
+      learning_rate: 0.001,
+      model_architecture: 'ResNet-18',
+      validation_split: 0.2,
+      early_stopping_patience: 5,
+    },
   });
 
   // Mount and unmount the modal root element
@@ -64,19 +67,49 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
     }
   }, [isOpen]);
 
-  // Reset error when dialog opens
+  // Fetch datasets and reset error when dialog opens
   useEffect(() => {
     if (isOpen) {
       setError(null);
+      fetchDatasets(true); // Silent fetch to avoid loading indicator
     }
-  }, [isOpen]);
+  }, [isOpen, fetchDatasets]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseFloat(value) : value,
-    }));
+    
+    // Handle nested config fields
+    if (name in formData.config) {
+      setFormData(prev => ({
+        ...prev,
+        config: {
+          ...prev.config,
+          [name]: type === 'number' ? parseFloat(value) : value,
+        },
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? parseFloat(value) : value,
+      }));
+    }
+  };
+
+  const handleDatasetToggle = (datasetId: string) => {
+    setFormData(prev => {
+      const currentIds = prev.config.dataset_ids;
+      const newIds = currentIds.includes(datasetId)
+        ? currentIds.filter(id => id !== datasetId)
+        : [...currentIds, datasetId];
+      
+      return {
+        ...prev,
+        config: {
+          ...prev.config,
+          dataset_ids: newIds,
+        },
+      };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,12 +124,15 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       // Reset form
       setFormData({
         job_name: '',
-        epochs: 50,
-        batch_size: 32,
-        learning_rate: 0.001,
-        model_architecture: 'ResNet-18',
-        validation_split: 0.2,
-        early_stopping_patience: 5,
+        config: {
+          dataset_ids: [],
+          epochs: 50,
+          batch_size: 32,
+          learning_rate: 0.001,
+          model_architecture: 'ResNet-18',
+          validation_split: 0.2,
+          early_stopping_patience: 5,
+        },
       });
       
       onClose();
@@ -161,6 +197,58 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                     />
                   </div>
 
+                  {/* Dataset Selection */}
+                  <div className="col-12">
+                    <label className="form-label">
+                      Training Datasets <span className="text-danger">*</span>
+                    </label>
+                    <div className="card">
+                      <div className="card-body" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {datasets.length === 0 ? (
+                          <p className="text-muted mb-0">
+                            <i className="ph ph-info me-2"></i>
+                            No datasets available. Create synthetic datasets first.
+                          </p>
+                        ) : (
+                          <div className="form-check-group">
+                            {datasets.map(dataset => (
+                              <div key={dataset.id} className="form-check mb-2">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  id={`dataset-${dataset.id}`}
+                                  checked={formData.config.dataset_ids.includes(dataset.id)}
+                                  onChange={() => handleDatasetToggle(dataset.id)}
+                                  disabled={isSubmitting}
+                                />
+                                <label 
+                                  className="form-check-label d-flex justify-content-between align-items-center w-100" 
+                                  htmlFor={`dataset-${dataset.id}`}
+                                >
+                                  <span>
+                                    <strong>{dataset.name}</strong>
+                                    {dataset.description && (
+                                      <small className="text-muted d-block">{dataset.description}</small>
+                                    )}
+                                  </span>
+                                  <span className="badge bg-secondary ms-2">
+                                    {dataset.num_samples.toLocaleString()} samples
+                                  </span>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {formData.config.dataset_ids.length > 0 && (
+                      <small className="form-text text-success">
+                        <i className="ph ph-check-circle me-1"></i>
+                        {formData.config.dataset_ids.length} dataset(s) selected
+                      </small>
+                    )}
+                  </div>
+
                   {/* Model Architecture */}
                   <div className="col-12">
                     <label htmlFor="model_architecture" className="form-label">
@@ -169,7 +257,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                     <select
                       id="model_architecture"
                       name="model_architecture"
-                      value={formData.model_architecture}
+                      value={formData.config.model_architecture}
                       onChange={handleChange}
                       className="form-select"
                       disabled={isSubmitting}
@@ -189,7 +277,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       type="number"
                       id="epochs"
                       name="epochs"
-                      value={formData.epochs}
+                      value={formData.config.epochs}
                       onChange={handleChange}
                       required
                       min="1"
@@ -208,7 +296,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       type="number"
                       id="batch_size"
                       name="batch_size"
-                      value={formData.batch_size}
+                      value={formData.config.batch_size}
                       onChange={handleChange}
                       required
                       min="1"
@@ -227,7 +315,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       type="number"
                       id="learning_rate"
                       name="learning_rate"
-                      value={formData.learning_rate}
+                      value={formData.config.learning_rate}
                       onChange={handleChange}
                       required
                       min="0.0001"
@@ -247,7 +335,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       type="number"
                       id="validation_split"
                       name="validation_split"
-                      value={formData.validation_split}
+                      value={formData.config.validation_split}
                       onChange={handleChange}
                       min="0"
                       max="1"
@@ -269,7 +357,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       type="number"
                       id="early_stopping_patience"
                       name="early_stopping_patience"
-                      value={formData.early_stopping_patience}
+                      value={formData.config.early_stopping_patience}
                       onChange={handleChange}
                       min="0"
                       max="50"
@@ -296,7 +384,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || formData.config.dataset_ids.length === 0}
                   className="btn btn-primary"
                 >
                   {isSubmitting ? (

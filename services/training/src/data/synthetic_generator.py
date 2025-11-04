@@ -719,9 +719,16 @@ async def generate_synthetic_data_with_iq(
             
             # Progress update every 1 second (time-based instead of sample-based)
             current_time = time.time()
+            time_elapsed = current_time - last_progress_time
+            logger.debug(f"Progress check: callback={progress_callback is not None}, time_elapsed={time_elapsed:.2f}s, condition={(progress_callback is not None) and (time_elapsed >= 1.0)}")
             if progress_callback and (current_time - last_progress_time) >= 1.0:
-                await progress_callback(processed, num_samples)
-                logger.info(f"Progress: {processed}/{num_samples} samples processed ({completed} valid)")
+                logger.info(f"[PROGRESS DEBUG] Calling progress_callback with processed={processed}, num_samples={num_samples}")
+                try:
+                    await progress_callback(processed, num_samples)
+                    logger.info(f"[PROGRESS DEBUG] Callback completed successfully")
+                except Exception as e:
+                    logger.error(f"[PROGRESS DEBUG] Callback failed: {e}", exc_info=True)
+                logger.info(f"[PROGRESS] Progress: {processed}/{num_samples} samples processed ({completed} valid)")
                 last_progress_time = current_time
 
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")

@@ -13,6 +13,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -437,13 +438,13 @@ async def training_websocket(websocket: WebSocket, job_id: str):
                     # Query training job status
                     with db_manager.get_session() as session:
                         result = session.execute(
-                            """
+                            text("""
                             SELECT status, current_epoch, total_epochs, progress_percent,
                                    train_loss, val_loss, train_accuracy, val_accuracy,
                                    learning_rate, error_message
                             FROM heimdall.training_jobs
                             WHERE id = :job_id
-                            """,
+                            """),
                             {"job_id": job_id}
                         ).fetchone()
 

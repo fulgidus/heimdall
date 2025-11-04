@@ -17,7 +17,7 @@ export interface TrainingJobConfig {
   batch_size: number;
   learning_rate: number;
   model_architecture: string;
-  dataset_id?: string;
+  dataset_ids?: string[];
   validation_split?: number;
   early_stopping_patience?: number;
   checkpoint_every_n_epochs?: number;
@@ -87,12 +87,15 @@ export interface TrainingWebSocketMessage {
 
 export interface CreateJobRequest {
   job_name: string;
-  epochs: number;
-  batch_size: number;
-  learning_rate: number;
-  model_architecture?: string;
-  validation_split?: number;
-  early_stopping_patience?: number;
+  config: {
+    dataset_ids: string[];
+    epochs: number;
+    batch_size: number;
+    learning_rate: number;
+    model_architecture?: string;
+    validation_split?: number;
+    early_stopping_patience?: number;
+  };
 }
 
 export interface CreateJobResponse {

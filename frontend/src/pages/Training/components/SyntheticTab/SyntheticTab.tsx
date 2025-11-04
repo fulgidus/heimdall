@@ -33,10 +33,24 @@ export const SyntheticTab: React.FC = () => {
       // Refresh datasets silently (without loading spinner)
       fetchDatasets(true);
     });
+
+    // Subscribe to dataset generation progress events
+    const unsubscribeProgress = subscribe('dataset:generation_progress', (data: any) => {
+      console.log('[SyntheticTab] ===== DATASET GENERATION PROGRESS EVENT =====');
+      console.log('[SyntheticTab] Event data:', JSON.stringify(data, null, 2));
+      console.log('[SyntheticTab] Refreshing generation jobs...');
+      // Refresh generation jobs to update progress (without loading spinner)
+      fetchGenerationJobs(true).then(() => {
+        console.log('[SyntheticTab] Generation jobs refreshed successfully');
+      }).catch(err => {
+        console.error('[SyntheticTab] Failed to refresh generation jobs:', err);
+      });
+    });
     
     return () => {
       unsubscribeJob();
       unsubscribeDataset();
+      unsubscribeProgress();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Zustand actions are stable, safe to omit from dependencies

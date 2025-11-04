@@ -86,9 +86,13 @@ def start_training_job(self, job_id: str):
             config = json.loads(result[0])
         
         # Extract configuration
-        dataset_id = config.get("dataset_id")
-        if not dataset_id:
-            raise ValueError("dataset_id is required in training configuration")
+        dataset_ids = config.get("dataset_ids")
+        if not dataset_ids or len(dataset_ids) == 0:
+            # For backward compatibility with single dataset_id
+            if config.get("dataset_id"):
+                dataset_ids = [config.get("dataset_id")]
+            else:
+                raise ValueError("dataset_ids is required in training configuration and must contain at least one dataset")
         
         batch_size = config.get("batch_size", 32)
         num_workers = config.get("num_workers", 4)
@@ -101,7 +105,7 @@ def start_training_job(self, job_id: str):
         max_grad_norm = config.get("max_grad_norm", 1.0)
         max_gdop = config.get("max_gdop", 5.0)
         
-        logger.info(f"Training config: dataset={dataset_id}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
+        logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
         
         # Add training service to Python path
         training_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '../../../training/src'))
@@ -121,7 +125,7 @@ def start_training_job(self, job_id: str):
         train_session = db_manager.get_session()
         with train_session:
             train_loader = create_triangulation_dataloader(
-                dataset_id=dataset_id,
+                dataset_ids=dataset_ids,
                 split="train",
                 db_session=train_session,
                 batch_size=batch_size,
@@ -134,7 +138,7 @@ def start_training_job(self, job_id: str):
         val_session = db_manager.get_session()
         with val_session:
             val_loader = create_triangulation_dataloader(
-                dataset_id=dataset_id,
+                dataset_ids=dataset_ids,
                 split="val",
                 db_session=val_session,
                 batch_size=batch_size,
@@ -444,6 +448,12 @@ def start_training_job(self, job_id: str):
         # Save model metadata to models table
         model_id = uuid.uuid4()
         with db_manager.get_session() as session:
+            # Store first dataset_id in synthetic_dataset_id column (has FK constraint)
+            # Full list is preserved in hyperparameters JSON
+            if not dataset_ids or len(dataset_ids) == 0:
+                raise ValueError("No dataset_ids available for model insertion")
+            primary_dataset_id = dataset_ids[0]
+            
             session.execute(
                 text("""
                     INSERT INTO heimdall.models (
@@ -461,7 +471,7 @@ def start_training_job(self, job_id: str):
                 {
                     "id": str(model_id),
                     "name": f"triangulation_job_{job_id}",
-                    "dataset_id": dataset_id,
+                    "dataset_id": primary_dataset_id,
                     "location": f"s3://models/{final_checkpoint_path}",
                     "rmse": val_rmse,
                     "rmse_good": val_rmse_good_geom,

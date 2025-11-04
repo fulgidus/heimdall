@@ -177,12 +177,25 @@ export class WebSocketManager {
   /**
    * Subscribe to an event
    */
-  public subscribe(event: string, callback: EventCallback): void {
+  public subscribe(event: string, callback: (data: any) => void): () => void {
     if (!this.subscribers.has(event)) {
       this.subscribers.set(event, new Set());
     }
+    
     this.subscribers.get(event)!.add(callback);
-    console.log(`[WebSocket] Subscribed to event: ${event}`);
+    console.log(`[WebSocket] Subscribed to event: ${event} (total subscribers: ${this.subscribers.get(event)!.size})`);
+
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.subscribers.get(event);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.subscribers.delete(event);
+        }
+        console.log(`[WebSocket] Unsubscribed from event: ${event}`);
+      }
+    };
   }
 
   /**
@@ -258,9 +271,13 @@ export class WebSocketManager {
         return;
       }
 
+      // DEBUG: Log all incoming events for troubleshooting
+      console.log('[WebSocket] Incoming event:', message.event, message.data);
+
       // Notify subscribers
       const callbacks = this.subscribers.get(message.event);
       if (callbacks) {
+        console.log(`[WebSocket] Found ${callbacks.size} subscribers for event: ${message.event}`);
         callbacks.forEach(callback => {
           try {
             callback(message.data);
@@ -268,6 +285,8 @@ export class WebSocketManager {
             console.error(`[WebSocket] Error in callback for event ${message.event}:`, error);
           }
         });
+      } else {
+        console.warn(`[WebSocket] No subscribers for event: ${message.event}`);
       }
     } catch (error) {
       console.error('[WebSocket] Failed to parse message:', error);

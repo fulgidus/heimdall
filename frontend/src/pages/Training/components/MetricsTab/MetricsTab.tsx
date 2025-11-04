@@ -14,13 +14,19 @@ export const MetricsTab: React.FC = () => {
   const { jobs, metrics, fetchMetrics, error } = useTrainingStore();
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
+  // Filter out synthetic generation jobs (only show training jobs)
+  const trainingJobs = jobs.filter(job => {
+    // @ts-ignore - job_type exists on backend response but not in TrainingJob type
+    return !job.job_type || job.job_type === 'training';
+  });
+
   // Auto-select first running job or first job
   useEffect(() => {
-    if (!selectedJobId && jobs.length > 0) {
-      const runningJob = jobs.find(job => job.status === 'running');
-      setSelectedJobId(runningJob?.id || jobs[0].id);
+    if (!selectedJobId && trainingJobs.length > 0) {
+      const runningJob = trainingJobs.find(job => job.status === 'running');
+      setSelectedJobId(runningJob?.id || trainingJobs[0].id);
     }
-  }, [jobs, selectedJobId]);
+  }, [trainingJobs, selectedJobId]);
 
   // Fetch metrics when job is selected
   useEffect(() => {
@@ -28,7 +34,7 @@ export const MetricsTab: React.FC = () => {
       fetchMetrics(selectedJobId);
       
       // Refresh every 5 seconds for running jobs
-      const selectedJob = jobs.find(j => j.id === selectedJobId);
+      const selectedJob = trainingJobs.find(j => j.id === selectedJobId);
       if (selectedJob?.status === 'running') {
         const interval = setInterval(() => {
           fetchMetrics(selectedJobId);
@@ -41,7 +47,7 @@ export const MetricsTab: React.FC = () => {
   }, [selectedJobId]); // Only re-run when job selection changes, not on every jobs update
 
   const selectedMetrics = selectedJobId ? metrics.get(selectedJobId) || [] : [];
-  const selectedJob = jobs.find(j => j.id === selectedJobId);
+  const selectedJob = trainingJobs.find(j => j.id === selectedJobId);
 
   return (
     <div>
@@ -56,7 +62,7 @@ export const MetricsTab: React.FC = () => {
       </div>
 
       {/* Job Selector */}
-      {jobs.length > 0 ? (
+      {trainingJobs.length > 0 ? (
         <div className="card mb-4">
           <div className="card-body">
             <label htmlFor="job-select" className="form-label fw-medium">
@@ -69,7 +75,7 @@ export const MetricsTab: React.FC = () => {
               className="form-select"
               style={{ maxWidth: '450px' }}
             >
-              {jobs.map(job => (
+              {trainingJobs.map(job => (
                 <option key={job.id} value={job.id}>
                   {job.name} ({job.status}) - Epoch {job.current_epoch || 0}/{job.total_epochs}
                 </option>

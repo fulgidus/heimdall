@@ -23,7 +23,7 @@ class SyntheticTriangulationDataset(Dataset):
     
     def __init__(
         self,
-        dataset_id: str,
+        dataset_ids: List[str],
         split: str,
         db_session,
         max_receivers: int = 7,
@@ -33,13 +33,13 @@ class SyntheticTriangulationDataset(Dataset):
         Initialize dataset.
         
         Args:
-            dataset_id: UUID of synthetic dataset
+            dataset_ids: List of UUIDs of synthetic datasets to merge
             split: 'train', 'val', or 'test'
             db_session: Database session
             max_receivers: Maximum number of receivers (for padding)
             cache_size: Number of samples to cache in memory
         """
-        self.dataset_id = dataset_id
+        self.dataset_ids = dataset_ids
         self.split = split
         self.db_session = db_session
         self.max_receivers = max_receivers
@@ -50,27 +50,30 @@ class SyntheticTriangulationDataset(Dataset):
         
         logger.info(
             "SyntheticTriangulationDataset initialized",
-            dataset_id=dataset_id,
+            dataset_ids=dataset_ids,
             split=split,
             num_samples=len(self.sample_ids),
             max_receivers=max_receivers
         )
     
     def _load_sample_ids(self) -> List[str]:
-        """Load sample IDs from database."""
+        """Load sample IDs from database, merging all specified datasets."""
         from sqlalchemy import text
+        from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ARRAY
+        from sqlalchemy import bindparam
         
-        # Query measurement_features table instead of synthetic_training_samples
+        # Query measurement_features table for all dataset_ids
+        # Use PostgreSQL's = ANY() with properly typed array parameter
         query = text("""
             SELECT recording_session_id
             FROM heimdall.measurement_features
-            WHERE dataset_id = :dataset_id
+            WHERE dataset_id = ANY(CAST(:dataset_ids AS uuid[]))
             ORDER BY timestamp
         """)
         
         result = self.db_session.execute(
             query,
-            {"dataset_id": self.dataset_id}
+            {"dataset_ids": self.dataset_ids}
         )
         
         all_sample_ids = [str(row[0]) for row in result]
@@ -210,7 +213,7 @@ def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
 
 
 def create_triangulation_dataloader(
-    dataset_id: str,
+    dataset_ids: List[str],
     split: str,
     db_session,
     batch_size: int = 256,
@@ -222,7 +225,7 @@ def create_triangulation_dataloader(
     Create DataLoader for triangulation training.
     
     Args:
-        dataset_id: UUID of synthetic dataset
+        dataset_ids: List of UUIDs of synthetic datasets to merge
         split: 'train', 'val', or 'test'
         db_session: Database session
         batch_size: Batch size
@@ -234,7 +237,7 @@ def create_triangulation_dataloader(
         DataLoader instance
     """
     dataset = SyntheticTriangulationDataset(
-        dataset_id=dataset_id,
+        dataset_ids=dataset_ids,
         split=split,
         db_session=db_session,
         max_receivers=max_receivers

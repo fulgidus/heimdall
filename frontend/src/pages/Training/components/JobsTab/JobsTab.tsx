@@ -25,6 +25,12 @@ export const JobsTab: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Zustand actions are stable, safe to omit from dependencies
 
+  // Filter out synthetic generation jobs (they have their own tab)
+  const trainingJobs = jobs.filter(job => {
+    // @ts-ignore - job_type exists on backend response but not in TrainingJob type
+    return !job.job_type || job.job_type === 'training';
+  });
+
   return (
     <div>
       {/* Header */}
@@ -55,7 +61,7 @@ export const JobsTab: React.FC = () => {
       )}
 
       {/* Loading State */}
-      {isLoading && jobs.length === 0 && (
+      {isLoading && trainingJobs.length === 0 && (
         <div className="text-center py-5">
           <div className="spinner-border text-primary mb-3" role="status">
             <span className="visually-hidden">Loading...</span>
@@ -65,7 +71,7 @@ export const JobsTab: React.FC = () => {
       )}
 
       {/* Empty State */}
-      {!isLoading && jobs.length === 0 && (
+      {!isLoading && trainingJobs.length === 0 && (
         <div className="card border-dashed">
           <div className="card-body text-center py-5">
             <i className="ph ph-clipboard-text display-4 text-muted mb-3"></i>
@@ -83,9 +89,9 @@ export const JobsTab: React.FC = () => {
       )}
 
       {/* Jobs Grid */}
-      {jobs.length > 0 && (
+      {trainingJobs.length > 0 && (
         <div className="row g-3">
-          {jobs.map(job => (
+          {trainingJobs.map(job => (
             <div key={job.id} className="col-12 col-md-6 col-lg-4">
               <JobCard job={job} />
             </div>
