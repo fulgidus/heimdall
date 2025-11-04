@@ -1244,10 +1244,10 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
     try:
         # If expanding existing dataset, set up continuation flags
         if request.expand_dataset_id:
-            # Verify dataset exists
+            # Verify dataset exists and retrieve original config
             with db_manager.get_session() as session:
                 check_query = text("""
-                    SELECT id, num_samples FROM heimdall.synthetic_datasets
+                    SELECT id, num_samples, config FROM heimdall.synthetic_datasets
                     WHERE id = :dataset_id
                 """)
                 result = session.execute(check_query, {"dataset_id": str(request.expand_dataset_id)})
@@ -1256,6 +1256,29 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
                     raise HTTPException(status_code=404, detail=f"Dataset {request.expand_dataset_id} not found")
                 
                 existing_samples = row[1]
+                original_config = row[2] if isinstance(row[2], dict) else {}
+            
+            # Inherit parameters from original dataset config if not explicitly provided in request
+            # This ensures consistency when expanding datasets (frequency, power, etc.)
+            if 'frequency_mhz' in original_config and request.frequency_mhz == 145.0:  # 145.0 is default
+                request_dict['frequency_mhz'] = original_config['frequency_mhz']
+                logger.info(f"Inherited frequency_mhz={original_config['frequency_mhz']} from original dataset")
+            
+            if 'tx_power_dbm' in original_config and request.tx_power_dbm == 37.0:  # 37.0 is default
+                request_dict['tx_power_dbm'] = original_config['tx_power_dbm']
+                logger.info(f"Inherited tx_power_dbm={original_config['tx_power_dbm']} from original dataset")
+            
+            if 'min_snr_db' in original_config and request.min_snr_db == 3.0:  # 3.0 is default
+                request_dict['min_snr_db'] = original_config['min_snr_db']
+                logger.info(f"Inherited min_snr_db={original_config['min_snr_db']} from original dataset")
+            
+            if 'max_gdop' in original_config and request.max_gdop == 10.0:  # 10.0 is default
+                request_dict['max_gdop'] = original_config['max_gdop']
+                logger.info(f"Inherited max_gdop={original_config['max_gdop']} from original dataset")
+            
+            if 'inside_ratio' in original_config and request.inside_ratio == 0.7:  # 0.7 is default
+                request_dict['inside_ratio'] = original_config['inside_ratio']
+                logger.info(f"Inherited inside_ratio={original_config['inside_ratio']} from original dataset")
             
             # Set continuation flags in config
             request_dict['is_continuation'] = True

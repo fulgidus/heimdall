@@ -50,6 +50,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy installed packages from builder
 COPY --from=deps-train /root/.local /home/appuser/.local
 
+# Create CuPy cache directory with proper permissions
+RUN mkdir -p /home/appuser/.cupy && chown -R appuser:appuser /home/appuser/.cupy
+
 # Copy application code
 COPY --chown=appuser:appuser services/training/src/ ./src/
 COPY --chown=appuser:appuser services/training/entrypoint.py ./entrypoint.py

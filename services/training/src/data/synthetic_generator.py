@@ -142,9 +142,7 @@ def _generate_single_sample(args):
     )
     # Create feature extractor with optimized settings (reusable)
     feature_extractor = RFFeatureExtractor(
-        sample_rate_hz=200_000,
-        nperseg=2048,  # FFT window size
-        noverlap=1024  # 50% overlap
+        sample_rate_hz=200_000
     )
     propagation = RFPropagationModel()
 
