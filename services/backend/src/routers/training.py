@@ -1757,6 +1757,67 @@ async def get_model(model_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to get model: {e!s}")
 
 
+@router.patch("/models/{model_id}", status_code=200)
+async def update_model_name(model_id: UUID, model_name: str):
+    """
+    Update model name.
+    
+    Args:
+        model_id: Model UUID
+        model_name: New model name (1-100 characters)
+    
+    Returns:
+        Success message with updated model name
+    """
+    from ..events.publisher import get_event_publisher
+    
+    # Validate model name length
+    if not model_name or len(model_name) < 1 or len(model_name) > 100:
+        raise HTTPException(status_code=400, detail="Model name must be between 1 and 100 characters")
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id, model_name FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            # Update model name
+            update_query = text("""
+                UPDATE heimdall.models 
+                SET model_name = :model_name
+                WHERE id = :model_id
+            """)
+            session.execute(update_query, {"model_id": str(model_id), "model_name": model_name})
+            session.commit()
+            
+            logger.info(f"Updated model {model_id} name to '{model_name}'")
+            
+            # Broadcast WebSocket event
+            publisher = get_event_publisher()
+            event_data = {
+                'event': 'model:name_updated',
+                'timestamp': datetime.utcnow().isoformat(),
+                'data': {
+                    'model_id': str(model_id),
+                    'model_name': model_name
+                }
+            }
+            publisher._publish('model.name.updated', event_data)
+            
+            return {"success": True, "model_id": str(model_id), "model_name": model_name}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating model {model_id} name: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update model name: {e!s}")
+
+
 @router.post("/models/{model_id}/deploy", status_code=200)
 async def deploy_model(model_id: UUID, set_production: bool = False):
     """

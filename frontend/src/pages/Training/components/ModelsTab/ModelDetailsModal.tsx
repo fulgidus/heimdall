@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import type { TrainedModel } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { EvolveTrainingModal } from './EvolveTrainingModal';
+import { InlineEditText } from '../../../../components/InlineEditText';
 
 interface ModelDetailsModalProps {
   model: TrainedModel;
@@ -29,7 +30,7 @@ interface FileInfo {
 }
 
 export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isOpen, onClose }) => {
-  const { deleteModel, setModelActive, setModelProduction } = useTrainingStore();
+  const { deleteModel, setModelActive, setModelProduction, updateModelName } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [fileInfo, setFileInfo] = useState<{ onnx?: FileInfo; pytorch?: FileInfo }>({});
@@ -141,7 +142,13 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
             <div className="row g-3">
               <div className="col-md-6">
                 <label className="form-label text-muted small">Model Name</label>
-                <p className="mb-0 fw-medium">{model.model_name}</p>
+                <p className="mb-0 fw-medium">
+                  <InlineEditText
+                    value={model.model_name}
+                    onSave={(newName) => updateModelName(model.id, newName)}
+                    placeholder="Model Name"
+                  />
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label text-muted small">Version</label>
@@ -563,13 +570,19 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
         }}
       />
 
-      <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-        <div className="modal-dialog modal-xl modal-dialog-scrollable">
+      <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
+        <div className="modal-dialog modal-xl modal-dialog-scrollable" style={{ zIndex: 1051 }}>
           <div className="modal-content">
           {/* Modal Header */}
           <div className="modal-header">
             <div>
-              <h5 className="modal-title mb-1">{model.model_name}</h5>
+              <h5 className="modal-title mb-1">
+                <InlineEditText
+                  value={model.model_name}
+                  onSave={(newName) => updateModelName(model.id, newName)}
+                  placeholder="Model Name"
+                />
+              </h5>
               <p className="text-muted small mb-0">Version {model.version} - {model.model_type || 'N/A'}</p>
             </div>
             <button

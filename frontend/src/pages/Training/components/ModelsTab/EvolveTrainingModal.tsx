@@ -64,8 +64,8 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
+    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1060 }}>
+      <div className="modal-dialog modal-lg" style={{ zIndex: 1061 }}>
         <div className="modal-content">
           {/* Modal Header */}
           <div className="modal-header">
@@ -160,17 +160,29 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
                       <span className="text-danger ms-1">*</span>
                     </label>
                     <input
-                      type="number"
-                      className="form-control"
+                      type="range"
+                      className="form-range mb-2"
                       id="earlyStopPatience"
                       min="1"
                       max="100"
                       value={earlyStopPatience}
-                      onChange={(e) => setEarlyStopPatience(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) => setEarlyStopPatience(parseInt(e.target.value))}
                       disabled={isLoading}
                     />
-                    <div className="form-text">
-                      Number of epochs to wait for improvement before stopping early
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="text-muted small">Epochs to wait before stopping early</span>
+                      <div className="input-group" style={{ width: '120px' }}>
+                        <input
+                          type="number"
+                          className="form-control form-control-sm"
+                          min="1"
+                          max="100"
+                          value={earlyStopPatience}
+                          onChange={(e) => setEarlyStopPatience(Math.max(1, parseInt(e.target.value) || 1))}
+                          disabled={isLoading}
+                        />
+                        <span className="input-group-text">epochs</span>
+                      </div>
                     </div>
                   </div>
 

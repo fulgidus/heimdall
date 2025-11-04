@@ -9,6 +9,7 @@ import type { TrainedModel } from '../../types';
 import { ExportDialog } from './ExportDialog';
 import { ModelDetailsModal } from './ModelDetailsModal';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { InlineEditText } from '../../../../components/InlineEditText';
 
 interface ModelCardProps {
   model: TrainedModel;
@@ -17,7 +18,7 @@ interface ModelCardProps {
 export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const { deleteModel } = useTrainingStore();
+  const { deleteModel, updateModelName } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const formatNumber = (num: number | undefined) => {
@@ -45,7 +46,14 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
           {/* Header */}
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="flex-grow-1">
-              <h5 className="mb-1">{model.model_name}</h5>
+              <h5 className="mb-1">
+                <InlineEditText
+                  value={model.model_name}
+                  onSave={(newName) => updateModelName(model.id, newName)}
+                  className="d-inline-block"
+                  placeholder="Model Name"
+                />
+              </h5>
               <p className="text-muted small mb-0">
                 Version: {model.version} | Type: {model.model_type || 'N/A'}
               </p>

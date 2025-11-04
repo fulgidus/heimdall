@@ -47,6 +47,7 @@ interface TrainingStore {
   downloadModel: (modelId: string, options: ExportOptions) => Promise<void>;
   importModel: (file: File) => Promise<void>;
   deleteModel: (modelId: string) => Promise<void>;
+  updateModelName: (modelId: string, newName: string) => Promise<void>;
   setModelActive: (modelId: string) => Promise<void>;
   setModelProduction: (modelId: string) => Promise<void>;
   evolveTraining: (parentModelId: string, additionalEpochs: number, earlyStopPatience: number) => Promise<string>;
@@ -345,6 +346,29 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete model';
       set({ error: errorMessage });
       console.error('Model deletion error:', error);
+      throw error;
+    }
+  },
+
+  // Update model name
+  updateModelName: async (modelId: string, newName: string) => {
+    set({ error: null });
+    try {
+      const params = new URLSearchParams();
+      params.append('model_name', newName);
+
+      await api.patch(`/v1/training/models/${modelId}?${params.toString()}`);
+      
+      // Update model in local state
+      set(state => ({
+        models: state.models.map(model =>
+          model.id === modelId ? { ...model, model_name: newName } : model
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update model name';
+      set({ error: errorMessage });
+      console.error('Model name update error:', error);
       throw error;
     }
   },
