@@ -51,6 +51,7 @@ class TrainingConfig(BaseModel):
     batch_size: int = Field(default=128, ge=1, le=1024, description="Batch size (larger=better GPU utilization)")
     num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers (0=auto-detect, recommended)")
     validation_split: float = Field(default=0.2, ge=0.0, le=0.5, description="Validation split ratio")
+    preload_to_gpu: bool = Field(default=True, description="Preload ALL data to VRAM (FAST! Use with 24GB GPU)")
 
     # Feature extraction
     n_mels: int = Field(default=128, description="Mel-spectrogram frequency bins")

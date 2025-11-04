@@ -25,7 +25,8 @@ export interface TrainingJobConfig {
 
 export interface TrainingJob {
   id: string;
-  name: string;
+  job_name: string;
+  name?: string; // Deprecated - use job_name
   status: TrainingJobStatus;
   created_at: string;
   started_at?: string;

@@ -167,6 +167,8 @@ def start_training_job(self, job_id: str):
         # Import training components (using absolute imports from /app)
         from src.models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
         from src.data.triangulation_dataloader import create_triangulation_dataloader
+        from src.data.gpu_cached_dataset import GPUCachedDataset
+        from torch.utils.data import DataLoader
 
         # Determine device
         accelerator = config.get("accelerator", "auto")
@@ -184,42 +186,98 @@ def start_training_job(self, job_id: str):
         
         logger.info(f"Using device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
 
-        # IMPORTANT: DataLoader workers incompatible with DB sessions (pickling error)
-        # Solution: Use num_workers=0 BUT enable file cache for 10-50x speedup on epoch 2+
-        # - Epoch 1: Slow (DB load), saves to /tmp/heimdall_training_cache
-        # - Epoch 2+: FAST (disk cache is 100x faster than DB queries)
-        actual_num_workers = 0  # Force single-threaded to avoid DB session pickling issues
-        if num_workers > 0:
-            logger.info(f"Requested {num_workers} workers, but using 0 due to DB session constraints. Cache will make epoch 2+ FAST!")
+        # GPU-CACHED DATASET: Load ALL data to VRAM for 100% GPU utilization!
+        preload_to_gpu = config.get("preload_to_gpu", True)
         
-        # Create persistent sessions for dataloaders (will be closed in finally block)
-        # Note: We cannot use context managers here because dataloaders need sessions
-        # to stay alive during the entire training loop
-        logger.info(f"Creating train dataloader with file cache enabled...")
-        train_session = db_manager.SessionLocal()
-        train_loader = create_triangulation_dataloader(
-            dataset_ids=dataset_ids,
-            split="train",
-            db_session=train_session,
-            batch_size=batch_size,
-            num_workers=actual_num_workers,
-            shuffle=True,
-            max_receivers=7,
-            use_cache=True  # Enable file cache for massive speedup
-        )
+        if preload_to_gpu and device.type == "cuda":
+            logger.info("🚀 GPU-CACHED MODE: Loading ALL data to VRAM for maximum GPU utilization!")
+            
+            # Create one-time session for dataset preloading
+            with db_manager.get_session() as load_session:
+                # Create GPU-cached datasets (loads all data to VRAM)
+                logger.info("Loading train dataset to GPU...")
+                train_dataset = GPUCachedDataset(
+                    dataset_ids=dataset_ids,
+                    split="train",
+                    db_session=load_session,
+                    device=device,
+                    max_receivers=7,
+                    preload_to_gpu=True
+                )
+                
+                logger.info("Loading validation dataset to GPU...")
+                val_dataset = GPUCachedDataset(
+                    dataset_ids=dataset_ids,
+                    split="val",
+                    db_session=load_session,
+                    device=device,
+                    max_receivers=7,
+                    preload_to_gpu=True
+                )
+            
+            # Create DataLoaders (num_workers MUST be 0 for GPU-cached datasets)
+            train_loader = DataLoader(
+                train_dataset,
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=0,  # Data already on GPU, no I/O needed
+                pin_memory=False  # Data already on GPU
+            )
+            
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=0,
+                pin_memory=False
+            )
+            
+            logger.info(f"✅ GPU-CACHED READY: {len(train_dataset)} train + {len(val_dataset)} val samples in VRAM")
+            logger.info(f"💪 GPU will run at 100% utilization with ZERO I/O wait!")
+            
+        else:
+            # FALLBACK: Traditional DB-based dataloader with file cache
+            if not preload_to_gpu:
+                logger.info("📦 NORMAL MODE: Using DB-based dataloaders with file cache")
+            else:
+                logger.info("⚠️  GPU not available, falling back to DB-based dataloaders")
+            
+            # IMPORTANT: DataLoader workers incompatible with DB sessions (pickling error)
+            # Solution: Use num_workers=0 BUT enable file cache for 10-50x speedup on epoch 2+
+            # - Epoch 1: Slow (DB load), saves to /tmp/heimdall_training_cache
+            # - Epoch 2+: FAST (disk cache is 100x faster than DB queries)
+            actual_num_workers = 0  # Force single-threaded to avoid DB session pickling issues
+            if num_workers > 0:
+                logger.info(f"Requested {num_workers} workers, but using 0 due to DB session constraints. Cache will make epoch 2+ FAST!")
+            
+            # Create persistent sessions for dataloaders (will be closed in finally block)
+            # Note: We cannot use context managers here because dataloaders need sessions
+            # to stay alive during the entire training loop
+            logger.info(f"Creating train dataloader with file cache enabled...")
+            train_session = db_manager.SessionLocal()
+            train_loader = create_triangulation_dataloader(
+                dataset_ids=dataset_ids,
+                split="train",
+                db_session=train_session,
+                batch_size=batch_size,
+                num_workers=actual_num_workers,
+                shuffle=True,
+                max_receivers=7,
+                use_cache=True  # Enable file cache for massive speedup
+            )
 
-        logger.info(f"Creating validation dataloader with file cache enabled...")
-        val_session = db_manager.SessionLocal()
-        val_loader = create_triangulation_dataloader(
-            dataset_ids=dataset_ids,
-            split="val",
-            db_session=val_session,
-            batch_size=batch_size,
-            num_workers=actual_num_workers,
-            shuffle=False,
-            max_receivers=7,
-            use_cache=True  # Enable file cache
-        )
+            logger.info(f"Creating validation dataloader with file cache enabled...")
+            val_session = db_manager.SessionLocal()
+            val_loader = create_triangulation_dataloader(
+                dataset_ids=dataset_ids,
+                split="val",
+                db_session=val_session,
+                batch_size=batch_size,
+                num_workers=actual_num_workers,
+                shuffle=False,
+                max_receivers=7,
+                use_cache=True  # Enable file cache
+            )
 
         # Update dataset info in job
         train_samples = len(train_loader.dataset)

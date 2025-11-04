@@ -58,7 +58,7 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
         {/* Header */}
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div className="flex-grow-1">
-            <h6 className="card-title mb-1">{job.name}</h6>
+            <h6 className="card-title mb-1">{job.job_name || job.name || job.config.name || 'Unnamed Job'}</h6>
             <p className="text-muted small mb-0">
               <code className="small">{job.id.slice(0, 8)}</code>
             </p>

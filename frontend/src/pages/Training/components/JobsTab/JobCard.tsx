@@ -84,7 +84,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
         {/* Header */}
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div className="flex-grow-1">
-            <h5 className="card-title mb-1">{job.name}</h5>
+            <h5 className="card-title mb-1">{job.job_name || job.name || 'Unnamed Job'}</h5>
             <p className="text-muted small mb-0">ID: {job.id.slice(0, 8)}</p>
           </div>
           <span className={`badge ${statusBadges[job.status] || statusBadges.pending}`}>

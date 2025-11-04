@@ -72,7 +72,7 @@ export const MetricsTab: React.FC = () => {
             >
               {trainingJobs.map(job => (
                 <option key={job.id} value={job.id}>
-                  {job.name || job.config.job_name || 'Unnamed Job'} ({job.status}) - Epoch {job.current_epoch || 0}/{job.total_epochs}
+                  {job.job_name || job.name || 'Unnamed Job'} ({job.status}) - Epoch {job.current_epoch || 0}/{job.total_epochs}
                 </option>
               ))}
             </select>

@@ -81,10 +81,6 @@ const WebSDRMarkers: React.FC<WebSDRMarkersProps> = ({ map, websdrs, healthStatu
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-
     // Add markers for each WebSDR
     websdrs.forEach(websdr => {
       const health = healthStatus[websdr.id];
