@@ -234,6 +234,20 @@ async def get_dataset_samples(
 # DATASET GENERATION
 # ============================================================================
 
+class TxAntennaDistributionRequest(BaseModel):
+    """TX antenna distribution configuration."""
+    whip: float = 0.90
+    rubber_duck: float = 0.08
+    portable_directional: float = 0.02
+
+
+class RxAntennaDistributionRequest(BaseModel):
+    """RX antenna distribution configuration."""
+    omni_vertical: float = 0.80
+    yagi: float = 0.15
+    collinear: float = 0.05
+
+
 class GenerateDatasetRequest(BaseModel):
     """Request model for synthetic dataset generation."""
     name: str
@@ -243,11 +257,13 @@ class GenerateDatasetRequest(BaseModel):
     tx_power_dbm: float
     min_snr_db: float
     min_receivers: int
-    max_gdop: float = 150.0  # Default: 150 GDOP for clustered receivers (Italian WebSDRs)
+    max_gdop: float = 150.0  # Default: 150 GDOP for clustered receivers (Italian WebSDRs) - relaxed for 50%+ success rate
     dataset_type: str = "feature_based"
     use_random_receivers: bool = False
     use_srtm_terrain: bool = True
     seed: Optional[int] = None
+    tx_antenna_dist: Optional[TxAntennaDistributionRequest] = None
+    rx_antenna_dist: Optional[RxAntennaDistributionRequest] = None
 
 
 class GenerateDatasetResponse(BaseModel):
@@ -364,6 +380,21 @@ async def generate_dataset(
         "use_srtm_terrain": request.use_srtm_terrain,
         "seed": request.seed
     }
+    
+    # Add antenna distributions if provided
+    if request.tx_antenna_dist is not None:
+        config["tx_antenna_dist"] = {
+            "whip": request.tx_antenna_dist.whip,
+            "rubber_duck": request.tx_antenna_dist.rubber_duck,
+            "portable_directional": request.tx_antenna_dist.portable_directional
+        }
+    
+    if request.rx_antenna_dist is not None:
+        config["rx_antenna_dist"] = {
+            "omni_vertical": request.rx_antenna_dist.omni_vertical,
+            "yagi": request.rx_antenna_dist.yagi,
+            "collinear": request.rx_antenna_dist.collinear
+        }
     
     try:
         # Insert job record

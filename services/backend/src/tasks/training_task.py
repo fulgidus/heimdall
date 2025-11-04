@@ -131,7 +131,7 @@ def start_training_job(self, job_id: str):
         early_stop_patience = config.get("early_stop_patience", 20)
         early_stop_delta = config.get("early_stop_delta", 0.001)
         max_grad_norm = config.get("max_grad_norm", 1.0)
-        max_gdop = config.get("max_gdop", 100.0)
+        max_gdop = config.get("max_gdop", 150.0)
         
         logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
         
@@ -673,7 +673,7 @@ def generate_synthetic_data_task(self, job_id: str):
             tx_power_dbm=config.get('tx_power_dbm', 37.0),
             min_snr_db=config.get('min_snr_db', 3.0),
             min_receivers=config.get('min_receivers', 3),
-            max_gdop=config.get('max_gdop', 100.0),
+            max_gdop=config.get('max_gdop', 150.0),
             progress_callback=progress_callback
         )
         

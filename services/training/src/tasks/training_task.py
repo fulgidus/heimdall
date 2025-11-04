@@ -1139,19 +1139,27 @@ def generate_synthetic_data_task(self, job_id: str):
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
 
         # Update status to running and initialize progress tracking
+        # For continuation jobs, total_progress should include samples_offset
+        is_continuation = config.get('is_continuation', False)
+        samples_offset = config.get('samples_offset', 0)
+        total_progress_value = samples_offset + config['num_samples'] if is_continuation else config['num_samples']
+        
         with db_manager.get_session() as session:
             update_query = text("""
                 UPDATE heimdall.training_jobs
                 SET status = 'running',
                     started_at = NOW(),
-                    current_progress = 0,
+                    current_progress = :current_progress,
                     total_progress = :total_samples,
-                    progress_message = 'Starting synthetic data generation...'
+                    progress_message = :progress_message
                 WHERE id = :job_id
             """)
+            progress_message = f'Continuing from {samples_offset} samples...' if is_continuation else 'Starting synthetic data generation...'
             session.execute(update_query, {
                 "job_id": job_id,
-                "total_samples": config['num_samples']
+                "current_progress": samples_offset if is_continuation else 0,
+                "total_samples": total_progress_value,
+                "progress_message": progress_message
             })
             session.commit()
 
@@ -1162,8 +1170,8 @@ def generate_synthetic_data_task(self, job_id: str):
             job_id=job_id,
             status='running',
             action='started',
-            current_progress=0,
-            total_progress=config['num_samples']
+            current_progress=samples_offset if is_continuation else 0,
+            total_progress=total_progress_value
         )
         logger.info(f"Published job start event for {job_id}")
 

@@ -50,7 +50,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     tx_power_dbm: wattToDbm(2.0), // 2W = ~33dBm
     min_snr_db: 3.0,       // Reasonable minimum SNR
     min_receivers: 3,      // Minimum triangulation
-    max_gdop: 100.0,       // Acceptable geometry
+    max_gdop: 150.0,       // Acceptable geometry (150 for clustered receivers)
     use_srtm: true,        // Use SRTM terrain data (production baseline)
     // Random receiver defaults (for iq_raw datasets)
     use_random_receivers: false,
@@ -111,7 +111,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         tx_power_dbm: wattToDbm(2.0),
         min_snr_db: 3.0,
         min_receivers: 3,
-        max_gdop: 100.0,
+        max_gdop: 150.0,
         use_srtm: true,
         use_random_receivers: false,
         min_receivers_count: 5,
@@ -402,7 +402,15 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                       step={1}
                       disabled={isLoading}
                     />
-                    <div className="form-text">Default: 100 (acceptable geometry)</div>
+                    <div className="form-text">Default: 150 (recommended for clustered receivers)</div>
+                    {formData.max_gdop < 120 && (
+                      <div className="alert alert-warning d-flex align-items-start mt-2 mb-0" role="alert">
+                        <i className="ph ph-warning me-2 mt-1"></i>
+                        <div className="small">
+                          <strong>Low Success Rate Expected:</strong> GDOP &lt;{formData.max_gdop} may result in high rejection rates (&lt;5% success) with clustered Italian WebSDRs. Consider increasing to ≥150 for better sample generation efficiency.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

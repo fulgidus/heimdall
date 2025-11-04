@@ -276,6 +276,48 @@ def generate_random_receivers(
 
 
 @dataclass
+class TxAntennaDistribution:
+    """TX antenna type probability distribution (mobile/portable transmitters)."""
+    whip: float = 0.90           # Mobile vehicle antennas (0-2 dBi)
+    rubber_duck: float = 0.08     # Handheld radios (-3 to 0 dBi)
+    portable_directional: float = 0.02  # Portable beam antennas (3-6 dBi)
+    
+    def validate(self):
+        """Ensure probabilities sum to 1.0."""
+        total = self.whip + self.rubber_duck + self.portable_directional
+        if not (0.99 <= total <= 1.01):
+            raise ValueError(f"TX antenna probabilities must sum to 1.0, got {total:.3f}")
+    
+    def to_arrays(self) -> Tuple[List[str], List[float]]:
+        """Return (antenna_types, probabilities) for np.random.choice()."""
+        return (
+            ["WHIP", "RUBBER_DUCK", "PORTABLE_DIRECTIONAL"],
+            [self.whip, self.rubber_duck, self.portable_directional]
+        )
+
+
+@dataclass
+class RxAntennaDistribution:
+    """RX antenna type probability distribution (WebSDR fixed stations)."""
+    omni_vertical: float = 0.80   # Standard WebSDR omni (0-3 dBi)
+    yagi: float = 0.15            # Directional stations (10-15 dBi)
+    collinear: float = 0.05       # High-gain omni (6-9 dBi)
+    
+    def validate(self):
+        """Ensure probabilities sum to 1.0."""
+        total = self.omni_vertical + self.yagi + self.collinear
+        if not (0.99 <= total <= 1.01):
+            raise ValueError(f"RX antenna probabilities must sum to 1.0, got {total:.3f}")
+    
+    def to_arrays(self) -> Tuple[List[str], List[float]]:
+        """Return (antenna_types, probabilities) for np.random.choice()."""
+        return (
+            ["OMNI_VERTICAL", "YAGI", "COLLINEAR"],
+            [self.omni_vertical, self.yagi, self.collinear]
+        )
+
+
+@dataclass
 class SyntheticGenerationConfig:
     """Configuration for synthetic training data generation."""
     
@@ -284,12 +326,9 @@ class SyntheticGenerationConfig:
     validate_tiles_before_generation: bool = True
     fallback_to_simplified_terrain: bool = True
     
-    # Antenna pattern distribution (must sum to 1.0)
-    antenna_distribution: Dict[str, float] = field(default_factory=lambda: {
-        "omnidirectional": 0.80,
-        "yagi": 0.15,
-        "log_periodic": 0.05
-    })
+    # Antenna pattern distributions (must sum to 1.0 each)
+    tx_antenna_dist: TxAntennaDistribution = field(default_factory=TxAntennaDistribution)
+    rx_antenna_dist: RxAntennaDistribution = field(default_factory=RxAntennaDistribution)
     
     # Frequency stability
     frequency_drift_ratio: float = 0.10  # 10% of samples have oscillator drift
@@ -321,10 +360,9 @@ class SyntheticGenerationConfig:
     
     def __post_init__(self):
         """Validate configuration after initialization."""
-        # Check antenna distribution sums to 1.0
-        total_antenna = sum(self.antenna_distribution.values())
-        if not (0.99 <= total_antenna <= 1.01):
-            raise ValueError(f"Antenna distribution must sum to 1.0, got {total_antenna}")
+        # Check antenna distributions sum to 1.0
+        self.tx_antenna_dist.validate()
+        self.rx_antenna_dist.validate()
         
         # Check dataset splits sum to 1.0
         total_split = self.train_ratio + self.val_ratio + self.test_ratio
@@ -341,7 +379,8 @@ class SyntheticGenerationConfig:
         logger.info(
             "SyntheticGenerationConfig initialized",
             use_srtm_terrain=self.use_srtm_terrain,
-            antenna_distribution=self.antenna_distribution,
+            tx_antenna_dist=self.tx_antenna_dist.to_arrays(),
+            rx_antenna_dist=self.rx_antenna_dist.to_arrays(),
             frequency_drift_ratio=self.frequency_drift_ratio,
             min_receivers=self.min_receivers_with_signal
         )

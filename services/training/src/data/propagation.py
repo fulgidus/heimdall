@@ -6,14 +6,154 @@ Implements physics-based propagation model:
 - Terrain blockage (LOS check)
 - Environment loss (statistical)
 - Multipath fading (Rayleigh)
+- Antenna patterns (omnidirectional, directional)
 """
 
 import math
 import numpy as np
 import structlog
-from typing import Tuple
+from typing import Tuple, Optional
+from enum import Enum
 
 logger = structlog.get_logger(__name__)
+
+
+class AntennaType(Enum):
+    """Antenna types for VHF/UHF amateur radio."""
+    # RX antennas (WebSDR - typically fixed stations)
+    OMNI_VERTICAL = "omni_vertical"      # 0-3 dBi, circular pattern (80% of RX)
+    YAGI = "yagi"                        # 10-15 dBi, directional 30-60° (15% of RX)
+    COLLINEAR = "collinear"              # 6-9 dBi, omnidirectional (5% of RX)
+    
+    # TX antennas (mobile/portable)
+    WHIP = "whip"                        # 0-2 dBi, omnidirectional (90% of TX)
+    RUBBER_DUCK = "rubber_duck"          # -3 to 0 dBi, inefficient handheld (8% of TX)
+    PORTABLE_DIRECTIONAL = "portable_directional"  # 3-6 dBi, portable yagi (2% of TX)
+
+
+class AntennaPattern:
+    """
+    Antenna radiation pattern for VHF/UHF frequencies.
+    
+    Provides gain based on antenna type and direction (azimuth/elevation).
+    """
+    
+    def __init__(self, antenna_type: AntennaType, pointing_azimuth: float = 0.0):
+        """
+        Initialize antenna pattern.
+        
+        Args:
+            antenna_type: Type of antenna (enum)
+            pointing_azimuth: Direction antenna is pointing (degrees, 0=North, for directional antennas)
+        """
+        self.antenna_type = antenna_type
+        self.pointing_azimuth = pointing_azimuth
+        
+        # Define antenna parameters based on type
+        self._setup_antenna_parameters()
+    
+    def _setup_antenna_parameters(self):
+        """Setup antenna parameters (gain, beamwidth) based on type."""
+        if self.antenna_type == AntennaType.OMNI_VERTICAL:
+            self.max_gain_dbi = np.random.uniform(0.0, 3.0)
+            self.azimuth_beamwidth = 360.0  # Omnidirectional
+            self.elevation_beamwidth = 60.0
+            self.front_to_back_ratio = 0.0
+            
+        elif self.antenna_type == AntennaType.YAGI:
+            self.max_gain_dbi = np.random.uniform(10.0, 15.0)
+            self.azimuth_beamwidth = np.random.uniform(30.0, 60.0)
+            self.elevation_beamwidth = np.random.uniform(40.0, 70.0)
+            self.front_to_back_ratio = np.random.uniform(15.0, 25.0)  # dB
+            
+        elif self.antenna_type == AntennaType.COLLINEAR:
+            self.max_gain_dbi = np.random.uniform(6.0, 9.0)
+            self.azimuth_beamwidth = 360.0  # Omnidirectional
+            self.elevation_beamwidth = 30.0  # Narrower than vertical
+            self.front_to_back_ratio = 0.0
+            
+        elif self.antenna_type == AntennaType.WHIP:
+            self.max_gain_dbi = np.random.uniform(0.0, 2.0)
+            self.azimuth_beamwidth = 360.0
+            self.elevation_beamwidth = 80.0
+            self.front_to_back_ratio = 0.0
+            
+        elif self.antenna_type == AntennaType.RUBBER_DUCK:
+            self.max_gain_dbi = np.random.uniform(-3.0, 0.0)
+            self.azimuth_beamwidth = 360.0
+            self.elevation_beamwidth = 90.0
+            self.front_to_back_ratio = 0.0
+            
+        elif self.antenna_type == AntennaType.PORTABLE_DIRECTIONAL:
+            self.max_gain_dbi = np.random.uniform(3.0, 6.0)
+            self.azimuth_beamwidth = np.random.uniform(60.0, 90.0)
+            self.elevation_beamwidth = np.random.uniform(60.0, 90.0)
+            self.front_to_back_ratio = np.random.uniform(10.0, 15.0)
+    
+    def get_gain(self, azimuth_to_target: float, elevation_to_target: float = 0.0) -> float:
+        """
+        Calculate antenna gain in direction of target.
+        
+        Args:
+            azimuth_to_target: Azimuth angle to target (degrees, 0=North, clockwise)
+            elevation_to_target: Elevation angle to target (degrees, 0=horizon, positive=up)
+        
+        Returns:
+            Antenna gain in dBi (can be negative for poor directions)
+        """
+        # Azimuth pattern
+        azimuth_offset = abs(self._angle_difference(azimuth_to_target, self.pointing_azimuth))
+        
+        if self.azimuth_beamwidth >= 360.0:
+            # Omnidirectional in azimuth
+            azimuth_loss = 0.0
+        else:
+            # Directional pattern (approximate as cosine squared)
+            # Half-power beamwidth corresponds to -3 dB point
+            if azimuth_offset <= self.azimuth_beamwidth / 2:
+                # Within main lobe
+                azimuth_loss = -3.0 * (azimuth_offset / (self.azimuth_beamwidth / 2)) ** 2
+            elif azimuth_offset >= 150.0:
+                # Back lobe
+                azimuth_loss = -self.front_to_back_ratio
+            else:
+                # Side lobes (transition region)
+                # Linear interpolation between main lobe and back lobe
+                transition_angle = (150.0 - self.azimuth_beamwidth / 2)
+                progress = (azimuth_offset - self.azimuth_beamwidth / 2) / transition_angle
+                azimuth_loss = -3.0 - progress * (self.front_to_back_ratio - 3.0)
+        
+        # Elevation pattern (simplified - assumes horizontal main lobe)
+        elevation_offset = abs(elevation_to_target)
+        if elevation_offset <= self.elevation_beamwidth / 2:
+            elevation_loss = -3.0 * (elevation_offset / (self.elevation_beamwidth / 2)) ** 2
+        else:
+            # Beyond main lobe - steep drop-off
+            elevation_loss = -3.0 - (elevation_offset - self.elevation_beamwidth / 2) * 0.5
+            elevation_loss = max(elevation_loss, -20.0)  # Clamp to -20 dB
+        
+        # Total gain
+        total_gain = self.max_gain_dbi + azimuth_loss + elevation_loss
+        
+        return total_gain
+    
+    @staticmethod
+    def _angle_difference(angle1: float, angle2: float) -> float:
+        """
+        Calculate smallest angular difference between two angles.
+        
+        Args:
+            angle1, angle2: Angles in degrees
+        
+        Returns:
+            Difference in degrees (-180 to +180)
+        """
+        diff = angle1 - angle2
+        while diff > 180.0:
+            diff -= 360.0
+        while diff < -180.0:
+            diff += 360.0
+        return diff
 
 
 class RFPropagationModel:
@@ -189,7 +329,9 @@ class RFPropagationModel:
         rx_lon: float,
         rx_alt: float,
         frequency_mhz: float,
-        terrain_lookup=None
+        terrain_lookup=None,
+        tx_antenna: Optional[AntennaPattern] = None,
+        rx_antenna: Optional[AntennaPattern] = None
     ) -> Tuple[float, float, dict]:
         """
         Calculate received power at receiver.
@@ -204,12 +346,30 @@ class RFPropagationModel:
             rx_alt: Receiver altitude (meters ASL)
             frequency_mhz: Frequency in MHz
             terrain_lookup: Optional terrain elevation lookup
+            tx_antenna: Optional transmitter antenna pattern
+            rx_antenna: Optional receiver antenna pattern
         
         Returns:
             Tuple of (rx_power_dbm, snr_db, details_dict)
         """
         # Calculate distance
         distance_km = self._haversine_distance(tx_lat, tx_lon, rx_lat, rx_lon)
+        
+        # Calculate azimuth and elevation angles for antenna patterns
+        tx_azimuth_to_rx, tx_elevation_to_rx = self._calculate_bearing_and_elevation(
+            tx_lat, tx_lon, tx_alt, rx_lat, rx_lon, rx_alt, distance_km
+        )
+        rx_azimuth_to_tx, rx_elevation_to_tx = self._calculate_bearing_and_elevation(
+            rx_lat, rx_lon, rx_alt, tx_lat, tx_lon, tx_alt, distance_km
+        )
+        
+        # Calculate antenna gains
+        tx_antenna_gain_db = 0.0
+        rx_antenna_gain_db = 0.0
+        if tx_antenna is not None:
+            tx_antenna_gain_db = tx_antenna.get_gain(tx_azimuth_to_rx, tx_elevation_to_rx)
+        if rx_antenna is not None:
+            rx_antenna_gain_db = rx_antenna.get_gain(rx_azimuth_to_tx, rx_elevation_to_tx)
         
         # Calculate losses
         fspl = self.calculate_fspl(distance_km, frequency_mhz)
@@ -219,8 +379,16 @@ class RFPropagationModel:
         env_loss = self.calculate_environment_loss()
         fading = self.calculate_fading()
         
-        # Total received power
-        rx_power_dbm = tx_power_dbm - fspl - terrain_loss - env_loss + fading
+        # Total received power (including antenna gains)
+        rx_power_dbm = (
+            tx_power_dbm 
+            + tx_antenna_gain_db 
+            + rx_antenna_gain_db
+            - fspl 
+            - terrain_loss 
+            - env_loss 
+            + fading
+        )
         
         # SNR
         snr_db = rx_power_dbm - self.noise_floor_dbm
@@ -231,6 +399,8 @@ class RFPropagationModel:
             "terrain_loss_db": terrain_loss,
             "env_loss_db": env_loss,
             "fading_db": fading,
+            "tx_antenna_gain_db": tx_antenna_gain_db,
+            "rx_antenna_gain_db": rx_antenna_gain_db,
             "rx_power_dbm": rx_power_dbm,
             "snr_db": snr_db
         }
@@ -263,6 +433,58 @@ class RFPropagationModel:
         
         distance = R * c
         return distance
+    
+    def _calculate_bearing_and_elevation(
+        self,
+        from_lat: float,
+        from_lon: float,
+        from_alt: float,
+        to_lat: float,
+        to_lon: float,
+        to_alt: float,
+        distance_km: float
+    ) -> Tuple[float, float]:
+        """
+        Calculate bearing (azimuth) and elevation angle from one point to another.
+        
+        Args:
+            from_lat, from_lon: Starting point coordinates (degrees)
+            from_alt: Starting altitude (meters ASL)
+            to_lat, to_lon: Target point coordinates (degrees)
+            to_alt: Target altitude (meters ASL)
+            distance_km: Horizontal distance in kilometers (from haversine)
+        
+        Returns:
+            Tuple of (azimuth_degrees, elevation_degrees)
+            - azimuth: 0=North, 90=East, 180=South, 270=West
+            - elevation: 0=horizon, positive=up, negative=down
+        """
+        # Calculate bearing (azimuth)
+        from_lat_rad = math.radians(from_lat)
+        to_lat_rad = math.radians(to_lat)
+        delta_lon_rad = math.radians(to_lon - from_lon)
+        
+        x = math.sin(delta_lon_rad) * math.cos(to_lat_rad)
+        y = math.cos(from_lat_rad) * math.sin(to_lat_rad) - math.sin(from_lat_rad) * math.cos(to_lat_rad) * math.cos(delta_lon_rad)
+        
+        azimuth_rad = math.atan2(x, y)
+        azimuth_deg = math.degrees(azimuth_rad)
+        
+        # Normalize to 0-360
+        if azimuth_deg < 0:
+            azimuth_deg += 360.0
+        
+        # Calculate elevation angle
+        altitude_diff_m = to_alt - from_alt
+        distance_m = distance_km * 1000.0
+        
+        if distance_m > 0:
+            elevation_rad = math.atan2(altitude_diff_m, distance_m)
+            elevation_deg = math.degrees(elevation_rad)
+        else:
+            elevation_deg = 0.0
+        
+        return azimuth_deg, elevation_deg
 
 
 def calculate_psd(snr_db: float, noise_floor_dbm: float = -120.0) -> float:

@@ -24,7 +24,14 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .config import TrainingConfig
-from .propagation import RFPropagationModel, calculate_psd, calculate_frequency_offset, calculate_gdop
+from .propagation import (
+    RFPropagationModel, 
+    calculate_psd, 
+    calculate_frequency_offset, 
+    calculate_gdop,
+    AntennaType,
+    AntennaPattern
+)
 from .iq_generator import SyntheticIQGenerator, SyntheticIQSample
 
 # Import terrain from common module (shared across services)
@@ -88,6 +95,76 @@ def _generate_random_receivers(
         })
     
     return receivers
+
+
+def _select_tx_antenna(rng: np.random.Generator, tx_antenna_dist=None) -> AntennaPattern:
+    """
+    Select a realistic TX antenna based on configurable distribution.
+    
+    Default distribution (if tx_antenna_dist not provided):
+    - 90% WHIP (mobile vehicle antenna)
+    - 8% RUBBER_DUCK (handheld radio)
+    - 2% PORTABLE_DIRECTIONAL (portable beam)
+    
+    Args:
+        rng: Random number generator
+        tx_antenna_dist: TxAntennaDistribution instance (optional, uses defaults if None)
+    
+    Returns:
+        AntennaPattern instance for TX
+    """
+    # Use provided distribution or defaults
+    if tx_antenna_dist is not None:
+        antenna_probs = [tx_antenna_dist.whip, tx_antenna_dist.rubber_duck, tx_antenna_dist.portable_directional]
+    else:
+        antenna_probs = [0.90, 0.08, 0.02]  # Default distribution
+    
+    antenna_types = [AntennaType.WHIP, AntennaType.RUBBER_DUCK, AntennaType.PORTABLE_DIRECTIONAL]
+    
+    antenna_type = rng.choice(antenna_types, p=antenna_probs)
+    
+    # For directional portable antennas, randomize pointing direction
+    if antenna_type == AntennaType.PORTABLE_DIRECTIONAL:
+        pointing_azimuth = rng.uniform(0.0, 360.0)
+    else:
+        pointing_azimuth = 0.0  # Omnidirectional, doesn't matter
+    
+    return AntennaPattern(antenna_type, pointing_azimuth)
+
+
+def _select_rx_antenna(rng: np.random.Generator, rx_antenna_dist=None) -> AntennaPattern:
+    """
+    Select a realistic RX antenna based on configurable distribution.
+    
+    Default distribution (if rx_antenna_dist not provided):
+    - 80% OMNI_VERTICAL (most common for monitoring stations)
+    - 15% YAGI (directional, pointed at specific area)
+    - 5% COLLINEAR (high-gain omnidirectional)
+    
+    Args:
+        rng: Random number generator
+        rx_antenna_dist: RxAntennaDistribution instance (optional, uses defaults if None)
+    
+    Returns:
+        AntennaPattern instance for RX
+    """
+    # Use provided distribution or defaults
+    if rx_antenna_dist is not None:
+        antenna_probs = [rx_antenna_dist.omni_vertical, rx_antenna_dist.yagi, rx_antenna_dist.collinear]
+    else:
+        antenna_probs = [0.80, 0.15, 0.05]  # Default distribution
+    
+    antenna_types = [AntennaType.OMNI_VERTICAL, AntennaType.YAGI, AntennaType.COLLINEAR]
+    
+    antenna_type = rng.choice(antenna_types, p=antenna_probs)
+    
+    # For Yagi antennas, randomize pointing direction (each WebSDR might point different direction)
+    if antenna_type == AntennaType.YAGI:
+        pointing_azimuth = rng.uniform(0.0, 360.0)
+    else:
+        pointing_azimuth = 0.0  # Omnidirectional, doesn't matter
+    
+    return AntennaPattern(antenna_type, pointing_azimuth)
 
 
 def _generate_single_sample_no_features(args):
@@ -221,7 +298,7 @@ def _generate_single_sample_no_features(args):
     gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
     
     # Get max_gdop and min_receivers from config
-    max_gdop_threshold = config.get('max_gdop', 100.0)
+    max_gdop_threshold = config.get('max_gdop', 150.0)
     min_receivers_threshold = config.get('min_receivers', 3)
     
     # Early rejection: if GDOP is already too high, skip IQ generation
@@ -230,7 +307,13 @@ def _generate_single_sample_no_features(args):
         # Return None to signal rejection (will be filtered out later)
         return None
 
-    # Step 1: Calculate propagation for all receivers (vectorizable in future)
+    # Step 1: Select antenna patterns for TX and RX stations
+    # Extract antenna distributions from config (if provided)
+    tx_antenna_dist = config.get('tx_antenna_dist', None)
+    rx_antenna_dist = config.get('rx_antenna_dist', None)
+    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist)
+    
+    # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
     rx_powers_dbm = []
     snr_dbs = []
@@ -241,8 +324,11 @@ def _generate_single_sample_no_features(args):
         rx_lat = receiver['latitude']
         rx_lon = receiver['longitude']
         rx_alt = receiver['altitude']
+        
+        # Each receiver has its own antenna (with random type and pointing direction)
+        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
 
-        # Calculate received power and SNR using propagation model
+        # Calculate received power and SNR using propagation model (with antenna gains)
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -252,7 +338,9 @@ def _generate_single_sample_no_features(args):
             rx_lon=rx_lon,
             rx_alt=rx_alt,
             frequency_mhz=frequency_mhz,
-            terrain_lookup=terrain
+            terrain_lookup=terrain,
+            tx_antenna=tx_antenna,
+            rx_antenna=rx_antenna
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -260,7 +348,7 @@ def _generate_single_sample_no_features(args):
         distance_kms.append(details['distance_km'])
         signal_presents.append(snr_db >= min_snr_db)
     
-    # Step 2: Prepare batch parameters for GPU vectorized IQ generation
+    # Step 3: Prepare batch parameters for GPU vectorized IQ generation
     frequency_offsets = rng.uniform(-50, 50, num_receivers).astype(np.float32)
     bandwidths = np.full(num_receivers, 12500.0, dtype=np.float32)  # FM signal bandwidth
     signal_powers_dbm = np.array(rx_powers_dbm, dtype=np.float32)
@@ -486,7 +574,7 @@ def _generate_single_sample(args):
     gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
     
     # Get max_gdop and min_receivers from config
-    max_gdop_threshold = config.get('max_gdop', 100.0)
+    max_gdop_threshold = config.get('max_gdop', 150.0)
     min_receivers_threshold = config.get('min_receivers', 3)
     
     # Early rejection: if GDOP is already too high, skip IQ generation
@@ -495,7 +583,13 @@ def _generate_single_sample(args):
         # Return None to signal rejection (will be filtered out later)
         return None
 
-    # Step 1: Calculate propagation for all receivers (vectorizable in future)
+    # Step 1: Select TX antenna (once per sample)
+    # Extract antenna distributions from config (if provided)
+    tx_antenna_dist = config.get('tx_antenna_dist', None)
+    rx_antenna_dist = config.get('rx_antenna_dist', None)
+    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist)
+    
+    # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
     rx_powers_dbm = []
     snr_dbs = []
@@ -507,6 +601,9 @@ def _generate_single_sample(args):
         rx_lon = receiver['longitude']
         rx_alt = receiver['altitude']
 
+        # Select RX antenna for this receiver
+        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
+
         # Calculate received power and SNR using propagation model
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
@@ -517,7 +614,9 @@ def _generate_single_sample(args):
             rx_lon=rx_lon,
             rx_alt=rx_alt,
             frequency_mhz=frequency_mhz,
-            terrain_lookup=terrain
+            terrain_lookup=terrain,
+            tx_antenna=tx_antenna,
+            rx_antenna=rx_antenna
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -787,7 +886,9 @@ class SyntheticDataGenerator:
         tx_power_dbm: float = 37.0,
         min_snr_db: float = 3.0,
         min_receivers: int = 3,
-        max_gdop: float = 100.0,
+        max_gdop: float = 150.0,
+        tx_antenna_dist=None,
+        rx_antenna_dist=None,
         progress_callback=None
     ) -> List[SyntheticSample]:
         """
@@ -833,11 +934,17 @@ class SyntheticDataGenerator:
             tx_lat, tx_lon = self._sample_tx_location(inside_ratio)
             tx_alt = self.terrain.get_elevation(tx_lat, tx_lon)
             
+            # Select TX antenna (once per sample)
+            tx_antenna = _select_tx_antenna(self.rng, tx_antenna_dist)
+            
             # Generate receiver measurements
             receiver_measurements = []
             receivers_with_signal = 0
             
             for rx in self.config.receivers:
+                # Select RX antenna for this receiver
+                rx_antenna = _select_rx_antenna(self.rng, rx_antenna_dist)
+                
                 # Calculate received power and SNR
                 rx_power, snr_db, details = self.propagation.calculate_received_power(
                     tx_power_dbm=tx_power_dbm,
@@ -848,7 +955,9 @@ class SyntheticDataGenerator:
                     rx_lon=rx.longitude,
                     rx_alt=rx.altitude,
                     frequency_mhz=frequency_mhz,
-                    terrain_lookup=self.terrain
+                    terrain_lookup=self.terrain,
+                    tx_antenna=tx_antenna,
+                    rx_antenna=rx_antenna
                 )
                 
                 # Check if signal is detectable
@@ -1071,7 +1180,7 @@ async def generate_synthetic_data_with_iq(
     # Extract generation parameters
     min_snr_db = config.get('min_snr_db', 3.0)
     min_receivers = config.get('min_receivers', 3)
-    max_gdop = config.get('max_gdop', 100.0)
+    max_gdop = config.get('max_gdop', 150.0)
     
     # For iq_raw datasets, use random receivers
     use_random_receivers = (dataset_type == 'iq_raw') or config.get('use_random_receivers', False)
@@ -1087,9 +1196,17 @@ async def generate_synthetic_data_with_iq(
     # Use GPU batch processing instead of thread pool
     # Batch size: Process all samples in one batch to amortize GPU initialization overhead
     # For small datasets (<100 samples), use single batch
-    # For larger datasets, use mini-batches of 800 samples (optimized for RTX 3090 24GB)
-    # batch_size=800 provides 15.86 samples/sec with only 13.9% GPU memory usage
-    batch_size = min(800, num_samples) if num_samples > 10 else num_samples
+    # For larger datasets, use mini-batches optimized for GPU memory:
+    # - Fixed receivers (7): batch_size=800 → ~5,600 IQ samples (13.9% GPU mem)
+    # - Random receivers (7-10 avg): batch_size=200 → ~1,600 IQ samples (safe for 24GB GPU)
+    if use_random_receivers:
+        # Random receivers: variable count per sample, use smaller batch
+        batch_size = min(200, num_samples) if num_samples > 10 else num_samples
+        logger.info(f"Random receivers mode: using batch_size={batch_size} (GPU memory conservative)")
+    else:
+        # Fixed receivers: consistent count per sample, use larger batch
+        batch_size = min(800, num_samples) if num_samples > 10 else num_samples
+        logger.info(f"Fixed receivers mode: using batch_size={batch_size} (GPU memory optimized)")
     
     # Check GPU availability
     try:
