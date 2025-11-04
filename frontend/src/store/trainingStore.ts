@@ -69,6 +69,7 @@ interface TrainingStore {
   // WebSocket handlers
   handleJobUpdate: (job: Partial<TrainingJob> & { id: string }) => void;
   handleMetricUpdate: (metric: TrainingMetric) => void;
+  handleGenerationJobUpdate: (jobUpdate: Partial<SyntheticGenerationJob> & { id: string }) => void;
   setWsConnected: (connected: boolean) => void;
 
   // Utility
@@ -485,6 +486,47 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       }
       
       return { metrics: newMetrics };
+    });
+  },
+
+  // Handle WebSocket generation job update
+  handleGenerationJobUpdate: (jobUpdate: Partial<SyntheticGenerationJob> & { id: string }) => {
+    console.log('[TrainingStore] handleGenerationJobUpdate called with:', jobUpdate);
+    
+    set(state => {
+      const existingJobIndex = state.generationJobs.findIndex(job => job.id === jobUpdate.id);
+      
+      if (existingJobIndex >= 0) {
+        // Update existing job
+        const updatedJobs = [...state.generationJobs];
+        const existingJob = updatedJobs[existingJobIndex];
+        
+        // Merge updates while preserving existing fields
+        updatedJobs[existingJobIndex] = {
+          ...existingJob,
+          ...jobUpdate,
+          // Ensure critical fields are updated
+          current: jobUpdate.current ?? existingJob.current,
+          total: jobUpdate.total ?? existingJob.total,
+          progress_percent: jobUpdate.progress_percent ?? existingJob.progress_percent,
+        };
+        
+        console.log('[TrainingStore] Generation job updated:', {
+          id: jobUpdate.id,
+          old_status: existingJob.status,
+          new_status: updatedJobs[existingJobIndex].status,
+          old_current: existingJob.current,
+          new_current: updatedJobs[existingJobIndex].current,
+          old_progress: existingJob.progress_percent,
+          new_progress: updatedJobs[existingJobIndex].progress_percent,
+        });
+        
+        return { generationJobs: updatedJobs };
+      } else {
+        // Add new job (if it doesn't exist)
+        console.log('[TrainingStore] New generation job added:', jobUpdate.id);
+        return { generationJobs: [jobUpdate as SyntheticGenerationJob, ...state.generationJobs] };
+      }
     });
   },
 

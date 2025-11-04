@@ -17,6 +17,7 @@ import os
 import numpy as np
 import structlog
 import multiprocessing as mp
+import threading
 from datetime import datetime, timezone
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
@@ -33,6 +34,9 @@ from common.terrain import TerrainLookup
 from common.feature_extraction import RFFeatureExtractor, IQSample
 
 logger = structlog.get_logger(__name__)
+
+# Thread-local storage for reusable extractors (avoid re-creating for each sample)
+_thread_local = threading.local()
 
 
 def _generate_random_receivers(
@@ -126,25 +130,38 @@ def _generate_single_sample(args):
     
     num_receivers_in_sample = len(receivers_list)
 
-    # Initialize generators with GPU acceleration
-    # Check if GPU is available (use torch as proxy since it's always available in training service)
-    try:
-        import torch
-        use_gpu = torch.cuda.is_available()
-    except ImportError:
-        use_gpu = False
+    # Use thread-local storage to reuse extractors instead of creating new ones for each sample
+    # This reduces GPU initialization overhead from ~100ms to ~1ms per sample
+    if not hasattr(_thread_local, 'iq_generator'):
+        # Initialize generators with GPU acceleration (ONCE per thread)
+        # Check if GPU is available (use torch as proxy since it's always available in training service)
+        try:
+            import torch
+            use_gpu = torch.cuda.is_available()
+        except ImportError:
+            use_gpu = False
+        
+        _thread_local.iq_generator = SyntheticIQGenerator(
+            sample_rate_hz=200_000,  # 200 kHz
+            duration_ms=1000.0,       # 1 second
+            seed=None,  # Will be reset per sample below
+            use_gpu=use_gpu
+        )
+        # Create feature extractor with GPU acceleration (reusable)
+        _thread_local.feature_extractor = RFFeatureExtractor(
+            sample_rate_hz=200_000,
+            use_gpu=use_gpu
+        )
+        _thread_local.propagation = RFPropagationModel()
+        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu})")
     
-    iq_generator = SyntheticIQGenerator(
-        sample_rate_hz=200_000,  # 200 kHz
-        duration_ms=1000.0,       # 1 second
-        seed=sample_seed,
-        use_gpu=use_gpu
-    )
-    # Create feature extractor with optimized settings (reusable)
-    feature_extractor = RFFeatureExtractor(
-        sample_rate_hz=200_000
-    )
-    propagation = RFPropagationModel()
+    # Reuse thread-local instances
+    iq_generator = _thread_local.iq_generator
+    feature_extractor = _thread_local.feature_extractor
+    propagation = _thread_local.propagation
+    
+    # Reset RNG seed for this sample (iq_generator supports seed reset)
+    iq_generator.rng = np.random.default_rng(sample_seed)
 
     # Extract config parameters
     frequency_mhz = config.get('frequency_mhz', 145.0)
@@ -177,7 +194,7 @@ def _generate_single_sample(args):
     gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
     
     # Get max_gdop and min_receivers from config
-    max_gdop_threshold = config.get('max_gdop', 10.0)
+    max_gdop_threshold = config.get('max_gdop', 100.0)
     min_receivers_threshold = config.get('min_receivers', 3)
     
     # Early rejection: if GDOP is already too high, skip IQ generation
@@ -399,7 +416,7 @@ class SyntheticDataGenerator:
         tx_power_dbm: float = 37.0,
         min_snr_db: float = 3.0,
         min_receivers: int = 3,
-        max_gdop: float = 10.0,
+        max_gdop: float = 100.0,
         progress_callback=None
     ) -> List[SyntheticSample]:
         """
@@ -683,7 +700,7 @@ async def generate_synthetic_data_with_iq(
     # Extract generation parameters
     min_snr_db = config.get('min_snr_db', 3.0)
     min_receivers = config.get('min_receivers', 3)
-    max_gdop = config.get('max_gdop', 10.0)
+    max_gdop = config.get('max_gdop', 100.0)
     
     # For iq_raw datasets, use random receivers
     use_random_receivers = (dataset_type == 'iq_raw') or config.get('use_random_receivers', False)

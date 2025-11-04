@@ -1364,6 +1364,8 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
             "status_url": f"/api/v1/training/jobs/{job_id}"
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating synthetic data job: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to create job: {e!s}")

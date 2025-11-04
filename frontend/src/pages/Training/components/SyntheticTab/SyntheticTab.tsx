@@ -12,7 +12,7 @@ import { GenerateDataDialog } from './GenerateDataDialog';
 import { GenerationJobCard } from './GenerationJobCard';
 
 export const SyntheticTab: React.FC = () => {
-  const { datasets, generationJobs, fetchDatasets, fetchGenerationJobs, isLoading } = useTrainingStore();
+  const { datasets, generationJobs, fetchDatasets, fetchGenerationJobs, handleGenerationJobUpdate, isLoading } = useTrainingStore();
   const { subscribe } = useWebSocket();
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
 
@@ -38,13 +38,28 @@ export const SyntheticTab: React.FC = () => {
     const unsubscribeProgress = subscribe('dataset:generation_progress', (data: any) => {
       console.log('[SyntheticTab] ===== DATASET GENERATION PROGRESS EVENT =====');
       console.log('[SyntheticTab] Event data:', JSON.stringify(data, null, 2));
-      console.log('[SyntheticTab] Refreshing generation jobs...');
-      // Refresh generation jobs to update progress (without loading spinner)
-      fetchGenerationJobs(true).then(() => {
-        console.log('[SyntheticTab] Generation jobs refreshed successfully');
-      }).catch(err => {
-        console.error('[SyntheticTab] Failed to refresh generation jobs:', err);
-      });
+      console.log('[SyntheticTab] Updating generation job directly from WebSocket data...');
+      
+      // Update the generation job directly from WebSocket data
+      // Backend sends: { job_id, current, total, progress_percent, message }
+      if (data.job_id) {
+        handleGenerationJobUpdate({
+          id: data.job_id,
+          status: 'running', // Progress events mean job is running
+          current: data.current,                    // Current samples generated
+          total: data.total,                        // Total samples to generate
+          progress_percent: data.progress_percent,  // Computed percentage
+        });
+        console.log('[SyntheticTab] Generation job updated in store:', {
+          job_id: data.job_id,
+          current: data.current,
+          total: data.total,
+          progress_percent: data.progress_percent,
+        });
+      } else {
+        console.warn('[SyntheticTab] Missing job_id in progress event, falling back to API fetch');
+        fetchGenerationJobs(true);
+      }
     });
     
     return () => {

@@ -52,7 +52,7 @@ class SyntheticDataGenerationRequest(BaseModel):
         default=3, ge=2, le=10, 
         description="Minimum receivers with signal (applies to quality filtering)"
     )
-    max_gdop: float = Field(default=10.0, ge=1.0, description="Maximum GDOP")
+    max_gdop: float = Field(default=100.0, ge=1.0, description="Maximum GDOP")
 
     # Random receiver generation parameters (for iq_raw datasets)
     # For iq_raw mode: use_random_receivers is forced to True

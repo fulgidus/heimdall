@@ -228,3 +228,187 @@ async def get_dataset_samples(
         offset=offset,
         dataset_id=dataset_id
     )
+
+
+# ============================================================================
+# DATASET GENERATION
+# ============================================================================
+
+class GenerateDatasetRequest(BaseModel):
+    """Request model for synthetic dataset generation."""
+    name: str
+    description: Optional[str] = None
+    num_samples: int
+    frequency_mhz: float
+    tx_power_dbm: float
+    min_snr_db: float
+    min_receivers: int
+    max_gdop: float
+    dataset_type: str = "feature_based"
+    use_random_receivers: bool = False
+    seed: Optional[int] = None
+
+
+class GenerateDatasetResponse(BaseModel):
+    """Response model for dataset generation."""
+    job_id: str
+    dataset_id: Optional[str] = None
+    status: str
+    message: str
+
+
+class JobStatusResponse(BaseModel):
+    """Response model for job status."""
+    job_id: str
+    job_name: str
+    job_type: str
+    status: str
+    current_progress: Optional[int] = None
+    total_progress: Optional[int] = None
+    progress_percent: Optional[float] = None
+    progress_message: Optional[str] = None
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    result_data: Optional[dict] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(
+    job_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get status of a training or generation job.
+    
+    Args:
+        job_id: UUID of the job
+        db: Database session
+    
+    Returns:
+        Job status and progress information
+    """
+    try:
+        # Validate UUID
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    
+    # Query job status
+    query = text("""
+        SELECT id, job_name, job_type, status, current_progress, total_progress,
+               progress_percent, progress_message, created_at, started_at,
+               completed_at, error_message
+        FROM heimdall.training_jobs
+        WHERE id = :job_id
+    """)
+    
+    result = db.execute(query, {"job_id": str(job_uuid)}).fetchone()
+    
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+    
+    return JobStatusResponse(
+        job_id=str(result[0]),
+        job_name=result[1],
+        job_type=result[2],
+        status=result[3],
+        current_progress=result[4],
+        total_progress=result[5],
+        progress_percent=result[6],
+        progress_message=result[7],
+        created_at=result[8],
+        started_at=result[9],
+        completed_at=result[10],
+        error_message=result[11],
+        result_data=None
+    )
+
+
+@router.post("/generate", response_model=GenerateDatasetResponse)
+async def generate_dataset(
+    request: GenerateDatasetRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Start synthetic dataset generation job.
+    
+    Args:
+        request: Generation configuration
+        db: Database session
+    
+    Returns:
+        Job ID and initial status
+    """
+    import json
+    from ..tasks.training_task import generate_synthetic_data_task
+    
+    # Create training job record
+    job_id = str(uuid.uuid4())
+    config = {
+        "name": request.name,
+        "description": request.description,
+        "num_samples": request.num_samples,
+        "frequency_mhz": request.frequency_mhz,
+        "tx_power_dbm": request.tx_power_dbm,
+        "min_snr_db": request.min_snr_db,
+        "min_receivers": request.min_receivers,
+        "max_gdop": request.max_gdop,
+        "dataset_type": request.dataset_type,
+        "use_random_receivers": request.use_random_receivers,
+        "seed": request.seed
+    }
+    
+    try:
+        # Insert job record
+        insert_query = text("""
+            INSERT INTO heimdall.training_jobs (
+                id, job_name, job_type, status, config, total_epochs, 
+                total_progress, created_at
+            )
+            VALUES (
+                :id, :name, 'synthetic_generation', 'pending', CAST(:config AS jsonb), 
+                0, :total_progress, NOW()
+            )
+        """)
+        
+        db.execute(
+            insert_query,
+            {
+                "id": job_id,
+                "name": request.name,
+                "config": json.dumps(config),
+                "total_progress": request.num_samples
+            }
+        )
+        db.commit()
+        
+        # Submit Celery task with explicit queue routing
+        task = generate_synthetic_data_task.apply_async(
+            args=[job_id],
+            task_id=job_id,
+            queue='training'  # Route to training queue where worker listens
+        )
+        
+        # Update celery_task_id in database
+        update_query = text("""
+            UPDATE heimdall.training_jobs
+            SET celery_task_id = :task_id
+            WHERE id = :job_id
+        """)
+        db.execute(update_query, {"task_id": str(task.id), "job_id": job_id})
+        db.commit()
+        
+        return GenerateDatasetResponse(
+            job_id=job_id,
+            status="pending",
+            message=f"Dataset generation job created: {request.name}"
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create generation job: {str(e)}")

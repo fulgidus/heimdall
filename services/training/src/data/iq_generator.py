@@ -81,14 +81,28 @@ class SyntheticIQGenerator:
         self.use_gpu = use_gpu and GPU_AVAILABLE
         if self.use_gpu:
             self.xp = cp  # Use CuPy (GPU arrays)
-            logger.info(f"IQ Generator: GPU acceleration ENABLED (CuPy)")
+            # Use CuPy's random state for GPU acceleration
+            if seed is not None:
+                self.xp.random.seed(seed)
+            logger.info(f"IQ Generator: GPU acceleration ENABLED (CuPy with GPU RNG)")
         else:
             self.xp = np  # Use NumPy (CPU arrays)
             if use_gpu and not GPU_AVAILABLE:
                 logger.warning(f"IQ Generator: GPU requested but not available, using CPU")
         
-        # Random number generator (CPU-based for now, CuPy RNG has different API)
-        self.rng = np.random.default_rng(seed)
+        # Random number generator (will use CuPy RNG if GPU enabled)
+        # NumPy uses modern Generator API, CuPy uses legacy RandomState API
+        if self.use_gpu:
+            # CuPy uses global random state
+            self.rng_normal = lambda loc, scale, size: self.xp.random.normal(loc, scale, size)
+            self.rng_uniform = lambda low, high, size=None: self.xp.random.uniform(low, high, size)
+            self.rng_integers = lambda low, high: int(self.xp.random.randint(low, high))
+        else:
+            # NumPy uses Generator API
+            cpu_rng = np.random.default_rng(seed)
+            self.rng_normal = cpu_rng.normal
+            self.rng_uniform = cpu_rng.uniform
+            self.rng_integers = cpu_rng.integers
 
         # Calculate number of samples
         self.num_samples = int(sample_rate_hz * duration_ms / 1000.0)
@@ -134,7 +148,7 @@ class SyntheticIQGenerator:
 
         # 2. Add multipath reflections (if enabled)
         if enable_multipath:
-            signal = self._add_multipath(signal, num_paths=self.rng.integers(2, 4))
+            signal = self._add_multipath(signal, num_paths=self.rng_integers(2, 4))
 
         # 3. Add Rayleigh fading (if enabled)
         if enable_fading:
@@ -181,13 +195,13 @@ class SyntheticIQGenerator:
 
         # Add random phase modulation to simulate FM/PM
         # Modulation bandwidth proportional to signal bandwidth
-        # NOTE: Use NumPy RNG (GPU random has different API), then transfer to GPU
-        phase_mod = self.rng.normal(0, 0.3, self.num_samples)  # Random phase deviation
-        phase_mod = np.convolve(phase_mod, np.ones(10) / 10, mode='same')  # Smooth it
+        phase_mod = self.rng_normal(0, 0.3, self.num_samples)  # Random phase deviation (on GPU if available)
         
-        # Transfer to GPU if needed
-        if self.use_gpu:
-            phase_mod = self.xp.asarray(phase_mod)
+        # Smooth the phase modulation (convolve with moving average)
+        # Create smoothing kernel
+        smooth_kernel = self.xp.ones(10) / 10
+        # Use FFT-based convolution for efficiency (especially on GPU)
+        phase_mod = self.xp.convolve(phase_mod, smooth_kernel, mode='same')
 
         phase += phase_mod
 
@@ -214,16 +228,16 @@ class SyntheticIQGenerator:
 
         for _ in range(num_paths):
             # Random delay: 0.5-5 microseconds (typical urban/suburban)
-            delay_us = self.rng.uniform(0.5, 5.0)
+            delay_us = float(self.rng_uniform(0.5, 5.0))
             delay_samples = int(delay_us * 1e-6 * self.sample_rate_hz)
             delay_samples = max(1, min(delay_samples, self.num_samples // 4))
 
             # Attenuation: -10 to -25 dB relative to main signal
-            attenuation_db = self.rng.uniform(-25, -10)
+            attenuation_db = float(self.rng_uniform(-25, -10))
             attenuation_linear = 10 ** (attenuation_db / 20.0)
 
             # Random phase shift
-            phase_shift = self.rng.uniform(0, 2 * self.xp.pi)
+            phase_shift = float(self.rng_uniform(0, 2 * float(self.xp.pi)))
 
             # Create delayed copy
             delayed_signal = self.xp.zeros_like(signal)
@@ -248,35 +262,42 @@ class SyntheticIQGenerator:
             Faded signal
         """
         # Coherence time: 50-200ms
-        coherence_time_ms = self.rng.uniform(50, 200)
+        coherence_time_ms = float(self.rng_uniform(50, 200))
         coherence_samples = int(coherence_time_ms * 1e-3 * self.sample_rate_hz)
 
         # Generate Rayleigh fading envelope (two Gaussian random processes)
         num_fading_samples = max(1, self.num_samples // coherence_samples)
 
-        # In-phase and quadrature Gaussian processes (use NumPy RNG)
-        i_fading = self.rng.normal(0, 1, num_fading_samples)
-        q_fading = self.rng.normal(0, 1, num_fading_samples)
+        # In-phase and quadrature Gaussian processes (GPU-accelerated if available)
+        i_fading = self.rng_normal(0, 1, num_fading_samples)
+        q_fading = self.rng_normal(0, 1, num_fading_samples)
 
-        # Rayleigh envelope: sqrt(I^2 + Q^2) - calculate on CPU first
-        fading_envelope = np.sqrt(i_fading**2 + q_fading**2)
+        # Rayleigh envelope: sqrt(I^2 + Q^2) - GPU accelerated
+        fading_envelope = self.xp.sqrt(i_fading**2 + q_fading**2)
 
         # Upsample to match signal length (repeat each sample)
-        fading_envelope = np.repeat(fading_envelope, coherence_samples)
+        fading_envelope = self.xp.repeat(fading_envelope, coherence_samples)
 
         # Trim or pad to exact length
         if len(fading_envelope) > self.num_samples:
             fading_envelope = fading_envelope[:self.num_samples]
         else:
-            fading_envelope = np.pad(
-                fading_envelope,
-                (0, self.num_samples - len(fading_envelope)),
-                mode='edge'
-            )
-
-        # Transfer to GPU if needed
-        if self.use_gpu:
-            fading_envelope = self.xp.asarray(fading_envelope)
+            # Pad to exact length
+            pad_width = self.num_samples - len(fading_envelope)
+            if self.use_gpu:
+                # CuPy pad
+                fading_envelope = self.xp.pad(
+                    fading_envelope,
+                    (0, pad_width),
+                    mode='edge'
+                )
+            else:
+                # NumPy pad
+                fading_envelope = np.pad(
+                    fading_envelope,
+                    (0, pad_width),
+                    mode='edge'
+                )
 
         # Apply fading (multiplicative)
         faded_signal = signal * fading_envelope
@@ -341,13 +362,9 @@ class SyntheticIQGenerator:
         # For complex noise: variance = noise_power / 2 per component
         noise_std = float(self.xp.sqrt(noise_power / 2.0))
 
-        # Generate noise on CPU (NumPy RNG)
-        noise_i = self.rng.normal(0, noise_std, self.num_samples)
-        noise_q = self.rng.normal(0, noise_std, self.num_samples)
+        # Generate complex Gaussian noise (GPU-accelerated if available)
+        noise_i = self.rng_normal(0, noise_std, self.num_samples)
+        noise_q = self.rng_normal(0, noise_std, self.num_samples)
         noise = noise_i + 1j * noise_q
-        
-        # Transfer to GPU if needed
-        if self.use_gpu:
-            noise = self.xp.asarray(noise)
 
         return signal + noise
