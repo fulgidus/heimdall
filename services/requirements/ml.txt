@@ -2,10 +2,13 @@
 # Include base dependencies
 -r base.txt
 
-# PyTorch ecosystem (using available versions)
+# PyTorch ecosystem with CUDA 12.1 support
+# Install from PyTorch index to get GPU-enabled builds
+--index-url https://download.pytorch.org/whl/cu121
 torch>=2.2.0
-pytorch-lightning>=2.1.0
 torchvision>=0.17.0
+--index-url https://pypi.org/simple
+pytorch-lightning>=2.1.0
 
 # Scientific computing
 numpy>=1.26.0

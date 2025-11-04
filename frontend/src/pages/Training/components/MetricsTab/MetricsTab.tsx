@@ -28,20 +28,10 @@ export const MetricsTab: React.FC = () => {
     }
   }, [trainingJobs, selectedJobId]);
 
-  // Fetch metrics when job is selected
+  // Fetch metrics when job is selected (WebSocket will handle real-time updates)
   useEffect(() => {
     if (selectedJobId) {
       fetchMetrics(selectedJobId);
-      
-      // Refresh every 5 seconds for running jobs
-      const selectedJob = trainingJobs.find(j => j.id === selectedJobId);
-      if (selectedJob?.status === 'running') {
-        const interval = setInterval(() => {
-          fetchMetrics(selectedJobId);
-        }, 5000);
-        
-        return () => clearInterval(interval);
-      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedJobId]); // Only re-run when job selection changes, not on every jobs update

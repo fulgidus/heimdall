@@ -45,8 +45,11 @@ export const LossChart: React.FC<LossChartProps> = ({ metrics }) => {
             stroke="#6b7280"
           />
           <YAxis 
-            label={{ value: 'Loss', angle: -90, position: 'insideLeft' }}
+            label={{ value: 'Loss (log scale)', angle: -90, position: 'insideLeft' }}
             stroke="#6b7280"
+            scale="log"
+            domain={['auto', 'auto']}
+            allowDataOverflow={false}
           />
           <Tooltip 
             contentStyle={{ 

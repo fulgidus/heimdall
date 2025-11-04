@@ -4,7 +4,7 @@
  * Modal dialog for creating a new training job
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import type { CreateJobRequest } from '../../types';
@@ -22,11 +22,57 @@ const modelArchitectures = [
   'MobileNetV2',
 ];
 
+// Memoized dataset checkbox component to prevent unnecessary re-renders
+const DatasetCheckbox = React.memo<{
+  dataset: { id: string; name: string; description?: string; num_samples: number };
+  isChecked: boolean;
+  onToggle: (id: string) => void;
+  disabled: boolean;
+}>(({ dataset, isChecked, onToggle, disabled }) => {
+  const handleChange = useCallback(() => {
+    onToggle(dataset.id);
+  }, [dataset.id, onToggle]);
+
+  return (
+    <div className="form-check mb-2">
+      <input
+        className="form-check-input"
+        type="checkbox"
+        id={`dataset-${dataset.id}`}
+        checked={isChecked}
+        onChange={handleChange}
+        disabled={disabled}
+      />
+      <label 
+        className="form-check-label d-flex justify-content-between align-items-center w-100" 
+        htmlFor={`dataset-${dataset.id}`}
+      >
+        <span>
+          <strong>{dataset.name}</strong>
+          {dataset.description && (
+            <small className="text-muted d-block">{dataset.description}</small>
+          )}
+        </span>
+        <span className="badge bg-secondary ms-2">
+          {dataset.num_samples.toLocaleString()} samples
+        </span>
+      </label>
+    </div>
+  );
+});
+
 export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClose }) => {
-  const { createJob, datasets, fetchDatasets } = useTrainingStore();
+  // Use shallow selector to prevent unnecessary re-renders
+  const createJob = useTrainingStore(state => state.createJob);
+  const datasets = useTrainingStore(state => state.datasets);
+  const fetchDatasets = useTrainingStore(state => state.fetchDatasets);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const modalRootRef = useRef<HTMLDivElement>(document.createElement('div'));
+  // Lazy initialization: only create div once
+  const modalRootRef = useRef<HTMLDivElement | null>(null);
+  if (!modalRootRef.current) {
+    modalRootRef.current = document.createElement('div');
+  }
   const isMountedRef = useRef(false);
 
   const [formData, setFormData] = useState<CreateJobRequest>({
@@ -67,35 +113,47 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
     }
   }, [isOpen]);
 
-  // Fetch datasets and reset error when dialog opens
+  // Create a Set for fast lookup of selected dataset IDs
+  const selectedDatasetIds = useMemo(() => 
+    new Set(formData.config.dataset_ids), 
+    [formData.config.dataset_ids]
+  );
+
+  // Fetch datasets and reset error when dialog opens (only if not already loaded)
   useEffect(() => {
     if (isOpen) {
       setError(null);
-      fetchDatasets(true); // Silent fetch to avoid loading indicator
+      // Only fetch if we don't have datasets yet
+      if (datasets.length === 0) {
+        fetchDatasets(true); // Silent fetch to avoid loading indicator
+      }
     }
-  }, [isOpen, fetchDatasets]);
+  }, [isOpen]); // Removed fetchDatasets and datasets from deps to prevent loops
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    const parsedValue = type === 'number' ? parseFloat(value) : value;
     
-    // Handle nested config fields
-    if (name in formData.config) {
-      setFormData(prev => ({
-        ...prev,
-        config: {
-          ...prev.config,
-          [name]: type === 'number' ? parseFloat(value) : value,
-        },
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: type === 'number' ? parseFloat(value) : value,
-      }));
-    }
-  };
+    setFormData(prev => {
+      // Handle nested config fields
+      if (name in prev.config) {
+        return {
+          ...prev,
+          config: {
+            ...prev.config,
+            [name]: parsedValue,
+          },
+        };
+      } else {
+        return {
+          ...prev,
+          [name]: parsedValue,
+        };
+      }
+    });
+  }, []);
 
-  const handleDatasetToggle = (datasetId: string) => {
+  const handleDatasetToggle = useCallback((datasetId: string) => {
     setFormData(prev => {
       const currentIds = prev.config.dataset_ids;
       const newIds = currentIds.includes(datasetId)
@@ -110,7 +168,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
         },
       };
     });
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,30 +270,13 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                         ) : (
                           <div className="form-check-group">
                             {datasets.map(dataset => (
-                              <div key={dataset.id} className="form-check mb-2">
-                                <input
-                                  className="form-check-input"
-                                  type="checkbox"
-                                  id={`dataset-${dataset.id}`}
-                                  checked={formData.config.dataset_ids.includes(dataset.id)}
-                                  onChange={() => handleDatasetToggle(dataset.id)}
-                                  disabled={isSubmitting}
-                                />
-                                <label 
-                                  className="form-check-label d-flex justify-content-between align-items-center w-100" 
-                                  htmlFor={`dataset-${dataset.id}`}
-                                >
-                                  <span>
-                                    <strong>{dataset.name}</strong>
-                                    {dataset.description && (
-                                      <small className="text-muted d-block">{dataset.description}</small>
-                                    )}
-                                  </span>
-                                  <span className="badge bg-secondary ms-2">
-                                    {dataset.num_samples.toLocaleString()} samples
-                                  </span>
-                                </label>
-                              </div>
+                              <DatasetCheckbox
+                                key={dataset.id}
+                                dataset={dataset}
+                                isChecked={selectedDatasetIds.has(dataset.id)}
+                                onToggle={handleDatasetToggle}
+                                disabled={isSubmitting}
+                              />
                             ))}
                           </div>
                         )}

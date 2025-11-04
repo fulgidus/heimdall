@@ -200,6 +200,19 @@ async def list_training_jobs(
             count_params = {k: v for k, v in params.items() if k not in ["limit", "offset"]}
             total = session.execute(count_query, count_params).scalar() or 0
 
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
             # Convert to response models
             jobs = []
             for row in results:
@@ -215,14 +228,14 @@ async def list_training_jobs(
                         config=row[7] if row[7] else {},
                         current_epoch=row[8] or 0,
                         total_epochs=row[9],
-                        progress_percent=row[10] or 0.0,
-                        train_loss=row[11],
-                        val_loss=row[12],
-                        train_accuracy=row[13],
-                        val_accuracy=row[14],
-                        learning_rate=row[15],
+                        progress_percent=sanitize_float(row[10]) or 0.0,
+                        train_loss=sanitize_float(row[11]),
+                        val_loss=sanitize_float(row[12]),
+                        train_accuracy=sanitize_float(row[13]),
+                        val_accuracy=sanitize_float(row[14]),
+                        learning_rate=sanitize_float(row[15]),
                         best_epoch=row[16],
-                        best_val_loss=row[17],
+                        best_val_loss=sanitize_float(row[17]),
                         checkpoint_path=row[18],
                         onnx_model_path=row[19],
                         mlflow_run_id=row[20],
@@ -278,6 +291,19 @@ async def get_training_job(job_id: UUID):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
 
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
             job = TrainingJobResponse(
                 id=result[0],
                 job_name=result[1],
@@ -289,14 +315,14 @@ async def get_training_job(job_id: UUID):
                 config=result[7] if result[7] else {},
                 current_epoch=result[8] or 0,
                 total_epochs=result[9],
-                progress_percent=result[10] or 0.0,
-                train_loss=result[11],
-                val_loss=result[12],
-                train_accuracy=result[13],
-                val_accuracy=result[14],
-                learning_rate=result[15],
+                progress_percent=sanitize_float(result[10]) or 0.0,
+                train_loss=sanitize_float(result[11]),
+                val_loss=sanitize_float(result[12]),
+                train_accuracy=sanitize_float(result[13]),
+                val_accuracy=sanitize_float(result[14]),
+                learning_rate=sanitize_float(result[15]),
                 best_epoch=result[16],
-                best_val_loss=result[17],
+                best_val_loss=sanitize_float(result[17]),
                 checkpoint_path=result[18],
                 onnx_model_path=result[19],
                 mlflow_run_id=result[20],
@@ -326,15 +352,16 @@ async def get_training_job(job_id: UUID):
                 metrics_query, {"job_id": str(job_id)}
             ).fetchall()
 
+            # Helper function already defined above, reusing
             recent_metrics = [
                 TrainingMetrics(
                     epoch=row[0],
-                    train_loss=row[1],
-                    val_loss=row[2],
-                    train_accuracy=row[3],
-                    val_accuracy=row[4],
-                    learning_rate=row[5],
-                    gradient_norm=row[6],
+                    train_loss=sanitize_float(row[1]),
+                    val_loss=sanitize_float(row[2]),
+                    train_accuracy=sanitize_float(row[3]),
+                    val_accuracy=sanitize_float(row[4]),
+                    learning_rate=sanitize_float(row[5]),
+                    gradient_norm=sanitize_float(row[6]),
                 )
                 for row in metrics_results
             ]
@@ -565,9 +592,13 @@ async def resume_training_job(job_id: UUID):
                 )
 
             # Update job status to running and queue the training task
-            from tasks.training_task import start_training_job
-
-            task = start_training_job.apply_async(args=[str(job_id)])
+            from ..main import celery_app
+            
+            task = celery_app.send_task(
+                'src.tasks.training_task.start_training_job',
+                args=[str(job_id)],
+                queue='training'
+            )
 
             update_query = text("""
                 UPDATE heimdall.training_jobs
@@ -905,15 +936,28 @@ async def get_training_metrics(
                 metrics_query, {"job_id": str(job_id), "limit": limit}
             ).fetchall()
 
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
             return [
                 TrainingMetrics(
                     epoch=row[0],
-                    train_loss=row[1],
-                    val_loss=row[2],
-                    train_accuracy=row[3],
-                    val_accuracy=row[4],
-                    learning_rate=row[5],
-                    gradient_norm=row[6],
+                    train_loss=sanitize_float(row[1]),
+                    val_loss=sanitize_float(row[2]),
+                    train_accuracy=sanitize_float(row[3]),
+                    val_accuracy=sanitize_float(row[4]),
+                    learning_rate=sanitize_float(row[5]),
+                    gradient_norm=sanitize_float(row[6]),
                 )
                 for row in results
             ]

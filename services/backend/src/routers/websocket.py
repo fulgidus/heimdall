@@ -384,28 +384,71 @@ def get_connection_count() -> int:
     return len(manager.active_connections)
 
 
+# Training-specific connection manager
+class TrainingConnectionManager:
+    """
+    Manager for training WebSocket connections.
+    
+    Maintains a mapping of job_id -> set of WebSocket connections
+    for targeted broadcasting of training events.
+    """
+    def __init__(self):
+        self.connections: dict[str, set[WebSocket]] = {}
+
+    async def connect(self, job_id: str, websocket: WebSocket):
+        """Register WebSocket for a specific training job."""
+        await websocket.accept()
+        if job_id not in self.connections:
+            self.connections[job_id] = set()
+        self.connections[job_id].add(websocket)
+        logger.info(f"Training WebSocket connected for job {job_id}. Total for this job: {len(self.connections[job_id])}")
+
+    async def disconnect(self, job_id: str, websocket: WebSocket):
+        """Unregister WebSocket for a specific training job."""
+        if job_id in self.connections:
+            self.connections[job_id].discard(websocket)
+            if not self.connections[job_id]:
+                del self.connections[job_id]
+        logger.info(f"Training WebSocket disconnected for job {job_id}")
+
+    async def broadcast_to_job(self, job_id: str, message: dict):
+        """Broadcast message to all connections watching a specific job."""
+        if job_id not in self.connections:
+            return
+
+        disconnected = []
+        for connection in self.connections[job_id]:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.warning(f"Failed to send to training client: {e}")
+                disconnected.append(connection)
+
+        # Clean up disconnected clients
+        for connection in disconnected:
+            await self.disconnect(job_id, connection)
+
+
+# Global training connection manager
+training_manager = TrainingConnectionManager()
+
+
 # Training-specific WebSocket endpoint
 @router.websocket("/ws/training/{job_id}")
 async def training_websocket(websocket: WebSocket, job_id: str):
     """
     WebSocket endpoint for real-time training progress updates.
 
-    Provides live updates for a specific training job:
-    - Epoch progress (current/total epochs)
-    - Loss values (train/val)
-    - Accuracy metrics
-    - Learning rate changes
-    - Best model updates
-    - Completion status
+    Provides live updates for a specific training job via RabbitMQ events:
+    - training:started - Job started
+    - training:progress - Epoch progress with metrics
+    - training:completed - Job finished (success/failure)
 
-    Message formats:
-    - training_progress: Current epoch status
-    - epoch_complete: End of epoch metrics
-    - training_complete: Job finished (success/failure)
+    NO POLLING - all updates are push-based from RabbitMQ events.
     """
-    await websocket.accept()
-    logger.info(f"Training WebSocket connected for job {job_id}")
+    await training_manager.connect(job_id, websocket)
 
+    heartbeat_task = None
     try:
         # Send initial connection confirmation
         await websocket.send_json({
@@ -415,12 +458,66 @@ async def training_websocket(websocket: WebSocket, job_id: str):
             "message": f"Connected to training job {job_id}",
         })
 
-        # Keep connection alive and listen for updates
-        # The training task will broadcast updates via Redis pub/sub or direct DB polling
+        # Fetch initial job state from database (one-time only)
+        try:
+            from ..storage.db_manager import get_db_manager
+            db_manager = get_db_manager()
+
+            with db_manager.get_session() as session:
+                result = session.execute(
+                    text("""
+                    SELECT status, current_epoch, total_epochs, progress_percent,
+                           train_loss, val_loss, train_accuracy, val_accuracy,
+                           learning_rate, error_message
+                    FROM heimdall.training_jobs
+                    WHERE id = :job_id
+                    """),
+                    {"job_id": job_id}
+                ).fetchone()
+
+                if result:
+                    # Send initial state
+                    await websocket.send_json({
+                        "event": "training_started" if result[0] == "running" else "training_status",
+                        "job_id": job_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "data": {
+                            "status": result[0],
+                            "current_epoch": result[1],
+                            "total_epochs": result[2],
+                            "progress_percent": result[3],
+                            "train_loss": result[4],
+                            "val_loss": result[5],
+                            "train_accuracy": result[6],
+                            "val_accuracy": result[7],
+                            "learning_rate": result[8],
+                            "error_message": result[9],
+                        }
+                    })
+        except Exception as e:
+            logger.error(f"Error fetching initial training job state: {e}")
+
+        # Start heartbeat to keep connection alive
+        async def send_heartbeat():
+            """Send periodic heartbeats to detect stale connections"""
+            while True:
+                try:
+                    await asyncio.sleep(30)  # Heartbeat every 30 seconds
+                    await websocket.send_json({
+                        "event": "heartbeat",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    })
+                except Exception as e:
+                    logger.debug(f"Heartbeat failed: {e}")
+                    break
+
+        heartbeat_task = asyncio.create_task(send_heartbeat())
+
+        # Listen for client messages (ping/pong)
+        # All training updates will come from RabbitMQ consumer via broadcast
         while True:
-            # Wait for client ping or server-side updates
             try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                data = await websocket.receive_text()
                 message = json.loads(data)
 
                 if message.get("event") == "ping":
@@ -429,58 +526,24 @@ async def training_websocket(websocket: WebSocket, job_id: str):
                         "timestamp": datetime.utcnow().isoformat(),
                     })
 
-            except asyncio.TimeoutError:
-                # Check for updates from database
-                try:
-                    from ..storage.db_manager import get_db_manager
-                    db_manager = get_db_manager()
-
-                    # Query training job status
-                    with db_manager.get_session() as session:
-                        result = session.execute(
-                            text("""
-                            SELECT status, current_epoch, total_epochs, progress_percent,
-                                   train_loss, val_loss, train_accuracy, val_accuracy,
-                                   learning_rate, error_message
-                            FROM heimdall.training_jobs
-                            WHERE id = :job_id
-                            """),
-                            {"job_id": job_id}
-                        ).fetchone()
-
-                        if result:
-                            # Send status update
-                            await websocket.send_json({
-                                "event": "training_status",
-                                "job_id": job_id,
-                                "status": result[0],
-                                "current_epoch": result[1],
-                                "total_epochs": result[2],
-                                "progress_percent": result[3],
-                                "metrics": {
-                                    "train_loss": result[4],
-                                    "val_loss": result[5],
-                                    "train_accuracy": result[6],
-                                    "val_accuracy": result[7],
-                                    "learning_rate": result[8],
-                                },
-                                "error_message": result[9],
-                                "timestamp": datetime.utcnow().isoformat(),
-                            })
-
-                            # If job completed or failed, close connection
-                            if result[0] in ["completed", "failed", "cancelled"]:
-                                logger.info(f"Training job {job_id} finished with status {result[0]}")
-                                break
-
-                except Exception as e:
-                    logger.error(f"Error querying training job status: {e}")
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON from training client: {data}")
 
     except WebSocketDisconnect:
         logger.info(f"Training WebSocket disconnected for job {job_id}")
     except Exception as e:
         logger.error(f"Training WebSocket error for job {job_id}: {e}")
     finally:
+        # Cancel heartbeat task
+        if heartbeat_task:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+
+        await training_manager.disconnect(job_id, websocket)
+
         try:
             await websocket.close()
         except Exception:

@@ -27,16 +27,18 @@ class RabbitMQEventConsumer(ConsumerMixin):
     Implements ConsumerMixin for robust connection handling and auto-reconnect.
     """
 
-    def __init__(self, broker_url: str, websocket_manager):
+    def __init__(self, broker_url: str, websocket_manager, training_manager=None):
         """
         Initialize consumer.
 
         Args:
             broker_url: RabbitMQ connection URL
             websocket_manager: WebSocket connection manager for broadcasting
+            training_manager: Training-specific connection manager (optional)
         """
         self.connection = Connection(broker_url)
         self.ws_manager = websocket_manager
+        self.training_manager = training_manager
 
         # Events exchange (same as publisher)
         self.events_exchange = Exchange(
@@ -84,7 +86,7 @@ class RabbitMQEventConsumer(ConsumerMixin):
         """
         try:
             event_type = body.get('event', 'unknown')
-            logger.debug(f"Received event from RabbitMQ: {event_type}")
+            logger.info(f"Received event from RabbitMQ: {event_type}")
 
             # Broadcast to WebSocket clients (async)
             if self._event_loop and self.ws_manager:
@@ -96,7 +98,17 @@ class RabbitMQEventConsumer(ConsumerMixin):
                 # Log successful broadcast
                 num_clients = len(self.ws_manager.active_connections)
                 if num_clients > 0:
-                    logger.debug(f"Broadcasted {event_type} to {num_clients} WebSocket clients")
+                    logger.info(f"Broadcasted {event_type} to {num_clients} WebSocket clients")
+
+            # Also broadcast training events to job-specific connections
+            if self._event_loop and self.training_manager and event_type.startswith('training:'):
+                job_id = body.get('data', {}).get('job_id')
+                if job_id:
+                    asyncio.run_coroutine_threadsafe(
+                        self.training_manager.broadcast_to_job(job_id, body),
+                        self._event_loop
+                    )
+                    logger.info(f"Broadcasted {event_type} to training job {job_id}")
 
             # Acknowledge message
             message.ack()
@@ -126,7 +138,7 @@ class RabbitMQEventConsumer(ConsumerMixin):
         self._event_loop = loop
 
 
-async def start_rabbitmq_consumer(broker_url: str, websocket_manager):
+async def start_rabbitmq_consumer(broker_url: str, websocket_manager, training_manager=None):
     """
     Start RabbitMQ event consumer in background.
 
@@ -135,10 +147,11 @@ async def start_rabbitmq_consumer(broker_url: str, websocket_manager):
     Args:
         broker_url: RabbitMQ connection URL
         websocket_manager: WebSocket manager instance
+        training_manager: Training-specific connection manager (optional)
     """
     logger.info("Starting RabbitMQ events consumer for WebSocket broadcasting")
 
-    consumer = RabbitMQEventConsumer(broker_url, websocket_manager)
+    consumer = RabbitMQEventConsumer(broker_url, websocket_manager, training_manager)
 
     # Set event loop for async broadcasting
     consumer.set_event_loop(asyncio.get_running_loop())

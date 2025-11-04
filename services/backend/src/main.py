@@ -120,9 +120,10 @@ async def startup_event():
         logger.info("Starting RabbitMQ events consumer for WebSocket broadcasting...")
         from .events.consumer import start_rabbitmq_consumer
         from .routers.websocket import manager as websocket_manager
+        from .routers.websocket import training_manager
 
         consumer_thread = threading.Thread(
-            target=lambda: asyncio.run(start_rabbitmq_consumer(settings.celery_broker_url, websocket_manager)),
+            target=lambda: asyncio.run(start_rabbitmq_consumer(settings.celery_broker_url, websocket_manager, training_manager)),
             daemon=True
         )
         consumer_thread.start()

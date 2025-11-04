@@ -1,8 +1,20 @@
-    FROM python:3.11-slim AS deps-train
+# Multi-stage build for training service with GPU support
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04 AS deps-train
 WORKDIR /build
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y gcc postgresql-client ca-certificates
+# Install Python 3.11 and build dependencies
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
+    gcc \
+    postgresql-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlinks for python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # Copy centralized requirements and service-specific requirements
 COPY services/requirements/ ./requirements/
@@ -17,11 +29,20 @@ RUN pip install --upgrade pip && \
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     -r /tmp/all_reqs.txt
 
-FROM python:3.11-slim
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/lib/apt/lists/*
+# Install Python 3.11 and runtime dependencies
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3-pip \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlinks for python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -39,7 +60,11 @@ COPY --chown=appuser:appuser services/common/ ./common/
 COPY --chown=appuser:appuser services/backend/src/ ./backend/src/
 
 # Set environment
-ENV PATH=/home/appuser/.local/bin:$PATH PYTHONUNBUFFERED=1 PYTHONPATH=/app
+ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 USER appuser
 EXPOSE 8002
@@ -49,4 +74,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD celery -A src.main:celery_app inspect ping -d celery@$HOSTNAME || exit 1
 
 # Start Celery worker for training tasks (listening on 'training' queue)
-CMD ["celery", "-A", "src.main:celery_app", "worker", "--loglevel=INFO", "--concurrency=2", "--time-limit=21600", "--soft-time-limit=19800", "-Q", "training"]
+# Use --pool=solo to avoid daemon process issues with DataLoader workers
+CMD ["celery", "-A", "src.main:celery_app", "worker", "--loglevel=INFO", "--pool=solo", "--time-limit=21600", "--soft-time-limit=19800", "-Q", "training"]

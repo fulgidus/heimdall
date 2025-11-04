@@ -253,7 +253,7 @@ class EventPublisher:
         }
 
         self._publish(f'training.progress.{job_id}', event)
-        logger.debug(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}")
+        logger.info(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}, metrics={metrics}")
 
     def publish_training_completed(
         self,

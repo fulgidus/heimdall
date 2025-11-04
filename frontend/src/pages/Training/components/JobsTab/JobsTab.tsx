@@ -13,15 +13,9 @@ export const JobsTab: React.FC = () => {
   const { jobs, fetchJobs, isLoading, error } = useTrainingStore();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  // Fetch jobs on mount and refresh every 5 seconds
+  // Fetch jobs on mount (WebSocket will handle real-time updates)
   useEffect(() => {
     fetchJobs();
-    
-    const interval = setInterval(() => {
-      fetchJobs();
-    }, 5000);
-
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Zustand actions are stable, safe to omit from dependencies
 

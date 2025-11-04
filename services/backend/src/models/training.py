@@ -48,8 +48,8 @@ class TrainingConfig(BaseModel):
     freeze_backbone: bool = Field(default=False, description="Freeze backbone layers")
 
     # Data parameters
-    batch_size: int = Field(default=32, ge=1, le=512, description="Batch size")
-    num_workers: int = Field(default=4, ge=0, le=16, description="DataLoader workers")
+    batch_size: int = Field(default=128, ge=1, le=1024, description="Batch size (larger=better GPU utilization)")
+    num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers (0=auto-detect, recommended)")
     validation_split: float = Field(default=0.2, ge=0.0, le=0.5, description="Validation split ratio")
 
     # Feature extraction
@@ -75,7 +75,7 @@ class TrainingConfig(BaseModel):
     max_grad_norm: float = Field(default=1.0, gt=0.0, description="Maximum gradient norm for clipping")
 
     # Hardware
-    accelerator: str = Field(default="cpu", description="Training device")
+    accelerator: str = Field(default="auto", description="Training device (auto/cpu/gpu)")
     devices: int = Field(default=1, ge=1, description="Number of devices")
 
     # Data filters

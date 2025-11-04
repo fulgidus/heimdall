@@ -184,7 +184,16 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set(state => ({
         jobs: state.jobs.filter(job => job.id !== jobId),
       }));
-    } catch (error) {
+    } catch (error: any) {
+      // If job not found (404), remove it from local state anyway
+      if (error?.status === 404 || error?.response?.status === 404) {
+        console.warn(`Job ${jobId} not found on server, removing from local state`);
+        set(state => ({
+          jobs: state.jobs.filter(job => job.id !== jobId),
+        }));
+        return; // Don't throw error for 404
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete training job';
       set({ error: errorMessage });
       console.error('Training job deletion error:', error);
@@ -301,7 +310,16 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set(state => ({
         models: state.models.filter(model => model.id !== modelId),
       }));
-    } catch (error) {
+    } catch (error: any) {
+      // If model not found (404), remove it from local state anyway
+      if (error?.status === 404 || error?.response?.status === 404) {
+        console.warn(`Model ${modelId} not found on server, removing from local state`);
+        set(state => ({
+          models: state.models.filter(model => model.id !== modelId),
+        }));
+        return; // Don't throw error for 404
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete model';
       set({ error: errorMessage });
       console.error('Model deletion error:', error);
@@ -394,7 +412,16 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set(state => ({
         datasets: state.datasets.filter(dataset => dataset.id !== datasetId),
       }));
-    } catch (error) {
+    } catch (error: any) {
+      // If dataset not found (404), remove it from local state anyway
+      if (error?.status === 404 || error?.response?.status === 404) {
+        console.warn(`Dataset ${datasetId} not found on server, removing from local state`);
+        set(state => ({
+          datasets: state.datasets.filter(dataset => dataset.id !== datasetId),
+        }));
+        return; // Don't throw error for 404
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete dataset';
       set({ error: errorMessage });
       console.error('Dataset deletion error:', error);
@@ -547,7 +574,16 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set(state => ({
         generationJobs: state.generationJobs.filter(job => job.id !== jobId),
       }));
-    } catch (error) {
+    } catch (error: any) {
+      // If job not found (404), remove it from local state anyway
+      if (error?.status === 404 || error?.response?.status === 404) {
+        console.warn(`Job ${jobId} not found on server, removing from local state`);
+        set(state => ({
+          generationJobs: state.generationJobs.filter(job => job.id !== jobId),
+        }));
+        return; // Don't throw error for 404
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete generation job';
       set({ error: errorMessage });
       console.error('Generation job deletion error:', error);

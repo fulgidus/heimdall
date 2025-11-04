@@ -28,6 +28,7 @@ import base64
 import io
 import json
 import logging
+import math
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,33 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_for_json(value):
+    """
+    Sanitize numeric values for JSON serialization.
+    Converts NaN and Infinity to None (which becomes null in JSON).
+    """
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+    return value
+
+
+def sanitize_dict_for_json(data: dict) -> dict:
+    """
+    Recursively sanitize a dictionary for JSON serialization.
+    Converts NaN and Infinity to None.
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            result[key] = sanitize_dict_for_json(value)
+        elif isinstance(value, (list, tuple)):
+            result[key] = [sanitize_for_json(v) for v in value]
+        else:
+            result[key] = sanitize_for_json(value)
+    return result
 
 
 class BundleMetadata(BaseModel):
@@ -611,16 +639,16 @@ class HeimdallImporter:
                     "num_parameters": bundle.model.parameters_count,
                 }
             
-            # Prepare performance metrics JSON
+            # Prepare performance metrics JSON (sanitize NaN values)
             performance_metrics = None
             if bundle.performance_metrics:
-                performance_metrics = {
+                performance_metrics = sanitize_dict_for_json({
                     "final_train_loss": bundle.performance_metrics.final_train_loss,
                     "final_val_loss": bundle.performance_metrics.final_val_loss,
                     "training_duration_seconds": bundle.performance_metrics.training_duration_seconds,
                     "inference_latency_ms": bundle.performance_metrics.inference_latency_ms,
                     "onnx_speedup_factor": bundle.performance_metrics.onnx_speedup_factor,
-                }
+                })
             
             query = text("""
                 INSERT INTO heimdall.models (
@@ -659,12 +687,12 @@ class HeimdallImporter:
                     "version": int(bundle.model.version.split(".")[0]) if bundle.model.version else 1,
                     "model_type": bundle.model.architecture,
                     "onnx_model_location": onnx_path,
-                    "accuracy_meters": (
+                    "accuracy_meters": sanitize_for_json(
                         bundle.performance_metrics.final_val_accuracy
                         if bundle.performance_metrics
                         else None
                     ),
-                    "accuracy_sigma_meters": (
+                    "accuracy_sigma_meters": sanitize_for_json(
                         bundle.performance_metrics.final_val_accuracy
                         if bundle.performance_metrics
                         else None

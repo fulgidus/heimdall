@@ -12,6 +12,7 @@ import uuid
 import json
 import sys
 import os
+import math
 from io import BytesIO
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,33 @@ if TYPE_CHECKING:
     import torch.optim as optim
 
 logger = get_task_logger(__name__)
+
+
+def sanitize_for_json(value):
+    """
+    Sanitize numeric values for JSON serialization.
+    Converts NaN and Infinity to None (which becomes null in JSON).
+    """
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+    return value
+
+
+def sanitize_dict_for_json(data: dict) -> dict:
+    """
+    Recursively sanitize a dictionary for JSON serialization.
+    Converts NaN and Infinity to None.
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            result[key] = sanitize_dict_for_json(value)
+        elif isinstance(value, (list, tuple)):
+            result[key] = [sanitize_for_json(v) for v in value]
+        else:
+            result[key] = sanitize_for_json(value)
+    return result
 
 
 class TrainingTask(Task):
@@ -117,8 +145,20 @@ def start_training_job(self, job_id: str):
         from data.triangulation_dataloader import create_triangulation_dataloader
         
         # Determine device
-        device = torch.device("cuda" if torch.cuda.is_available() and config.get("accelerator", "cpu") == "gpu" else "cpu")
-        logger.info(f"Using device: {device}")
+        accelerator = config.get("accelerator", "auto")
+        if accelerator == "auto":
+            # Auto-detect: prefer GPU if available
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        elif accelerator == "gpu":
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                logger.warning("GPU requested but CUDA not available, falling back to CPU")
+                device = torch.device("cpu")
+        else:
+            device = torch.device("cpu")
+        
+        logger.info(f"Using device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
         
         # Create dataloaders with proper context managers
         logger.info("Creating train dataloader...")
@@ -473,12 +513,16 @@ def start_training_job(self, job_id: str):
                     "name": f"triangulation_job_{job_id}",
                     "dataset_id": primary_dataset_id,
                     "location": f"s3://models/{final_checkpoint_path}",
-                    "rmse": val_rmse,
-                    "rmse_good": val_rmse_good_geom,
-                    "loss": val_loss,
+                    "rmse": sanitize_for_json(val_rmse),
+                    "rmse_good": sanitize_for_json(val_rmse_good_geom),
+                    "loss": sanitize_for_json(val_loss),
                     "epoch": epoch,
                     "hyperparams": json.dumps(config),
-                    "metrics": json.dumps({"best_epoch": best_epoch, "best_val_loss": float(best_val_loss), "final_val_rmse": val_rmse}),
+                    "metrics": json.dumps({
+                        "best_epoch": best_epoch,
+                        "best_val_loss": sanitize_for_json(float(best_val_loss)),
+                        "final_val_rmse": sanitize_for_json(val_rmse)
+                    }),
                     "job_id": job_id
                 }
             )

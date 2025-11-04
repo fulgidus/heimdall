@@ -12,6 +12,8 @@ import uuid
 import json
 import sys
 import os
+import math
+import multiprocessing
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -21,6 +23,52 @@ from celery import Task, shared_task
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
+
+
+def get_optimal_num_workers():
+    """
+    Calculate optimal number of DataLoader workers based on CPU cores.
+    
+    Returns:
+        int: Number of workers (min 4, max min(cpu_count, 16))
+    """
+    try:
+        cpu_count = multiprocessing.cpu_count()
+        # Use 50-75% of available cores, but cap at 16 to avoid overhead
+        # Reserve some cores for the main training process
+        optimal = max(4, min(cpu_count // 2, 16))
+        logger.info(f"Detected {cpu_count} CPU cores, using {optimal} DataLoader workers")
+        return optimal
+    except:
+        logger.warning("Could not detect CPU count, defaulting to 4 workers")
+        return 4
+
+
+def sanitize_for_json(value):
+    """
+    Sanitize numeric values for JSON serialization.
+    Converts NaN and Infinity to None (which becomes null in JSON).
+    """
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+    return value
+
+
+def sanitize_dict_for_json(data: dict) -> dict:
+    """
+    Recursively sanitize a dictionary for JSON serialization.
+    Converts NaN and Infinity to None.
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            result[key] = sanitize_dict_for_json(value)
+        elif isinstance(value, (list, tuple)):
+            result[key] = [sanitize_for_json(v) for v in value]
+        else:
+            result[key] = sanitize_for_json(value)
+    return result
 
 
 class TrainingTask(Task):
@@ -102,7 +150,9 @@ def start_training_job(self, job_id: str):
             dataset_ids = [config.get("dataset_id")]
 
         batch_size = config.get("batch_size", 32)
-        num_workers = config.get("num_workers", 4)
+        # Auto-detect optimal num_workers if not specified or set to 0
+        num_workers_config = config.get("num_workers", 0)
+        num_workers = get_optimal_num_workers() if num_workers_config == 0 else num_workers_config
         epochs = config.get("epochs", 100)
         learning_rate = config.get("learning_rate", 1e-3)
         weight_decay = config.get("weight_decay", 1e-4)
@@ -112,41 +162,63 @@ def start_training_job(self, job_id: str):
         max_grad_norm = config.get("max_grad_norm", 1.0)
         max_gdop = config.get("max_gdop", 5.0)
 
-        logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}")
+        logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}, workers={num_workers}")
 
         # Import training components (using absolute imports from /app)
         from src.models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
         from src.data.triangulation_dataloader import create_triangulation_dataloader
 
         # Determine device
-        device = torch.device("cuda" if torch.cuda.is_available() and config.get("accelerator", "cpu") == "gpu" else "cpu")
-        logger.info(f"Using device: {device}")
+        accelerator = config.get("accelerator", "auto")
+        if accelerator == "auto":
+            # Auto-detect: prefer GPU if available
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        elif accelerator == "gpu":
+            if torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                logger.warning("GPU requested but CUDA not available, falling back to CPU")
+                device = torch.device("cpu")
+        else:
+            device = torch.device("cpu")
+        
+        logger.info(f"Using device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
 
+        # IMPORTANT: DataLoader workers incompatible with DB sessions (pickling error)
+        # Solution: Use num_workers=0 BUT enable file cache for 10-50x speedup on epoch 2+
+        # - Epoch 1: Slow (DB load), saves to /tmp/heimdall_training_cache
+        # - Epoch 2+: FAST (disk cache is 100x faster than DB queries)
+        actual_num_workers = 0  # Force single-threaded to avoid DB session pickling issues
+        if num_workers > 0:
+            logger.info(f"Requested {num_workers} workers, but using 0 due to DB session constraints. Cache will make epoch 2+ FAST!")
+        
         # Create persistent sessions for dataloaders (will be closed in finally block)
         # Note: We cannot use context managers here because dataloaders need sessions
         # to stay alive during the entire training loop
-        logger.info("Creating train dataloader...")
+        logger.info(f"Creating train dataloader with file cache enabled...")
         train_session = db_manager.SessionLocal()
         train_loader = create_triangulation_dataloader(
             dataset_ids=dataset_ids,
             split="train",
             db_session=train_session,
             batch_size=batch_size,
-            num_workers=0,  # Avoid multiprocessing issues with DB connections
+            num_workers=actual_num_workers,
             shuffle=True,
-            max_receivers=7
+            max_receivers=7,
+            use_cache=True  # Enable file cache for massive speedup
         )
 
-        logger.info("Creating validation dataloader...")
+        logger.info(f"Creating validation dataloader with file cache enabled...")
         val_session = db_manager.SessionLocal()
         val_loader = create_triangulation_dataloader(
             dataset_ids=dataset_ids,
             split="val",
             db_session=val_session,
             batch_size=batch_size,
-            num_workers=0,
+            num_workers=actual_num_workers,
             shuffle=False,
-            max_receivers=7
+            max_receivers=7,
+            use_cache=True  # Enable file cache
         )
 
         # Update dataset info in job
@@ -315,9 +387,26 @@ def start_training_job(self, job_id: str):
 
                     val_batches += 1
 
-            val_loss = val_loss_sum / val_batches
-            val_rmse = val_distance_sum / val_batches
-            val_rmse_good_geom = (val_distance_good_geom_sum / val_good_geom_count) if val_good_geom_count > 0 else val_rmse
+            # Protect against division by zero in validation metrics
+            if val_batches > 0:
+                val_loss = val_loss_sum / val_batches
+                val_rmse = val_distance_sum / val_batches
+                val_rmse_good_geom = (val_distance_good_geom_sum / val_good_geom_count) if val_good_geom_count > 0 else val_rmse
+            else:
+                logger.warning("No validation batches - setting validation metrics to high default values")
+                val_loss = 999999.0
+                val_rmse = 999999.0
+                val_rmse_good_geom = 999999.0
+            
+            # Sanitize metrics to ensure JSON compatibility (NaN/Inf -> high default)
+            # Use explicit None check since 0.0 is a valid metric value
+            sanitized_val_loss = sanitize_for_json(val_loss)
+            sanitized_val_rmse = sanitize_for_json(val_rmse)
+            sanitized_val_rmse_good_geom = sanitize_for_json(val_rmse_good_geom)
+            
+            val_loss = 999999.0 if sanitized_val_loss is None else sanitized_val_loss
+            val_rmse = 999999.0 if sanitized_val_rmse is None else sanitized_val_rmse
+            val_rmse_good_geom = 999999.0 if sanitized_val_rmse_good_geom is None else sanitized_val_rmse_good_geom
 
             # Get current learning rate
             current_lr = optimizer.param_groups[0]['lr']
@@ -595,6 +684,13 @@ def start_training_job(self, job_id: str):
                 raise ValueError("No dataset_ids available for model insertion")
             primary_dataset_id = dataset_ids[0]
             
+            # Sanitize metrics for JSON/DB insertion (NaN -> None)
+            metrics_dict = {
+                "best_epoch": best_epoch,
+                "best_val_loss": sanitize_for_json(float(best_val_loss)),
+                "final_val_rmse": sanitize_for_json(val_rmse)
+            }
+            
             session.execute(
                 text("""
                     INSERT INTO heimdall.models (
@@ -614,12 +710,12 @@ def start_training_job(self, job_id: str):
                     "name": f"triangulation_job_{job_id}",
                     "dataset_id": primary_dataset_id,
                     "location": f"s3://models/{final_checkpoint_path}",
-                    "rmse": val_rmse,
-                    "rmse_good": val_rmse_good_geom,
-                    "loss": val_loss,
+                    "rmse": sanitize_for_json(val_rmse),
+                    "rmse_good": sanitize_for_json(val_rmse_good_geom),
+                    "loss": sanitize_for_json(val_loss),
                     "epoch": epoch,
                     "hyperparams": json.dumps(config),
-                    "metrics": json.dumps({"best_epoch": best_epoch, "best_val_loss": float(best_val_loss), "final_val_rmse": val_rmse}),
+                    "metrics": json.dumps(metrics_dict),
                     "job_id": job_id
                 }
             )

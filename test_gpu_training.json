@@ -1,0 +1,10 @@
+{
+  "job_name": "GPU_TEST",
+  "config": {
+    "dataset_ids": ["29b7b2f4-eb9b-4e22-a77f-c03f0c4ca876"],
+    "epochs": 3,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "model_architecture": "ResNet-18"
+  }
+}

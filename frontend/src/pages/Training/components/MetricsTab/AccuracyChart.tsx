@@ -50,9 +50,11 @@ export const AccuracyChart: React.FC<AccuracyChartProps> = ({ metrics }) => {
             stroke="#6b7280"
           />
           <YAxis 
-            label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }}
+            label={{ value: 'Accuracy (log scale)', angle: -90, position: 'insideLeft' }}
             stroke="#6b7280"
-            domain={[0, 1]}
+            scale="log"
+            domain={['auto', 'auto']}
+            allowDataOverflow={false}
             tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
           />
           <Tooltip 
