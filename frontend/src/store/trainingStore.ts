@@ -47,6 +47,8 @@ interface TrainingStore {
   downloadModel: (modelId: string, options: ExportOptions) => Promise<void>;
   importModel: (file: File) => Promise<void>;
   deleteModel: (modelId: string) => Promise<void>;
+  setModelActive: (modelId: string) => Promise<void>;
+  setModelProduction: (modelId: string) => Promise<void>;
 
   // Actions - Synthetic Datasets
   fetchDatasets: (silent?: boolean) => Promise<void>;
@@ -323,6 +325,42 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete model';
       set({ error: errorMessage });
       console.error('Model deletion error:', error);
+      throw error;
+    }
+  },
+
+  // Set a model as active
+  setModelActive: async (modelId: string) => {
+    set({ error: null });
+    try {
+      await api.post(`/v1/training/models/${modelId}/deploy`, null, {
+        params: { set_production: false }
+      });
+      
+      // Refresh models list to get updated state
+      await get().fetchModels();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set model as active';
+      set({ error: errorMessage });
+      console.error('Model activation error:', error);
+      throw error;
+    }
+  },
+
+  // Set a model as production
+  setModelProduction: async (modelId: string) => {
+    set({ error: null });
+    try {
+      await api.post(`/v1/training/models/${modelId}/deploy`, null, {
+        params: { set_production: true }
+      });
+      
+      // Refresh models list to get updated state
+      await get().fetchModels();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set model as production';
+      set({ error: errorMessage });
+      console.error('Model production setting error:', error);
       throw error;
     }
   },

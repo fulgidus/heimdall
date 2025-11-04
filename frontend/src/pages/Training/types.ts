@@ -20,7 +20,7 @@ export interface TrainingJobConfig {
   model_architecture: string;
   dataset_ids?: string[];
   validation_split?: number;
-  early_stopping_patience?: number;
+  early_stop_patience?: number;
   checkpoint_every_n_epochs?: number;
 }
 
@@ -126,7 +126,7 @@ export interface CreateJobRequest {
     learning_rate: number;
     model_architecture?: string;
     validation_split?: number;
-    early_stopping_patience?: number;
+    early_stop_patience?: number;
   };
 }
 

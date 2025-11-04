@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import type { TrainedModel } from '../../types';
 import { ExportDialog } from './ExportDialog';
+import { ModelDetailsModal } from './ModelDetailsModal';
 import { useTrainingStore } from '../../../../store/trainingStore';
 
 interface ModelCardProps {
@@ -15,6 +16,7 @@ interface ModelCardProps {
 
 export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const { deleteModel } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -161,6 +163,13 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
           {/* Action Buttons */}
           <div className="d-grid gap-2">
             <button
+              onClick={() => setIsDetailsModalOpen(true)}
+              className="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2"
+            >
+              <i className="ph ph-info"></i>
+              View Details
+            </button>
+            <button
               onClick={() => setIsExportDialogOpen(true)}
               className="btn btn-primary d-flex align-items-center justify-content-center gap-2"
             >
@@ -184,6 +193,13 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
         model={model}
         isOpen={isExportDialogOpen}
         onClose={() => setIsExportDialogOpen(false)}
+      />
+
+      {/* Details Modal */}
+      <ModelDetailsModal
+        model={model}
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
       />
     </>
   );

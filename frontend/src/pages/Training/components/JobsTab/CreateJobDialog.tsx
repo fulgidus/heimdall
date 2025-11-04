@@ -89,10 +89,10 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       batch_size: 32,
       learning_rate: 0.001,
       model_architecture: 'triangulation',
-      validation_split: 0.2,
-      early_stopping_patience: 5,
-    },
-  });
+          validation_split: 0.2,
+          early_stop_patience: 5,
+        },
+      });
 
   // Mount and unmount the modal root element
   useEffect(() => {
@@ -245,7 +245,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
           learning_rate: 0.001,
           model_architecture: 'ResNet-18',
           validation_split: 0.2,
-          early_stopping_patience: 5,
+          early_stop_patience: 5,
         },
       });
       
@@ -471,22 +471,22 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
 
                   {/* Early Stopping Patience */}
                   <div className="col-12">
-                    <label htmlFor="early_stopping_patience" className="form-label">
+                    <label htmlFor="early_stop_patience" className="form-label">
                       Early Stopping Patience
                     </label>
                     <input
                       type="number"
-                      id="early_stopping_patience"
-                      name="early_stopping_patience"
-                      value={formData.config.early_stopping_patience}
+                      id="early_stop_patience"
+                      name="early_stop_patience"
+                      value={formData.config.early_stop_patience}
                       onChange={handleChange}
-                      min="0"
-                      max="50"
+                      min="1"
+                      max="200"
                       className="form-control"
                       disabled={isSubmitting}
                     />
                     <small className="form-text text-muted">
-                      Stop if no improvement after N epochs (0 = disabled)
+                      Stop if no improvement after N epochs (min: 1, max: 200)
                     </small>
                   </div>
                 </div>
