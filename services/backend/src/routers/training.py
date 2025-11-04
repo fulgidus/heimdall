@@ -10,6 +10,7 @@ Endpoints for managing training jobs:
 """
 
 import logging
+import uuid
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -25,6 +26,8 @@ from ..models.training import (
     TrainingJobStatusResponse,
     TrainingMetrics,
     TrainingStatus,
+    TrainingConfig,
+    EvolveTrainingRequest,
 )
 from ..models.synthetic_data import SyntheticDataGenerationRequest
 from ..storage.db_manager import get_db_manager
@@ -842,6 +845,211 @@ async def continue_synthetic_job(job_id: UUID):
     except Exception as e:
         logger.error(f"Error continuing synthetic job {job_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to continue job: {e!s}")
+
+
+@router.post("/evolve", response_model=TrainingJobResponse, status_code=201)
+async def evolve_model(request: EvolveTrainingRequest):
+    """
+    Evolve an existing model by continuing training with additional epochs.
+    
+    Creates a new training job that:
+    - Loads checkpoint weights from the parent model
+    - Preserves all hyperparameters from parent
+    - Trains for additional epochs
+    - Auto-increments version (v1 → v2 → v3)
+    - Keeps the same model name
+    
+    Args:
+        request: Evolution configuration
+        
+    Returns:
+        New training job details with parent_model_id link
+    """
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Fetch parent model details
+            parent_query = text("""
+                SELECT 
+                    m.model_name,
+                    m.version,
+                    m.pytorch_model_location,
+                    m.hyperparameters,
+                    m.synthetic_dataset_id,
+                    tj.config as job_config
+                FROM heimdall.models m
+                LEFT JOIN heimdall.training_jobs tj ON m.trained_by_job_id = tj.id
+                WHERE m.id = :model_id
+            """)
+            result = session.execute(parent_query, {"model_id": str(request.parent_model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Parent model {request.parent_model_id} not found")
+            
+            model_name, version, pytorch_location, hyperparams, dataset_id, job_config = result
+            
+            if not pytorch_location:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Parent model has no checkpoint (pytorch_model_location is NULL)"
+                )
+            
+            # Parse hyperparameters and job config
+            import json
+            hyperparams_dict = json.loads(hyperparams) if isinstance(hyperparams, str) else hyperparams
+            job_config_dict = json.loads(job_config) if isinstance(job_config, str) else (job_config or {})
+            
+            # Extract dataset_ids from job_config or fallback to hyperparameters
+            dataset_ids = job_config_dict.get("dataset_ids") or hyperparams_dict.get("dataset_ids", [])
+            if not dataset_ids and dataset_id:
+                dataset_ids = [str(dataset_id)]
+            
+            if not dataset_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot determine dataset_ids from parent model"
+                )
+            
+            # Create evolution config by copying parent hyperparameters
+            evolution_config = TrainingConfig(
+                dataset_ids=dataset_ids,
+                parent_model_id=request.parent_model_id,
+                
+                # Copy hyperparameters from parent
+                model_architecture=hyperparams_dict.get("model_architecture", "triangulation"),
+                pretrained=hyperparams_dict.get("pretrained", False),
+                freeze_backbone=hyperparams_dict.get("freeze_backbone", False),
+                batch_size=hyperparams_dict.get("batch_size", 128),
+                num_workers=hyperparams_dict.get("num_workers", 0),
+                validation_split=hyperparams_dict.get("validation_split", 0.2),
+                preload_to_gpu=hyperparams_dict.get("preload_to_gpu", True),
+                n_mels=hyperparams_dict.get("n_mels", 128),
+                n_fft=hyperparams_dict.get("n_fft", 2048),
+                hop_length=hyperparams_dict.get("hop_length", 512),
+                learning_rate=hyperparams_dict.get("learning_rate", 1e-3),
+                weight_decay=hyperparams_dict.get("weight_decay", 1e-4),
+                dropout_rate=hyperparams_dict.get("dropout_rate", 0.2),
+                lr_scheduler=hyperparams_dict.get("lr_scheduler", "cosine"),
+                warmup_epochs=hyperparams_dict.get("warmup_epochs", 5),
+                early_stop_delta=hyperparams_dict.get("early_stop_delta", 0.001),
+                max_grad_norm=hyperparams_dict.get("max_grad_norm", 1.0),
+                accelerator=hyperparams_dict.get("accelerator", "auto"),
+                devices=hyperparams_dict.get("devices", 1),
+                min_snr_db=hyperparams_dict.get("min_snr_db", 10.0),
+                max_gdop=hyperparams_dict.get("max_gdop", 5.0),
+                only_approved=hyperparams_dict.get("only_approved", True),
+                
+                # Override with evolution-specific parameters
+                epochs=request.additional_epochs,
+                early_stop_patience=request.early_stop_patience
+            )
+            
+            # Create new training job (keep same model_name, version will auto-increment in task)
+            job_id = uuid.uuid4()
+            job_name = model_name  # Keep the same name
+            config_dict = evolution_config.model_dump()
+            
+            # Convert UUID to string for JSON serialization
+            if config_dict.get("parent_model_id"):
+                config_dict["parent_model_id"] = str(config_dict["parent_model_id"])
+            
+            insert_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    id, job_name, job_type, status, config, 
+                    total_epochs, created_at
+                )
+                VALUES (
+                    :job_id, :job_name, 'training', 'pending', CAST(:config AS jsonb),
+                    :total_epochs, NOW()
+                )
+            """)
+            
+            session.execute(
+                insert_query,
+                {
+                    "job_id": str(job_id),
+                    "job_name": job_name,
+                    "config": json.dumps(config_dict),
+                    "total_epochs": request.additional_epochs
+                }
+            )
+            session.commit()
+            
+            logger.info(f"Created evolution job {job_id} for model {model_name} v{version}")
+            
+        # Queue Celery task
+        from ..main import celery_app
+        task = celery_app.send_task(
+            'src.tasks.training_task.start_training_job',
+            args=[str(job_id)],
+            queue="training"
+        )
+        
+        # Update job with Celery task ID
+        with db_manager.get_session() as session:
+            session.execute(
+                text("UPDATE heimdall.training_jobs SET celery_task_id = :task_id, status = 'queued' WHERE id = :job_id"),
+                {"task_id": task.id, "job_id": str(job_id)}
+            )
+            session.commit()
+        
+        # Fetch created job for response
+        with db_manager.get_session() as session:
+            job_query = text("""
+                SELECT 
+                    id, job_name, job_type, status, created_at, started_at, completed_at,
+                    config, current_epoch, total_epochs, progress_percent,
+                    current_progress, total_progress, progress_message,
+                    train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                    best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                    mlflow_run_id, error_message, celery_task_id
+                FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            job_result = session.execute(job_query, {"job_id": str(job_id)}).fetchone()
+            
+            if not job_result:
+                raise HTTPException(status_code=500, detail="Failed to retrieve created job")
+            
+            job_dict = dict(job_result._mapping)
+            config = json.loads(job_dict["config"]) if isinstance(job_dict["config"], str) else job_dict["config"]
+            
+            return TrainingJobResponse(
+                id=job_dict["id"],
+                job_name=job_dict["job_name"],
+                job_type=job_dict["job_type"],
+                status=job_dict["status"],
+                created_at=job_dict["created_at"],
+                started_at=job_dict["started_at"],
+                completed_at=job_dict["completed_at"],
+                config=config,
+                current_epoch=job_dict["current_epoch"] or 0,
+                total_epochs=job_dict["total_epochs"],
+                progress_percent=job_dict["progress_percent"] or 0.0,
+                current=job_dict["current_progress"],
+                total=job_dict["total_progress"],
+                message=job_dict["progress_message"],
+                train_loss=job_dict["train_loss"],
+                val_loss=job_dict["val_loss"],
+                train_accuracy=job_dict["train_accuracy"],
+                val_accuracy=job_dict["val_accuracy"],
+                learning_rate=job_dict["learning_rate"],
+                best_epoch=job_dict["best_epoch"],
+                best_val_loss=job_dict["best_val_loss"],
+                checkpoint_path=job_dict["checkpoint_path"],
+                onnx_model_path=job_dict["onnx_model_path"],
+                mlflow_run_id=job_dict["mlflow_run_id"],
+                error_message=job_dict["error_message"],
+                celery_task_id=job_dict["celery_task_id"]
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating evolution job: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create evolution job: {e!s}")
 
 
 @router.delete("/jobs/{job_id}", status_code=204)

@@ -41,6 +41,9 @@ class TrainingConfig(BaseModel):
 
     # Dataset
     dataset_ids: list[str] = Field(..., description="List of synthetic dataset UUIDs to train on (required)", min_length=1)
+    
+    # Model evolution (optional - load weights from parent model)
+    parent_model_id: Optional[UUID] = Field(default=None, description="Parent model UUID to evolve from (loads checkpoint weights)")
 
     # Model architecture
     model_architecture: str = Field(default="triangulation", description="Model architecture")
@@ -211,3 +214,12 @@ class TrainingJobStatusResponse(BaseModel):
     job: TrainingJobResponse
     recent_metrics: list[TrainingMetrics] = Field(default_factory=list, description="Last 10 epochs")
     websocket_url: str = Field(..., description="WebSocket URL for live updates")
+
+
+class EvolveTrainingRequest(BaseModel):
+    """Request to evolve (continue training) an existing model."""
+
+    parent_model_id: UUID = Field(..., description="Parent model UUID to evolve from")
+    additional_epochs: int = Field(..., ge=1, le=500, description="Additional epochs to train")
+    early_stop_patience: int = Field(default=20, ge=1, le=100, description="Early stopping patience")
+    description: Optional[str] = Field(default=None, description="Description for this evolution")

@@ -7,12 +7,13 @@
  * - Training metrics
  * - File information (ONNX/PyTorch paths, sizes)
  * - Dataset information
- * - Actions (export, delete, set active/production)
+ * - Actions (export, delete, set active/production, evolve)
  */
 
 import React, { useState, useEffect } from 'react';
 import type { TrainedModel } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { EvolveTrainingModal } from './EvolveTrainingModal';
 
 interface ModelDetailsModalProps {
   model: TrainedModel;
@@ -32,6 +33,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
   const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [fileInfo, setFileInfo] = useState<{ onnx?: FileInfo; pytorch?: FileInfo }>({});
+  const [showEvolveModal, setShowEvolveModal] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -492,6 +494,18 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
       </div>
       <div className="card-body">
         <div className="d-grid gap-2">
+          {/* Evolve Model - Continue training from this model's weights */}
+          {model.pytorch_model_location && (
+            <button
+              onClick={() => setShowEvolveModal(true)}
+              disabled={isLoading}
+              className="btn btn-info d-flex align-items-center justify-content-center gap-2"
+            >
+              <i className="ph ph-arrow-up-right"></i>
+              Evolve Model (Train More Epochs)
+            </button>
+          )}
+          
           {!model.is_active && (
             <button
               onClick={handleSetActive}
@@ -521,6 +535,15 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
             {isLoading ? 'Deleting...' : 'Delete Model'}
           </button>
         </div>
+        
+        {/* Info about model evolution */}
+        {model.pytorch_model_location && (
+          <div className="alert alert-info mt-3 mb-0 small">
+            <i className="ph ph-info me-2"></i>
+            <strong>Model Evolution:</strong> Create a new model by training additional epochs
+            starting from this model's learned weights. The new model will have an incremented version number.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -528,9 +551,21 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
   if (!isOpen) return null;
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-xl modal-dialog-scrollable">
-        <div className="modal-content">
+    <>
+      {/* Evolve Training Modal */}
+      <EvolveTrainingModal
+        model={model}
+        isOpen={showEvolveModal}
+        onClose={() => setShowEvolveModal(false)}
+        onSuccess={(jobId) => {
+          console.log('Evolution training job created:', jobId);
+          // Optionally switch to Jobs tab or show notification
+        }}
+      />
+
+      <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal-dialog modal-xl modal-dialog-scrollable">
+          <div className="modal-content">
           {/* Modal Header */}
           <div className="modal-header">
             <div>
@@ -630,5 +665,6 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
         </div>
       </div>
     </div>
+    </>
   );
 };

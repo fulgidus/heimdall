@@ -334,6 +334,35 @@ def start_training_job(self, job_id: str):
         patience_counter = 0
         resume_epoch = 0
         
+        # Check if this is an evolution job (load parent model weights)
+        parent_model_id = config.get("parent_model_id")
+        if parent_model_id:
+            logger.info(f"Evolution mode: loading weights from parent model {parent_model_id}")
+            try:
+                with db_manager.get_session() as session:
+                    parent_query = text("SELECT pytorch_model_location FROM heimdall.models WHERE id = :model_id")
+                    parent_result = session.execute(parent_query, {"model_id": parent_model_id}).fetchone()
+                    
+                    if parent_result and parent_result[0]:
+                        parent_checkpoint_path = parent_result[0]
+                        checkpoint_key = parent_checkpoint_path.replace("s3://models/", "")
+                        
+                        # Download parent checkpoint from MinIO
+                        response = minio_client.s3_client.get_object(Bucket="models", Key=checkpoint_key)
+                        checkpoint_buffer = BytesIO(response['Body'].read())
+                        parent_checkpoint = torch.load(checkpoint_buffer, map_location=device)
+                        
+                        # Load only model weights (not optimizer/scheduler - fresh start)
+                        model.load_state_dict(parent_checkpoint['model_state_dict'])
+                        logger.info(f"Loaded parent model weights from {parent_checkpoint_path}")
+                        
+                        # Optionally preserve best_val_loss from parent for comparison
+                        # best_val_loss = parent_checkpoint.get('best_val_loss', float('inf'))
+                    else:
+                        logger.warning(f"Parent model {parent_model_id} has no checkpoint, starting from scratch")
+            except Exception as e:
+                logger.error(f"Failed to load parent model checkpoint: {e}. Starting from scratch.", exc_info=True)
+        
         # Check for pause checkpoint to resume from
         with db_manager.get_session() as session:
             pause_query = text("SELECT pause_checkpoint_path FROM heimdall.training_jobs WHERE id = :job_id")
@@ -943,6 +972,17 @@ def start_training_job(self, job_id: str):
                 "final_val_rmse": sanitize_for_json(val_rmse)
             }
             
+            # Auto-increment version for this model name
+            version_query = text("""
+                SELECT COALESCE(MAX(version), 0) + 1 
+                FROM heimdall.models 
+                WHERE model_name = :name
+            """)
+            version_result = session.execute(version_query, {"name": job_name}).fetchone()
+            next_version = version_result[0] if version_result else 1
+            
+            logger.info(f"Saving model '{job_name}' as version {next_version}")
+            
             session.execute(
                 text("""
                     INSERT INTO heimdall.models (
@@ -952,7 +992,7 @@ def start_training_job(self, job_id: str):
                         hyperparameters, training_metrics, trained_by_job_id
                     )
                     VALUES (
-                        :id, :name, 1, 'triangulation', :dataset_id,
+                        :id, :name, :version, 'triangulation', :dataset_id,
                         :location, :onnx_location, :rmse, :rmse_good, :loss, :epoch,
                         FALSE, FALSE, CAST(:hyperparams AS jsonb), CAST(:metrics AS jsonb), :job_id
                     )
@@ -960,6 +1000,7 @@ def start_training_job(self, job_id: str):
                 {
                     "id": str(model_id),
                     "name": job_name,  # Use human-readable job name instead of UUID
+                    "version": next_version,  # Auto-incremented version
                     "dataset_id": primary_dataset_id,
                     "location": f"s3://models/{final_checkpoint_path}",
                     "onnx_location": onnx_s3_uri,  # May be None if ONNX export failed

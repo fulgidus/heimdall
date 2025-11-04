@@ -49,6 +49,7 @@ interface TrainingStore {
   deleteModel: (modelId: string) => Promise<void>;
   setModelActive: (modelId: string) => Promise<void>;
   setModelProduction: (modelId: string) => Promise<void>;
+  evolveTraining: (parentModelId: string, additionalEpochs: number, earlyStopPatience: number) => Promise<string>;
 
   // Actions - Synthetic Datasets
   fetchDatasets: (silent?: boolean) => Promise<void>;
@@ -120,7 +121,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   cancelJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.delete(`/v1/training/jobs/${jobId}`);
+      await api.post(`/v1/training/jobs/${jobId}/cancel`);
       
       // Update job status locally
       set(state => ({
@@ -361,6 +362,29 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Failed to set model as production';
       set({ error: errorMessage });
       console.error('Model production setting error:', error);
+      throw error;
+    }
+  },
+
+  // Evolve a model by training additional epochs with parent weights
+  evolveTraining: async (parentModelId: string, additionalEpochs: number, earlyStopPatience: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.post('/v1/training/evolve', {
+        parent_model_id: parentModelId,
+        additional_epochs: additionalEpochs,
+        early_stop_patience: earlyStopPatience,
+      });
+      set({ isLoading: false });
+      
+      // Refresh jobs list
+      await get().fetchJobs();
+      
+      return response.data.id;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to evolve training';
+      set({ error: errorMessage, isLoading: false });
+      console.error('Training evolution error:', error);
       throw error;
     }
   },
