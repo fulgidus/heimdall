@@ -132,7 +132,12 @@ def _generate_single_sample(args):
         duration_ms=1000.0,       # 1 second
         seed=sample_seed
     )
-    feature_extractor = RFFeatureExtractor(sample_rate_hz=200_000)
+    # Create feature extractor with optimized settings (reusable)
+    feature_extractor = RFFeatureExtractor(
+        sample_rate_hz=200_000,
+        nperseg=2048,  # FFT window size
+        noverlap=1024  # 50% overlap
+    )
     propagation = RFPropagationModel()
 
     # Extract config parameters
@@ -159,6 +164,21 @@ def _generate_single_sample(args):
     tx_lat = rng.uniform(lat_min, lat_max)
     tx_lon = rng.uniform(lon_min, lon_max)
     tx_alt = 300.0  # Simplified altitude (meters ASL)
+
+    # PRE-CHECK GEOMETRY: Calculate GDOP BEFORE generating IQ samples
+    # This avoids wasting time on samples that will be rejected
+    receiver_positions_precheck = [(rx['latitude'], rx['longitude']) for rx in receivers_list]
+    gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
+    
+    # Get max_gdop and min_receivers from config
+    max_gdop_threshold = config.get('max_gdop', 10.0)
+    min_receivers_threshold = config.get('min_receivers', 3)
+    
+    # Early rejection: if GDOP is already too high, skip IQ generation
+    if gdop_precheck > max_gdop_threshold or len(receiver_positions_precheck) < min_receivers_threshold:
+        logger.debug(f"Sample {sample_idx}: PRE-REJECTED (GDOP={gdop_precheck:.1f} > {max_gdop_threshold} or receivers={len(receiver_positions_precheck)} < {min_receivers_threshold})")
+        # Return None to signal rejection (will be filtered out later)
+        return None
 
     # Generate IQ samples for each receiver
     iq_samples = {}
@@ -762,9 +782,16 @@ async def generate_synthetic_data_with_iq(
                     break
 
             try:
-                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position, num_receivers_in_sample = future.result()
+                result = future.result()
+                
+                # Handle pre-rejected samples (GDOP check failed before IQ generation)
+                if result is None:
+                    # Sample was rejected early (GDOP pre-check), skip silently
+                    continue
+                
+                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position, num_receivers_in_sample = result
 
-                # Validation checks
+                # Validation checks (post-generation)
                 if quality_metrics['num_receivers_detected'] < min_receivers:
                     logger.debug(f"Sample {sample_idx}: rejected (receivers={quality_metrics['num_receivers_detected']} < {min_receivers})")
                     continue
