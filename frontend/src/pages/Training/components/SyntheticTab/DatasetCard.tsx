@@ -32,6 +32,18 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
     return `${value.toFixed(decimals)}${suffix}`;
   };
 
+  const formatStorageSize = (bytes: number | undefined) => {
+    if (bytes === undefined || bytes === null) return 'Calculating...';
+    if (bytes === 0) return '0 B';
+    
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const k = 1024;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const value = bytes / Math.pow(k, i);
+    
+    return `${value.toFixed(2)} ${units[i]}`;
+  };
+
   const handleDelete = async () => {
     setIsLoading(true);
     try {
@@ -57,9 +69,16 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
                 <p className="text-muted small mb-0">{dataset.description}</p>
               )}
             </div>
-            <span className="badge bg-light-success">
-              READY
-            </span>
+            <div className="d-flex flex-column gap-1 align-items-end">
+              <span className="badge bg-light-success">
+                READY
+              </span>
+              {dataset.dataset_type && (
+                <span className={`badge ${dataset.dataset_type === 'iq_raw' ? 'bg-info' : 'bg-secondary'}`}>
+                  {dataset.dataset_type === 'iq_raw' ? 'IQ Raw' : 'Features'}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Dataset Info */}
@@ -67,6 +86,12 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
             <div className="d-flex justify-content-between mb-2">
               <span className="text-muted small">Samples:</span>
               <span className="fw-medium small">{formatNumber(dataset.num_samples)}</span>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted small">Storage Size:</span>
+              <span className="fw-medium small">
+                {formatStorageSize(dataset.storage_size_bytes)}
+              </span>
             </div>
             <div className="d-flex justify-content-between mb-2">
               <span className="text-muted small">Created:</span>

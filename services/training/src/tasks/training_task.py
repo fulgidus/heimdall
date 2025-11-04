@@ -131,14 +131,16 @@ def start_training_job(self, job_id: str):
             session.execute(update_query, {"job_id": job_id})
             session.commit()
 
-        # Load job configuration
+        # Load job configuration and name
         with db_manager.get_session() as session:
-            config_query = text("SELECT config FROM heimdall.training_jobs WHERE id = :job_id")
+            config_query = text("SELECT config, job_name FROM heimdall.training_jobs WHERE id = :job_id")
             result = session.execute(config_query, {"job_id": job_id}).fetchone()
             if not result:
                 raise ValueError(f"Job {job_id} not found")
             # Config is already a dict from JSONB column
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
+            job_name = result[1]
+            logger.info(f"Training job '{job_name}' (ID: {job_id})")
 
         # Extract configuration
         dataset_ids = config.get("dataset_ids")
@@ -161,6 +163,7 @@ def start_training_job(self, job_id: str):
         early_stop_delta = config.get("early_stop_delta", 0.001)
         max_grad_norm = config.get("max_grad_norm", 1.0)
         max_gdop = config.get("max_gdop", 5.0)
+        max_receivers = config.get("max_receivers", 7)  # Italian WebSDR system uses 7 receivers
 
         logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}, workers={num_workers}")
 
@@ -855,6 +858,75 @@ def start_training_job(self, job_id: str):
             ContentType="application/octet-stream"
         )
 
+        # Export best model to ONNX
+        onnx_path = None
+        onnx_s3_uri = None
+        try:
+            logger.info(f"Exporting best model (epoch {best_epoch}) to ONNX format...")
+            
+            # Load best model checkpoint from MinIO
+            best_checkpoint_path = f"checkpoints/{job_id}/best_model.pth"
+            response = minio_client.s3_client.get_object(Bucket="models", Key=best_checkpoint_path)
+            best_checkpoint_data = response['Body'].read()
+            best_checkpoint = torch.load(BytesIO(best_checkpoint_data), map_location=device)
+            
+            # Restore model weights
+            model.load_state_dict(best_checkpoint['model_state_dict'])
+            model.eval()
+            
+            # Export to ONNX
+            import tempfile
+            from pathlib import Path
+            
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                tmp_onnx_path = Path(tmp_dir) / f"{job_name}.onnx"
+                
+                # Create dummy input for ONNX export
+                # TriangulationModel expects (batch, num_receivers, 6) features:
+                # [snr, psd, freq_offset, rx_lat, rx_lon, signal_present]
+                dummy_receiver_features = torch.randn(1, max_receivers, 6, device=device)
+                # Signal mask must be boolean for ONNX masked_fill compatibility
+                dummy_signal_mask = torch.zeros(1, max_receivers, dtype=torch.bool, device=device)
+                
+                # Export model using legacy exporter (more compatible with dynamic shapes)
+                torch.onnx.export(
+                    model,
+                    (dummy_receiver_features, dummy_signal_mask),
+                    str(tmp_onnx_path),
+                    export_params=True,
+                    input_names=['receiver_features', 'signal_mask'],
+                    output_names=['position', 'log_variance'],
+                    dynamic_axes={
+                        'receiver_features': {0: 'batch_size'},
+                        'signal_mask': {0: 'batch_size'},
+                        'position': {0: 'batch_size'},
+                        'log_variance': {0: 'batch_size'}
+                    },
+                    opset_version=14,
+                    do_constant_folding=True,
+                    verbose=False,
+                    dynamo=False  # Use legacy TorchScript-based exporter
+                )
+                
+                # Upload ONNX to MinIO
+                onnx_minio_path = f"onnx/{job_id}/{job_name}.onnx"
+                with open(tmp_onnx_path, 'rb') as f:
+                    onnx_data = f.read()
+                    minio_client.s3_client.put_object(
+                        Bucket="models",
+                        Key=onnx_minio_path,
+                        Body=onnx_data,
+                        ContentType="application/octet-stream"
+                    )
+                
+                onnx_s3_uri = f"s3://models/{onnx_minio_path}"
+                onnx_file_size_mb = len(onnx_data) / (1024 * 1024)
+                logger.info(f"✅ ONNX export successful: {onnx_s3_uri} ({onnx_file_size_mb:.2f} MB)")
+                
+        except Exception as e:
+            logger.error(f"ONNX export failed: {e}", exc_info=True)
+            # Continue without ONNX - not critical for training completion
+
         # Save model metadata to models table
         model_id = uuid.uuid4()
         with db_manager.get_session() as session:
@@ -875,21 +947,22 @@ def start_training_job(self, job_id: str):
                 text("""
                     INSERT INTO heimdall.models (
                         id, model_name, version, model_type, synthetic_dataset_id,
-                        pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                        pytorch_model_location, onnx_model_location, accuracy_meters, accuracy_sigma_meters,
                         loss_value, epoch, is_active, is_production,
                         hyperparameters, training_metrics, trained_by_job_id
                     )
                     VALUES (
                         :id, :name, 1, 'triangulation', :dataset_id,
-                        :location, :rmse, :rmse_good, :loss, :epoch,
+                        :location, :onnx_location, :rmse, :rmse_good, :loss, :epoch,
                         FALSE, FALSE, CAST(:hyperparams AS jsonb), CAST(:metrics AS jsonb), :job_id
                     )
                 """),
                 {
                     "id": str(model_id),
-                    "name": f"triangulation_job_{job_id}",
+                    "name": job_name,  # Use human-readable job name instead of UUID
                     "dataset_id": primary_dataset_id,
                     "location": f"s3://models/{final_checkpoint_path}",
+                    "onnx_location": onnx_s3_uri,  # May be None if ONNX export failed
                     "rmse": sanitize_for_json(val_rmse),
                     "rmse_good": sanitize_for_json(val_rmse_good_geom),
                     "loss": sanitize_for_json(val_loss),
@@ -1123,11 +1196,11 @@ def generate_synthetic_data_task(self, job_id: str):
                     dataset_query = text("""
                         INSERT INTO heimdall.synthetic_datasets (
                             id, name, description, num_samples,
-                            config, created_by_job_id
+                            config, created_by_job_id, dataset_type
                         )
                         VALUES (
                             :id, :name, :description, 0,
-                            CAST(:config AS jsonb), :job_id
+                            CAST(:config AS jsonb), :job_id, CAST(:dataset_type AS dataset_type_enum)
                         )
                     """)
 
@@ -1138,11 +1211,12 @@ def generate_synthetic_data_task(self, job_id: str):
                             "name": config['name'],
                             "description": config.get('description'),
                             "config": json.dumps(config),
-                            "job_id": job_id
+                            "job_id": job_id,
+                            "dataset_type": config.get('dataset_type', 'feature_based')
                         }
                     )
                     session.commit()
-                    logger.info(f"Created new dataset {dataset_id}")
+                    logger.info(f"Created new dataset {dataset_id} (type: {config.get('dataset_type', 'feature_based')})")
 
         # Initialize event publisher for real-time WebSocket updates
         from backend.src.events.publisher import get_event_publisher
@@ -1239,7 +1313,8 @@ def generate_synthetic_data_task(self, job_id: str):
                     conn=conn,
                     progress_callback=progress_callback,
                     seed=config.get('seed'),
-                    job_id=job_id  # Pass job_id for cancellation detection
+                    job_id=job_id,  # Pass job_id for cancellation detection
+                    dataset_type=config.get('dataset_type', 'feature_based')  # Pass dataset type (iq_raw or feature_based)
                 )
             return stats
 
@@ -1274,6 +1349,65 @@ def generate_synthetic_data_task(self, job_id: str):
             )
             session.commit()
             logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']})")
+
+        # Calculate and update storage size (PostgreSQL + MinIO)
+        try:
+            with db_manager.get_session() as session:
+                # Calculate PostgreSQL storage size using DB function
+                pg_size_query = text("SELECT heimdall.calculate_dataset_storage_size(:dataset_id)")
+                pg_size = session.execute(pg_size_query, {"dataset_id": str(dataset_id)}).scalar() or 0
+                
+                # Calculate MinIO storage size for IQ samples (if dataset_type='iq_raw')
+                minio_size = 0
+                dataset_type = config.get('dataset_type', 'feature_based')
+                
+                if dataset_type == 'iq_raw' and stats.get('iq_samples_saved', 0) > 0:
+                    # Get MinIO client to calculate object sizes
+                    minio_client = MinIOClient(
+                        endpoint_url=backend_settings.minio_url,
+                        access_key=backend_settings.minio_access_key,
+                        secret_key=backend_settings.minio_secret_key,
+                        bucket_name="heimdall-iq-samples"
+                    )
+                    
+                    try:
+                        # List all objects for this dataset in MinIO
+                        prefix = f"synthetic/{dataset_id}/"
+                        objects = minio_client.s3_client.list_objects_v2(
+                            Bucket="heimdall-iq-samples",
+                            Prefix=prefix
+                        )
+                        
+                        # Sum up sizes
+                        for obj in objects.get('Contents', []):
+                            minio_size += obj.get('Size', 0)
+                        
+                        logger.info(f"MinIO storage for dataset {dataset_id}: {minio_size / (1024**2):.2f} MB ({stats['iq_samples_saved']} IQ samples)")
+                    except Exception as e:
+                        logger.warning(f"Failed to calculate MinIO size for dataset {dataset_id}: {e}")
+                
+                # Total storage = PostgreSQL + MinIO
+                total_size = pg_size + minio_size
+                
+                # Update dataset with storage size
+                update_size_query = text("""
+                    UPDATE heimdall.synthetic_datasets
+                    SET storage_size_bytes = :size
+                    WHERE id = :dataset_id
+                """)
+                session.execute(update_size_query, {
+                    "dataset_id": str(dataset_id),
+                    "size": total_size
+                })
+                session.commit()
+                
+                logger.info(f"Storage size calculated for dataset {dataset_id}: "
+                           f"PostgreSQL={pg_size / (1024**2):.2f}MB, "
+                           f"MinIO={minio_size / (1024**2):.2f}MB, "
+                           f"Total={total_size / (1024**2):.2f}MB")
+        except Exception as e:
+            logger.error(f"Failed to calculate storage size for dataset {dataset_id}: {e}", exc_info=True)
+            # Non-critical error, continue with job completion
 
         # Update job as completed
         with db_manager.get_session() as session:

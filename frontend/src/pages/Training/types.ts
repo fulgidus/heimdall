@@ -74,14 +74,31 @@ export interface FinalMetrics {
 
 export interface TrainedModel {
   id: string;
-  name: string;
-  version: string;
-  architecture: string;
+  model_name: string; // Backend field name
+  name?: string; // Deprecated - use model_name
+  version: number;
+  model_type: string | null;
+  architecture?: string; // Deprecated - derived from hyperparameters
+  synthetic_dataset_id: string | null;
+  mlflow_run_id: string | null;
+  mlflow_experiment_id: number | null;
+  onnx_model_location: string | null; // Backend field name
+  onnx_path?: string; // Deprecated - use onnx_model_location
+  pytorch_model_location: string | null;
+  accuracy_meters: number | null;
+  accuracy_sigma_meters: number | null;
+  loss_value: number | null;
+  epoch: number | null;
+  is_active: boolean;
+  is_production: boolean;
+  hyperparameters: Record<string, any> | null;
+  training_metrics: Record<string, any> | null;
+  test_metrics: Record<string, any> | null;
   created_at: string;
-  training_job_id?: string;
-  onnx_path: string;
-  parameters_count?: number;
-  final_metrics?: FinalMetrics;
+  trained_by_job_id: string | null;
+  training_job_id?: string; // Deprecated - use trained_by_job_id
+  parameters_count?: number; // Deprecated - derived from model
+  final_metrics?: FinalMetrics; // Deprecated - use training_metrics/test_metrics
 }
 
 export interface ExportOptions {
@@ -126,10 +143,12 @@ export interface SyntheticDataset {
   id: string;
   name: string;
   description?: string;
+  dataset_type?: 'feature_based' | 'iq_raw';
   num_samples: number;
   config: Record<string, any>;
   quality_metrics?: QualityMetrics;
   storage_table: string;
+  storage_size_bytes?: number;  // Total storage (PostgreSQL + MinIO), null if not calculated
   created_at: string;
   created_by_job_id?: string;
 }
@@ -149,6 +168,7 @@ export interface QualityMetrics {
 export interface SyntheticDataRequest {
   name: string;
   description?: string;
+  dataset_type?: 'feature_based' | 'iq_raw';
   num_samples: number;
   inside_ratio?: number;
   frequency_mhz?: number;
@@ -159,6 +179,15 @@ export interface SyntheticDataRequest {
   use_srtm?: boolean;
   min_elevation_meters?: number;
   max_elevation_meters?: number;
+  // Random receiver parameters (for iq_raw datasets)
+  use_random_receivers?: boolean;
+  min_receivers_count?: number;
+  max_receivers_count?: number;
+  receiver_seed?: number;
+  area_lat_min?: number;
+  area_lat_max?: number;
+  area_lon_min?: number;
+  area_lon_max?: number;
 }
 
 export interface SyntheticSample {

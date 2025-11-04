@@ -744,7 +744,7 @@ async def generate_synthetic_data_with_iq(
                     SELECT status FROM heimdall.training_jobs WHERE id = :job_id
                 """)
                 result = await conn.execute(check_query, {"job_id": job_id})
-                row = await result.fetchone()
+                row = result.fetchone()  # fetchone() returns immediately, no await needed
                 if row and row[0] == 'cancelled':
                     logger.warning(f"Job {job_id} was cancelled, stopping generation at {processed}/{num_samples}")
                     # Cancel remaining futures

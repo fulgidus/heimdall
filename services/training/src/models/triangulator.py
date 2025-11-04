@@ -133,6 +133,10 @@ class AttentionAggregator(nn.Module):
         # x shape: (batch_size, num_receivers, embed_dim)
         # mask shape: (batch_size, num_receivers) - True means mask out (no signal)
         
+        # Ensure mask is boolean for ONNX compatibility
+        # (during tracing, masks may come in as float)
+        mask = mask.bool()
+        
         # Multi-head attention
         # key_padding_mask: True values are masked (ignored in attention)
         attn_output, attn_weights = self.attention(
@@ -148,7 +152,8 @@ class AttentionAggregator(nn.Module):
         
         # Aggregate: mean pooling over receivers (ignoring masked receivers)
         # Expand mask to match embedding dimension
-        mask_expanded = mask.unsqueeze(-1).expand_as(attn_output)  # (batch_size, num_receivers, embed_dim)
+        # Explicitly maintain boolean dtype for ONNX compatibility
+        mask_expanded = mask.unsqueeze(-1).expand_as(attn_output).bool()  # (batch_size, num_receivers, embed_dim)
         
         # Replace masked positions with zeros
         attn_output_masked = attn_output.masked_fill(mask_expanded, 0.0)
@@ -160,12 +165,14 @@ class AttentionAggregator(nn.Module):
         # Mean pooling
         mean_features = attn_output_masked.sum(dim=1) / num_valid.expand(-1, attn_output_masked.size(2))  # (batch_size, embed_dim)
         
-        # Max pooling
+        # Max pooling (reuse mask_expanded which is already boolean)
         attn_output_masked_max = attn_output_masked.masked_fill(mask_expanded, -1e9)
         max_features, _ = torch.max(attn_output_masked_max, dim=1)  # (batch_size, embed_dim)
         
         # Attention weights statistics
-        attn_weights_masked = attn_weights.masked_fill(mask.unsqueeze(1).expand_as(attn_weights), 0.0)
+        # Explicitly maintain boolean dtype for ONNX compatibility
+        attn_weights_mask = mask.unsqueeze(1).expand_as(attn_weights).bool()
+        attn_weights_masked = attn_weights.masked_fill(attn_weights_mask, 0.0)
         attn_std = torch.std(attn_weights_masked, dim=-1).mean(dim=1)  # (batch_size,)
         
         # Concatenate: [mean, max, std_repeated, num_valid_normalized]

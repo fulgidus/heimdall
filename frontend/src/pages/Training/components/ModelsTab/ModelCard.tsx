@@ -43,23 +43,55 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
           {/* Header */}
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="flex-grow-1">
-              <h5 className="mb-1">{model.name}</h5>
-              <p className="text-muted small mb-0">Version: {model.version}</p>
+              <h5 className="mb-1">{model.model_name}</h5>
+              <p className="text-muted small mb-0">
+                Version: {model.version} | Type: {model.model_type || 'N/A'}
+              </p>
             </div>
-            <span className="badge bg-light-success">
-              TRAINED
-            </span>
+            <div className="d-flex gap-2">
+              {model.is_active && (
+                <span className="badge bg-success">
+                  ACTIVE
+                </span>
+              )}
+              {model.is_production && (
+                <span className="badge bg-primary">
+                  PRODUCTION
+                </span>
+              )}
+              {!model.is_active && !model.is_production && (
+                <span className="badge bg-light-success">
+                  TRAINED
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Model Details */}
           <div className="mb-3">
             <div className="d-flex justify-content-between mb-2">
               <span className="text-muted small">Architecture:</span>
-              <span className="fw-medium small">{model.architecture}</span>
+              <span className="fw-medium small">
+                {model.hyperparameters?.model_architecture || 'N/A'}
+              </span>
             </div>
             <div className="d-flex justify-content-between mb-2">
-              <span className="text-muted small">Parameters:</span>
-              <span className="fw-medium small">{formatNumber(model.parameters_count)}</span>
+              <span className="text-muted small">Accuracy (RMSE):</span>
+              <span className="fw-medium small">
+                {model.accuracy_meters ? `${model.accuracy_meters.toFixed(2)}m` : 'N/A'}
+              </span>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted small">Final Loss:</span>
+              <span className="fw-medium small">
+                {model.loss_value ? model.loss_value.toFixed(4) : 'N/A'}
+              </span>
+            </div>
+            <div className="d-flex justify-content-between mb-2">
+              <span className="text-muted small">Epochs Trained:</span>
+              <span className="fw-medium small">
+                {model.epoch || 'N/A'} / {model.hyperparameters?.epochs || 'N/A'}
+              </span>
             </div>
             <div className="d-flex justify-content-between mb-2">
               <span className="text-muted small">Created:</span>
@@ -67,42 +99,42 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
                 {new Date(model.created_at).toLocaleDateString()}
               </span>
             </div>
-            {model.training_job_id && (
+            {model.trained_by_job_id && (
               <div className="d-flex justify-content-between">
                 <span className="text-muted small">Job ID:</span>
                 <code className="small">
-                  {model.training_job_id.slice(0, 8)}
+                  {model.trained_by_job_id.slice(0, 8)}
                 </code>
               </div>
             )}
           </div>
 
-          {/* Final Metrics */}
-          {model.final_metrics && (
+          {/* Training Metrics */}
+          {model.training_metrics && (
             <div className="mb-3 p-2 bg-light border rounded">
-              <h6 className="small fw-semibold mb-2">Final Metrics</h6>
+              <h6 className="small fw-semibold mb-2">Training Metrics</h6>
               <div className="row g-2">
-                <div className="col-6">
-                  <span className="text-muted small">Train Loss:</span>
-                  <span className="ms-2 fw-medium small">{model.final_metrics.train_loss.toFixed(4)}</span>
-                </div>
-                <div className="col-6">
-                  <span className="text-muted small">Val Loss:</span>
-                  <span className="ms-2 fw-medium small">{model.final_metrics.val_loss.toFixed(4)}</span>
-                </div>
-                {model.final_metrics.train_accuracy !== undefined && (
+                {model.training_metrics.best_val_loss !== undefined && (
                   <div className="col-6">
-                    <span className="text-muted small">Train Acc:</span>
+                    <span className="text-muted small">Best Val Loss:</span>
                     <span className="ms-2 fw-medium small">
-                      {(model.final_metrics.train_accuracy * 100).toFixed(2)}%
+                      {model.training_metrics.best_val_loss.toFixed(4)}
                     </span>
                   </div>
                 )}
-                {model.final_metrics.val_accuracy !== undefined && (
+                {model.training_metrics.best_epoch !== undefined && (
                   <div className="col-6">
-                    <span className="text-muted small">Val Acc:</span>
+                    <span className="text-muted small">Best Epoch:</span>
                     <span className="ms-2 fw-medium small">
-                      {(model.final_metrics.val_accuracy * 100).toFixed(2)}%
+                      {model.training_metrics.best_epoch}
+                    </span>
+                  </div>
+                )}
+                {model.training_metrics.final_val_rmse !== undefined && (
+                  <div className="col-12">
+                    <span className="text-muted small">Final Val RMSE:</span>
+                    <span className="ms-2 fw-medium small">
+                      {model.training_metrics.final_val_rmse.toFixed(2)}m
                     </span>
                   </div>
                 )}
@@ -110,10 +142,20 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
             </div>
           )}
 
-          {/* ONNX Path */}
+          {/* Model Files */}
           <div className="mb-3">
-            <span className="text-muted small fw-medium">ONNX:</span>
-            <code className="ms-2 small text-break">{model.onnx_path}</code>
+            <div className="d-flex justify-content-between mb-1">
+              <span className="text-muted small fw-medium">ONNX:</span>
+              <span className={`small ${model.onnx_model_location ? 'text-success' : 'text-danger'}`}>
+                {model.onnx_model_location ? '✓ Available' : '✗ Not exported'}
+              </span>
+            </div>
+            <div className="d-flex justify-content-between">
+              <span className="text-muted small fw-medium">PyTorch:</span>
+              <span className={`small ${model.pytorch_model_location ? 'text-success' : 'text-danger'}`}>
+                {model.pytorch_model_location ? '✓ Available' : '✗ Not saved'}
+              </span>
+            </div>
           </div>
 
           {/* Action Buttons */}

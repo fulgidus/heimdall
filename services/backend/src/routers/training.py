@@ -1138,16 +1138,18 @@ async def list_synthetic_datasets(
                     sd.id,
                     sd.name,
                     sd.description,
+                    sd.dataset_type,
                     COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
                     sd.config,
                     sd.quality_metrics,
                     sd.storage_table,
+                    sd.storage_size_bytes,
                     sd.created_at,
                     sd.created_by_job_id
                 FROM heimdall.synthetic_datasets sd
                 LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
-                GROUP BY sd.id, sd.name, sd.description, sd.config, sd.quality_metrics,
-                         sd.storage_table, sd.created_at, sd.created_by_job_id
+                GROUP BY sd.id, sd.name, sd.description, sd.dataset_type, sd.config, sd.quality_metrics,
+                         sd.storage_table, sd.storage_size_bytes, sd.created_at, sd.created_by_job_id
                 ORDER BY sd.created_at DESC
                 LIMIT :limit OFFSET :offset
             """)
@@ -1163,19 +1165,21 @@ async def list_synthetic_datasets(
             datasets = []
             for row in results:
                 # JSONB columns are already dicts, not strings
-                config = row[4] if isinstance(row[4], dict) else (json.loads(row[4]) if row[4] else {})
-                quality_metrics = row[5] if isinstance(row[5], dict) else (json.loads(row[5]) if row[5] else None)
+                config = row[5] if isinstance(row[5], dict) else (json.loads(row[5]) if row[5] else {})
+                quality_metrics = row[6] if isinstance(row[6], dict) else (json.loads(row[6]) if row[6] else None)
 
                 datasets.append(SyntheticDatasetResponse(
                     id=row[0],
                     name=row[1],
                     description=row[2],
-                    num_samples=row[3],
+                    dataset_type=row[3],
+                    num_samples=row[4],
                     config=config,
                     quality_metrics=quality_metrics,
-                    storage_table=row[6],
-                    created_at=row[7],
-                    created_by_job_id=row[8]
+                    storage_table=row[7],
+                    storage_size_bytes=row[8],
+                    created_at=row[9],
+                    created_by_job_id=row[10]
                 ))
             
             return SyntheticDatasetListResponse(datasets=datasets, total=total)

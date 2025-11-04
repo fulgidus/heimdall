@@ -43,6 +43,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
   const [formData, setFormData] = useState<SyntheticDataRequest>({
     name: '',
     description: '',
+    dataset_type: 'feature_based',  // Default: traditional feature-based
     num_samples: 10000,
     inside_ratio: 0.75,    // Production baseline
     frequency_mhz: 144.0,  // 2m band
@@ -51,6 +52,15 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     min_receivers: 3,      // Minimum triangulation
     max_gdop: 100.0,       // Acceptable geometry
     use_srtm: true,        // Use SRTM terrain data (production baseline)
+    // Random receiver defaults (for iq_raw datasets)
+    use_random_receivers: false,
+    min_receivers_count: 5,
+    max_receivers_count: 10,
+    receiver_seed: undefined,
+    area_lat_min: 44.0,
+    area_lat_max: 46.0,
+    area_lon_min: 7.0,
+    area_lon_max: 10.0,
   });
 
   const handleInputChange = (field: keyof SyntheticDataRequest, value: string | number | boolean) => {
@@ -117,6 +127,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
       setFormData({
         name: '',
         description: '',
+        dataset_type: 'feature_based',
         num_samples: 10000,
         inside_ratio: 0.75,
         frequency_mhz: 144.0,
@@ -125,6 +136,14 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         min_receivers: 3,
         max_gdop: 100.0,
         use_srtm: true,
+        use_random_receivers: false,
+        min_receivers_count: 5,
+        max_receivers_count: 10,
+        receiver_seed: undefined,
+        area_lat_min: 44.0,
+        area_lat_max: 46.0,
+        area_lon_min: 7.0,
+        area_lon_max: 10.0,
       });
       
       onClose();
@@ -212,6 +231,55 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                       placeholder="Optional description of the dataset"
                       disabled={isLoading}
                     />
+                  </div>
+
+                  {/* Dataset Type Selector */}
+                  <div className="mb-3">
+                    <label className="form-label">
+                      Dataset Type <span className="text-danger">*</span>
+                    </label>
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="dataset_type"
+                        id="dataset_type_feature"
+                        value="feature_based"
+                        checked={formData.dataset_type === 'feature_based'}
+                        onChange={(e) => handleInputChange('dataset_type', e.target.value)}
+                        disabled={isLoading}
+                      />
+                      <label className="form-check-label" htmlFor="dataset_type_feature">
+                        <strong>Feature-Based</strong> (TriangulationModel)
+                        <div className="form-text">
+                          Uses 7 fixed Italian WebSDRs. Stores extracted features only (mel-spectrograms, MFCCs).
+                          Smaller storage footprint (~1-5 MB per 1000 samples).
+                        </div>
+                      </label>
+                    </div>
+                    <div className="form-check mt-2">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="dataset_type"
+                        id="dataset_type_iq"
+                        value="iq_raw"
+                        checked={formData.dataset_type === 'iq_raw'}
+                        onChange={(e) => {
+                          handleInputChange('dataset_type', e.target.value);
+                          // Automatically enable random receivers for iq_raw
+                          handleInputChange('use_random_receivers', true);
+                        }}
+                        disabled={isLoading}
+                      />
+                      <label className="form-check-label" htmlFor="dataset_type_iq">
+                        <strong>IQ Raw</strong> (LocalizationNet/CNN)
+                        <div className="form-text">
+                          Uses 5-10 random receivers per sample. Stores ALL raw IQ samples + extracted features.
+                          Larger storage (~50-200 MB per 1000 samples). Required for CNN training.
+                        </div>
+                      </label>
+                    </div>
                   </div>
 
                   <div className="row">
@@ -383,16 +451,170 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                   </div>
                 </div>
 
+                {/* Random Receivers Configuration (conditional) */}
+                {(formData.dataset_type === 'iq_raw' || formData.use_random_receivers) && (
+                  <div className="mb-4">
+                    <h6 className="fw-semibold mb-3">
+                      Random Receivers Configuration
+                      {formData.dataset_type === 'iq_raw' && (
+                        <span className="badge bg-primary ms-2">Required for IQ Raw</span>
+                      )}
+                    </h6>
+                    
+                    <div className="alert alert-info d-flex align-items-start mb-3" role="alert">
+                      <i className="ph ph-info me-2 mt-1"></i>
+                      <div className="small">
+                        Each sample will use a random subset of receivers (between min and max count)
+                        placed within the specified geographic area. This creates dataset diversity
+                        essential for CNN generalization.
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="min_receivers_count" className="form-label">
+                          Min Receivers per Sample
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          id="min_receivers_count"
+                          value={formData.min_receivers_count}
+                          onChange={(e) => handleInputChange('min_receivers_count', parseInt(e.target.value))}
+                          min={3}
+                          max={15}
+                          disabled={isLoading}
+                        />
+                        <div className="form-text">Default: 5 (minimum 3 for triangulation)</div>
+                      </div>
+
+                      <div className="col-md-6 mb-3">
+                        <label htmlFor="max_receivers_count" className="form-label">
+                          Max Receivers per Sample
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          id="max_receivers_count"
+                          value={formData.max_receivers_count}
+                          onChange={(e) => handleInputChange('max_receivers_count', parseInt(e.target.value))}
+                          min={3}
+                          max={15}
+                          disabled={isLoading}
+                        />
+                        <div className="form-text">Default: 10</div>
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="form-label">Geographic Area (Receiver Placement)</label>
+                      <div className="row">
+                        <div className="col-md-6 mb-2">
+                          <label htmlFor="area_lat_min" className="form-label small">
+                            Latitude Min (°)
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            id="area_lat_min"
+                            value={formData.area_lat_min}
+                            onChange={(e) => handleInputChange('area_lat_min', parseFloat(e.target.value))}
+                            min={-90}
+                            max={90}
+                            step={0.1}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="col-md-6 mb-2">
+                          <label htmlFor="area_lat_max" className="form-label small">
+                            Latitude Max (°)
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            id="area_lat_max"
+                            value={formData.area_lat_max}
+                            onChange={(e) => handleInputChange('area_lat_max', parseFloat(e.target.value))}
+                            min={-90}
+                            max={90}
+                            step={0.1}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
+                      <div className="row">
+                        <div className="col-md-6 mb-2">
+                          <label htmlFor="area_lon_min" className="form-label small">
+                            Longitude Min (°)
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            id="area_lon_min"
+                            value={formData.area_lon_min}
+                            onChange={(e) => handleInputChange('area_lon_min', parseFloat(e.target.value))}
+                            min={-180}
+                            max={180}
+                            step={0.1}
+                            disabled={isLoading}
+                          />
+                        </div>
+                        <div className="col-md-6 mb-2">
+                          <label htmlFor="area_lon_max" className="form-label small">
+                            Longitude Max (°)
+                          </label>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            id="area_lon_max"
+                            value={formData.area_lon_max}
+                            onChange={(e) => handleInputChange('area_lon_max', parseFloat(e.target.value))}
+                            min={-180}
+                            max={180}
+                            step={0.1}
+                            disabled={isLoading}
+                          />
+                        </div>
+                      </div>
+                      <div className="form-text">
+                        Default: Northern Italy (Lat: 44-46°, Lon: 7-10°)
+                      </div>
+                    </div>
+
+                    <div className="mb-3">
+                      <label htmlFor="receiver_seed" className="form-label">
+                        Random Seed (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        id="receiver_seed"
+                        value={formData.receiver_seed || ''}
+                        onChange={(e) => handleInputChange('receiver_seed', e.target.value ? parseInt(e.target.value) : undefined)}
+                        placeholder="Leave empty for random generation"
+                        disabled={isLoading}
+                      />
+                      <div className="form-text">
+                        Set a seed for reproducible receiver placement (useful for experiments)
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Info Box */}
                 <div className="alert alert-info d-flex align-items-start" role="alert">
                   <i className="ph ph-info me-2 mt-1"></i>
                   <div>
-                    <strong>Production Baseline Configuration</strong>
+                    <strong>Configuration Summary</strong>
                     <ul className="mb-0 mt-2 small">
-                      <li>10,000 samples with 75% inside coverage</li>
-                      <li>144 MHz (2m band), 2W TX power (~33 dBm)</li>
-                      <li>Min 3 receivers, SNR ≥3 dB, GDOP ≤100</li>
-                      <li>SRTM terrain enabled for realistic propagation</li>
+                      <li><strong>Dataset Type:</strong> {formData.dataset_type === 'iq_raw' ? 'IQ Raw (CNN training)' : 'Feature-Based (traditional)'}</li>
+                      <li><strong>Samples:</strong> {formData.num_samples?.toLocaleString()} with {((formData.inside_ratio || 0) * 100).toFixed(0)}% inside coverage</li>
+                      <li><strong>RF:</strong> {formData.frequency_mhz} MHz, {powerValueWatt.toFixed(1)}W TX power</li>
+                      <li><strong>Quality:</strong> Min {formData.min_receivers} receivers, SNR ≥{formData.min_snr_db} dB, GDOP ≤{formData.max_gdop}</li>
+                      {formData.dataset_type === 'iq_raw' && (
+                        <li><strong>Receivers:</strong> {formData.min_receivers_count}-{formData.max_receivers_count} random per sample</li>
+                      )}
+                      <li><strong>Terrain:</strong> {formData.use_srtm ? 'SRTM enabled' : 'Flat earth model'}</li>
                     </ul>
                   </div>
                 </div>

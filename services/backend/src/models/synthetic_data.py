@@ -101,6 +101,7 @@ class SyntheticDatasetResponse(BaseModel):
     config: dict[str, Any]
     quality_metrics: Optional[dict[str, Any]]
     storage_table: str
+    storage_size_bytes: Optional[int] = None  # Total storage (PostgreSQL + MinIO), NULL if not calculated
     created_at: datetime
     created_by_job_id: Optional[UUID]
 
