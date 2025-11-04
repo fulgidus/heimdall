@@ -156,11 +156,29 @@ export const BatchPredictionResponseSchema = z.object({
 // ============================================================================
 
 export const ServiceHealthSchema = z.object({
-    status: z.enum(['healthy', 'unhealthy', 'degraded']),
+    status: z.enum(['healthy', 'unhealthy', 'degraded', 'warning', 'unknown']),
     service: z.string(),
-    version: z.string(),
-    timestamp: z.string(),
+    version: z.string().optional(),
+    timestamp: z.string().optional(),
     details: z.record(z.string(), z.unknown()).optional(),
+    response_time_ms: z.number().optional(),
+    error: z.string().optional(),
+    message: z.string().optional(),
+    type: z.string().optional(),
+    last_check: z.string().optional(),
+    worker_count: z.number().optional(),
+    online_count: z.number().optional(),
+    total_count: z.number().optional(),
+    model_info: z.object({
+        active_version: z.string().optional(),
+        health_status: z.string().optional(),
+        accuracy: z.number().optional(),
+        predictions_total: z.number().optional(),
+        predictions_successful: z.number().optional(),
+        latency_p95_ms: z.number().optional(),
+        cache_hit_rate: z.number().optional(),
+        uptime_seconds: z.number().optional(),
+    }).optional(),
 });
 
 export const DependencyHealthSchema = z.object({

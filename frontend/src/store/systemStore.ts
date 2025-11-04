@@ -10,6 +10,7 @@ import { systemService, inferenceService } from '@/services/api';
 
 interface SystemStore {
   servicesHealth: Record<string, ServiceHealth>;
+  infrastructureHealth: Record<string, ServiceHealth>;
   modelPerformance: ModelPerformanceMetrics | null;
   isLoading: boolean;
   error: string | null;
@@ -19,15 +20,18 @@ interface SystemStore {
   checkService: (serviceName: string) => Promise<void>;
   fetchModelPerformance: () => Promise<void>;
   updateServicesHealthFromWebSocket: (healthStatus: Record<string, ServiceHealth>) => void;
+  updateComprehensiveHealthFromWebSocket: (components: Record<string, ServiceHealth>) => void;
 
   isServiceHealthy: (serviceName: string) => boolean;
   getServiceStatus: (serviceName: string) => ServiceHealth | null;
+  getInfrastructureStatus: (componentName: string) => ServiceHealth | null;
 
   refreshAll: () => Promise<void>;
 }
 
 export const useSystemStore = create<SystemStore>((set, get) => ({
   servicesHealth: {},
+  infrastructureHealth: {},
   modelPerformance: null,
   isLoading: false,
   error: null,
@@ -88,6 +92,32 @@ export const useSystemStore = create<SystemStore>((set, get) => ({
       lastCheck: new Date(),
       error: null,
     });
+  },
+
+  updateComprehensiveHealthFromWebSocket: (components: Record<string, ServiceHealth>) => {
+    // Separate microservices from infrastructure components
+    const microservices = ['backend', 'training', 'inference'];
+    const servicesHealth: Record<string, ServiceHealth> = {};
+    const infrastructureHealth: Record<string, ServiceHealth> = {};
+
+    Object.entries(components).forEach(([name, health]) => {
+      if (microservices.includes(name)) {
+        servicesHealth[name] = health;
+      } else {
+        infrastructureHealth[name] = health;
+      }
+    });
+
+    set({
+      servicesHealth,
+      infrastructureHealth,
+      lastCheck: new Date(),
+      error: null,
+    });
+  },
+
+  getInfrastructureStatus: (componentName: string) => {
+    return get().infrastructureHealth[componentName] || null;
   },
 
   refreshAll: async () => {
