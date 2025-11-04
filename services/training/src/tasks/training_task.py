@@ -989,12 +989,12 @@ def start_training_job(self, job_id: str):
                         id, model_name, version, model_type, synthetic_dataset_id,
                         pytorch_model_location, onnx_model_location, accuracy_meters, accuracy_sigma_meters,
                         loss_value, epoch, is_active, is_production,
-                        hyperparameters, training_metrics, trained_by_job_id
+                        hyperparameters, training_metrics, trained_by_job_id, parent_model_id
                     )
                     VALUES (
                         :id, :name, :version, 'triangulation', :dataset_id,
                         :location, :onnx_location, :rmse, :rmse_good, :loss, :epoch,
-                        FALSE, FALSE, CAST(:hyperparams AS jsonb), CAST(:metrics AS jsonb), :job_id
+                        FALSE, FALSE, CAST(:hyperparams AS jsonb), CAST(:metrics AS jsonb), :job_id, :parent_model_id
                     )
                 """),
                 {
@@ -1010,7 +1010,8 @@ def start_training_job(self, job_id: str):
                     "epoch": epoch,
                     "hyperparams": json.dumps(config),
                     "metrics": json.dumps(metrics_dict),
-                    "job_id": job_id
+                    "job_id": job_id,
+                    "parent_model_id": config.get("parent_model_id")  # Track model lineage
                 }
             )
             session.commit()

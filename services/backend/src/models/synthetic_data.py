@@ -156,6 +156,7 @@ class ModelMetadataResponse(BaseModel):
     test_metrics: Optional[dict[str, Any]]
     created_at: datetime
     trained_by_job_id: Optional[UUID]
+    parent_model_id: Optional[UUID]  # Track model evolution lineage
 
     class Config:
         from_attributes = True

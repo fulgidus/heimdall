@@ -1623,7 +1623,7 @@ async def list_models(
                            mlflow_run_id, mlflow_experiment_id, onnx_model_location,
                            pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
                            loss_value, epoch, is_active, is_production, hyperparameters,
-                           training_metrics, test_metrics, created_at, trained_by_job_id
+                           training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
                     FROM heimdall.models
                     WHERE is_active = :is_active
                     ORDER BY created_at DESC
@@ -1638,7 +1638,7 @@ async def list_models(
                            mlflow_run_id, mlflow_experiment_id, onnx_model_location,
                            pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
                            loss_value, epoch, is_active, is_production, hyperparameters,
-                           training_metrics, test_metrics, created_at, trained_by_job_id
+                           training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
                     FROM heimdall.models
                     ORDER BY created_at DESC
                     LIMIT :limit OFFSET :offset
@@ -1677,7 +1677,8 @@ async def list_models(
                     training_metrics=training_metrics,
                     test_metrics=test_metrics,
                     created_at=row[18],
-                    trained_by_job_id=row[19]
+                    trained_by_job_id=row[19],
+                    parent_model_id=row[20]
                 ))
             
             return ModelListResponse(models=models, total=total)
@@ -1709,7 +1710,7 @@ async def get_model(model_id: UUID):
                        mlflow_run_id, mlflow_experiment_id, onnx_model_location,
                        pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
                        loss_value, epoch, is_active, is_production, hyperparameters,
-                       training_metrics, test_metrics, created_at, trained_by_job_id
+                       training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
                 FROM heimdall.models
                 WHERE id = :model_id
             """)
@@ -1745,7 +1746,8 @@ async def get_model(model_id: UUID):
                 training_metrics=training_metrics,
                 test_metrics=test_metrics,
                 created_at=result[18],
-                trained_by_job_id=result[19]
+                trained_by_job_id=result[19],
+                parent_model_id=result[20]
             )
     
     except HTTPException:

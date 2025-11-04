@@ -64,22 +64,44 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
   };
 
   const handleCancel = async () => {
+    console.log('[JobCard] handleCancel called for job:', {
+      id: job.id.slice(0, 8),
+      status: job.status,
+      timestamp: new Date().toISOString(),
+    });
     setIsLoading(true);
     try {
       await cancelJob(job.id);
+      console.log('[JobCard] cancelJob successful');
     } catch (error: any) {
-      console.error('Failed to cancel job:', error);
+      console.error('[JobCard] Failed to cancel job:', error);
+      console.error('[JobCard] Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async () => {
+    console.log('[JobCard] handleDelete called for job:', {
+      id: job.id.slice(0, 8),
+      status: job.status,
+      timestamp: new Date().toISOString(),
+    });
     setIsLoading(true);
     try {
       await deleteJob(job.id);
-    } catch (error) {
-      console.error('Failed to delete job:', error);
+      console.log('[JobCard] deleteJob successful');
+    } catch (error: any) {
+      console.error('[JobCard] Failed to delete job:', error);
+      console.error('[JobCard] Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -173,14 +195,24 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
                 onClick={handlePause}
                 disabled={isLoading}
                 className="btn btn-sm btn-outline-warning flex-fill"
+                data-action="pause"
               >
                 <i className="ph ph-pause me-1"></i>
                 {isLoading ? 'Pausing...' : 'Pause'}
               </button>
               <button
-                onClick={handleCancel}
+                onClick={(e) => {
+                  console.log('[JobCard] Cancel button clicked!', {
+                    jobId: job.id.slice(0, 8),
+                    jobStatus: job.status,
+                    buttonElement: e.currentTarget,
+                    dataAction: e.currentTarget.getAttribute('data-action'),
+                  });
+                  handleCancel();
+                }}
                 disabled={isLoading}
                 className="btn btn-sm btn-outline-danger flex-fill"
+                data-action="cancel"
               >
                 <i className="ph ph-x me-1"></i>
                 {isLoading ? 'Cancelling...' : 'Cancel'}
@@ -193,6 +225,7 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
               onClick={handleResume}
               disabled={isLoading}
               className="btn btn-sm btn-outline-primary w-100"
+              data-action="resume"
             >
               <i className="ph ph-play me-1"></i>
               {isLoading ? 'Resuming...' : 'Resume'}
@@ -201,9 +234,18 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
 
           {(job.status === 'pending' || job.status === 'queued') && (
             <button
-              onClick={handleCancel}
+              onClick={(e) => {
+                console.log('[JobCard] Cancel button clicked (pending/queued)!', {
+                  jobId: job.id.slice(0, 8),
+                  jobStatus: job.status,
+                  buttonElement: e.currentTarget,
+                  dataAction: e.currentTarget.getAttribute('data-action'),
+                });
+                handleCancel();
+              }}
               disabled={isLoading}
               className="btn btn-sm btn-outline-danger w-100"
+              data-action="cancel"
             >
               <i className="ph ph-x me-1"></i>
               {isLoading ? 'Cancelling...' : 'Cancel'}
@@ -213,9 +255,18 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
           {/* Delete button for completed/failed/cancelled jobs */}
           {(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') && (
             <button
-              onClick={handleDelete}
+              onClick={(e) => {
+                console.log('[JobCard] Delete button clicked!', {
+                  jobId: job.id.slice(0, 8),
+                  jobStatus: job.status,
+                  buttonElement: e.currentTarget,
+                  dataAction: e.currentTarget.getAttribute('data-action'),
+                });
+                handleDelete();
+              }}
               disabled={isLoading}
               className="btn btn-sm btn-outline-danger w-100"
+              data-action="delete"
             >
               <i className="ph ph-trash me-1"></i>
               {isLoading ? 'Deleting...' : 'Delete Job'}

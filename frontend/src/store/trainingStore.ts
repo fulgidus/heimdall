@@ -119,9 +119,13 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
 
   // Cancel a running or paused job
   cancelJob: async (jobId: string) => {
+    console.log('[trainingStore] cancelJob called:', { jobId: jobId.slice(0, 8) });
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/cancel`);
+      const endpoint = `/v1/training/jobs/${jobId}/cancel`;
+      console.log('[trainingStore] Calling POST', endpoint);
+      await api.post(endpoint);
+      console.log('[trainingStore] Cancel API call successful');
       
       // Update job status locally
       set(state => ({
@@ -129,10 +133,11 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
           job.id === jobId ? { ...job, status: 'cancelled' as const } : job
         ),
       }));
-    } catch (error) {
+    } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to cancel training job';
       set({ error: errorMessage });
-      console.error('Training job cancellation error:', error);
+      console.error('[trainingStore] Training job cancellation error:', error);
+      console.error('[trainingStore] Error response:', error?.response?.data);
       throw error;
     }
   },
@@ -179,9 +184,13 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
 
   // Delete a completed/failed/cancelled job
   deleteJob: async (jobId: string) => {
+    console.log('[trainingStore] deleteJob called:', { jobId: jobId.slice(0, 8) });
     set({ error: null });
     try {
-      await api.delete(`/v1/training/jobs/${jobId}`);
+      const endpoint = `/v1/training/jobs/${jobId}`;
+      console.log('[trainingStore] Calling DELETE', endpoint);
+      await api.delete(endpoint);
+      console.log('[trainingStore] Delete API call successful');
       
       // Remove job from list
       set(state => ({
@@ -190,7 +199,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     } catch (error: any) {
       // If job not found (404), remove it from local state anyway
       if (error?.status === 404 || error?.response?.status === 404) {
-        console.warn(`Job ${jobId} not found on server, removing from local state`);
+        console.warn(`[trainingStore] Job ${jobId} not found on server, removing from local state`);
         set(state => ({
           jobs: state.jobs.filter(job => job.id !== jobId),
         }));
