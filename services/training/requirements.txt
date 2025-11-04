@@ -15,4 +15,5 @@ onnxruntime>=1.16.3
 onnxscript>=0.1.0
 
 # GPU acceleration for IQ generation (optional, falls back to NumPy if not available)
-cupy-cuda12x>=12.0.0  # CUDA 12.x compatible
+# Updated to match CUDA 12.6 (cupy-cuda12x supports 12.x family)
+cupy-cuda12x>=13.0.0  # CUDA 12.x compatible (updated Nov 2024)

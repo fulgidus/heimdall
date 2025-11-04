@@ -1,7 +1,5 @@
 # Multi-stage build for training service with GPU support
-# Migrated from deprecated cuda:12.1.0 to cuda:12.6.0 (Nov 2024)
-# CUDA 12.6 is actively maintained and will be supported through 2026+
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04 AS deps-train
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04 AS deps-train
 WORKDIR /build
 
 # Install Python 3.11 and build dependencies
@@ -24,22 +22,14 @@ COPY services/training/requirements.txt .
 
 # Using locked versions for reproducibility
 # Resolve all requirements by combining base + ml + data + service-specific
-# PyTorch 2.5+ is required for CUDA 12.6 support
-RUN pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
-    { cat requirements/base.txt requirements/data.txt; \
+RUN pip install --upgrade pip && \
+    { cat requirements/base.txt requirements/ml.txt requirements/data.txt; \
     grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
     grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
-    # Install PyTorch 2.5.0 with CUDA 12.6 support (explicit versions for reproducibility)
-    pip install --user --no-cache-dir \
-    torch==2.5.0+cu126 torchvision==0.20.0+cu126 \
-    --trusted-host download.pytorch.org --index-url https://download.pytorch.org/whl/cu126 && \
-    pip install --user --no-cache-dir pytorch-lightning>=2.1.0 \
-    --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
-    # Install other requirements from PyPI
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     -r /tmp/all_reqs.txt
 
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 WORKDIR /app
 
 # Install Python 3.11 and runtime dependencies
