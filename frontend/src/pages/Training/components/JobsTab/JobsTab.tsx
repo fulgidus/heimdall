@@ -31,7 +31,16 @@ export const JobsTab: React.FC = () => {
     const unsubscribeBatchProgress = subscribe('training:batch_progress', (data: any) => {
       console.log('[JobsTab] Received training:batch_progress event:', data);
       if (data.job_id) {
-        handleJobUpdate({ id: data.job_id, ...data });
+        // Map backend field names to frontend field names
+        handleJobUpdate({ 
+          id: data.job_id,
+          current_epoch: data.epoch,           // Backend sends 'epoch', frontend expects 'current_epoch'
+          total_epochs: data.total_epochs,
+          progress_percent: data.progress_percent,
+          status: 'running',                   // Ensure status stays 'running'
+          // Include other fields that might be present
+          ...data,
+        });
       }
     });
 

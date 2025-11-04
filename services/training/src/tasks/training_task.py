@@ -106,7 +106,7 @@ def start_training_job(self, job_id: str):
     from storage.db_manager import get_db_manager
     from storage.minio_client import MinIOClient
     from config import settings as backend_settings
-    from events.publisher import get_event_publisher
+    from backend.src.events.publisher import get_event_publisher
     from sqlalchemy import text
 
     logger.info(f"Starting training job {job_id}")

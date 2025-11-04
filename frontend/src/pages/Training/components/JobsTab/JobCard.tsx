@@ -29,6 +29,17 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
 
   // Connect to WebSocket for real-time updates if job is running
   useTrainingWebSocket(job.status === 'running' ? job.id : null);
+  
+  // Log when job updates
+  React.useEffect(() => {
+    console.log('[JobCard] Job updated:', {
+      id: job.id.slice(0, 8),
+      status: job.status,
+      progress: job.progress_percent,
+      epoch: job.current_epoch,
+      total: job.total_epochs,
+    });
+  }, [job.id, job.status, job.progress_percent, job.current_epoch, job.total_epochs]);
 
   const handlePause = async () => {
     setIsLoading(true);

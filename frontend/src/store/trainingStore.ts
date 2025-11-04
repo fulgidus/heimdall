@@ -329,19 +329,39 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
 
   // Handle WebSocket job update
   handleJobUpdate: (jobUpdate: Partial<TrainingJob> & { id: string }) => {
+    console.log('[TrainingStore] handleJobUpdate called with:', jobUpdate);
+    
     set(state => {
       const existingJobIndex = state.jobs.findIndex(job => job.id === jobUpdate.id);
       
       if (existingJobIndex >= 0) {
         // Update existing job
         const updatedJobs = [...state.jobs];
+        const existingJob = updatedJobs[existingJobIndex];
+        
+        // Merge updates while preserving existing fields
         updatedJobs[existingJobIndex] = {
-          ...updatedJobs[existingJobIndex],
+          ...existingJob,
           ...jobUpdate,
+          // Ensure critical fields are updated
+          progress_percent: jobUpdate.progress_percent ?? existingJob.progress_percent,
+          current_epoch: jobUpdate.current_epoch ?? existingJob.current_epoch,
+          total_epochs: jobUpdate.total_epochs ?? existingJob.total_epochs,
+          estimated_completion: jobUpdate.estimated_completion ?? existingJob.estimated_completion,
         };
+        
+        console.log('[TrainingStore] Job updated:', {
+          id: jobUpdate.id,
+          old_progress: existingJob.progress_percent,
+          new_progress: updatedJobs[existingJobIndex].progress_percent,
+          old_epoch: existingJob.current_epoch,
+          new_epoch: updatedJobs[existingJobIndex].current_epoch,
+        });
+        
         return { jobs: updatedJobs };
       } else {
         // Add new job (if it doesn't exist)
+        console.log('[TrainingStore] New job added:', jobUpdate.id);
         return { jobs: [jobUpdate as TrainingJob, ...state.jobs] };
       }
     });
