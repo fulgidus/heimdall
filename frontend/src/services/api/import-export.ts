@@ -220,7 +220,17 @@ export function downloadHeimdallFile(file: HeimdallFile, filename?: string): voi
   a.download = filename || `heimdall-export-${new Date().toISOString().split('T')[0]}.heimdall`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  
+  // Defensive cleanup: check parent before removing
+  try {
+    if (a.parentNode === document.body) {
+      document.body.removeChild(a);
+    }
+  } catch (error) {
+    // Silent fail - element already removed or not in body
+    console.debug('Download link cleanup: already removed');
+  }
+  
   URL.revokeObjectURL(url);
 }
 

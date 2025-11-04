@@ -4,10 +4,11 @@
  * Dialog for expanding an existing synthetic dataset with additional samples
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { SyntheticDataset } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { usePortal } from '@/hooks/usePortal';
 
 interface ExpandDatasetDialogProps {
   dataset: SyntheticDataset;
@@ -24,38 +25,9 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
   const [numSamples, setNumSamples] = useState(10000);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize modal root once outside render
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    if (isOpen) {
-      const modalRoot = modalRootRef.current;
-      if (!modalRoot) return;
-
-      // Only append if not already mounted
-      if (!isMountedRef.current) {
-        document.body.appendChild(modalRoot);
-        isMountedRef.current = true;
-      }
-      
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM
-        if (modalRoot && modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      };
-    }
-  }, [isOpen]);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +57,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -220,6 +192,6 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
         </div>
       </div>
     </>,
-    modalRootRef.current
+    portalTarget
   );
 };

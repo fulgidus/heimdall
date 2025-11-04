@@ -4,9 +4,10 @@
  * Bootstrap 5 modal for confirming WebSDR deletion
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WebSDRConfig } from '@/services/api/types';
+import { usePortal } from '@/hooks/usePortal';
 
 interface DeleteConfirmModalProps {
   show: boolean;
@@ -23,40 +24,9 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 }) => {
   const [hardDelete, setHardDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize portal container once
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    const modalRoot = modalRootRef.current;
-    if (!modalRoot) return;
-
-    if (show && !isMountedRef.current) {
-      document.body.appendChild(modalRoot);
-      isMountedRef.current = true;
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-    }
-
-    // Cleanup function runs on unmount or when show changes
-    return () => {
-      if (isMountedRef.current && modalRoot) {
-        // Restore body scroll
-        document.body.style.overflow = '';
-        
-        // Remove from DOM if present
-        if (modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-        }
-        isMountedRef.current = false;
-      }
-    };
-  }, [show]);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(show);
 
   const handleConfirm = async () => {
     setIsDeleting(true);
@@ -70,7 +40,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
     }
   };
 
-  if (!show || !websdr || !modalRootRef.current) return null;
+  if (!show || !websdr || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -172,7 +142,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
         </div>
       </div>
     </>,
-    modalRootRef.current
+    portalTarget
   );
 };
 

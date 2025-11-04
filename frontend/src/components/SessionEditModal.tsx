@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecordingSessionWithDetails } from '@/services/api/session';
+import { usePortal } from '@/hooks/usePortal';
 
 interface SessionEditModalProps {
   session: RecordingSessionWithDetails;
@@ -21,41 +22,9 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
   const [approvalStatus, setApprovalStatus] = useState(session.approval_status || 'pending');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize modal root once outside render
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    const modalRoot = modalRootRef.current;
-    if (!modalRoot) return;
-
-    // Only append if not already mounted
-    if (!isMountedRef.current) {
-      document.body.appendChild(modalRoot);
-      isMountedRef.current = true;
-    }
-    
-    // Prevent body scroll when modal is open
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      // Restore body scroll
-      document.body.style.overflow = '';
-      // Clean up: remove the modal root from DOM using safer approach
-      // Use setTimeout to let React finish rendering before removal
-      setTimeout(() => {
-        if (modalRoot && modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      }, 0);
-    };
-  }, []);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +61,8 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
       setIsSaving(false);
     }
   };
+
+  if (!portalTarget) return null;
 
   return createPortal(
     <>
@@ -248,8 +219,8 @@ const SessionEditModal: React.FC<SessionEditModalProps> = ({ session, onSave, on
           </div>
         </div>
       </div>
-      </>,
-    modalRootRef.current
+    </>,
+    portalTarget
   );
 };
 
