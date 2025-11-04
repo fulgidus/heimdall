@@ -661,6 +661,14 @@ async def generate_synthetic_data_with_iq(
     
     # For iq_raw datasets, use random receivers
     use_random_receivers = (dataset_type == 'iq_raw') or config.get('use_random_receivers', False)
+    
+    # For iq_raw with random receivers, GDOP filtering is less useful
+    # (random geometry often has high GDOP, but that's OK for training)
+    # Relax GDOP constraint to allow more diverse geometries
+    if dataset_type == 'iq_raw' and use_random_receivers:
+        if max_gdop < 200:
+            logger.warning(f"IQ-raw with random receivers: relaxing max_gdop from {max_gdop} to 200 for better success rate")
+            max_gdop = 200.0
 
     # Determine number of worker threads
     # For I/O-bound tasks (which include numpy operations), use more threads than CPUs
