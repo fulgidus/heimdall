@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { AVAILABLE_WIDGETS } from '@/types/widgets';
 import { useWidgetStore } from '@/store/widgetStore';
+import { usePortal } from '@/hooks/usePortal';
 
 interface WidgetPickerProps {
   show: boolean;
@@ -10,47 +11,16 @@ interface WidgetPickerProps {
 
 export const WidgetPicker: React.FC<WidgetPickerProps> = ({ show, onClose }) => {
   const { addWidget } = useWidgetStore();
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize portal container once
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    const modalRoot = modalRootRef.current;
-    if (!modalRoot) return;
-
-    if (show && !isMountedRef.current) {
-      document.body.appendChild(modalRoot);
-      isMountedRef.current = true;
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-    }
-
-    if (!show && isMountedRef.current) {
-      // Restore body scroll
-      document.body.style.overflow = '';
-      // Use timeout to allow React to finish rendering before removing
-      const timeoutId = setTimeout(() => {
-        if (modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      }, 0);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [show]);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(show);
 
   const handleAddWidget = (widgetType: string) => {
     addWidget(widgetType as any);
     onClose();
   };
 
-  if (!show || !modalRootRef.current) return null;
+  if (!show || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -96,6 +66,6 @@ export const WidgetPicker: React.FC<WidgetPickerProps> = ({ show, onClose }) => 
       </div>
       <div className="modal-backdrop fade show" onClick={onClose} />
     </>,
-    modalRootRef.current
+    portalTarget
   );
 };

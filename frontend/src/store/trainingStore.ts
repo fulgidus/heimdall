@@ -267,7 +267,17 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       link.download = filename;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      
+      // Defensive cleanup: check parent before removing
+      try {
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        }
+      } catch (error) {
+        // Silent fail - element already removed
+        console.debug('Download link cleanup: already removed');
+      }
+      
       window.URL.revokeObjectURL(url);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to download model';

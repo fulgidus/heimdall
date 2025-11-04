@@ -92,7 +92,12 @@ const SourcesManagement: React.FC = () => {
       // Cleanup: remove style element on unmount
       const existingStyle = document.getElementById(styleId);
       if (existingStyle && existingStyle.parentNode === document.head) {
-        document.head.removeChild(existingStyle);
+        try {
+          document.head.removeChild(existingStyle);
+        } catch (error) {
+          // Silent fail - element already removed
+          console.debug('Style cleanup: already removed');
+        }
       }
     };
   }, []);

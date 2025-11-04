@@ -4,9 +4,10 @@
  * Modal for importing .heimdall model bundles
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { usePortal } from '@/hooks/usePortal';
 
 interface ImportDialogProps {
   isOpen: boolean;
@@ -19,38 +20,9 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize modal root once outside render
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    if (isOpen) {
-      const modalRoot = modalRootRef.current;
-      if (!modalRoot) return;
-
-      // Only append if not already mounted
-      if (!isMountedRef.current) {
-        document.body.appendChild(modalRoot);
-        isMountedRef.current = true;
-      }
-      
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM
-        if (modalRoot && modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      };
-    }
-  }, [isOpen]);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   const handleFileSelect = (file: File) => {
     setError(null);
@@ -121,7 +93,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -278,7 +250,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
           </div>
         </div>
       </div>
-      </>,
-    modalRootRef.current
+    </>,
+    portalTarget
   );
 };

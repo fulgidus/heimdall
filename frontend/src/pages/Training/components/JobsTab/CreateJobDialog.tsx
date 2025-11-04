@@ -4,11 +4,12 @@
  * Modal dialog for creating a new training job
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import type { CreateJobRequest, ModelArchitecture, SyntheticDataset } from '../../types';
 import api from '../../../../lib/api';
+import { usePortal } from '@/hooks/usePortal';
 
 interface CreateJobDialogProps {
   isOpen: boolean;
@@ -74,12 +75,9 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
   const [error, setError] = useState<string | null>(null);
   const [architectures, setArchitectures] = useState<ModelArchitecture[]>([]);
   const [loadingArchitectures, setLoadingArchitectures] = useState(false);
-  // Lazy initialization: only create div once
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-  const isMountedRef = useRef(false);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   const [formData, setFormData] = useState<CreateJobRequest>({
     job_name: '',
@@ -93,31 +91,6 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
           early_stop_patience: 5,
         },
       });
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    if (isOpen) {
-      const modalRoot = modalRootRef.current;
-      if (!modalRoot) return;
-
-      // Only append if not already mounted
-      if (!isMountedRef.current) {
-        document.body.appendChild(modalRoot);
-        isMountedRef.current = true;
-      }
-      
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM
-        if (modalRoot && modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      };
-    }
-  }, [isOpen]);
 
   // Create a Set for fast lookup of selected dataset IDs
   const selectedDatasetIds = useMemo(() => 
@@ -257,7 +230,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -526,6 +499,6 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
         </div>
       </div>
     </>,
-    modalRootRef.current
+    portalTarget
   );
 };
