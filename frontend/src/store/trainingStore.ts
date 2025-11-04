@@ -574,25 +574,25 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   expandDataset: async (request: ExpandDatasetRequest) => {
     set({ isLoading: true, error: null });
     try {
-      // Get the original dataset to copy its config
+      // Get the original dataset to verify it exists
       const dataset = get().datasets.find(d => d.id === request.dataset_id);
       if (!dataset) {
         throw new Error('Dataset not found');
       }
 
-      // Create a new generation request based on existing config
-      const generationRequest: SyntheticDataRequest = {
-        ...dataset.config,
+      // IMPORTANT: Do NOT send config parameters from frontend!
+      // Backend will automatically inherit parameters (frequency, power, SNR, etc.) 
+      // from the original dataset's config stored in the database.
+      // This ensures consistency and prevents parameter mismatches.
+      const generationRequest = {
         name: `${dataset.name} (Expansion)`,
         description: `Additional ${request.num_additional_samples} samples for ${dataset.name}`,
         num_samples: request.num_additional_samples,
+        expand_dataset_id: request.dataset_id, // Signal this is an expansion
       };
 
       // Use the same endpoint, but it will add to the existing dataset
-      const response = await api.post('/v1/training/synthetic/generate', {
-        ...generationRequest,
-        expand_dataset_id: request.dataset_id, // Signal this is an expansion
-      });
+      const response = await api.post('/v1/training/synthetic/generate', generationRequest);
       
       set({ isLoading: false });
       

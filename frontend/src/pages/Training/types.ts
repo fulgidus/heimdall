@@ -191,12 +191,17 @@ export interface SyntheticDataRequest {
 }
 
 export interface SyntheticSample {
+  id: string;
   timestamp: string;
-  transmitter_lat: number;
-  transmitter_lon: number;
-  receiver_features: any[];
-  gdop?: number;
-  num_receivers?: number;
+  tx_lat: number;
+  tx_lon: number;
+  tx_power_dbm: number;
+  frequency_hz: number;
+  receivers: any[];
+  gdop: number;
+  num_receivers: number;
+  split: 'train' | 'val' | 'test';
+  created_at: string;
 }
 
 export interface ModelArchitecture {

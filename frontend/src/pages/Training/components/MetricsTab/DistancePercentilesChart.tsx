@@ -35,7 +35,7 @@ export const DistancePercentilesChart: React.FC<DistancePercentilesChartProps> =
   }
 
   // Filter metrics that have the new percentile fields
-  const metricsWithPercentiles = metrics.filter(m => m.val_distance_p68_km !== undefined);
+  const metricsWithPercentiles = metrics.filter(m => m.val_distance_p68_m !== undefined);
 
   if (metricsWithPercentiles.length === 0) {
     return (

@@ -29,6 +29,16 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
   // Use bulletproof portal hook (prevents removeChild errors)
   const portalTarget = usePortal(isOpen);
 
+  // Convert dBm to Watts
+  const dbmToWatts = (dbm: number): number => {
+    return Math.pow(10, dbm / 10) / 1000;
+  };
+
+  const formatPower = (dbm: number): string => {
+    const watts = dbmToWatts(dbm);
+    return `${watts.toFixed(2)}W (${dbm.toFixed(2)}dBm)`;
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadSamples();
@@ -68,7 +78,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
           <div className="modal-content">
             {/* Modal Header */}
             <div className="modal-header">
-              <h5 className="modal-title">Dataset Samples: {dataset.name}</h5>
+              <h5 className="modal-title">Dataset Details: {dataset.name}</h5>
               <button
                 type="button"
                 className="btn-close"
@@ -79,6 +89,130 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
 
             {/* Modal Body */}
             <div className="modal-body">
+              {/* Dataset Configuration Info */}
+              <div className="card bg-light border-0 mb-3">
+                <div className="card-body">
+                  <h6 className="card-title mb-3">
+                    <i className="ph ph-gear me-2"></i>
+                    Dataset Configuration
+                  </h6>
+                  <div className="row g-3">
+                    {/* Frequency */}
+                    {dataset.config?.frequency_mhz !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Frequency:</span>
+                          <span className="fw-medium">{dataset.config.frequency_mhz} MHz</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TX Power */}
+                    {dataset.config?.tx_power_dbm !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">TX Power:</span>
+                          <span className="fw-medium">{formatPower(dataset.config.tx_power_dbm)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Min SNR */}
+                    {dataset.config?.min_snr_db !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Min SNR:</span>
+                          <span className="fw-medium">{dataset.config.min_snr_db} dB</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Min Receivers */}
+                    {dataset.config?.min_receivers !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Min Receivers:</span>
+                          <span className="fw-medium">{dataset.config.min_receivers}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Max GDOP */}
+                    {dataset.config?.max_gdop !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Max GDOP:</span>
+                          <span className="fw-medium">{dataset.config.max_gdop}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inside Ratio */}
+                    {dataset.config?.inside_ratio !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Inside Ratio:</span>
+                          <span className="fw-medium">{(dataset.config.inside_ratio * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Use SRTM */}
+                    {dataset.config?.use_srtm !== undefined && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Use SRTM:</span>
+                          <span className="fw-medium">
+                            {dataset.config.use_srtm ? (
+                              <span className="badge bg-success">Yes</span>
+                            ) : (
+                              <span className="badge bg-secondary">No</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dataset Type */}
+                    {dataset.dataset_type && (
+                      <div className="col-md-6">
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted small">Type:</span>
+                          <span className="fw-medium">
+                            {dataset.dataset_type === 'iq_raw' ? 'IQ Raw' : 'Feature-based'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Random Receivers (for IQ raw) */}
+                    {dataset.config?.use_random_receivers && (
+                      <div className="col-12">
+                        <div className="alert alert-info small mb-0 py-2">
+                          <i className="ph ph-info me-2"></i>
+                          Random Receivers: {dataset.config.min_receivers_count || 'N/A'} - {dataset.config.max_receivers_count || 'N/A'}
+                          {dataset.config.receiver_seed && ` (seed: ${dataset.config.receiver_seed})`}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Geographic Area (if configured) */}
+                    {(dataset.config?.area_lat_min !== undefined || dataset.config?.area_lon_min !== undefined) && (
+                      <div className="col-12">
+                        <hr className="my-2" />
+                        <div className="small">
+                          <strong className="text-muted">Geographic Area:</strong>
+                          <div className="mt-1">
+                            Lat: {dataset.config.area_lat_min?.toFixed(4)} - {dataset.config.area_lat_max?.toFixed(4)}, 
+                            Lon: {dataset.config.area_lon_min?.toFixed(4)} - {dataset.config.area_lon_max?.toFixed(4)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Loading State */}
               {isLoading && (
                 <div className="text-center py-4">

@@ -154,8 +154,8 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
               onClick={() => setIsDetailsDialogOpen(true)}
               className="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2"
             >
-              <i className="ph ph-eye"></i>
-              View Samples
+              <i className="ph ph-info"></i>
+              Details
             </button>
             <button
               onClick={() => setIsExpandDialogOpen(true)}
