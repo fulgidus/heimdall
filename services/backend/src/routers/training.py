@@ -1801,3 +1801,29 @@ async def import_model_heimdall(
     except Exception as e:
         logger.error(f"Error importing model from {file.filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}")
+
+
+@router.get("/architectures")
+async def list_architectures(data_type: str | None = Query(None, description="Filter by data type (feature_based, iq_raw, or all)")):
+    """
+    List all available model architectures with metadata.
+    
+    Args:
+        data_type: Optional filter by data type
+    
+    Returns:
+        List of architectures with display names, data types, and descriptions
+    """
+    try:
+        from common.model_architectures import list_architectures as list_arch
+        
+        architectures = list_arch(data_type=data_type)
+        
+        return {
+            "architectures": architectures,
+            "total": len(architectures)
+        }
+    
+    except Exception as e:
+        logger.error(f"Error listing architectures: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

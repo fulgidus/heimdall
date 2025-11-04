@@ -7,31 +7,29 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainingStore } from '../../../../store/trainingStore';
-import type { CreateJobRequest } from '../../types';
+import type { CreateJobRequest, ModelArchitecture, SyntheticDataset } from '../../types';
+import api from '../../../../lib/api';
 
 interface CreateJobDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const modelArchitectures = [
-  'ResNet-18',
-  'ResNet-34',
-  'ResNet-50',
-  'EfficientNet-B0',
-  'MobileNetV2',
-];
-
 // Memoized dataset checkbox component to prevent unnecessary re-renders
 const DatasetCheckbox = React.memo<{
-  dataset: { id: string; name: string; description?: string; num_samples: number };
+  dataset: SyntheticDataset;
   isChecked: boolean;
   onToggle: (id: string) => void;
   disabled: boolean;
-}>(({ dataset, isChecked, onToggle, disabled }) => {
+  isCompatible: boolean;
+}>(({ dataset, isChecked, onToggle, disabled, isCompatible }) => {
   const handleChange = useCallback(() => {
     onToggle(dataset.id);
   }, [dataset.id, onToggle]);
+
+  const datasetTypeBadge = dataset.dataset_type === 'iq_raw' 
+    ? <span className="badge bg-info text-white ms-1">IQ</span>
+    : <span className="badge bg-secondary ms-1">Features</span>;
 
   return (
     <div className="form-check mb-2">
@@ -41,16 +39,22 @@ const DatasetCheckbox = React.memo<{
         id={`dataset-${dataset.id}`}
         checked={isChecked}
         onChange={handleChange}
-        disabled={disabled}
+        disabled={disabled || !isCompatible}
       />
       <label 
-        className="form-check-label d-flex justify-content-between align-items-center w-100" 
+        className={`form-check-label d-flex justify-content-between align-items-center w-100 ${!isCompatible ? 'text-muted' : ''}`}
         htmlFor={`dataset-${dataset.id}`}
       >
         <span>
-          <strong>{dataset.name}</strong>
+          <strong>{dataset.name}</strong> {datasetTypeBadge}
           {dataset.description && (
             <small className="text-muted d-block">{dataset.description}</small>
+          )}
+          {!isCompatible && (
+            <small className="text-warning d-block">
+              <i className="ph ph-warning me-1"></i>
+              Incompatible with selected architecture
+            </small>
           )}
         </span>
         <span className="badge bg-secondary ms-2">
@@ -68,6 +72,8 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
   const fetchDatasets = useTrainingStore(state => state.fetchDatasets);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [architectures, setArchitectures] = useState<ModelArchitecture[]>([]);
+  const [loadingArchitectures, setLoadingArchitectures] = useState(false);
   // Lazy initialization: only create div once
   const modalRootRef = useRef<HTMLDivElement | null>(null);
   if (!modalRootRef.current) {
@@ -82,7 +88,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       epochs: 50,
       batch_size: 32,
       learning_rate: 0.001,
-      model_architecture: 'ResNet-18',
+      model_architecture: 'triangulation',
       validation_split: 0.2,
       early_stopping_patience: 5,
     },
@@ -119,6 +125,24 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
     [formData.config.dataset_ids]
   );
 
+  // Fetch architectures from API
+  useEffect(() => {
+    if (isOpen && architectures.length === 0) {
+      setLoadingArchitectures(true);
+      api.get('/v1/training/architectures')
+        .then(response => {
+          setArchitectures(response.data.architectures || []);
+        })
+        .catch(error => {
+          console.error('Failed to fetch architectures:', error);
+          setError('Failed to load model architectures');
+        })
+        .finally(() => {
+          setLoadingArchitectures(false);
+        });
+    }
+  }, [isOpen, architectures.length]);
+
   // Fetch datasets and reset error when dialog opens (only if not already loaded)
   useEffect(() => {
     if (isOpen) {
@@ -129,6 +153,38 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       }
     }
   }, [isOpen]); // Removed fetchDatasets and datasets from deps to prevent loops
+
+  // Get selected architecture metadata
+  const selectedArchitecture = useMemo(() => {
+    return architectures.find(arch => arch.name === formData.config.model_architecture);
+  }, [architectures, formData.config.model_architecture]);
+
+  // Filter datasets based on selected architecture compatibility
+  const compatibleDatasets = useMemo(() => {
+    if (!selectedArchitecture) return datasets;
+    
+    const archDataType = selectedArchitecture.data_type;
+    
+    // 'both' is compatible with everything
+    if (archDataType === 'both') return datasets;
+    
+    // Filter by matching data_type
+    return datasets.filter(dataset => {
+      const datasetType = dataset.dataset_type || 'feature_based';
+      return datasetType === archDataType;
+    });
+  }, [datasets, selectedArchitecture]);
+
+  // Check if a dataset is compatible with selected architecture
+  const isDatasetCompatible = useCallback((dataset: SyntheticDataset): boolean => {
+    if (!selectedArchitecture) return true;
+    
+    const archDataType = selectedArchitecture.data_type;
+    if (archDataType === 'both') return true;
+    
+    const datasetType = dataset.dataset_type || 'feature_based';
+    return datasetType === archDataType;
+  }, [selectedArchitecture]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -276,6 +332,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                                 isChecked={selectedDatasetIds.has(dataset.id)}
                                 onToggle={handleDatasetToggle}
                                 disabled={isSubmitting}
+                                isCompatible={isDatasetCompatible(dataset)}
                               />
                             ))}
                           </div>
@@ -295,18 +352,41 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                     <label htmlFor="model_architecture" className="form-label">
                       Model Architecture
                     </label>
-                    <select
-                      id="model_architecture"
-                      name="model_architecture"
-                      value={formData.config.model_architecture}
-                      onChange={handleChange}
-                      className="form-select"
-                      disabled={isSubmitting}
-                    >
-                      {modelArchitectures.map(arch => (
-                        <option key={arch} value={arch}>{arch}</option>
-                      ))}
-                    </select>
+                    {loadingArchitectures ? (
+                      <div className="text-center py-2">
+                        <span className="spinner-border spinner-border-sm me-2"></span>
+                        Loading architectures...
+                      </div>
+                    ) : (
+                      <>
+                        <select
+                          id="model_architecture"
+                          name="model_architecture"
+                          value={formData.config.model_architecture}
+                          onChange={handleChange}
+                          className="form-select"
+                          disabled={isSubmitting || architectures.length === 0}
+                        >
+                          {architectures.map(arch => (
+                            <option key={arch.name} value={arch.name}>
+                              {arch.display_name}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedArchitecture && (
+                          <small className="form-text text-muted">
+                            <i className="ph ph-info me-1"></i>
+                            {selectedArchitecture.description}
+                            {compatibleDatasets.length < datasets.length && (
+                              <span className="text-warning d-block mt-1">
+                                <i className="ph ph-warning me-1"></i>
+                                {compatibleDatasets.length} of {datasets.length} datasets compatible with this architecture
+                              </span>
+                            )}
+                          </small>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* Epochs */}

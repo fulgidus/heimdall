@@ -191,17 +191,25 @@ export interface SyntheticDataRequest {
 }
 
 export interface SyntheticSample {
-  id: number;
   timestamp: string;
-  tx_lat: number;
-  tx_lon: number;
-  tx_power_dbm: number;
-  frequency_hz: number;
-  receivers: Record<string, any>;
-  gdop: number;
-  num_receivers: number;
-  split: string;
-  created_at: string;
+  transmitter_lat: number;
+  transmitter_lon: number;
+  receiver_features: any[];
+  gdop?: number;
+  num_receivers?: number;
+}
+
+export interface ModelArchitecture {
+  name: string;
+  display_name: string;
+  data_type: 'feature_based' | 'iq_raw' | 'both';
+  description: string;
+  default_params: Record<string, any>;
+}
+
+export interface ArchitecturesResponse {
+  architectures: ModelArchitecture[];
+  total: number;
 }
 
 export interface SyntheticSamplesResponse {
