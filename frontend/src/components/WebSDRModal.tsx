@@ -4,9 +4,10 @@
  * Bootstrap 5 modal for creating and editing WebSDR stations
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { WebSDRConfig } from '@/services/api/types';
+import { usePortal } from '@/hooks/usePortal';
 
 interface WebSDRModalProps {
   show: boolean;
@@ -57,43 +58,9 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const modalRootRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-
-  // Initialize modal root once outside render
-  if (!modalRootRef.current) {
-    modalRootRef.current = document.createElement('div');
-  }
-
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    if (show) {
-      const modalRoot = modalRootRef.current;
-      if (!modalRoot) return;
-
-      // Only append if not already mounted
-      if (!isMountedRef.current) {
-        document.body.appendChild(modalRoot);
-        isMountedRef.current = true;
-      }
-      
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        // Restore body scroll
-        document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM using safer approach
-        // Use setTimeout to let React finish rendering before removal
-        setTimeout(() => {
-          if (modalRoot && modalRoot.parentNode === document.body) {
-            document.body.removeChild(modalRoot);
-            isMountedRef.current = false;
-          }
-        }, 0);
-      };
-    }
-  }, [show]);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(show);
 
   // Populate form when editing
   useEffect(() => {
@@ -309,7 +276,7 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
     }
   };
 
-  if (!show) return null;
+  if (!show || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -676,8 +643,8 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
           </div>
         </div>
       </div>
-      </>,
-    modalRootRef.current
+    </>,
+    portalTarget
   );
 };
 

@@ -4,10 +4,11 @@
  * Modal for generating synthetic RF localization datasets
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import type { SyntheticDataRequest } from '../../types';
+import { usePortal } from '@/hooks/usePortal';
 
 interface GenerateDataDialogProps {
   isOpen: boolean;
@@ -21,10 +22,9 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
   const { generateSyntheticData } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Portal refs for proper DOM management - initialize in useRef to avoid recreating
-  const modalRootRef = useRef<HTMLDivElement>(document.createElement('div'));
-  const isMountedRef = useRef(false);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   // Power unit toggle (Watt or dBm)
   const [powerUnit, setPowerUnit] = useState<'watt' | 'dbm'>('watt');
@@ -82,30 +82,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     setPowerUnit(prev => prev === 'watt' ? 'dbm' : 'watt');
   };
 
-  // Mount and unmount the modal root element
-  useEffect(() => {
-    if (isOpen) {
-      const modalRoot = modalRootRef.current;
-      if (!modalRoot) return;
 
-      // Only append if not already mounted
-      if (!isMountedRef.current) {
-        document.body.appendChild(modalRoot);
-        isMountedRef.current = true;
-      }
-      
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = '';
-        // Clean up: remove the modal root from DOM
-        if (modalRoot && modalRoot.parentNode === document.body) {
-          document.body.removeChild(modalRoot);
-          isMountedRef.current = false;
-        }
-      };
-    }
-  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,7 +131,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !portalTarget) return null;
 
   return createPortal(
     <>
@@ -653,6 +630,6 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         </div>
       </div>
     </>,
-    modalRootRef.current
+    portalTarget
   );
 };
