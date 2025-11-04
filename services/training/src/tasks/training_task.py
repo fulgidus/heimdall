@@ -1217,6 +1217,13 @@ def generate_synthetic_data_task(self, job_id: str):
                     )
                     session.commit()
                     logger.info(f"Created new dataset {dataset_id} (type: {config.get('dataset_type', 'feature_based')})")
+                    
+                    # CRITICAL: Wait for PostgreSQL to make commit visible to async transactions
+                    # Without this, save_iq_metadata_to_db() will fail with foreign key violation
+                    # because the async transaction can't see the dataset yet
+                    import time
+                    time.sleep(0.5)
+                    logger.info(f"Dataset {dataset_id} committed and visible to all transactions")
 
         # Initialize event publisher for real-time WebSocket updates
         from backend.src.events.publisher import get_event_publisher

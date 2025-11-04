@@ -26,8 +26,8 @@ MODEL_ARCHITECTURES: dict[str, ArchitectureMetadata] = {
     # Feature-based models (use extracted features: mel-spec, MFCC, etc.)
     "triangulation": {
         "display_name": "Triangulation Network (Features)",
-        "data_type": "feature_based",
-        "description": "Attention-based model using extracted RF features (SNR, PSD, frequency offset)",
+        "data_type": "both",  # Works with both feature_based AND iq_raw (both contain extracted features!)
+        "description": "Attention-based model using extracted RF features (SNR, PSD, frequency offset) - works with any dataset type",
         "default_params": {
             "embed_dim": 32,
             "num_heads": 4,

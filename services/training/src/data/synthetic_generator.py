@@ -126,11 +126,19 @@ def _generate_single_sample(args):
     
     num_receivers_in_sample = len(receivers_list)
 
-    # Initialize generators
+    # Initialize generators with GPU acceleration
+    # Check if GPU is available (use torch as proxy since it's always available in training service)
+    try:
+        import torch
+        use_gpu = torch.cuda.is_available()
+    except ImportError:
+        use_gpu = False
+    
     iq_generator = SyntheticIQGenerator(
         sample_rate_hz=200_000,  # 200 kHz
         duration_ms=1000.0,       # 1 second
-        seed=sample_seed
+        seed=sample_seed,
+        use_gpu=use_gpu
     )
     # Create feature extractor with optimized settings (reusable)
     feature_extractor = RFFeatureExtractor(

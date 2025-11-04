@@ -13,3 +13,6 @@ soundfile>=0.12.0
 onnx>=1.14.0
 onnxruntime>=1.16.3
 onnxscript>=0.1.0
+
+# GPU acceleration for IQ generation (optional, falls back to NumPy if not available)
+cupy-cuda12x>=12.0.0  # CUDA 12.x compatible
