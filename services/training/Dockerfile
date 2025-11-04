@@ -52,6 +52,7 @@ COPY --from=deps-train /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser services/training/src/ ./src/
+COPY --chown=appuser:appuser services/training/entrypoint.py ./entrypoint.py
 
 # Copy common module
 COPY --chown=appuser:appuser services/common/ ./common/
@@ -69,10 +70,9 @@ ENV PATH=/home/appuser/.local/bin:$PATH \
 USER appuser
 EXPOSE 8002
 
-# Health check - check if celery worker is responsive
+# Health check - check if API server is responsive
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD celery -A src.main:celery_app inspect ping -d celery@$HOSTNAME || exit 1
+    CMD curl -f http://localhost:8002/health || exit 1
 
-# Start Celery worker for training tasks (listening on 'training' queue)
-# Use --pool=solo to avoid daemon process issues with DataLoader workers
-CMD ["celery", "-A", "src.main:celery_app", "worker", "--loglevel=INFO", "--pool=solo", "--time-limit=21600", "--soft-time-limit=19800", "-Q", "training"]
+# Start both FastAPI API and Celery worker via entrypoint
+CMD ["python", "entrypoint.py"]

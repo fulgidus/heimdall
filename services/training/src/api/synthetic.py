@@ -59,9 +59,94 @@ class SamplesListResponse(BaseModel):
     dataset_id: str
 
 
+class DatasetResponse(BaseModel):
+    """Individual dataset response."""
+    id: str
+    name: str
+    description: Optional[str]
+    num_samples: int
+    config: dict
+    quality_metrics: Optional[dict]
+    storage_table: str
+    created_at: datetime
+    updated_at: datetime
+    created_by_job_id: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class DatasetsListResponse(BaseModel):
+    """List of datasets with pagination."""
+    datasets: List[DatasetResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 # ============================================================================
 # ENDPOINTS
 # ============================================================================
+
+@router.get("/datasets", response_model=DatasetsListResponse)
+async def list_datasets(
+    limit: int = Query(default=100, ge=1, le=500, description="Number of datasets to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+    db: Session = Depends(get_db)
+):
+    """
+    List all synthetic datasets.
+    
+    Args:
+        limit: Maximum number of datasets to return (1-500)
+        offset: Number of datasets to skip
+        db: Database session
+    
+    Returns:
+        List of datasets with pagination info
+    """
+    # Count total
+    count_query = text("""
+        SELECT COUNT(*) as total
+        FROM heimdall.synthetic_datasets
+    """)
+    
+    count_result = db.execute(count_query).fetchone()
+    total = count_result[0] if count_result else 0
+    
+    # Fetch datasets
+    datasets_query = text("""
+        SELECT id, name, description, num_samples, config, quality_metrics,
+               storage_table, created_at, updated_at, created_by_job_id
+        FROM heimdall.synthetic_datasets
+        ORDER BY created_at DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    
+    rows = db.execute(datasets_query, {"limit": limit, "offset": offset}).fetchall()
+    
+    datasets = []
+    for row in rows:
+        datasets.append(DatasetResponse(
+            id=str(row[0]),
+            name=row[1],
+            description=row[2],
+            num_samples=row[3],
+            config=row[4],
+            quality_metrics=row[5],
+            storage_table=row[6],
+            created_at=row[7],
+            updated_at=row[8],
+            created_by_job_id=str(row[9]) if row[9] else None
+        ))
+    
+    return DatasetsListResponse(
+        datasets=datasets,
+        total=total,
+        limit=limit,
+        offset=offset
+    )
+
 
 @router.get("/datasets/{dataset_id}/samples", response_model=SamplesListResponse)
 async def get_dataset_samples(

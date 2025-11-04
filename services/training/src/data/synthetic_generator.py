@@ -35,6 +35,57 @@ from common.feature_extraction import RFFeatureExtractor, IQSample
 logger = structlog.get_logger(__name__)
 
 
+def _generate_random_receivers(
+    num_receivers: int,
+    area_lat_min: float,
+    area_lat_max: float,
+    area_lon_min: float,
+    area_lon_max: float,
+    terrain_lookup: Optional[TerrainLookup],
+    rng: np.random.Generator
+) -> list[dict]:
+    """
+    Generate random receiver positions within specified area.
+    
+    Args:
+        num_receivers: Number of receivers to generate
+        area_lat_min: Minimum latitude
+        area_lat_max: Maximum latitude
+        area_lon_min: Minimum longitude
+        area_lon_max: Maximum longitude
+        terrain_lookup: Terrain lookup for elevation (optional)
+        rng: Random number generator
+    
+    Returns:
+        List of receiver dicts with name, latitude, longitude, altitude
+    """
+    receivers = []
+    for i in range(num_receivers):
+        lat = rng.uniform(area_lat_min, area_lat_max)
+        lon = rng.uniform(area_lon_min, area_lon_max)
+        
+        # Get altitude from terrain if available, otherwise use default
+        if terrain_lookup:
+            try:
+                alt = terrain_lookup.get_elevation(lat, lon)
+                # Add 10-20m above ground for antenna height
+                alt += rng.uniform(10.0, 20.0)
+            except Exception as e:
+                logger.warning(f"Failed to get terrain elevation for ({lat}, {lon}): {e}, using default")
+                alt = 300.0
+        else:
+            alt = 300.0
+        
+        receivers.append({
+            'name': f'RX_{i:03d}',
+            'latitude': lat,
+            'longitude': lon,
+            'altitude': alt
+        })
+    
+    return receivers
+
+
 def _generate_single_sample(args):
     """
     Generate a single synthetic sample (for multiprocessing).
@@ -42,16 +93,38 @@ def _generate_single_sample(args):
     This function must be at module level for pickle serialization.
 
     Args:
-        args: Tuple of (sample_index, receivers_config, training_config, config, seed)
+        args: Tuple of (sample_index, receivers_config, training_config, config, seed, dataset_type, use_random_receivers)
 
     Returns:
-        Tuple of (sample_idx, receiver_features, extraction_metadata, quality_metrics, iq_samples_dict, tx_position)
+        Tuple of (sample_idx, receiver_features, extraction_metadata, quality_metrics, iq_samples_dict, tx_position, num_receivers_in_sample)
     """
-    sample_idx, receivers_list, training_config_dict, config, base_seed = args
+    sample_idx, receivers_list, training_config_dict, config, base_seed, dataset_type, use_random_receivers = args
 
     # Create unique seed for this sample
     sample_seed = base_seed + sample_idx if base_seed else None
     rng = np.random.default_rng(sample_seed)
+    
+    # Generate random receivers if requested (for iq_raw datasets)
+    if use_random_receivers:
+        min_rx = config.get('min_receivers_count', 5)
+        max_rx = config.get('max_receivers_count', 10)
+        num_receivers = rng.integers(min_rx, max_rx + 1)  # Inclusive upper bound
+        
+        # Initialize terrain lookup for random receiver generation
+        terrain_lookup = TerrainLookup(use_srtm=False)  # Simplified model for speed
+        
+        receivers_list = _generate_random_receivers(
+            num_receivers=num_receivers,
+            area_lat_min=config.get('area_lat_min', 44.0),
+            area_lat_max=config.get('area_lat_max', 46.0),
+            area_lon_min=config.get('area_lon_min', 7.0),
+            area_lon_max=config.get('area_lon_max', 10.0),
+            terrain_lookup=terrain_lookup,
+            rng=rng
+        )
+        logger.debug(f"Sample {sample_idx}: Generated {len(receivers_list)} random receivers")
+    
+    num_receivers_in_sample = len(receivers_list)
 
     # Initialize generators
     iq_generator = SyntheticIQGenerator(
@@ -135,8 +208,10 @@ def _generate_single_sample(args):
             timestamp=float(sample_idx)
         )
 
-        # Store IQ sample (for first 100 samples only)
-        if sample_idx < 100:
+        # Store IQ sample
+        # For iq_raw datasets: store ALL samples
+        # For feature_based datasets: store first 100 only (legacy behavior)
+        if dataset_type == 'iq_raw' or sample_idx < 100:
             iq_samples[rx_id] = iq_sample
 
         # Convert SyntheticIQSample to IQSample for feature extraction
@@ -162,6 +237,7 @@ def _generate_single_sample(args):
         features_dict['rx_lat'] = rx_lat
         features_dict['rx_lon'] = rx_lon
         features_dict['distance_km'] = details['distance_km']
+        features_dict['num_receivers_in_sample'] = num_receivers_in_sample  # For iq_raw datasets
 
         # Override signal_present with propagation model result
         # (feature extractor may incorrectly detect no signal due to fading/multipath)
@@ -211,7 +287,7 @@ def _generate_single_sample(args):
         'tx_power_dbm': tx_power_dbm
     }
 
-    return (sample_idx, receiver_features_list, extraction_metadata, quality_metrics, iq_samples, tx_position)
+    return (sample_idx, receiver_features_list, extraction_metadata, quality_metrics, iq_samples, tx_position, num_receivers_in_sample)
 
 
 @dataclass
@@ -409,7 +485,7 @@ class SyntheticDataGenerator:
                 receivers=receiver_measurements,
                 gdop=gdop,
                 num_receivers=receivers_with_signal,
-                split=split
+                split="train"  # Placeholder - actual split assigned at training time
             )
             
             samples.append(sample)
@@ -555,7 +631,8 @@ async def generate_synthetic_data_with_iq(
     conn,
     progress_callback=None,
     seed: Optional[int] = None,
-    job_id: Optional[str] = None
+    job_id: Optional[str] = None,
+    dataset_type: str = 'feature_based'
 ) -> dict:
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -563,23 +640,27 @@ async def generate_synthetic_data_with_iq(
     Args:
         dataset_id: Dataset UUID
         num_samples: Number of samples to generate
-        receivers_config: List of receiver configurations
+        receivers_config: List of receiver configurations (ignored if dataset_type='iq_raw')
         training_config: Training configuration with bounding boxes
         config: Generation parameters (frequency, power, SNR thresholds, etc.)
         conn: Database connection (async)
         progress_callback: Optional callback for progress updates
         seed: Random seed for reproducibility
         job_id: Optional job ID for cancellation detection
+        dataset_type: Dataset type ('feature_based' or 'iq_raw')
 
     Returns:
         dict with generation statistics
     """
-    logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples")
+    logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples (type: {dataset_type})")
 
     # Extract generation parameters
     min_snr_db = config.get('min_snr_db', 3.0)
     min_receivers = config.get('min_receivers', 3)
     max_gdop = config.get('max_gdop', 10.0)
+    
+    # For iq_raw datasets, use random receivers
+    use_random_receivers = (dataset_type == 'iq_raw') or config.get('use_random_receivers', False)
 
     # Determine number of worker threads
     # For I/O-bound tasks (which include numpy operations), use more threads than CPUs
@@ -631,7 +712,7 @@ async def generate_synthetic_data_with_iq(
 
     # Prepare arguments for parallel processing
     args_list = [
-        (i, receivers_list, training_config_dict, config, seed)
+        (i, receivers_list, training_config_dict, config, seed, dataset_type, use_random_receivers)
         for i in range(num_samples)
     ]
 
@@ -673,7 +754,7 @@ async def generate_synthetic_data_with_iq(
                     break
 
             try:
-                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position = future.result()
+                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position, num_receivers_in_sample = future.result()
 
                 # Validation checks
                 if quality_metrics['num_receivers_detected'] < min_receivers:
@@ -697,8 +778,10 @@ async def generate_synthetic_data_with_iq(
                     'tx_position': tx_position
                 })
 
-                # Store IQ samples (first 100 only)
-                if sample_idx < 100 and iq_samples:
+                # Store IQ samples
+                # For iq_raw: store ALL samples
+                # For feature_based: store first 100 only (legacy behavior)
+                if iq_samples and (dataset_type == 'iq_raw' or sample_idx < 100):
                     iq_samples_to_save[sample_idx] = iq_samples
 
                 completed += 1
@@ -740,15 +823,24 @@ async def generate_synthetic_data_with_iq(
         await save_features_to_db(dataset_id, samples_to_save, conn)
         logger.info(f"Saved final {remaining_samples} remaining samples")
 
-    # Save IQ samples to MinIO (first 100 only)
+    # Save IQ samples to MinIO and database
+    # For feature_based: save first 100 only
+    # For iq_raw: save ALL samples
     if iq_samples_to_save:
-        await save_iq_to_minio(dataset_id, iq_samples_to_save)
+        storage_paths = await save_iq_to_minio(dataset_id, iq_samples_to_save)
+        
+        # For iq_raw datasets, also save metadata to synthetic_iq_samples table
+        if dataset_type == 'iq_raw':
+            # Filter generated_samples to only include those with IQ storage paths
+            samples_with_iq = [s for s in generated_samples if s['sample_idx'] in storage_paths]
+            await save_iq_metadata_to_db(dataset_id, samples_with_iq, storage_paths, conn)
 
     return {
         'total_generated': len(generated_samples),
         'total_attempted': num_samples,
         'success_rate': len(generated_samples) / num_samples if num_samples > 0 else 0,
-        'iq_samples_saved': len(iq_samples_to_save)
+        'iq_samples_saved': len(iq_samples_to_save),
+        'dataset_type': dataset_type
     }
 
 
@@ -820,13 +912,16 @@ async def save_features_to_db(
 async def save_iq_to_minio(
     dataset_id: uuid.UUID,
     iq_samples_dict: dict[int, dict[str, SyntheticIQSample]]
-) -> None:
+) -> dict[int, dict[str, str]]:
     """
     Save IQ samples to MinIO.
 
     Args:
         dataset_id: Dataset UUID
         iq_samples_dict: Dict mapping sample_idx to dict of {rx_id: SyntheticIQSample}
+    
+    Returns:
+        Dict mapping sample_idx to dict of {rx_id: minio_path}
     """
     # Import MinIO client
     import sys
@@ -846,7 +941,10 @@ async def save_iq_to_minio(
 
     logger.info(f"Saving {len(iq_samples_dict)} IQ samples to MinIO")
 
+    storage_paths = {}  # {sample_idx: {rx_id: path}}
+    
     for sample_idx, receivers_iq in iq_samples_dict.items():
+        storage_paths[sample_idx] = {}
         for rx_id, iq_sample in receivers_iq.items():
             # Binary format: complex64 array
             buffer = io.BytesIO()
@@ -861,5 +959,91 @@ async def save_iq_to_minio(
                 Body=buffer.getvalue(),
                 ContentType='application/octet-stream'
             )
+            
+            storage_paths[sample_idx][rx_id] = object_name
 
     logger.info(f"Saved {len(iq_samples_dict)} IQ samples to MinIO bucket 'heimdall-synthetic-iq'")
+    
+    return storage_paths
+
+
+async def save_iq_metadata_to_db(
+    dataset_id: uuid.UUID,
+    samples: list[dict],
+    storage_paths: dict[int, dict[str, str]],
+    conn
+) -> None:
+    """
+    Save IQ sample metadata to synthetic_iq_samples table.
+    
+    Args:
+        dataset_id: Dataset UUID
+        samples: List of sample dicts with metadata
+        storage_paths: Dict mapping sample_idx to {rx_id: minio_path}
+        conn: Database connection (async)
+    """
+    logger.info(f"Saving {len(samples)} IQ metadata samples to database")
+
+    # Get raw asyncpg connection
+    raw_conn = await conn.get_raw_connection()
+    asyncpg_conn = raw_conn.driver_connection
+
+    insert_query = """
+        INSERT INTO heimdall.synthetic_iq_samples (
+            timestamp, dataset_id, sample_idx, tx_lat, tx_lon, tx_alt, tx_power_dbm,
+            frequency_hz, receivers_metadata, num_receivers, gdop, mean_snr_db,
+            overall_confidence, iq_metadata, iq_storage_paths, created_at
+        )
+        VALUES (
+            NOW(), $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13::jsonb, $14::jsonb, NOW()
+        )
+        ON CONFLICT (dataset_id, sample_idx) DO NOTHING
+    """
+
+    for sample in samples:
+        sample_idx = sample['sample_idx']
+        
+        # Skip if no IQ storage paths (shouldn't happen for iq_raw datasets)
+        if sample_idx not in storage_paths:
+            logger.warning(f"Sample {sample_idx}: No IQ storage paths found, skipping metadata save")
+            continue
+        
+        # Build receivers_metadata from receiver_features
+        receivers_metadata = []
+        for feat in sample['receiver_features']:
+            receivers_metadata.append({
+                'rx_id': feat['rx_id'],
+                'lat': feat['rx_lat'],
+                'lon': feat['rx_lon'],
+                'alt': feat.get('rx_alt', 300.0),  # Fallback to default
+                'distance_km': feat['distance_km'],
+                'snr_db': feat.get('snr_db', 0.0),
+                'signal_present': feat['signal_present']
+            })
+        
+        # Build IQ metadata from extraction metadata
+        iq_metadata = {
+            'sample_rate_hz': sample['extraction_metadata'].get('sample_rate_hz', 200000),
+            'duration_ms': sample['extraction_metadata'].get('iq_duration_ms', 1000.0),
+            'center_frequency_hz': int(sample['extraction_metadata'].get('frequency_mhz', 145.0) * 1e6)
+        }
+
+        await asyncpg_conn.execute(
+            insert_query,
+            str(dataset_id),                                      # $1
+            sample_idx,                                           # $2
+            sample['tx_position']['tx_lat'],                      # $3
+            sample['tx_position']['tx_lon'],                      # $4
+            sample['tx_position']['tx_alt'],                      # $5
+            sample['tx_position']['tx_power_dbm'],                # $6
+            int(sample['extraction_metadata'].get('frequency_mhz', 145.0) * 1e6),  # $7
+            json.dumps(receivers_metadata),                       # $8
+            len(receivers_metadata),                              # $9
+            sample['quality_metrics']['gdop'],                    # $10
+            sample['quality_metrics']['mean_snr_db'],             # $11
+            sample['quality_metrics']['overall_confidence'],      # $12
+            json.dumps(iq_metadata),                              # $13
+            json.dumps(storage_paths[sample_idx])                 # $14
+        )
+
+    logger.info(f"Saved {len(samples)} IQ metadata samples to database")

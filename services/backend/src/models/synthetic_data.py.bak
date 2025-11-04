@@ -21,25 +21,15 @@ class SyntheticDataGenerationRequest(BaseModel):
     """
     Request to generate synthetic training data.
 
-    Two modes:
-    - feature_based: Traditional feature extraction (mel-spectrograms, MFCCs) with fixed receivers
-    - iq_raw: Raw IQ samples for CNN training with random receivers per sample (5-10 count)
-
     Note: Data splits (train/val/test) are NOT assigned during generation.
     They are calculated at training time for maximum flexibility.
     """
 
     name: str = Field(..., min_length=1, max_length=100, description="Dataset name")
     description: Optional[str] = Field(default=None, description="Dataset description")
-    dataset_type: DatasetType = Field(
-        default=DatasetType.FEATURE_BASED, 
-        description="Dataset type: feature_based (mel-spec/MFCC) or iq_raw (CNN training)"
-    )
-    num_samples: int = Field(..., ge=100, le=5000000, description="Number of samples to generate")
-    expand_dataset_id: Optional[UUID] = Field(
-        default=None, 
-        description="If provided, adds samples to existing dataset instead of creating new one"
-    )
+    dataset_type: DatasetType = Field(default=DatasetType.FEATURE_BASED, description="Dataset type: feature_based or iq_raw")
+    num_samples: int = Field(..., ge=1000, le=5000000, description="Number of samples to generate")
+    expand_dataset_id: Optional[UUID] = Field(default=None, description="If provided, adds samples to existing dataset instead of creating new one")
     inside_ratio: float = Field(
         default=0.7, ge=0.0, le=1.0, description="Ratio of TX inside receiver network"
     )
@@ -48,25 +38,18 @@ class SyntheticDataGenerationRequest(BaseModel):
     )
     tx_power_dbm: float = Field(default=37.0, ge=0.0, le=50.0, description="TX power in dBm")
     min_snr_db: float = Field(default=3.0, ge=0.0, description="Minimum SNR threshold")
-    min_receivers: int = Field(
-        default=3, ge=2, le=10, 
-        description="Minimum receivers with signal (applies to quality filtering)"
-    )
+    min_receivers: int = Field(default=3, ge=2, le=10, description="Minimum receivers with signal")
     max_gdop: float = Field(default=10.0, ge=1.0, description="Maximum GDOP")
 
     # Random receiver generation parameters (for iq_raw datasets)
-    # For iq_raw mode: use_random_receivers is forced to True
     use_random_receivers: bool = Field(
-        default=False, 
-        description="Use random receivers per sample (automatically True for iq_raw datasets)"
+        default=False, description="Use random receivers per sample (required for iq_raw datasets)"
     )
     min_receivers_count: int = Field(
-        default=5, ge=3, le=15, 
-        description="Minimum number of receivers per sample (iq_raw mode)"
+        default=5, ge=3, le=15, description="Minimum number of receivers per sample (iq_raw mode)"
     )
     max_receivers_count: int = Field(
-        default=10, ge=3, le=15, 
-        description="Maximum number of receivers per sample (iq_raw mode)"
+        default=10, ge=3, le=15, description="Maximum number of receivers per sample (iq_raw mode)"
     )
     receiver_seed: Optional[int] = Field(
         default=None, description="Random seed for receiver generation (reproducibility)"
@@ -96,7 +79,7 @@ class SyntheticDatasetResponse(BaseModel):
     id: UUID
     name: str
     description: Optional[str]
-    dataset_type: Optional[DatasetType] = DatasetType.FEATURE_BASED  # Default for backward compatibility
+    dataset_type: DatasetType
     num_samples: int
     config: dict[str, Any]
     quality_metrics: Optional[dict[str, Any]]

@@ -165,6 +165,22 @@ const TrainingDashboard: React.FC = () => {
     use_real_terrain: true, // Use SRTM terrain data (production baseline)
   });
 
+  // DEBUG: Track dataForm changes
+  React.useEffect(() => {
+    console.log('[TrainingDashboard] dataForm changed:', dataForm);
+  }, [dataForm]);
+
+  // PERFORMANCE: Memoize filtered jobs to avoid re-filtering on every render
+  const syntheticJobs = React.useMemo(() => 
+    jobs.filter(isSyntheticJob), 
+    [jobs]
+  );
+
+  const trainingJobs = React.useMemo(() => 
+    jobs.filter(isTrainingJob), 
+    [jobs]
+  );
+
   // Load data silently (no loading spinner after initial load)
   const loadData = async (silent = false) => {
     try {
@@ -190,26 +206,40 @@ const TrainingDashboard: React.FC = () => {
   useEffect(() => {
     loadData(false);
     
-    // Silent refresh every 10 seconds (backup for WebSocket)
-    const interval = setInterval(() => loadData(true), 10000);
+    // Throttle WebSocket updates: only reload if no modal is open
+    // This prevents lag during modal input by avoiding unnecessary re-renders
+    let lastUpdateTime = 0;
+    const MIN_UPDATE_INTERVAL = 2000; // Minimum 2 seconds between updates
     
-    // WebSocket real-time updates (silent and transparent)
-    const unsubscribeTrainingJob = subscribe('training_job_update', (data: any) => {
-      console.log('[TrainingDashboard] Received training job update:', data);
-      // Refresh jobs silently without spinner
+    const throttledLoadData = () => {
+      const now = Date.now();
+      const modalOpen = showDataModal || showDetailsModal;
+      
+      // Skip update if modal is open or we updated too recently
+      if (modalOpen || (now - lastUpdateTime < MIN_UPDATE_INTERVAL)) {
+        return;
+      }
+      
+      lastUpdateTime = now;
       loadData(true);
+    };
+    
+    // Silent refresh every 10 seconds (backup for WebSocket)
+    const interval = setInterval(() => {
+      throttledLoadData();
+    }, 10000);
+    
+    // WebSocket real-time updates with throttling
+    const unsubscribeTrainingJob = subscribe('training_job_update', () => {
+      throttledLoadData();
     });
 
-    const unsubscribeDataset = subscribe('dataset_update', (data: any) => {
-      console.log('[TrainingDashboard] Received dataset update:', data);
-      // Refresh datasets silently
-      loadData(true);
+    const unsubscribeDataset = subscribe('dataset_update', () => {
+      throttledLoadData();
     });
 
-    const unsubscribeModel = subscribe('model_update', (data: any) => {
-      console.log('[TrainingDashboard] Received model update:', data);
-      // Refresh models silently
-      loadData(true);
+    const unsubscribeModel = subscribe('model_update', () => {
+      throttledLoadData();
     });
 
     return () => {
@@ -219,7 +249,9 @@ const TrainingDashboard: React.FC = () => {
       unsubscribeModel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // subscribe is stable via useCallback, safe to omit from deps
+  }, [showDataModal, showDetailsModal]); // Reload when modal state changes
+
+
 
   // Handle data generation
   const handleGenerateData = async () => {
@@ -457,7 +489,7 @@ const TrainingDashboard: React.FC = () => {
           </Button>
         </Card.Header>
         <Card.Body>
-          {jobs.filter(isSyntheticJob).length === 0 ? (
+          {syntheticJobs.length === 0 ? (
             <Alert variant="info">
               No synthetic generation jobs yet. Click "Generate New Dataset" to get started.
             </Alert>
@@ -474,7 +506,7 @@ const TrainingDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {jobs.filter(isSyntheticJob).map((job) => (
+                {syntheticJobs.map((job) => (
                   <tr key={job.id}>
                     <td><strong>{job.job_name}</strong></td>
                     <td>{getStatusBadge(job.status)}</td>
@@ -631,7 +663,7 @@ const TrainingDashboard: React.FC = () => {
           </h5>
         </Card.Header>
         <Card.Body>
-          {jobs.filter(isTrainingJob).length === 0 ? (
+          {trainingJobs.length === 0 ? (
             <Alert variant="info">
               No training jobs yet.
             </Alert>
@@ -648,7 +680,7 @@ const TrainingDashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {jobs.filter(isTrainingJob).map((job) => (
+                {trainingJobs.map((job) => (
                   <tr key={job.id}>
                     <td><strong>{job.job_name}</strong></td>
                     <td>{getStatusBadge(job.status)}</td>
@@ -999,8 +1031,54 @@ const TrainingDashboard: React.FC = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Data Generation Modal */}
-      <Modal show={showDataModal} onHide={() => setShowDataModal(false)} size="lg">
+      {/* Data Generation Modal - Memoized to prevent re-renders from parent */}
+      {showDataModal && (
+        <DataGenerationModal
+          show={showDataModal}
+          onHide={() => setShowDataModal(false)}
+          dataForm={dataForm}
+          setDataForm={setDataForm}
+          powerUnit={powerUnit}
+          setPowerUnit={setPowerUnit}
+          powerValueWatt={powerValueWatt}
+          setPowerValueWatt={setPowerValueWatt}
+          wattToDbm={wattToDbm}
+          dbmToWatt={dbmToWatt}
+          onSubmit={handleGenerateData}
+        />
+      )}
+    </Container>
+  );
+};
+
+// Separate modal component to prevent re-renders from parent state changes
+const DataGenerationModal: React.FC<{
+  show: boolean;
+  onHide: () => void;
+  dataForm: any;
+  setDataForm: (form: any) => void;
+  powerUnit: 'watt' | 'dbm';
+  setPowerUnit: (unit: 'watt' | 'dbm') => void;
+  powerValueWatt: number;
+  setPowerValueWatt: (value: number) => void;
+  wattToDbm: (watt: number) => number;
+  dbmToWatt: (dbm: number) => number;
+  onSubmit: () => void;
+}> = React.memo(({ 
+  show, 
+  onHide, 
+  dataForm, 
+  setDataForm, 
+  powerUnit, 
+  setPowerUnit, 
+  powerValueWatt, 
+  setPowerValueWatt, 
+  wattToDbm, 
+  dbmToWatt,
+  onSubmit 
+}) => {
+  return (
+    <Modal show={show} onHide={onHide} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Generate Synthetic Training Data</Modal.Title>
         </Modal.Header>
@@ -1201,8 +1279,9 @@ const TrainingDashboard: React.FC = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-    </Container>
   );
-};
+});
+
+DataGenerationModal.displayName = 'DataGenerationModal';
 
 export default TrainingDashboard;

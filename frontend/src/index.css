@@ -445,3 +445,20 @@ textarea:focus-visible {
   max-height: 700px;
   overflow-y: auto;
 }
+
+/* ===========================
+   MODAL SCROLLING FIX
+   =========================== */
+
+/* Ensure modal body can scroll when content overflows */
+.modal-body {
+  max-height: calc(100vh - 210px); /* viewport height minus header/footer */
+  overflow-y: auto;
+}
+
+/* On mobile, give more space to modal body */
+@media (max-width: 640px) {
+  .modal-body {
+    max-height: calc(100vh - 150px);
+  }
+}

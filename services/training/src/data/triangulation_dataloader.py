@@ -13,6 +13,7 @@ import numpy as np
 import structlog
 import pickle
 import hashlib
+import io
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from typing import List, Dict, Optional
@@ -22,6 +23,17 @@ logger = structlog.get_logger(__name__)
 
 # Global cache directory for preprocessed samples
 CACHE_DIR = Path("/tmp/heimdall_training_cache")
+
+# Spectrogram parameters for IQ-raw datasets
+SPECTROGRAM_CONFIG = {
+    'n_fft': 256,         # FFT bins
+    'hop_length': 128,    # Hop size
+    'win_length': 256,    # Window size
+    'window': 'hann',     # Window function
+    'center': True,
+    'normalized': True,
+    'onesided': True      # Only positive frequencies for real signals
+}
 
 
 class SyntheticTriangulationDataset(Dataset):
@@ -297,6 +309,38 @@ def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     }
 
 
+def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
+    """
+    Collate function for batching IQ samples with spectrograms.
+    
+    Args:
+        batch: List of sample dicts from TriangulationIQDataset
+    
+    Returns:
+        Batched dict with stacked tensors
+    """
+    # Stack all tensors
+    iq_spectrograms = torch.stack([sample["iq_spectrograms"] for sample in batch])
+    receiver_positions = torch.stack([sample["receiver_positions"] for sample in batch])
+    signal_mask = torch.stack([sample["signal_mask"] for sample in batch])
+    target_position = torch.stack([sample["target_position"] for sample in batch])
+    
+    # Collect metadata
+    metadata = {
+        "sample_ids": [sample["metadata"]["sample_id"] for sample in batch],
+        "gdop": torch.tensor([sample["metadata"]["gdop"] for sample in batch], dtype=torch.float32),
+        "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long)
+    }
+    
+    return {
+        "iq_spectrograms": iq_spectrograms,
+        "receiver_positions": receiver_positions,
+        "signal_mask": signal_mask,
+        "target_position": target_position,
+        "metadata": metadata
+    }
+
+
 def create_triangulation_dataloader(
     dataset_ids: List[str],
     split: str,
@@ -351,6 +395,341 @@ def create_triangulation_dataloader(
     )
     
     return dataloader
+
+
+def create_iq_dataloader(
+    dataset_ids: List[str],
+    split: str,
+    db_session,
+    minio_client,
+    batch_size: int = 32,
+    num_workers: int = 4,
+    shuffle: bool = True,
+    max_receivers: int = 10,
+    use_cache: bool = True
+) -> DataLoader:
+    """
+    Create DataLoader for IQ-raw CNN training.
+    
+    Args:
+        dataset_ids: List of UUIDs of IQ datasets to merge
+        split: 'train', 'val', or 'test'
+        db_session: Database session
+        minio_client: MinIO client for loading IQ data
+        batch_size: Batch size (smaller than feature-based due to memory)
+        num_workers: Number of worker processes
+        shuffle: Whether to shuffle data
+        max_receivers: Maximum number of receivers (for padding)
+        use_cache: Enable file-based caching (recommended for IQ data)
+    
+    Returns:
+        DataLoader instance
+    """
+    dataset = TriangulationIQDataset(
+        dataset_ids=dataset_ids,
+        split=split,
+        db_session=db_session,
+        minio_client=minio_client,
+        max_receivers=max_receivers,
+        use_cache=use_cache
+    )
+    
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        collate_fn=collate_iq_fn,
+        pin_memory=True,
+        persistent_workers=True if num_workers > 0 else False
+    )
+    
+    logger.info(
+        "IQ DataLoader created",
+        split=split,
+        num_samples=len(dataset),
+        batch_size=batch_size,
+        num_batches=len(dataloader),
+        num_workers=num_workers,
+        spectrogram_config=SPECTROGRAM_CONFIG
+    )
+    
+    return dataloader
+
+
+class TriangulationIQDataset(Dataset):
+    """
+    Dataset for IQ-raw samples for CNN-based triangulation.
+    
+    Loads raw IQ samples from MinIO and computes spectrograms on-the-fly during training.
+    Supports variable receiver count (5-10 per sample).
+    """
+    
+    def __init__(
+        self,
+        dataset_ids: List[str],
+        split: str,
+        db_session,
+        minio_client,
+        max_receivers: int = 10,
+        use_cache: bool = True
+    ):
+        """
+        Initialize IQ dataset.
+        
+        Args:
+            dataset_ids: List of UUIDs of IQ datasets to merge
+            split: 'train', 'val', or 'test'
+            db_session: Database session
+            minio_client: MinIO client for loading IQ data
+            max_receivers: Maximum number of receivers (for padding)
+            use_cache: Enable file-based caching
+        """
+        self.dataset_ids = dataset_ids
+        self.split = split
+        self.max_receivers = max_receivers
+        self.use_cache = use_cache
+        self.minio_client = minio_client
+        
+        # Store the session
+        self.db_session = db_session
+        
+        # Setup cache directory
+        if self.use_cache:
+            datasets_hash = hashlib.md5("_".join(sorted(dataset_ids)).encode()).hexdigest()[:8]
+            self.cache_dir = CACHE_DIR / f"iq_{datasets_hash}_{split}"
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"IQ file cache enabled: {self.cache_dir}")
+        else:
+            self.cache_dir = None
+        
+        # Load sample IDs
+        self.sample_ids = self._load_sample_ids(db_session)
+        
+        # Store DB connection info
+        self._db_url = str(db_session.get_bind().url)
+        
+        # Count cached samples
+        cached_count = 0
+        if self.use_cache and self.cache_dir:
+            cached_count = len(list(self.cache_dir.glob("*.pkl")))
+            if cached_count > 0:
+                cache_pct = (cached_count / len(self.sample_ids)) * 100
+                logger.info(f"⚡ IQ Cache hit: {cached_count}/{len(self.sample_ids)} samples ({cache_pct:.1f}%)")
+        
+        logger.info(
+            "TriangulationIQDataset initialized",
+            dataset_ids=dataset_ids,
+            split=split,
+            num_samples=len(self.sample_ids),
+            max_receivers=max_receivers,
+            cache_enabled=self.use_cache,
+            cached_samples=cached_count
+        )
+    
+    def _load_sample_ids(self, db_session) -> List[str]:
+        """Load sample IDs from synthetic_iq_samples table."""
+        from sqlalchemy import text
+        
+        query = text("""
+            SELECT id
+            FROM heimdall.synthetic_iq_samples
+            WHERE dataset_id = ANY(CAST(:dataset_ids AS uuid[]))
+            ORDER BY timestamp, sample_idx
+        """)
+        
+        result = db_session.execute(query, {"dataset_ids": self.dataset_ids})
+        all_sample_ids = [str(row[0]) for row in result]
+        
+        # Apply train/val/test split
+        if self.split == 'train':
+            split_idx = int(len(all_sample_ids) * 0.8)
+            sample_ids = all_sample_ids[:split_idx]
+        elif self.split == 'val':
+            split_idx = int(len(all_sample_ids) * 0.8)
+            sample_ids = all_sample_ids[split_idx:]
+        elif self.split == 'test':
+            split_idx = int(len(all_sample_ids) * 0.9)
+            sample_ids = all_sample_ids[split_idx:]
+        else:
+            raise ValueError(f"Invalid split: {self.split}")
+        
+        return sample_ids
+    
+    def __len__(self) -> int:
+        """Return number of samples."""
+        return len(self.sample_ids)
+    
+    def _get_cache_path(self, idx: int) -> Optional[Path]:
+        """Get cache file path for a sample."""
+        if not self.use_cache or not self.cache_dir:
+            return None
+        return self.cache_dir / f"iq_sample_{idx:06d}.pkl"
+    
+    def _compute_spectrogram(self, iq_data: np.ndarray) -> torch.Tensor:
+        """
+        Compute spectrogram from IQ data using STFT.
+        
+        Args:
+            iq_data: Complex IQ samples (num_samples,)
+        
+        Returns:
+            Spectrogram tensor: (2, freq_bins, time_bins) - [real, imag]
+        """
+        # Convert to torch complex tensor
+        iq_tensor = torch.from_numpy(iq_data).to(torch.complex64)
+        
+        # Compute STFT
+        stft_result = torch.stft(
+            iq_tensor,
+            n_fft=SPECTROGRAM_CONFIG['n_fft'],
+            hop_length=SPECTROGRAM_CONFIG['hop_length'],
+            win_length=SPECTROGRAM_CONFIG['win_length'],
+            window=torch.hann_window(SPECTROGRAM_CONFIG['win_length']),
+            center=SPECTROGRAM_CONFIG['center'],
+            normalized=SPECTROGRAM_CONFIG['normalized'],
+            onesided=SPECTROGRAM_CONFIG['onesided'],
+            return_complex=True
+        )
+        
+        # Stack real and imaginary parts: (freq_bins, time_bins) -> (2, freq_bins, time_bins)
+        spectrogram = torch.stack([stft_result.real, stft_result.imag], dim=0)
+        
+        return spectrogram
+    
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        """
+        Get IQ sample at index.
+        
+        Returns:
+            Dict with:
+            - iq_spectrograms: (num_receivers, 2, freq_bins, time_bins) - [real, imag]
+            - receiver_positions: (num_receivers, 2) - [lat, lon]
+            - signal_mask: (num_receivers,) - Boolean mask (True = no signal/padding)
+            - target_position: (2,) - [lat, lon]
+            - metadata: Dict with additional info
+        """
+        # Try cache first
+        cache_path = self._get_cache_path(idx)
+        if cache_path and cache_path.exists():
+            try:
+                with open(cache_path, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                logger.warning(f"IQ cache read failed for idx {idx}: {e}, loading from DB")
+        
+        sample_id = self.sample_ids[idx]
+        session = self.db_session
+        
+        try:
+            # Load sample metadata from database
+            from sqlalchemy import text
+            
+            query = text("""
+                SELECT 
+                    tx_lat, tx_lon, 
+                    receivers_metadata, 
+                    num_receivers,
+                    iq_storage_paths,
+                    gdop
+                FROM heimdall.synthetic_iq_samples
+                WHERE id = :sample_id
+            """)
+            
+            result = session.execute(query, {"sample_id": sample_id}).fetchone()
+            
+            if result is None:
+                raise ValueError(f"IQ sample {sample_id} not found")
+            
+            tx_lat, tx_lon, receivers_metadata, num_receivers, iq_storage_paths, gdop = result
+            
+            # Load IQ data from MinIO and compute spectrograms
+            spectrograms = []
+            receiver_positions = []
+            signal_mask = []
+            
+            for rx_meta in receivers_metadata:
+                rx_id = rx_meta['rx_id']
+                rx_lat = rx_meta['lat']
+                rx_lon = rx_meta['lon']
+                signal_present = rx_meta.get('signal_present', True)
+                
+                # Get MinIO path for this receiver
+                minio_path = iq_storage_paths.get(rx_id)
+                
+                if minio_path and signal_present:
+                    # Load IQ data from MinIO
+                    try:
+                        response = self.minio_client.s3_client.get_object(
+                            Bucket="heimdall-synthetic-iq",
+                            Key=minio_path
+                        )
+                        iq_bytes = response['Body'].read()
+                        
+                        # Load numpy array
+                        iq_data = np.load(io.BytesIO(iq_bytes))
+                        
+                        # Compute spectrogram
+                        spectrogram = self._compute_spectrogram(iq_data)
+                        spectrograms.append(spectrogram)
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to load IQ for {rx_id}: {e}, using zeros")
+                        # Use zero spectrogram if loading fails
+                        spectrogram = torch.zeros(2, 129, 1560)  # Approximate size
+                        spectrograms.append(spectrogram)
+                        signal_present = False
+                else:
+                    # No signal or missing path
+                    spectrogram = torch.zeros(2, 129, 1560)
+                    spectrograms.append(spectrogram)
+                    signal_present = False
+                
+                receiver_positions.append([rx_lat, rx_lon])
+                signal_mask.append(not signal_present)
+            
+            # Pad to max_receivers if needed
+            current_receivers = len(spectrograms)
+            if current_receivers < self.max_receivers:
+                padding_count = self.max_receivers - current_receivers
+                
+                # Add zero spectrograms
+                for _ in range(padding_count):
+                    spectrograms.append(torch.zeros_like(spectrograms[0]))
+                    receiver_positions.append([0.0, 0.0])
+                    signal_mask.append(True)  # Mask padded positions
+            
+            # Stack into tensors
+            iq_spectrograms = torch.stack(spectrograms)  # (num_receivers, 2, freq, time)
+            receiver_positions = torch.tensor(receiver_positions, dtype=torch.float32)  # (num_receivers, 2)
+            signal_mask = torch.tensor(signal_mask, dtype=torch.bool)  # (num_receivers,)
+            target_position = torch.tensor([tx_lat, tx_lon], dtype=torch.float32)  # (2,)
+            
+            sample_data = {
+                "iq_spectrograms": iq_spectrograms,
+                "receiver_positions": receiver_positions,
+                "signal_mask": signal_mask,
+                "target_position": target_position,
+                "metadata": {
+                    "sample_id": sample_id,
+                    "gdop": gdop if gdop else 50.0,
+                    "num_receivers": num_receivers
+                }
+            }
+            
+            # Save to cache
+            if cache_path:
+                try:
+                    with open(cache_path, 'wb') as f:
+                        pickle.dump(sample_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+                except Exception as e:
+                    logger.warning(f"IQ cache write failed for idx {idx}: {e}")
+            
+            return sample_data
+            
+        except Exception as e:
+            logger.error(f"Error loading IQ sample {idx}: {e}")
+            raise
 
 
 class TriangulationMetrics:
