@@ -308,18 +308,20 @@ def calculate_gdop(receiver_positions: list, tx_position: Tuple[float, float]) -
     
     Lower GDOP = better geometry for triangulation.
     
+    Improved algorithm that considers:
+    - Angular spread (minimum gap between receivers)
+    - Number of receivers (redundancy)
+    - Angular uniformity (variance of gaps)
+    
     Args:
         receiver_positions: List of (lat, lon) tuples for receivers
         tx_position: (lat, lon) tuple for transmitter
     
     Returns:
-        GDOP value (lower is better, <10 is good)
+        GDOP value (lower is better, <10 is excellent, <30 is good, <100 is acceptable)
     """
     if len(receiver_positions) < 3:
         return 999.0  # Invalid
-    
-    # Simplified GDOP calculation
-    # Real GDOP requires full Jacobian matrix, but we use angular spread as proxy
     
     tx_lat, tx_lon = tx_position
     
@@ -339,15 +341,34 @@ def calculate_gdop(receiver_positions: list, tx_position: Tuple[float, float]) -
         gap = (angles[next_i] - angles[i]) % (2 * math.pi)
         gaps.append(gap)
     
-    # GDOP inversely proportional to minimum gap
-    # Smaller gaps = worse geometry = higher GDOP
+    # Metrics for geometry quality
     min_gap = min(gaps)
+    max_gap = max(gaps)
+    mean_gap = sum(gaps) / len(gaps)
     
-    if min_gap < 0.1:  # Very small gap
-        gdop = 50.0
-    elif min_gap < 0.5:
-        gdop = 20.0 / min_gap
-    else:
-        gdop = 10.0 / math.sqrt(len(receiver_positions))
+    # Calculate gap variance (uniformity measure)
+    gap_variance = sum((g - mean_gap) ** 2 for g in gaps) / len(gaps)
+    gap_std = math.sqrt(gap_variance)
     
-    return gdop
+    # Base GDOP from minimum gap (primary factor)
+    # More gradual penalty function
+    if min_gap < 0.05:  # <3 degrees - very poor geometry
+        base_gdop = 100.0
+    elif min_gap < 0.15:  # <9 degrees - poor geometry
+        base_gdop = 60.0 + (0.15 - min_gap) * 400.0  # 60-100 range
+    elif min_gap < 0.5:  # <29 degrees - fair geometry
+        base_gdop = 20.0 + (0.5 - min_gap) * 114.3  # 20-60 range
+    else:  # >=29 degrees - good geometry
+        base_gdop = 10.0 / math.sqrt(len(receiver_positions))
+    
+    # Penalty for non-uniform distribution (clustered receivers)
+    # Ideal distribution has uniform gaps (low std deviation)
+    uniformity_penalty = 1.0 + (gap_std / mean_gap) * 0.3
+    
+    # Bonus for more receivers (redundancy helps)
+    receiver_bonus = 1.0 / math.sqrt(len(receiver_positions) / 4.0)
+    
+    gdop = base_gdop * uniformity_penalty * receiver_bonus
+    
+    # Cap at reasonable maximum
+    return min(gdop, 999.0)

@@ -243,9 +243,10 @@ class GenerateDatasetRequest(BaseModel):
     tx_power_dbm: float
     min_snr_db: float
     min_receivers: int
-    max_gdop: float
+    max_gdop: float = 150.0  # Default: 150 GDOP for clustered receivers (Italian WebSDRs)
     dataset_type: str = "feature_based"
     use_random_receivers: bool = False
+    use_srtm_terrain: bool = True
     seed: Optional[int] = None
 
 
@@ -360,6 +361,7 @@ async def generate_dataset(
         "max_gdop": request.max_gdop,
         "dataset_type": request.dataset_type,
         "use_random_receivers": request.use_random_receivers,
+        "use_srtm_terrain": request.use_srtm_terrain,
         "seed": request.seed
     }
     
@@ -412,3 +414,245 @@ async def generate_dataset(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to create generation job: {str(e)}")
+
+
+# ============================================================================
+# TERRAIN MANAGEMENT ENDPOINTS
+# ============================================================================
+
+class TerrainTileStatus(BaseModel):
+    """Terrain tile status information."""
+    tile_name: str
+    exists: bool
+    lat_min: int
+    lat_max: int
+    lon_min: int
+    lon_max: int
+
+
+class TerrainCoverageRequest(BaseModel):
+    """Request model for terrain coverage check."""
+    lat_min: float
+    lat_max: float
+    lon_min: float
+    lon_max: float
+
+
+class TerrainCoverageResponse(BaseModel):
+    """Response model for terrain coverage status."""
+    total_tiles: int
+    available_tiles: int
+    missing_tiles: int
+    coverage_percent: float
+    tiles: List[TerrainTileStatus]
+    missing_tile_names: List[str]
+
+
+class TerrainDownloadRequest(BaseModel):
+    """Request model for SRTM tile download."""
+    lat_min: float
+    lat_max: float
+    lon_min: float
+    lon_max: float
+
+
+class TerrainDownloadResponse(BaseModel):
+    """Response model for terrain download operation."""
+    message: str
+    tiles_to_download: List[str]
+    backend_url: str
+
+
+@router.post("/terrain/coverage", response_model=TerrainCoverageResponse)
+async def check_terrain_coverage(
+    request: TerrainCoverageRequest
+):
+    """
+    Check terrain tile coverage for a geographic region.
+    
+    This endpoint checks which SRTM tiles are available in MinIO storage
+    for the specified region and which ones are missing.
+    
+    Args:
+        request: Geographic bounds to check
+    
+    Returns:
+        Coverage status with available and missing tiles
+    """
+    import math
+    import sys
+    import os
+    
+    # Import MinIOClient from backend service
+    sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
+    
+    # Import training service settings
+    from ..config import settings
+    
+    # Calculate required tiles (1°×1° tiles)
+    tile_coords = []
+    lat_start = int(math.floor(request.lat_min))
+    lat_end = int(math.floor(request.lat_max))
+    lon_start = int(math.floor(request.lon_min))
+    lon_end = int(math.floor(request.lon_max))
+    
+    for lat in range(lat_start, lat_end + 1):
+        for lon in range(lon_start, lon_end + 1):
+            tile_coords.append((lat, lon))
+    
+    # Initialize MinIO client using backend settings
+    minio_client = MinIOClient(
+        endpoint_url=backend_settings.minio_url,
+        access_key=backend_settings.minio_access_key,
+        secret_key=backend_settings.minio_secret_key,
+        bucket_name="heimdall-terrain"
+    )
+    
+    # Check which tiles exist in MinIO
+    tiles_status = []
+    available_count = 0
+    missing_tile_names = []
+    
+    for lat, lon in tile_coords:
+        # Format tile name
+        lat_prefix = "N" if lat >= 0 else "S"
+        lon_prefix = "E" if lon >= 0 else "W"
+        tile_name = f"{lat_prefix}{abs(lat):02d}{lon_prefix}{abs(lon):03d}"
+        
+        # Check if tile exists in MinIO
+        object_name = f"tiles/{tile_name}.tif"
+        try:
+            minio_client.s3_client.head_object(
+                Bucket="heimdall-terrain",
+                Key=object_name
+            )
+            exists = True
+            available_count += 1
+        except Exception:
+            exists = False
+            missing_tile_names.append(tile_name)
+        
+        tiles_status.append(TerrainTileStatus(
+            tile_name=tile_name,
+            exists=exists,
+            lat_min=lat,
+            lat_max=lat + 1,
+            lon_min=lon,
+            lon_max=lon + 1
+        ))
+    
+    total_tiles = len(tile_coords)
+    missing_count = total_tiles - available_count
+    coverage_percent = (available_count / total_tiles * 100) if total_tiles > 0 else 0.0
+    
+    return TerrainCoverageResponse(
+        total_tiles=total_tiles,
+        available_tiles=available_count,
+        missing_tiles=missing_count,
+        coverage_percent=coverage_percent,
+        tiles=tiles_status,
+        missing_tile_names=missing_tile_names
+    )
+
+
+@router.post("/terrain/download", response_model=TerrainDownloadResponse)
+async def download_terrain_tiles(
+    request: TerrainDownloadRequest
+):
+    """
+    Trigger SRTM tile download for a region.
+    
+    This endpoint redirects the user to the backend service's terrain download
+    endpoint, as the training service should not directly download tiles.
+    
+    The backend service has the proper event publishing infrastructure for
+    real-time progress updates via WebSocket.
+    
+    Args:
+        request: Geographic bounds for tiles to download
+    
+    Returns:
+        Information about the download request with backend service URL
+    """
+    import math
+    from ..config import settings
+    
+    # Calculate required tiles
+    tile_coords = []
+    lat_start = int(math.floor(request.lat_min))
+    lat_end = int(math.floor(request.lat_max))
+    lon_start = int(math.floor(request.lon_min))
+    lon_end = int(math.floor(request.lon_max))
+    
+    tiles_to_download = []
+    for lat in range(lat_start, lat_end + 1):
+        for lon in range(lon_start, lon_end + 1):
+            lat_prefix = "N" if lat >= 0 else "S"
+            lon_prefix = "E" if lon >= 0 else "W"
+            tile_name = f"{lat_prefix}{abs(lat):02d}{lon_prefix}{abs(lon):03d}"
+            tiles_to_download.append(tile_name)
+    
+    # Backend service URL for terrain downloads
+    backend_url = f"{settings.backend_url}/api/v1/terrain/download"
+    
+    return TerrainDownloadResponse(
+        message=f"Please use the backend service to download {len(tiles_to_download)} tiles",
+        tiles_to_download=tiles_to_download,
+        backend_url=backend_url
+    )
+
+
+@router.get("/terrain/status")
+async def get_terrain_status():
+    """
+    Get overall terrain system status.
+    
+    Returns information about SRTM support, MinIO connectivity,
+    and general terrain system health.
+    
+    Returns:
+        Terrain system status
+    """
+    import sys
+    import os
+    
+    # Import MinIOClient from backend service
+    sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+    from storage.minio_client import MinIOClient
+    from config import settings as backend_settings
+    
+    # Import training service settings
+    from ..config import settings
+    
+    status = {
+        "srtm_enabled": True,
+        "minio_configured": bool(backend_settings.minio_url),
+        "bucket_name": "heimdall-terrain",
+        "backend_service_url": settings.backend_url
+    }
+    
+    # Check MinIO connectivity
+    try:
+        minio_client = MinIOClient(
+            endpoint_url=backend_settings.minio_url,
+            access_key=backend_settings.minio_access_key,
+            secret_key=backend_settings.minio_secret_key,
+            bucket_name="heimdall-terrain"
+        )
+        
+        # Try to check if bucket exists
+        try:
+            minio_client.s3_client.head_bucket(Bucket="heimdall-terrain")
+            status["minio_connection"] = "healthy"
+            status["bucket_exists"] = True
+        except Exception as e:
+            status["minio_connection"] = "degraded"
+            status["bucket_exists"] = False
+            status["bucket_error"] = str(e)
+    except Exception as e:
+        status["minio_connection"] = "failed"
+        status["minio_error"] = str(e)
+    
+    return status

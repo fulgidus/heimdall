@@ -1155,6 +1155,18 @@ def generate_synthetic_data_task(self, job_id: str):
             })
             session.commit()
 
+        # Publish job status update event
+        from backend.src.events.publisher import get_event_publisher
+        publisher = get_event_publisher()
+        publisher.publish_training_job_update(
+            job_id=job_id,
+            status='running',
+            action='started',
+            current_progress=0,
+            total_progress=config['num_samples']
+        )
+        logger.info(f"Published job start event for {job_id}")
+
         # Generate synthetic data - import training service modules
         from src.data.config import TrainingConfig, get_italian_receivers, generate_random_receivers, BoundingBox
         from src.data.synthetic_generator import generate_synthetic_data_with_iq
@@ -1462,6 +1474,20 @@ def generate_synthetic_data_task(self, job_id: str):
             session.execute(complete_query, {"job_id": job_id})
             session.commit()
 
+        # Publish job completion event
+        publisher.publish_training_job_update(
+            job_id=job_id,
+            status='completed',
+            action='completed',
+            result={
+                "dataset_id": str(dataset_id),
+                "num_samples": stats['total_generated'],
+                "iq_samples_saved": stats['iq_samples_saved'],
+                "success_rate": stats['success_rate']
+            }
+        )
+        logger.info(f"Published job completion event for {job_id}")
+
         logger.info(f"Synthetic data generation job {job_id} completed")
 
         return {
@@ -1485,6 +1511,15 @@ def generate_synthetic_data_task(self, job_id: str):
             """)
             session.execute(fail_query, {"job_id": job_id, "error": str(e)})
             session.commit()
+
+        # Publish job failure event
+        publisher.publish_training_job_update(
+            job_id=job_id,
+            status='failed',
+            action='failed',
+            error_message=str(e)
+        )
+        logger.error(f"Published job failure event for {job_id}")
 
         raise
 

@@ -433,6 +433,64 @@ class EventPublisher:
         self._publish('terrain.tile.progress', event)
         logger.debug(f"Published terrain tile progress: {tile_name} - {status} ({current}/{total})")
 
+    def publish_training_job_update(
+        self,
+        job_id: str,
+        status: str,
+        action: str = "status_changed",
+        **kwargs
+    ) -> None:
+        """
+        Publish training job status update event.
+        
+        Used for real-time job status updates to frontend WebSocket clients.
+        Matches the event format used by backend API endpoints for consistency.
+        
+        Args:
+            job_id: Training job UUID
+            status: Job status (pending/running/completed/failed/cancelled/paused/resumed)
+            action: Action type (status_changed/cancelled/paused/resumed/started/completed/failed)
+            **kwargs: Additional data (current_progress, total_progress, error_message, result, etc.)
+        
+        Example:
+            publisher.publish_training_job_update(
+                job_id="uuid-string",
+                status="running",
+                action="started",
+                current_progress=0,
+                total_progress=1000
+            )
+        """
+        event_data = {
+            'job_id': job_id,
+            'status': status,
+            'action': action,
+        }
+        
+        # Add optional fields if provided
+        if 'current_progress' in kwargs:
+            event_data['current_progress'] = kwargs['current_progress']
+        if 'total_progress' in kwargs:
+            event_data['total_progress'] = kwargs['total_progress']
+        if 'error_message' in kwargs:
+            event_data['error_message'] = kwargs['error_message']
+        if 'result' in kwargs:
+            event_data['result'] = kwargs['result']
+        
+        # Include any other kwargs
+        for key, value in kwargs.items():
+            if key not in ['current_progress', 'total_progress', 'error_message', 'result']:
+                event_data[key] = value
+        
+        event = {
+            'event': 'training_job_update',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': event_data
+        }
+
+        self._publish(f'training.job.{job_id}.update', event)
+        logger.info(f"Published training job update: job {job_id}, status={status}, action={action}")
+
 
 # Singleton instance for convenience
 _publisher = None

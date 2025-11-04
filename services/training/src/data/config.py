@@ -8,8 +8,8 @@ Extracts WebSDR receiver locations from database and calculates:
 """
 
 import structlog
-from dataclasses import dataclass
-from typing import List, Tuple, Optional
+from dataclasses import dataclass, field
+from typing import List, Tuple, Optional, Dict
 
 logger = structlog.get_logger(__name__)
 
@@ -273,3 +273,75 @@ def generate_random_receivers(
     )
 
     return receivers
+
+
+@dataclass
+class SyntheticGenerationConfig:
+    """Configuration for synthetic training data generation."""
+    
+    # Terrain settings
+    use_srtm_terrain: bool = False
+    validate_tiles_before_generation: bool = True
+    fallback_to_simplified_terrain: bool = True
+    
+    # Antenna pattern distribution (must sum to 1.0)
+    antenna_distribution: Dict[str, float] = field(default_factory=lambda: {
+        "omnidirectional": 0.80,
+        "yagi": 0.15,
+        "log_periodic": 0.05
+    })
+    
+    # Frequency stability
+    frequency_drift_ratio: float = 0.10  # 10% of samples have oscillator drift
+    frequency_drift_ppm_range: Tuple[float, float] = (-2.0, 2.0)  # ±2 ppm drift
+    gpsdo_ratio: float = 0.90  # 90% of transmitters use GPSDO (no drift)
+    
+    # Transmitter dynamics
+    enable_tx_power_envelope: bool = True  # CW/FM/SSB power variations
+    enable_keying_patterns: bool = True  # Morse code, packet bursts
+    enable_doppler_shift: bool = False  # Mobile transmitters (disabled by default)
+    
+    # RF propagation
+    enable_multipath: bool = True
+    enable_atmospheric_effects: bool = True
+    tropospheric_ducting_probability: float = 0.05  # 5% chance of ducting
+    
+    # Signal quality
+    min_snr_db: float = 5.0  # Minimum SNR for signal detection
+    noise_floor_dbm: float = -120.0
+    
+    # Geometry constraints
+    min_receivers_with_signal: int = 3  # Minimum for localization
+    max_gdop: float = 10.0  # Maximum geometric dilution of precision
+    
+    # Dataset splits
+    train_ratio: float = 0.70
+    val_ratio: float = 0.15
+    test_ratio: float = 0.15
+    
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        # Check antenna distribution sums to 1.0
+        total_antenna = sum(self.antenna_distribution.values())
+        if not (0.99 <= total_antenna <= 1.01):
+            raise ValueError(f"Antenna distribution must sum to 1.0, got {total_antenna}")
+        
+        # Check dataset splits sum to 1.0
+        total_split = self.train_ratio + self.val_ratio + self.test_ratio
+        if not (0.99 <= total_split <= 1.01):
+            raise ValueError(f"Dataset splits must sum to 1.0, got {total_split}")
+        
+        # Validate ranges
+        if not (0.0 <= self.frequency_drift_ratio <= 1.0):
+            raise ValueError("frequency_drift_ratio must be between 0.0 and 1.0")
+        
+        if not (0.0 <= self.gpsdo_ratio <= 1.0):
+            raise ValueError("gpsdo_ratio must be between 0.0 and 1.0")
+        
+        logger.info(
+            "SyntheticGenerationConfig initialized",
+            use_srtm_terrain=self.use_srtm_terrain,
+            antenna_distribution=self.antenna_distribution,
+            frequency_drift_ratio=self.frequency_drift_ratio,
+            min_receivers=self.min_receivers_with_signal
+        )

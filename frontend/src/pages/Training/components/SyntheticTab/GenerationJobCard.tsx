@@ -4,12 +4,17 @@
  * Displays a synthetic data generation job with status, progress, and controls
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { SyntheticGenerationJob } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 
 interface GenerationJobCardProps {
   job: SyntheticGenerationJob;
+}
+
+interface ProgressSnapshot {
+  samples: number;
+  timestamp: number;
 }
 
 const statusBadges: Record<string, string> = {
@@ -25,6 +30,12 @@ const statusBadges: Record<string, string> = {
 export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => {
   const { cancelGenerationJob, deleteGenerationJob } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [samplesPerSecond, setSamplesPerSecond] = useState<number | null>(null);
+  const [timeToCompletion, setTimeToCompletion] = useState<number | null>(null);
+  
+  // Track progress history for rate calculation (keep last 5 snapshots)
+  const progressHistory = useRef<ProgressSnapshot[]>([]);
+  const lastUpdateTime = useRef<number>(Date.now());
 
   const handleCancel = async () => {
     setIsLoading(true);
@@ -51,6 +62,65 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
   const progressPercent = job.progress_percent || 0;
   const currentSamples = job.current || 0;
   const totalSamples = job.total || job.config?.num_samples || 0;
+
+  // Calculate Samples/s and TTC when progress updates
+  useEffect(() => {
+    if (job.status !== 'running' || currentSamples === 0) {
+      setSamplesPerSecond(null);
+      setTimeToCompletion(null);
+      progressHistory.current = [];
+      return;
+    }
+
+    const now = Date.now();
+    
+    // Add current snapshot to history
+    progressHistory.current.push({
+      samples: currentSamples,
+      timestamp: now,
+    });
+
+    // Keep only last 5 snapshots (for smoothing)
+    if (progressHistory.current.length > 5) {
+      progressHistory.current.shift();
+    }
+
+    // Calculate rate if we have at least 2 snapshots
+    if (progressHistory.current.length >= 2) {
+      const oldest = progressHistory.current[0];
+      const newest = progressHistory.current[progressHistory.current.length - 1];
+      
+      const samplesDelta = newest.samples - oldest.samples;
+      const timeDelta = (newest.timestamp - oldest.timestamp) / 1000; // Convert to seconds
+
+      if (timeDelta > 0 && samplesDelta > 0) {
+        const rate = samplesDelta / timeDelta;
+        setSamplesPerSecond(rate);
+
+        // Calculate TTC
+        const remainingSamples = totalSamples - currentSamples;
+        const secondsRemaining = remainingSamples / rate;
+        setTimeToCompletion(secondsRemaining);
+      }
+    }
+
+    lastUpdateTime.current = now;
+  }, [currentSamples, totalSamples, job.status]);
+
+  // Format TTC as human-readable string
+  const formatTTC = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${Math.round(seconds)}s`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return `${minutes}m ${secs}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
 
   return (
     <div className="card">
@@ -87,6 +157,20 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
                 aria-valuemax={100}
               />
             </div>
+            
+            {/* Samples/s and TTC */}
+            {samplesPerSecond !== null && timeToCompletion !== null && (
+              <div className="d-flex justify-content-between small text-muted mt-2">
+                <span>
+                  <i className="ph ph-lightning me-1"></i>
+                  <strong>{samplesPerSecond.toFixed(1)}</strong> samples/s
+                </span>
+                <span>
+                  <i className="ph ph-clock me-1"></i>
+                  TTC: <strong>{formatTTC(timeToCompletion)}</strong>
+                </span>
+              </div>
+            )}
           </div>
         )}
 

@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
 
+    # Backend service URL for terrain downloads
+    backend_url: str = os.getenv("BACKEND_URL", "http://backend:8000")
+
     class Config:
         env_file = ".env"
         case_sensitive = False

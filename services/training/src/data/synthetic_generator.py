@@ -153,11 +153,39 @@ def _generate_single_sample_no_features(args):
             use_gpu=use_gpu
         )
         _thread_local.propagation = RFPropagationModel()
-        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu})")
+        
+        # Initialize terrain lookup (ONCE per thread)
+        # Get terrain configuration from config dict
+        use_srtm = config.get('use_srtm_terrain', False)
+        if use_srtm:
+            try:
+                # Recreate MinIO client in worker thread (cannot be pickled/shared)
+                import sys
+                import os
+                sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+                from storage.minio_client import MinIOClient
+                from config import settings as backend_settings
+                
+                minio_client = MinIOClient(
+                    endpoint_url=backend_settings.minio_url,
+                    access_key=backend_settings.minio_access_key,
+                    secret_key=backend_settings.minio_secret_key,
+                    bucket_name="heimdall-terrain"
+                )
+                _thread_local.terrain = TerrainLookup(use_srtm=True, minio_client=minio_client)
+                logger.info(f"Thread {threading.current_thread().name}: Initialized SRTM terrain lookup")
+            except Exception as e:
+                logger.warning(f"Thread {threading.current_thread().name}: Failed to initialize SRTM terrain: {e}, using simplified model")
+                _thread_local.terrain = TerrainLookup(use_srtm=False)
+        else:
+            _thread_local.terrain = TerrainLookup(use_srtm=False)
+        
+        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu}, SRTM={use_srtm})")
     
     # Reuse thread-local instances
     iq_generator = _thread_local.iq_generator
     propagation = _thread_local.propagation
+    terrain = _thread_local.terrain
     
     # Reset RNG seed for this sample (iq_generator supports seed reset)
     iq_generator.rng = np.random.default_rng(sample_seed)
@@ -224,7 +252,7 @@ def _generate_single_sample_no_features(args):
             rx_lon=rx_lon,
             rx_alt=rx_alt,
             frequency_mhz=frequency_mhz,
-            terrain_lookup=None
+            terrain_lookup=terrain
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -389,12 +417,40 @@ def _generate_single_sample(args):
             use_gpu=use_gpu
         )
         _thread_local.propagation = RFPropagationModel()
-        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu})")
+        
+        # Initialize terrain lookup (ONCE per thread)
+        # Get terrain configuration from config dict
+        use_srtm = config.get('use_srtm_terrain', False)
+        if use_srtm:
+            try:
+                # Recreate MinIO client in worker thread (cannot be pickled/shared)
+                import sys
+                import os
+                sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+                from storage.minio_client import MinIOClient
+                from config import settings as backend_settings
+                
+                minio_client = MinIOClient(
+                    endpoint_url=backend_settings.minio_url,
+                    access_key=backend_settings.minio_access_key,
+                    secret_key=backend_settings.minio_secret_key,
+                    bucket_name="heimdall-terrain"
+                )
+                _thread_local.terrain = TerrainLookup(use_srtm=True, minio_client=minio_client)
+                logger.info(f"Thread {threading.current_thread().name}: Initialized SRTM terrain lookup")
+            except Exception as e:
+                logger.warning(f"Thread {threading.current_thread().name}: Failed to initialize SRTM terrain: {e}, using simplified model")
+                _thread_local.terrain = TerrainLookup(use_srtm=False)
+        else:
+            _thread_local.terrain = TerrainLookup(use_srtm=False)
+        
+        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu}, SRTM={use_srtm})")
     
     # Reuse thread-local instances
     iq_generator = _thread_local.iq_generator
     feature_extractor = _thread_local.feature_extractor
     propagation = _thread_local.propagation
+    terrain = _thread_local.terrain
     
     # Reset RNG seed for this sample (iq_generator supports seed reset)
     iq_generator.rng = np.random.default_rng(sample_seed)
@@ -461,7 +517,7 @@ def _generate_single_sample(args):
             rx_lon=rx_lon,
             rx_alt=rx_alt,
             frequency_mhz=frequency_mhz,
-            terrain_lookup=None
+            terrain_lookup=terrain
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -675,12 +731,53 @@ class SyntheticDataGenerator:
         else:
             self.terrain = TerrainLookup(use_srtm=False)
         
+        # Validate SRTM tiles if using SRTM terrain
+        if self.terrain.use_srtm and hasattr(self, 'config'):
+            missing_tiles = self._validate_srtm_tiles()
+            if missing_tiles:
+                logger.warning(
+                    "Missing SRTM tiles detected",
+                    missing_tiles=missing_tiles,
+                    message="Download tiles before generation or enable fallback_to_simplified_terrain"
+                )
+        
         logger.info(
             "Initialized synthetic data generator",
             num_receivers=len(self.config.receivers),
             training_area_km2=self.config.training_bbox.width_km() * self.config.training_bbox.height_km(),
             using_srtm=self.terrain.use_srtm
         )
+    
+    def _validate_srtm_tiles(self) -> List[str]:
+        """
+        Validate that required SRTM tiles are available in MinIO.
+        
+        Returns:
+            List of missing tile names (e.g., ['N44E007', 'N45E008'])
+        """
+        if not hasattr(self.terrain, 'minio_client') or self.terrain.minio_client is None:
+            logger.warning("Cannot validate SRTM tiles: MinIO client not available")
+            return []
+        
+        missing_tiles = []
+        for lat, lon in self.config.srtm_tiles:
+            # Format tile name (e.g., N44E007)
+            lat_str = f"N{abs(lat):02d}" if lat >= 0 else f"S{abs(lat):02d}"
+            lon_str = f"E{abs(lon):03d}" if lon >= 0 else f"W{abs(lon):03d}"
+            tile_name = f"{lat_str}{lon_str}"
+            
+            # Check if tile exists in MinIO
+            tile_key = f"srtm/{tile_name}.hgt"
+            try:
+                # Check if object exists
+                self.terrain.minio_client.client.stat_object(
+                    self.terrain.minio_client.bucket_name,
+                    tile_key
+                )
+            except Exception:
+                missing_tiles.append(tile_name)
+        
+        return missing_tiles
     
     def generate_samples(
         self,
