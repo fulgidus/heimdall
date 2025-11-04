@@ -535,17 +535,17 @@ def start_training_job(self, job_id: str):
                 all_val_uncertainties_tensor = torch.cat(all_val_uncertainties)  # [total_val_samples]
                 all_val_gdop_tensor = torch.cat(all_val_gdop)  # [total_val_samples]
                 
-                # Distance percentiles (convert meters to km)
-                val_distance_p50 = torch.quantile(all_val_distances_tensor, 0.50).item() / 1000.0  # median
-                val_distance_p68 = torch.quantile(all_val_distances_tensor, 0.68).item() / 1000.0  # project KPI!
-                val_distance_p95 = torch.quantile(all_val_distances_tensor, 0.95).item() / 1000.0  # worst-case
+                # Distance percentiles (in meters - SI unit)
+                val_distance_p50 = torch.quantile(all_val_distances_tensor, 0.50).item()  # median
+                val_distance_p68 = torch.quantile(all_val_distances_tensor, 0.68).item()  # project KPI!
+                val_distance_p95 = torch.quantile(all_val_distances_tensor, 0.95).item()  # worst-case
                 
-                # Uncertainty metrics (convert to km)
-                mean_predicted_uncertainty = all_val_uncertainties_tensor.mean().item() / 1000.0
+                # Uncertainty metrics (in meters - SI unit)
+                mean_predicted_uncertainty = all_val_uncertainties_tensor.mean().item()
                 
                 # Uncertainty calibration: compare predicted uncertainty vs actual error
                 # Ideal: predicted_uncertainty ≈ actual_error
-                actual_error = all_val_distances_tensor.mean().item() / 1000.0
+                actual_error = all_val_distances_tensor.mean().item()
                 uncertainty_calibration_error = abs(mean_predicted_uncertainty - actual_error)
                 
                 # GDOP metrics
@@ -600,8 +600,6 @@ def start_training_job(self, job_id: str):
                             progress_percent = :progress,
                             train_loss = :train_loss,
                             val_loss = :val_loss,
-                            train_accuracy = :train_rmse,
-                            val_accuracy = :val_rmse,
                             learning_rate = :lr,
                             updated_at = NOW()
                         WHERE id = :job_id
@@ -611,8 +609,6 @@ def start_training_job(self, job_id: str):
                         "progress": (epoch / epochs) * 100.0,
                         "train_loss": train_loss,
                         "val_loss": val_loss,
-                        "train_rmse": train_rmse,
-                        "val_rmse": val_rmse,
                         "lr": current_lr,
                         "job_id": job_id
                     }
@@ -624,18 +620,18 @@ def start_training_job(self, job_id: str):
                         INSERT INTO heimdall.training_metrics (
                             training_job_id, epoch, train_loss, val_loss,
                             train_accuracy, val_accuracy, learning_rate, phase, timestamp,
-                            train_rmse_km, val_rmse_km, val_rmse_good_geom_km,
-                            val_distance_p50_km, val_distance_p68_km, val_distance_p95_km,
-                            mean_predicted_uncertainty_km, uncertainty_calibration_error,
+                            train_rmse_m, val_rmse_m, val_rmse_good_geom_m,
+                            val_distance_p50_m, val_distance_p68_m, val_distance_p95_m,
+                            mean_predicted_uncertainty_m, uncertainty_calibration_error,
                             mean_gdop, gdop_below_5_percent,
                             gradient_norm, weight_norm
                         )
                         VALUES (
                             :job_id, :epoch, :train_loss, :val_loss,
-                            :train_rmse, :val_rmse, :lr, 'train', NOW(),
-                            :train_rmse_km, :val_rmse_km, :val_rmse_good_geom_km,
-                            :val_distance_p50, :val_distance_p68, :val_distance_p95,
-                            :mean_predicted_uncertainty, :uncertainty_calibration_error,
+                            :train_rmse_m, :val_rmse_m, :lr, 'train', NOW(),
+                            :train_rmse_m, :val_rmse_m, :val_rmse_good_geom_m,
+                            :val_distance_p50_m, :val_distance_p68_m, :val_distance_p95_m,
+                            :mean_predicted_uncertainty_m, :uncertainty_calibration_error,
                             :mean_gdop, :gdop_below_5_percent,
                             :gradient_norm, :weight_norm
                         )
@@ -645,17 +641,15 @@ def start_training_job(self, job_id: str):
                         "epoch": epoch,
                         "train_loss": train_loss,
                         "val_loss": val_loss,
-                        "train_rmse": train_rmse,
-                        "val_rmse": val_rmse,
                         "lr": current_lr,
-                        # Advanced metrics
-                        "train_rmse_km": train_rmse / 1000.0,  # convert meters to km
-                        "val_rmse_km": val_rmse / 1000.0,
-                        "val_rmse_good_geom_km": val_rmse_good_geom / 1000.0,
-                        "val_distance_p50": val_distance_p50,
-                        "val_distance_p68": val_distance_p68,
-                        "val_distance_p95": val_distance_p95,
-                        "mean_predicted_uncertainty": mean_predicted_uncertainty,
+                        # Advanced metrics (all in meters - SI unit)
+                        "train_rmse_m": train_rmse,
+                        "val_rmse_m": val_rmse,
+                        "val_rmse_good_geom_m": val_rmse_good_geom,
+                        "val_distance_p50_m": val_distance_p50,
+                        "val_distance_p68_m": val_distance_p68,
+                        "val_distance_p95_m": val_distance_p95,
+                        "mean_predicted_uncertainty_m": mean_predicted_uncertainty,
                         "uncertainty_calibration_error": uncertainty_calibration_error,
                         "mean_gdop": mean_gdop,
                         "gdop_below_5_percent": gdop_below_5_percent,
@@ -696,14 +690,14 @@ def start_training_job(self, job_id: str):
                     'val_rmse': float(val_rmse),
                     'val_rmse_good_geom': float(val_rmse_good_geom),
                     'learning_rate': float(current_lr),
-                    # Advanced localization metrics (Phase 7)
-                    'train_rmse_km': float(train_rmse / 1000.0),
-                    'val_rmse_km': float(val_rmse / 1000.0),
-                    'val_rmse_good_geom_km': float(val_rmse_good_geom / 1000.0),
-                    'val_distance_p50_km': float(val_distance_p50),
-                    'val_distance_p68_km': float(val_distance_p68),
-                    'val_distance_p95_km': float(val_distance_p95),
-                    'mean_predicted_uncertainty_km': float(mean_predicted_uncertainty),
+                    # Advanced localization metrics (Phase 7) - all in meters (SI unit)
+                    'train_rmse_m': float(train_rmse),
+                    'val_rmse_m': float(val_rmse),
+                    'val_rmse_good_geom_m': float(val_rmse_good_geom),
+                    'val_distance_p50_m': float(val_distance_p50),
+                    'val_distance_p68_m': float(val_distance_p68),
+                    'val_distance_p95_m': float(val_distance_p95),
+                    'mean_predicted_uncertainty_m': float(mean_predicted_uncertainty),
                     'uncertainty_calibration_error': float(uncertainty_calibration_error),
                     'mean_gdop': float(mean_gdop),
                     'gdop_below_5_percent': float(gdop_below_5_percent),
@@ -798,8 +792,8 @@ def start_training_job(self, job_id: str):
                 )
                 logger.info(f"Saved checkpoint at epoch {epoch}")
 
-            # Early stopping check
-            if patience_counter >= early_stop_patience:
+            # Early stopping check (skip if patience is 0 - disabled)
+            if early_stop_patience > 0 and patience_counter >= early_stop_patience:
                 logger.info(f"Early stopping triggered at epoch {epoch} (patience={early_stop_patience})")
                 break
             

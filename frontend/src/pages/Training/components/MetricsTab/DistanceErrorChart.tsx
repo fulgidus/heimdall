@@ -2,7 +2,7 @@
  * DistanceErrorChart Component
  * 
  * Displays RMSE distance errors (train, val, val_good_geom) over epochs
- * Shows localization accuracy in kilometers - key metric for the project
+ * Shows localization accuracy in meters (SI unit) - key metric for the project
  */
 
 import React from 'react';
@@ -35,7 +35,7 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
   }
 
   // Filter metrics that have the new distance fields
-  const metricsWithDistance = metrics.filter(m => m.train_rmse_km !== undefined);
+  const metricsWithDistance = metrics.filter(m => m.train_rmse_m !== undefined);
 
   if (metricsWithDistance.length === 0) {
     return (
@@ -47,15 +47,15 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
     );
   }
 
-  // Project KPI: ±30m @ 68% confidence = 0.03 km
-  const projectKpiKm = 0.03;
+  // Project KPI: ±30m @ 68% confidence
+  const projectKpiMeters = 30;
 
   return (
     <div className="card">
       <div className="card-body">
         <h5 className="card-title mb-1">Distance Error (RMSE)</h5>
         <p className="text-muted small mb-3">
-          Localization accuracy in kilometers. Goal: &lt;0.03km (30m) for validation
+          Localization accuracy in meters (SI unit). Goal: &lt;30m for validation
         </p>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={metricsWithDistance}>
@@ -66,7 +66,7 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
               stroke="#6b7280"
             />
             <YAxis 
-              label={{ value: 'RMSE (km)', angle: -90, position: 'insideLeft' }}
+              label={{ value: 'RMSE (m)', angle: -90, position: 'insideLeft' }}
               stroke="#6b7280"
               domain={[0, 'auto']}
             />
@@ -76,13 +76,13 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.375rem',
               }}
-              formatter={(value: number) => `${value.toFixed(3)} km`}
+              formatter={(value: number) => `${value.toFixed(1)} m`}
             />
             <Legend />
             
             {/* Project KPI reference line */}
             <ReferenceLine 
-              y={projectKpiKm} 
+              y={projectKpiMeters} 
               stroke="#10b981" 
               strokeDasharray="5 5" 
               label={{ value: 'Target (30m)', position: 'right', fill: '#10b981' }}
@@ -90,7 +90,7 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
             
             <Line 
               type="monotone" 
-              dataKey="train_rmse_km" 
+              dataKey="train_rmse_m" 
               stroke="#3b82f6" 
               strokeWidth={2}
               name="Train RMSE"
@@ -99,7 +99,7 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
             />
             <Line 
               type="monotone" 
-              dataKey="val_rmse_km" 
+              dataKey="val_rmse_m" 
               stroke="#ef4444" 
               strokeWidth={2}
               name="Val RMSE"
@@ -108,7 +108,7 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
             />
             <Line 
               type="monotone" 
-              dataKey="val_rmse_good_geom_km" 
+              dataKey="val_rmse_good_geom_m" 
               stroke="#10b981" 
               strokeWidth={2}
               name="Val RMSE (GDOP<5)"

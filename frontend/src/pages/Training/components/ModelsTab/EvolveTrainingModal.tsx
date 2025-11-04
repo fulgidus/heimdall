@@ -24,8 +24,25 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
 }) => {
   const { evolveTraining } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [additionalEpochs, setAdditionalEpochs] = useState(10);
+  const [additionalEpochs, setAdditionalEpochs] = useState(50);
   const [earlyStopPatience, setEarlyStopPatience] = useState(20);
+
+  // Smart step calculation for better slider UX
+  const getEpochStep = (value: number): number => {
+    if (value <= 100) return 1;
+    if (value <= 1000) return 10;
+    return 50;
+  };
+
+  // Handle slider change with smart stepping
+  const handleEpochSliderChange = (rawValue: number) => {
+    const step = getEpochStep(rawValue);
+    const steppedValue = Math.round(rawValue / step) * step;
+    setAdditionalEpochs(Math.max(1, Math.min(5000, steppedValue)));
+  };
+
+  // Preset epoch values for quick selection
+  const epochPresets = [10, 50, 100, 500, 1000, 5000];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,30 +139,51 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
                 <div className="card-body">
                   {/* Additional Epochs */}
                   <div className="mb-4">
-                    <label htmlFor="additionalEpochs" className="form-label">
-                      Additional Epochs
-                      <span className="text-danger ms-1">*</span>
-                    </label>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <label htmlFor="additionalEpochs" className="form-label mb-0">
+                        Additional Epochs
+                        <span className="text-danger ms-1">*</span>
+                      </label>
+                      <span className="badge bg-primary">{additionalEpochs} epochs</span>
+                    </div>
+                    
+                    {/* Preset Buttons */}
+                    <div className="d-flex gap-2 mb-3 flex-wrap">
+                      {epochPresets.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          className={`btn btn-sm ${additionalEpochs === preset ? 'btn-primary' : 'btn-outline-secondary'}`}
+                          onClick={() => setAdditionalEpochs(preset)}
+                          disabled={isLoading}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    
                     <input
                       type="range"
                       className="form-range mb-2"
                       id="additionalEpochs"
                       min="1"
-                      max="500"
+                      max="5000"
                       value={additionalEpochs}
-                      onChange={(e) => setAdditionalEpochs(parseInt(e.target.value))}
+                      onChange={(e) => handleEpochSliderChange(parseInt(e.target.value))}
                       disabled={isLoading}
                     />
                     <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-muted small">Number of additional training epochs</span>
+                      <span className="text-muted small">
+                        Smart stepping: 1-100 (±1), 101-1000 (±10), 1001-5000 (±50)
+                      </span>
                       <div className="input-group" style={{ width: '120px' }}>
                         <input
                           type="number"
                           className="form-control form-control-sm"
                           min="1"
-                          max="500"
+                          max="5000"
                           value={additionalEpochs}
-                          onChange={(e) => setAdditionalEpochs(Math.max(1, parseInt(e.target.value) || 1))}
+                          onChange={(e) => setAdditionalEpochs(Math.max(1, Math.min(5000, parseInt(e.target.value) || 1)))}
                           disabled={isLoading}
                         />
                         <span className="input-group-text">epochs</span>
@@ -155,30 +193,35 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
 
                   {/* Early Stop Patience */}
                   <div className="mb-3">
-                    <label htmlFor="earlyStopPatience" className="form-label">
-                      Early Stop Patience
-                      <span className="text-danger ms-1">*</span>
-                    </label>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <label htmlFor="earlyStopPatience" className="form-label mb-0">
+                        Early Stop Patience
+                        <span className="text-danger ms-1">*</span>
+                      </label>
+                      <span className="badge bg-primary">
+                        {earlyStopPatience === 0 ? 'Disabled' : `${earlyStopPatience} epochs`}
+                      </span>
+                    </div>
                     <input
                       type="range"
                       className="form-range mb-2"
                       id="earlyStopPatience"
-                      min="1"
+                      min="0"
                       max="100"
                       value={earlyStopPatience}
                       onChange={(e) => setEarlyStopPatience(parseInt(e.target.value))}
                       disabled={isLoading}
                     />
                     <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-muted small">Epochs to wait before stopping early</span>
+                      <span className="text-muted small">Epochs to wait before stopping early (0 = disabled)</span>
                       <div className="input-group" style={{ width: '120px' }}>
                         <input
                           type="number"
                           className="form-control form-control-sm"
-                          min="1"
+                          min="0"
                           max="100"
                           value={earlyStopPatience}
-                          onChange={(e) => setEarlyStopPatience(Math.max(1, parseInt(e.target.value) || 1))}
+                          onChange={(e) => setEarlyStopPatience(Math.max(0, parseInt(e.target.value) || 0))}
                           disabled={isLoading}
                         />
                         <span className="input-group-text">epochs</span>

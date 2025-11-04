@@ -34,7 +34,7 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
   }
 
   // Filter metrics that have uncertainty fields
-  const metricsWithUncertainty = metrics.filter(m => m.mean_predicted_uncertainty_km !== undefined);
+  const metricsWithUncertainty = metrics.filter(m => m.mean_predicted_uncertainty_m !== undefined);
 
   if (metricsWithUncertainty.length === 0) {
     return (
@@ -62,7 +62,7 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
               stroke="#6b7280"
             />
             <YAxis 
-              label={{ value: 'Distance (km)', angle: -90, position: 'insideLeft' }}
+              label={{ value: 'Distance (m)', angle: -90, position: 'insideLeft' }}
               stroke="#6b7280"
               domain={[0, 'auto']}
             />
@@ -72,13 +72,13 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.375rem',
               }}
-              formatter={(value: number) => `${value.toFixed(3)} km`}
+              formatter={(value: number) => `${value.toFixed(1)} m`}
             />
             <Legend />
             
             <Line 
               type="monotone" 
-              dataKey="mean_predicted_uncertainty_km" 
+              dataKey="mean_predicted_uncertainty_m" 
               stroke="#8b5cf6" 
               strokeWidth={2}
               name="Predicted Uncertainty (σ)"
@@ -96,7 +96,7 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
             />
             <Line 
               type="monotone" 
-              dataKey="val_rmse_km" 
+              dataKey="val_rmse_m" 
               stroke="#10b981" 
               strokeWidth={1.5}
               strokeDasharray="5 5"

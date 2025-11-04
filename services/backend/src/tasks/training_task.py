@@ -456,8 +456,8 @@ def start_training_job(self, job_id: str):
                 )
                 logger.info(f"Saved checkpoint at epoch {epoch}")
             
-            # Early stopping check
-            if patience_counter >= early_stop_patience:
+            # Early stopping check (skip if patience is 0 - disabled)
+            if early_stop_patience > 0 and patience_counter >= early_stop_patience:
                 logger.info(f"Early stopping triggered at epoch {epoch} (patience={early_stop_patience})")
                 break
         

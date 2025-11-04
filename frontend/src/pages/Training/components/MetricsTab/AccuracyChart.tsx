@@ -1,7 +1,8 @@
 /**
  * AccuracyChart Component
  * 
- * Displays training and validation accuracy over epochs using Recharts
+ * Displays training and validation RMSE (Root Mean Square Error) in meters
+ * All metrics follow SI units (meters)
  */
 
 import React from 'react';
@@ -22,16 +23,16 @@ interface AccuracyChartProps {
 }
 
 export const AccuracyChart: React.FC<AccuracyChartProps> = ({ metrics }) => {
-  // Filter metrics that have accuracy data
-  const metricsWithAccuracy = metrics.filter(m => 
-    m.train_accuracy !== undefined && m.val_accuracy !== undefined
+  // Filter metrics that have RMSE data (in meters - SI unit)
+  const metricsWithRmse = metrics.filter(m => 
+    m.train_rmse_m !== undefined && m.val_rmse_m !== undefined
   );
 
-  if (!metricsWithAccuracy || metricsWithAccuracy.length === 0) {
+  if (!metricsWithRmse || metricsWithRmse.length === 0) {
     return (
       <div className="card text-center py-5">
         <div className="card-body">
-          <p className="text-muted small mb-0">No accuracy data available</p>
+          <p className="text-muted small mb-0">No RMSE data available</p>
         </div>
       </div>
     );
@@ -40,9 +41,9 @@ export const AccuracyChart: React.FC<AccuracyChartProps> = ({ metrics }) => {
   return (
     <div className="card">
       <div className="card-body">
-        <h5 className="card-title mb-3">Training & Validation Accuracy</h5>
+        <h5 className="card-title mb-3">Training & Validation RMSE (meters)</h5>
         <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={metricsWithAccuracy}>
+        <LineChart data={metricsWithRmse}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis 
             dataKey="epoch" 
@@ -50,12 +51,12 @@ export const AccuracyChart: React.FC<AccuracyChartProps> = ({ metrics }) => {
             stroke="#6b7280"
           />
           <YAxis 
-            label={{ value: 'Accuracy (log scale)', angle: -90, position: 'insideLeft' }}
+            label={{ value: 'RMSE (m)', angle: -90, position: 'insideLeft' }}
             stroke="#6b7280"
             scale="log"
             domain={['auto', 'auto']}
             allowDataOverflow={false}
-            tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+            tickFormatter={(value) => `${value.toFixed(0)}m`}
           />
           <Tooltip 
             contentStyle={{ 
@@ -63,24 +64,24 @@ export const AccuracyChart: React.FC<AccuracyChartProps> = ({ metrics }) => {
               border: '1px solid #e5e7eb',
               borderRadius: '0.375rem',
             }}
-            formatter={(value: number) => `${(value * 100).toFixed(2)}%`}
+            formatter={(value: number) => `${value.toFixed(2)}m`}
           />
           <Legend />
           <Line 
             type="monotone" 
-            dataKey="train_accuracy" 
+            dataKey="train_rmse_m" 
             stroke="#10b981" 
             strokeWidth={2}
-            name="Train Accuracy"
+            name="Train RMSE"
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}
           />
           <Line 
             type="monotone" 
-            dataKey="val_accuracy" 
+            dataKey="val_rmse_m" 
             stroke="#f59e0b" 
             strokeWidth={2}
-            name="Validation Accuracy"
+            name="Validation RMSE"
             dot={{ r: 3 }}
             activeDot={{ r: 5 }}
           />

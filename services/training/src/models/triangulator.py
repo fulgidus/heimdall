@@ -369,9 +369,9 @@ def haversine_distance_torch(lat1: torch.Tensor, lon1: torch.Tensor, lat2: torch
         lat2, lon2: (batch_size,) - true coordinates (degrees)
     
     Returns:
-        Distance in kilometers (batch_size,)
+        Distance in meters (batch_size,) - SI unit
     """
-    R = 6371.0  # Earth radius in km
+    R = 6371000.0  # Earth radius in meters (SI unit)
     
     # Convert to radians
     lat1_rad = torch.deg2rad(lat1)

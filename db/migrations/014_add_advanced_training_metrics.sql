@@ -4,13 +4,13 @@
 
 -- Add new columns to training_metrics table
 ALTER TABLE heimdall.training_metrics
-    ADD COLUMN IF NOT EXISTS train_rmse_km FLOAT,
-    ADD COLUMN IF NOT EXISTS val_rmse_km FLOAT,
-    ADD COLUMN IF NOT EXISTS val_rmse_good_geom_km FLOAT,
-    ADD COLUMN IF NOT EXISTS val_distance_p50_km FLOAT,
-    ADD COLUMN IF NOT EXISTS val_distance_p68_km FLOAT,
-    ADD COLUMN IF NOT EXISTS val_distance_p95_km FLOAT,
-    ADD COLUMN IF NOT EXISTS mean_predicted_uncertainty_km FLOAT,
+    ADD COLUMN IF NOT EXISTS train_rmse_m FLOAT,
+    ADD COLUMN IF NOT EXISTS val_rmse_m FLOAT,
+    ADD COLUMN IF NOT EXISTS val_rmse_good_geom_m FLOAT,
+    ADD COLUMN IF NOT EXISTS val_distance_p50_m FLOAT,
+    ADD COLUMN IF NOT EXISTS val_distance_p68_m FLOAT,
+    ADD COLUMN IF NOT EXISTS val_distance_p95_m FLOAT,
+    ADD COLUMN IF NOT EXISTS mean_predicted_uncertainty_m FLOAT,
     ADD COLUMN IF NOT EXISTS uncertainty_calibration_error FLOAT,
     ADD COLUMN IF NOT EXISTS mean_gdop FLOAT,
     ADD COLUMN IF NOT EXISTS gdop_below_5_percent FLOAT,
@@ -19,19 +19,19 @@ ALTER TABLE heimdall.training_metrics
 
 -- Create index for efficient querying of distance metrics
 CREATE INDEX IF NOT EXISTS idx_training_metrics_val_rmse 
-    ON heimdall.training_metrics(training_job_id, val_rmse_km);
+    ON heimdall.training_metrics(training_job_id, val_rmse_m);
 
 CREATE INDEX IF NOT EXISTS idx_training_metrics_p68 
-    ON heimdall.training_metrics(training_job_id, val_distance_p68_km);
+    ON heimdall.training_metrics(training_job_id, val_distance_p68_m);
 
 -- Comment on new columns
-COMMENT ON COLUMN heimdall.training_metrics.train_rmse_km IS 'Training set RMSE distance error in kilometers';
-COMMENT ON COLUMN heimdall.training_metrics.val_rmse_km IS 'Validation set RMSE distance error in kilometers';
-COMMENT ON COLUMN heimdall.training_metrics.val_rmse_good_geom_km IS 'Validation RMSE for samples with GDOP<5 (good geometry)';
-COMMENT ON COLUMN heimdall.training_metrics.val_distance_p50_km IS 'Validation 50th percentile (median) distance error';
-COMMENT ON COLUMN heimdall.training_metrics.val_distance_p68_km IS 'Validation 68th percentile distance error (project KPI)';
-COMMENT ON COLUMN heimdall.training_metrics.val_distance_p95_km IS 'Validation 95th percentile distance error (worst-case)';
-COMMENT ON COLUMN heimdall.training_metrics.mean_predicted_uncertainty_km IS 'Mean predicted uncertainty (std dev) from model';
+COMMENT ON COLUMN heimdall.training_metrics.train_rmse_m IS 'Training set RMSE distance error in meters (SI unit)';
+COMMENT ON COLUMN heimdall.training_metrics.val_rmse_m IS 'Validation set RMSE distance error in meters (SI unit)';
+COMMENT ON COLUMN heimdall.training_metrics.val_rmse_good_geom_m IS 'Validation RMSE for samples with GDOP<5 (good geometry) in meters';
+COMMENT ON COLUMN heimdall.training_metrics.val_distance_p50_m IS 'Validation 50th percentile (median) distance error in meters';
+COMMENT ON COLUMN heimdall.training_metrics.val_distance_p68_m IS 'Validation 68th percentile distance error in meters (project KPI)';
+COMMENT ON COLUMN heimdall.training_metrics.val_distance_p95_m IS 'Validation 95th percentile distance error in meters (worst-case)';
+COMMENT ON COLUMN heimdall.training_metrics.mean_predicted_uncertainty_m IS 'Mean predicted uncertainty (std dev) from model in meters';
 COMMENT ON COLUMN heimdall.training_metrics.uncertainty_calibration_error IS 'Difference between predicted uncertainty and actual error';
 COMMENT ON COLUMN heimdall.training_metrics.mean_gdop IS 'Mean GDOP across validation set';
 COMMENT ON COLUMN heimdall.training_metrics.gdop_below_5_percent IS 'Percentage of validation samples with GDOP<5';

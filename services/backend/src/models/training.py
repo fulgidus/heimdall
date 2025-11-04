@@ -62,7 +62,7 @@ class TrainingConfig(BaseModel):
     hop_length: int = Field(default=512, description="STFT hop length")
 
     # Training hyperparameters
-    epochs: int = Field(default=100, ge=1, le=1000, description="Training epochs")
+    epochs: int = Field(default=100, ge=1, le=5000, description="Training epochs")
     learning_rate: float = Field(default=1e-3, gt=0.0, description="Learning rate")
     weight_decay: float = Field(default=1e-4, ge=0.0, description="L2 regularization")
     dropout_rate: float = Field(default=0.2, ge=0.0, le=0.9, description="Dropout rate")
@@ -72,7 +72,7 @@ class TrainingConfig(BaseModel):
     warmup_epochs: int = Field(default=5, ge=0, description="Warmup epochs")
 
     # Early stopping
-    early_stop_patience: int = Field(default=20, ge=1, description="Early stopping patience")
+    early_stop_patience: int = Field(default=20, ge=0, le=100, description="Early stopping patience (0 = disabled)")
     early_stop_delta: float = Field(default=0.001, ge=0.0, description="Minimum change for early stopping")
 
     # Gradient clipping
@@ -106,6 +106,19 @@ class TrainingMetrics(BaseModel):
     val_accuracy: Optional[float] = None
     learning_rate: Optional[float] = None
     gradient_norm: Optional[float] = None
+    
+    # Advanced localization metrics (Phase 7 - Nov 2025) - All in meters (SI unit)
+    train_rmse_m: Optional[float] = None
+    val_rmse_m: Optional[float] = None
+    val_rmse_good_geom_m: Optional[float] = None
+    val_distance_p50_m: Optional[float] = None
+    val_distance_p68_m: Optional[float] = None  # Project KPI: ±30m @ 68% confidence
+    val_distance_p95_m: Optional[float] = None
+    mean_predicted_uncertainty_m: Optional[float] = None
+    uncertainty_calibration_error: Optional[float] = None
+    mean_gdop: Optional[float] = None
+    gdop_below_5_percent: Optional[float] = None
+    weight_norm: Optional[float] = None
 
 
 class TrainingJobResponse(BaseModel):
@@ -220,6 +233,6 @@ class EvolveTrainingRequest(BaseModel):
     """Request to evolve (continue training) an existing model."""
 
     parent_model_id: UUID = Field(..., description="Parent model UUID to evolve from")
-    additional_epochs: int = Field(..., ge=1, le=500, description="Additional epochs to train")
-    early_stop_patience: int = Field(default=20, ge=1, le=100, description="Early stopping patience")
+    additional_epochs: int = Field(..., ge=1, le=5000, description="Additional epochs to train")
+    early_stop_patience: int = Field(default=20, ge=0, le=100, description="Early stopping patience (0 = disabled)")
     description: Optional[str] = Field(default=None, description="Description for this evolution")

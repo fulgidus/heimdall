@@ -375,7 +375,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       onChange={handleChange}
                       required
                       min="1"
-                      max="1000"
+                      max="5000"
                       className="form-control"
                       disabled={isSubmitting}
                     />
@@ -453,13 +453,13 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
                       name="early_stop_patience"
                       value={formData.config.early_stop_patience}
                       onChange={handleChange}
-                      min="1"
-                      max="200"
+                      min="0"
+                      max="100"
                       className="form-control"
                       disabled={isSubmitting}
                     />
                     <small className="form-text text-muted">
-                      Stop if no improvement after N epochs (min: 1, max: 200)
+                      Stop if no improvement after N epochs (0 = disabled, max: 100)
                     </small>
                   </div>
                 </div>

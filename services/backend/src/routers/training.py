@@ -344,7 +344,11 @@ async def get_training_job(job_id: UUID):
             metrics_query = text("""
                 SELECT DISTINCT ON (epoch)
                     epoch, train_loss, val_loss, train_accuracy, val_accuracy,
-                    learning_rate, gradient_norm
+                    learning_rate, gradient_norm,
+                    train_rmse_m, val_rmse_m, val_rmse_good_geom_m,
+                    val_distance_p50_m, val_distance_p68_m, val_distance_p95_m,
+                    mean_predicted_uncertainty_m, uncertainty_calibration_error,
+                    mean_gdop, gdop_below_5_percent, weight_norm
                 FROM heimdall.training_metrics
                 WHERE training_job_id = :job_id
                 ORDER BY epoch DESC, timestamp DESC
@@ -365,6 +369,17 @@ async def get_training_job(job_id: UUID):
                     val_accuracy=sanitize_float(row[4]),
                     learning_rate=sanitize_float(row[5]),
                     gradient_norm=sanitize_float(row[6]),
+                    train_rmse_m=sanitize_float(row[7]),
+                    val_rmse_m=sanitize_float(row[8]),
+                    val_rmse_good_geom_m=sanitize_float(row[9]),
+                    val_distance_p50_m=sanitize_float(row[10]),
+                    val_distance_p68_m=sanitize_float(row[11]),
+                    val_distance_p95_m=sanitize_float(row[12]),
+                    mean_predicted_uncertainty_m=sanitize_float(row[13]),
+                    uncertainty_calibration_error=sanitize_float(row[14]),
+                    mean_gdop=sanitize_float(row[15]),
+                    gdop_below_5_percent=sanitize_float(row[16]),
+                    weight_norm=sanitize_float(row[17]),
                 )
                 for row in metrics_results
             ]
@@ -1143,7 +1158,11 @@ async def get_training_metrics(
             metrics_query = text("""
                 SELECT DISTINCT ON (epoch)
                     epoch, train_loss, val_loss, train_accuracy, val_accuracy,
-                    learning_rate, gradient_norm
+                    learning_rate, gradient_norm,
+                    train_rmse_m, val_rmse_m, val_rmse_good_geom_m,
+                    val_distance_p50_m, val_distance_p68_m, val_distance_p95_m,
+                    mean_predicted_uncertainty_m, uncertainty_calibration_error,
+                    mean_gdop, gdop_below_5_percent, weight_norm
                 FROM heimdall.training_metrics
                 WHERE training_job_id = :job_id
                 ORDER BY epoch ASC, timestamp DESC
@@ -1176,6 +1195,17 @@ async def get_training_metrics(
                     val_accuracy=sanitize_float(row[4]),
                     learning_rate=sanitize_float(row[5]),
                     gradient_norm=sanitize_float(row[6]),
+                    train_rmse_m=sanitize_float(row[7]),
+                    val_rmse_m=sanitize_float(row[8]),
+                    val_rmse_good_geom_m=sanitize_float(row[9]),
+                    val_distance_p50_m=sanitize_float(row[10]),
+                    val_distance_p68_m=sanitize_float(row[11]),
+                    val_distance_p95_m=sanitize_float(row[12]),
+                    mean_predicted_uncertainty_m=sanitize_float(row[13]),
+                    uncertainty_calibration_error=sanitize_float(row[14]),
+                    mean_gdop=sanitize_float(row[15]),
+                    gdop_below_5_percent=sanitize_float(row[16]),
+                    weight_norm=sanitize_float(row[17]),
                 )
                 for row in results
             ]
