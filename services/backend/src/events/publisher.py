@@ -127,6 +127,29 @@ class EventPublisher:
         self._publish(f'service.health.{service_name}', event)
         logger.debug(f"Published service health: {service_name} = {status}")
 
+    def publish_comprehensive_health(self, health_data: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Publish comprehensive system health status update (all components aggregated).
+
+        Args:
+            health_data: Dict mapping component name to health status
+                Example: {
+                    "backend": {"status": "healthy", "response_time_ms": 23.5, ...},
+                    "postgresql": {"status": "healthy", "message": "Database connection OK", ...},
+                    "redis": {"status": "healthy", "message": "Cache connection OK", ...}
+                }
+        """
+        event = {
+            'event': 'system:comprehensive_health',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'components': health_data
+            }
+        }
+
+        self._publish('system.health.comprehensive', event)
+        logger.info(f"Published comprehensive health update for {len(health_data)} components")
+
     def publish_signal_detection(
         self,
         frequency_hz: float,

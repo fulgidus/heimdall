@@ -84,7 +84,7 @@ celery_app.conf.beat_schedule = {
     },
     "monitor-comprehensive-health": {
         "task": "monitor_comprehensive_health",
-        "schedule": 30.0,  # Every 30 seconds
+        "schedule": 5.0,  # Every 5 seconds for near-real-time updates
     },
     "batch-feature-extraction": {
         "task": "backend.tasks.batch_feature_extraction",
