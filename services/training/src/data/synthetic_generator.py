@@ -23,7 +23,7 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .config import TrainingConfig
+from .config import TrainingConfig, TxAntennaDistribution, RxAntennaDistribution
 from .propagation import (
     RFPropagationModel, 
     calculate_psd, 
@@ -108,13 +108,16 @@ def _select_tx_antenna(rng: np.random.Generator, tx_antenna_dist=None) -> Antenn
     
     Args:
         rng: Random number generator
-        tx_antenna_dist: TxAntennaDistribution instance (optional, uses defaults if None)
+        tx_antenna_dist: TxAntennaDistribution instance or dict (optional, uses defaults if None)
     
     Returns:
         AntennaPattern instance for TX
     """
     # Use provided distribution or defaults
     if tx_antenna_dist is not None:
+        # Convert dict to dataclass if needed
+        if isinstance(tx_antenna_dist, dict):
+            tx_antenna_dist = TxAntennaDistribution(**tx_antenna_dist)
         antenna_probs = [tx_antenna_dist.whip, tx_antenna_dist.rubber_duck, tx_antenna_dist.portable_directional]
     else:
         antenna_probs = [0.90, 0.08, 0.02]  # Default distribution
@@ -143,13 +146,16 @@ def _select_rx_antenna(rng: np.random.Generator, rx_antenna_dist=None) -> Antenn
     
     Args:
         rng: Random number generator
-        rx_antenna_dist: RxAntennaDistribution instance (optional, uses defaults if None)
+        rx_antenna_dist: RxAntennaDistribution instance or dict (optional, uses defaults if None)
     
     Returns:
         AntennaPattern instance for RX
     """
     # Use provided distribution or defaults
     if rx_antenna_dist is not None:
+        # Convert dict to dataclass if needed
+        if isinstance(rx_antenna_dist, dict):
+            rx_antenna_dist = RxAntennaDistribution(**rx_antenna_dist)
         antenna_probs = [rx_antenna_dist.omni_vertical, rx_antenna_dist.yagi, rx_antenna_dist.collinear]
     else:
         antenna_probs = [0.80, 0.15, 0.05]  # Default distribution
@@ -158,7 +164,7 @@ def _select_rx_antenna(rng: np.random.Generator, rx_antenna_dist=None) -> Antenn
     
     antenna_type = rng.choice(antenna_types, p=antenna_probs)
     
-    # For Yagi antennas, randomize pointing direction (each WebSDR might point different direction)
+    # For directional antennas (Yagi), randomize pointing direction
     if antenna_type == AntennaType.YAGI:
         pointing_azimuth = rng.uniform(0.0, 360.0)
     else:

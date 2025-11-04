@@ -4,13 +4,23 @@
  * Main page for managing ML model training, monitoring metrics, and model export/import
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JobsTab } from './components/JobsTab/JobsTab';
 import { MetricsTab } from './components/MetricsTab/MetricsTab';
 import { ModelsTab } from './components/ModelsTab/ModelsTab';
 import { SyntheticTab } from './components/SyntheticTab/SyntheticTab';
 
 type TabId = 'jobs' | 'metrics' | 'models' | 'synthetic';
+
+/**
+ * Parse the URL hash to extract the tab ID
+ * Falls back to 'jobs' if hash is invalid or empty
+ */
+const getTabFromHash = (hash: string): TabId => {
+  const tabId = hash.replace('#', '') as TabId;
+  const validTabs: TabId[] = ['jobs', 'metrics', 'models', 'synthetic'];
+  return validTabs.includes(tabId) ? tabId : 'jobs';
+};
 
 interface Tab {
   id: TabId;
@@ -42,7 +52,26 @@ const tabs: Tab[] = [
 ];
 
 export const Training: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('jobs');
+  // Initialize from URL hash on mount
+  const [activeTab, setActiveTab] = useState<TabId>(() => 
+    getTabFromHash(window.location.hash)
+  );
+
+  // Sync with URL hash changes (browser back/forward navigation)
+  useEffect(() => {
+    const handleHashChange = () => {
+      setActiveTab(getTabFromHash(window.location.hash));
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Handle tab change and update URL hash
+  const handleTabChange = (tabId: TabId) => {
+    window.location.hash = tabId;
+    setActiveTab(tabId);
+  };
 
   return (
     <>
@@ -86,7 +115,7 @@ export const Training: React.FC = () => {
                       type="button"
                       role="tab"
                       aria-selected={activeTab === tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                     >
                       <i className={`ph ${tab.icon}`}></i>
                       <span>{tab.label}</span>
