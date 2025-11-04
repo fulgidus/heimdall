@@ -50,7 +50,7 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
 
   const progressPercent = job.progress_percent || 0;
   const currentSamples = job.current || 0;
-  const totalSamples = job.total || job.config.num_samples;
+  const totalSamples = job.total || job.config?.num_samples || 0;
 
   return (
     <div className="card">
@@ -58,7 +58,7 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
         {/* Header */}
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div className="flex-grow-1">
-            <h6 className="card-title mb-1">{job.job_name || job.name || job.config.name || 'Unnamed Job'}</h6>
+            <h6 className="card-title mb-1">{job.job_name || job.name || job.config?.name || 'Unnamed Job'}</h6>
             <p className="text-muted small mb-0">
               <code className="small">{job.id.slice(0, 8)}</code>
             </p>
@@ -91,26 +91,28 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
         )}
 
         {/* Config Details */}
-        <div className="row g-2 mb-3 small">
-          <div className="col-6">
-            <span className="text-muted">Target Dataset:</span>
-            <div className="fw-medium text-truncate" title={job.config.name}>
-              {job.config.name}
+        {job.config && (
+          <div className="row g-2 mb-3 small">
+            <div className="col-6">
+              <span className="text-muted">Target Dataset:</span>
+              <div className="fw-medium text-truncate" title={job.config.name}>
+                {job.config.name}
+              </div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Samples:</span>
+              <div className="fw-medium">{totalSamples.toLocaleString()}</div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Frequency:</span>
+              <div className="fw-medium">{job.config.frequency_mhz || 'N/A'} MHz</div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Min Receivers:</span>
+              <div className="fw-medium">{job.config.min_receivers || 'N/A'}</div>
             </div>
           </div>
-          <div className="col-6">
-            <span className="text-muted">Samples:</span>
-            <div className="fw-medium">{totalSamples.toLocaleString()}</div>
-          </div>
-          <div className="col-6">
-            <span className="text-muted">Frequency:</span>
-            <div className="fw-medium">{job.config.frequency_mhz} MHz</div>
-          </div>
-          <div className="col-6">
-            <span className="text-muted">Min Receivers:</span>
-            <div className="fw-medium">{job.config.min_receivers}</div>
-          </div>
-        </div>
+        )}
 
         {/* Timestamps */}
         <div className="small text-muted mb-3">

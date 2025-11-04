@@ -116,7 +116,7 @@ api.interceptors.response.use(
     response => {
         console.log('📥 API Response:', {
             status: response.status,
-            url: response.config.url,
+            url: response.config?.url,
             dataSize: JSON.stringify(response.data).length,
         });
         return response;

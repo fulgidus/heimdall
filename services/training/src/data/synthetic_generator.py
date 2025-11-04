@@ -203,14 +203,14 @@ def _generate_single_sample(args):
         # Return None to signal rejection (will be filtered out later)
         return None
 
-    # Generate IQ samples for each receiver
-    iq_samples = {}
-    receiver_features_list = []
-    receivers_with_signal = 0
-    propagation_snr_values = []  # Track SNR from propagation model
-
+    # Step 1: Calculate propagation for all receivers (vectorizable in future)
+    num_receivers = len(receivers_list)
+    rx_powers_dbm = []
+    snr_dbs = []
+    distance_kms = []
+    signal_presents = []
+    
     for receiver in receivers_list:
-        rx_id = receiver['name']
         rx_lat = receiver['latitude']
         rx_lon = receiver['longitude']
         rx_alt = receiver['altitude']
@@ -227,36 +227,71 @@ def _generate_single_sample(args):
             frequency_mhz=frequency_mhz,
             terrain_lookup=None
         )
-
-        # Check if signal is detectable
-        signal_present = snr_db >= min_snr_db
+        
+        rx_powers_dbm.append(rx_power_dbm)
+        snr_dbs.append(snr_db)
+        distance_kms.append(details['distance_km'])
+        signal_presents.append(snr_db >= min_snr_db)
+    
+    # Step 2: Prepare batch parameters for GPU vectorized IQ generation
+    frequency_offsets = rng.uniform(-50, 50, num_receivers).astype(np.float32)
+    bandwidths = np.full(num_receivers, 12500.0, dtype=np.float32)  # FM signal bandwidth
+    signal_powers_dbm = np.array(rx_powers_dbm, dtype=np.float32)
+    noise_floors_dbm = np.full(num_receivers, -120.0, dtype=np.float32)
+    snr_dbs_array = np.array(snr_dbs, dtype=np.float32)
+    
+    # Step 3: Generate ALL IQ samples at once using GPU batch processing
+    iq_batch = iq_generator.generate_iq_batch(
+        frequency_offsets=frequency_offsets,
+        bandwidths=bandwidths,
+        signal_powers_dbm=signal_powers_dbm,
+        noise_floors_dbm=noise_floors_dbm,
+        snr_dbs=snr_dbs_array,
+        batch_size=num_receivers
+    )  # Returns shape: (num_receivers, num_samples)
+    
+    # Step 4: Process batch results - create individual samples and extract features
+    iq_samples = {}
+    receiver_features_list = []
+    receivers_with_signal = 0
+    propagation_snr_values = []  # Track SNR from propagation model
+    
+    for i, receiver in enumerate(receivers_list):
+        rx_id = receiver['name']
+        rx_lat = receiver['latitude']
+        rx_lon = receiver['longitude']
+        rx_alt = receiver['altitude']
+        
+        signal_present = signal_presents[i]
+        snr_db = snr_dbs[i]
+        
         if signal_present:
             receivers_with_signal += 1
-            propagation_snr_values.append(snr_db)  # Store propagation SNR
-
-        # Generate IQ sample
-        noise_floor_dbm = -120.0
-        frequency_offset_hz = rng.uniform(-50, 50)  # Doppler/oscillator drift
+            propagation_snr_values.append(snr_db)
         
-        iq_sample = iq_generator.generate_iq_sample(
+        # Extract IQ data for this receiver from batch
+        iq_data = iq_batch[i]  # Shape: (num_samples,) complex64
+        
+        # Create SyntheticIQSample object (for storage/metadata)
+        # Note: SyntheticIQSample only stores IQ data and receiver metadata
+        # RF parameters (power, SNR, etc.) are not stored in the sample itself
+        iq_sample = SyntheticIQSample(
+            samples=iq_data,
+            sample_rate_hz=200_000.0,
+            duration_ms=1000.0,  # Fixed 1 second duration
             center_frequency_hz=frequency_mhz * 1e6,
-            signal_power_dbm=rx_power_dbm,
-            noise_floor_dbm=noise_floor_dbm,
-            snr_db=snr_db,
-            frequency_offset_hz=frequency_offset_hz,
-            bandwidth_hz=12500.0,  # FM signal bandwidth
             rx_id=rx_id,
             rx_lat=rx_lat,
             rx_lon=rx_lon,
             timestamp=float(sample_idx)
         )
-
+        
         # Store IQ sample
         # For iq_raw datasets: store ALL samples
         # For feature_based datasets: store first 100 only (legacy behavior)
         if dataset_type == 'iq_raw' or sample_idx < 100:
             iq_samples[rx_id] = iq_sample
-
+        
         # Convert SyntheticIQSample to IQSample for feature extraction
         iq_sample_for_extraction = IQSample(
             samples=iq_sample.samples,
@@ -267,25 +302,25 @@ def _generate_single_sample(args):
             rx_lon=iq_sample.rx_lon,
             timestamp=iq_sample.to_datetime()
         )
-
+        
         # Extract features (chunked: 1000ms → 5×200ms with aggregation)
         features_dict = feature_extractor.extract_features_chunked(
             iq_sample_for_extraction,
             chunk_duration_ms=200.0,
             num_chunks=5
         )
-
+        
         # Add receiver metadata to features
         features_dict['rx_id'] = rx_id
         features_dict['rx_lat'] = rx_lat
         features_dict['rx_lon'] = rx_lon
-        features_dict['distance_km'] = details['distance_km']
-        features_dict['num_receivers_in_sample'] = num_receivers_in_sample  # For iq_raw datasets
-
+        features_dict['distance_km'] = distance_kms[i]
+        features_dict['num_receivers_in_sample'] = num_receivers_in_sample
+        
         # Override signal_present with propagation model result
         # (feature extractor may incorrectly detect no signal due to fading/multipath)
         features_dict['signal_present'] = signal_present
-
+        
         receiver_features_list.append(features_dict)
 
     # Calculate overall quality metrics
@@ -713,26 +748,23 @@ async def generate_synthetic_data_with_iq(
             logger.warning(f"IQ-raw with random receivers: relaxing max_gdop from {max_gdop} to 200 for better success rate")
             max_gdop = 200.0
 
-    # Determine number of worker threads
-    # For I/O-bound tasks (which include numpy operations), use more threads than CPUs
-    # Rule of thumb: 2-4x CPU count for mixed CPU/I/O workloads
-    cpu_count = mp.cpu_count()
-
-    # Check if we can get thread limit from environment or system
+    # Use GPU batch processing instead of thread pool
+    # Batch size: 1024 samples per GPU batch for optimal CUDA core utilization
+    batch_size = 1024
+    
+    # Check GPU availability
     try:
-        # Try to get from system limit
-        import resource
-        soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NPROC)
-        # Use a reasonable fraction of the process limit
-        max_threads_from_limit = min(soft_limit // 4, 128) if soft_limit != resource.RLIM_INFINITY else 128
-    except:
-        max_threads_from_limit = 128
-
-    # For ThreadPoolExecutor: use 2-3x CPU count (good for numpy/scipy workloads)
-    # but cap at reasonable maximum to avoid thread explosion
-    num_workers = min(cpu_count * 3, max_threads_from_limit, 72)
-
-    logger.info(f"Using {num_workers} worker threads for parallel generation (CPUs: {cpu_count})")
+        import torch
+        use_gpu = torch.cuda.is_available()
+        if use_gpu:
+            logger.info(f"GPU batch processing enabled: {torch.cuda.get_device_name(0)}")
+        else:
+            logger.warning("GPU not available, falling back to CPU batch processing")
+    except ImportError:
+        use_gpu = False
+        logger.warning("PyTorch not available, falling back to CPU batch processing")
+    
+    logger.info(f"Using batch size: {batch_size} samples per batch")
 
     # Convert training config to dict for serialization
     training_config_dict = {
@@ -776,6 +808,11 @@ async def generate_synthetic_data_with_iq(
     # Track time for progress updates (every 1 second)
     import time
     last_progress_time = time.time()
+    
+    # Number of parallel threads for sample generation
+    # ThreadPoolExecutor orchestrates calls to _generate_single_sample(),
+    # which internally uses GPU-accelerated IQ generation when available
+    num_workers = 4
     
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = {executor.submit(_generate_single_sample, args): args[0]

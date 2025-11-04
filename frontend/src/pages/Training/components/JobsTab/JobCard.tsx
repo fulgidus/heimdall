@@ -146,24 +146,26 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
         )}
 
         {/* Config Details */}
-        <div className="row g-2 mb-3 small">
-          <div className="col-6">
-            <span className="text-muted">Architecture:</span>
-            <div className="fw-medium">{job.config.model_architecture || 'ResNet-18'}</div>
+        {job.config && (
+          <div className="row g-2 mb-3 small">
+            <div className="col-6">
+              <span className="text-muted">Architecture:</span>
+              <div className="fw-medium">{job.config.model_architecture || 'ResNet-18'}</div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Batch Size:</span>
+              <div className="fw-medium">{job.config.batch_size}</div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Learning Rate:</span>
+              <div className="fw-medium">{job.config.learning_rate}</div>
+            </div>
+            <div className="col-6">
+              <span className="text-muted">Epochs:</span>
+              <div className="fw-medium">{totalEpochs}</div>
+            </div>
           </div>
-          <div className="col-6">
-            <span className="text-muted">Batch Size:</span>
-            <div className="fw-medium">{job.config.batch_size}</div>
-          </div>
-          <div className="col-6">
-            <span className="text-muted">Learning Rate:</span>
-            <div className="fw-medium">{job.config.learning_rate}</div>
-          </div>
-          <div className="col-6">
-            <span className="text-muted">Epochs:</span>
-            <div className="fw-medium">{totalEpochs}</div>
-          </div>
-        </div>
+        )}
 
         {/* Timestamps */}
         <div className="small text-muted mb-3">
