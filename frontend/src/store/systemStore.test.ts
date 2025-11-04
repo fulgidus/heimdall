@@ -36,6 +36,7 @@ describe('System Store (Zustand)', () => {
     // Reset store to initial state before each test
     useSystemStore.setState({
       servicesHealth: {},
+      infrastructureHealth: {},
       modelPerformance: null,
       isLoading: false,
       error: null,
@@ -48,6 +49,7 @@ describe('System Store (Zustand)', () => {
     it('should initialize with default state', () => {
       const state = useSystemStore.getState();
       expect(state.servicesHealth).toEqual({});
+      expect(state.infrastructureHealth).toEqual({});
       expect(state.modelPerformance).toBe(null);
       expect(state.isLoading).toBe(false);
       expect(state.error).toBe(null);
@@ -59,8 +61,10 @@ describe('System Store (Zustand)', () => {
       expect(typeof state.checkAllServices).toBe('function');
       expect(typeof state.checkService).toBe('function');
       expect(typeof state.fetchModelPerformance).toBe('function');
+      expect(typeof state.updateComprehensiveHealthFromWebSocket).toBe('function');
       expect(typeof state.isServiceHealthy).toBe('function');
       expect(typeof state.getServiceStatus).toBe('function');
+      expect(typeof state.getInfrastructureStatus).toBe('function');
       expect(typeof state.refreshAll).toBe('function');
     });
   });
@@ -316,6 +320,94 @@ describe('System Store (Zustand)', () => {
       expect(state.servicesHealth).toEqual({
         'api-gateway': { status: 'healthy', latency_ms: 10 },
       });
+    });
+  });
+
+  describe('updateComprehensiveHealthFromWebSocket', () => {
+    it('should separate microservices from infrastructure components', () => {
+      const comprehensiveHealth = {
+        backend: { status: 'healthy', response_time_ms: 23.5, version: '0.1.0' },
+        training: { status: 'healthy', response_time_ms: 45.2, version: '0.1.0' },
+        inference: { status: 'healthy', response_time_ms: 12.8, version: '0.1.0' },
+        postgresql: { status: 'healthy', message: 'Database connection OK', type: 'database' },
+        redis: { status: 'healthy', message: 'Cache connection OK', type: 'cache' },
+        rabbitmq: { status: 'healthy', message: 'Message queue connection OK', type: 'queue' },
+        minio: { status: 'healthy', message: 'Object storage OK', type: 'storage' },
+        celery: { status: 'healthy', message: '2 worker(s) active', type: 'worker', worker_count: 2 },
+      };
+
+      useSystemStore.getState().updateComprehensiveHealthFromWebSocket(comprehensiveHealth);
+
+      const state = useSystemStore.getState();
+      
+      // Microservices should be in servicesHealth
+      expect(Object.keys(state.servicesHealth)).toEqual(['backend', 'training', 'inference']);
+      expect(state.servicesHealth.backend).toEqual(comprehensiveHealth.backend);
+      
+      // Infrastructure should be in infrastructureHealth
+      expect(Object.keys(state.infrastructureHealth)).toEqual(['postgresql', 'redis', 'rabbitmq', 'minio', 'celery']);
+      expect(state.infrastructureHealth.postgresql).toEqual(comprehensiveHealth.postgresql);
+      expect(state.infrastructureHealth.celery.worker_count).toBe(2);
+    });
+
+    it('should update lastCheck timestamp', () => {
+      const beforeUpdate = new Date();
+      
+      useSystemStore.getState().updateComprehensiveHealthFromWebSocket({
+        backend: { status: 'healthy', response_time_ms: 23.5 },
+      });
+
+      const state = useSystemStore.getState();
+      expect(state.lastCheck).toBeTruthy();
+      
+      if (state.lastCheck) {
+        const checkTime = new Date(state.lastCheck);
+        expect(checkTime.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+      }
+    });
+
+    it('should clear error on update', () => {
+      useSystemStore.setState({ error: 'Previous error' });
+
+      useSystemStore.getState().updateComprehensiveHealthFromWebSocket({
+        backend: { status: 'healthy', response_time_ms: 23.5 },
+      });
+
+      const state = useSystemStore.getState();
+      expect(state.error).toBe(null);
+    });
+
+    it('should handle empty components', () => {
+      useSystemStore.getState().updateComprehensiveHealthFromWebSocket({});
+
+      const state = useSystemStore.getState();
+      expect(state.servicesHealth).toEqual({});
+      expect(state.infrastructureHealth).toEqual({});
+    });
+  });
+
+  describe('getInfrastructureStatus', () => {
+    beforeEach(() => {
+      useSystemStore.setState({
+        infrastructureHealth: {
+          postgresql: { status: 'healthy', type: 'database', message: 'Database connection OK' },
+          redis: { status: 'unhealthy', type: 'cache', error: 'Connection timeout' },
+        },
+      });
+    });
+
+    it('should return status for existing infrastructure component', () => {
+      const status = useSystemStore.getState().getInfrastructureStatus('postgresql');
+      expect(status).toEqual({ 
+        status: 'healthy', 
+        type: 'database', 
+        message: 'Database connection OK' 
+      });
+    });
+
+    it('should return null for non-existent component', () => {
+      const status = useSystemStore.getState().getInfrastructureStatus('unknown-component');
+      expect(status).toBe(null);
     });
   });
 
