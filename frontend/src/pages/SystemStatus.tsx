@@ -400,7 +400,6 @@ const SystemStatus: React.FC = () => {
                       {infrastructure.map(component => {
                         const isHealthy = component.status === 'healthy';
                         const isWarning = component.status === 'warning';
-                        const isUnhealthy = component.status === 'unhealthy' || component.status === 'unknown';
                         
                         return (
                           <tr key={component.rawName}>
