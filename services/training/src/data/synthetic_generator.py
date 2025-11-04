@@ -90,6 +90,242 @@ def _generate_random_receivers(
     return receivers
 
 
+def _generate_single_sample_no_features(args):
+    """
+    Generate a single synthetic sample WITHOUT feature extraction (for batch processing).
+    
+    This function generates IQ samples and metadata but does NOT extract features.
+    Feature extraction is deferred to allow batch processing of multiple samples at once,
+    which amortizes GPU initialization overhead.
+
+    This function must be at module level for pickle serialization.
+
+    Args:
+        args: Tuple of (sample_index, receivers_config, training_config, config, seed, dataset_type, use_random_receivers)
+
+    Returns:
+        Tuple of (sample_idx, iq_samples_for_extraction, receivers_list, distance_kms, signal_presents, 
+                  tx_position, propagation_metadata, num_receivers_in_sample, iq_samples_dict)
+    """
+    sample_idx, receivers_list, training_config_dict, config, base_seed, dataset_type, use_random_receivers = args
+
+    # Create unique seed for this sample
+    sample_seed = base_seed + sample_idx if base_seed else None
+    rng = np.random.default_rng(sample_seed)
+    
+    # Generate random receivers if requested (for iq_raw datasets)
+    if use_random_receivers:
+        min_rx = config.get('min_receivers_count', 5)
+        max_rx = config.get('max_receivers_count', 10)
+        num_receivers = rng.integers(min_rx, max_rx + 1)  # Inclusive upper bound
+        
+        # Initialize terrain lookup for random receiver generation
+        terrain_lookup = TerrainLookup(use_srtm=False)  # Simplified model for speed
+        
+        receivers_list = _generate_random_receivers(
+            num_receivers=num_receivers,
+            area_lat_min=config.get('area_lat_min', 44.0),
+            area_lat_max=config.get('area_lat_max', 46.0),
+            area_lon_min=config.get('area_lon_min', 7.0),
+            area_lon_max=config.get('area_lon_max', 10.0),
+            terrain_lookup=terrain_lookup,
+            rng=rng
+        )
+        logger.debug(f"Sample {sample_idx}: Generated {len(receivers_list)} random receivers")
+    
+    num_receivers_in_sample = len(receivers_list)
+
+    # Use thread-local storage to reuse extractors instead of creating new ones for each sample
+    # This reduces GPU initialization overhead from ~100ms to ~1ms per sample
+    if not hasattr(_thread_local, 'iq_generator'):
+        # Initialize generators with GPU acceleration (ONCE per thread)
+        # Check if GPU is available (use torch as proxy since it's always available in training service)
+        try:
+            import torch
+            use_gpu = torch.cuda.is_available()
+        except ImportError:
+            use_gpu = False
+        
+        _thread_local.iq_generator = SyntheticIQGenerator(
+            sample_rate_hz=200_000,  # 200 kHz
+            duration_ms=1000.0,       # 1 second
+            seed=None,  # Will be reset per sample below
+            use_gpu=use_gpu
+        )
+        _thread_local.propagation = RFPropagationModel()
+        logger.info(f"Thread {threading.current_thread().name}: Initialized reusable generators (GPU={use_gpu})")
+    
+    # Reuse thread-local instances
+    iq_generator = _thread_local.iq_generator
+    propagation = _thread_local.propagation
+    
+    # Reset RNG seed for this sample (iq_generator supports seed reset)
+    iq_generator.rng = np.random.default_rng(sample_seed)
+
+    # Extract config parameters
+    frequency_mhz = config.get('frequency_mhz', 145.0)
+    tx_power_dbm = config.get('tx_power_dbm', 37.0)
+    inside_ratio = config.get('inside_ratio', 0.7)
+    min_snr_db = config.get('min_snr_db', 3.0)
+
+    # Generate random TX position
+    # Reconstruct bounding boxes from config dict
+    if rng.random() < inside_ratio:
+        # Inside receiver network
+        lat_min = training_config_dict['receiver_bbox']['lat_min']
+        lat_max = training_config_dict['receiver_bbox']['lat_max']
+        lon_min = training_config_dict['receiver_bbox']['lon_min']
+        lon_max = training_config_dict['receiver_bbox']['lon_max']
+    else:
+        # Training area (larger)
+        lat_min = training_config_dict['training_bbox']['lat_min']
+        lat_max = training_config_dict['training_bbox']['lat_max']
+        lon_min = training_config_dict['training_bbox']['lon_min']
+        lon_max = training_config_dict['training_bbox']['lon_max']
+
+    tx_lat = rng.uniform(lat_min, lat_max)
+    tx_lon = rng.uniform(lon_min, lon_max)
+    tx_alt = 300.0  # Simplified altitude (meters ASL)
+
+    # PRE-CHECK GEOMETRY: Calculate GDOP BEFORE generating IQ samples
+    # This avoids wasting time on samples that will be rejected
+    receiver_positions_precheck = [(rx['latitude'], rx['longitude']) for rx in receivers_list]
+    gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
+    
+    # Get max_gdop and min_receivers from config
+    max_gdop_threshold = config.get('max_gdop', 100.0)
+    min_receivers_threshold = config.get('min_receivers', 3)
+    
+    # Early rejection: if GDOP is already too high, skip IQ generation
+    if gdop_precheck > max_gdop_threshold or len(receiver_positions_precheck) < min_receivers_threshold:
+        logger.debug(f"Sample {sample_idx}: PRE-REJECTED (GDOP={gdop_precheck:.1f} > {max_gdop_threshold} or receivers={len(receiver_positions_precheck)} < {min_receivers_threshold})")
+        # Return None to signal rejection (will be filtered out later)
+        return None
+
+    # Step 1: Calculate propagation for all receivers (vectorizable in future)
+    num_receivers = len(receivers_list)
+    rx_powers_dbm = []
+    snr_dbs = []
+    distance_kms = []
+    signal_presents = []
+    
+    for receiver in receivers_list:
+        rx_lat = receiver['latitude']
+        rx_lon = receiver['longitude']
+        rx_alt = receiver['altitude']
+
+        # Calculate received power and SNR using propagation model
+        rx_power_dbm, snr_db, details = propagation.calculate_received_power(
+            tx_power_dbm=tx_power_dbm,
+            tx_lat=tx_lat,
+            tx_lon=tx_lon,
+            tx_alt=tx_alt,
+            rx_lat=rx_lat,
+            rx_lon=rx_lon,
+            rx_alt=rx_alt,
+            frequency_mhz=frequency_mhz,
+            terrain_lookup=None
+        )
+        
+        rx_powers_dbm.append(rx_power_dbm)
+        snr_dbs.append(snr_db)
+        distance_kms.append(details['distance_km'])
+        signal_presents.append(snr_db >= min_snr_db)
+    
+    # Step 2: Prepare batch parameters for GPU vectorized IQ generation
+    frequency_offsets = rng.uniform(-50, 50, num_receivers).astype(np.float32)
+    bandwidths = np.full(num_receivers, 12500.0, dtype=np.float32)  # FM signal bandwidth
+    signal_powers_dbm = np.array(rx_powers_dbm, dtype=np.float32)
+    noise_floors_dbm = np.full(num_receivers, -120.0, dtype=np.float32)
+    snr_dbs_array = np.array(snr_dbs, dtype=np.float32)
+    
+    # Step 3: Generate ALL IQ samples at once using GPU batch processing
+    iq_batch = iq_generator.generate_iq_batch(
+        frequency_offsets=frequency_offsets,
+        bandwidths=bandwidths,
+        signal_powers_dbm=signal_powers_dbm,
+        noise_floors_dbm=noise_floors_dbm,
+        snr_dbs=snr_dbs_array,
+        batch_size=num_receivers
+    )  # Returns shape: (num_receivers, num_samples)
+    
+    # Step 4: Process batch results - create IQ samples and prepare for batched feature extraction
+    iq_samples = {}
+    iq_samples_for_extraction = []  # Collect IQ samples for batch processing
+    receivers_with_signal = 0
+    propagation_snr_values = []  # Track SNR from propagation model
+    
+    # First pass: Create IQ samples for all receivers
+    for i, receiver in enumerate(receivers_list):
+        rx_id = receiver['name']
+        rx_lat = receiver['latitude']
+        rx_lon = receiver['longitude']
+        rx_alt = receiver['altitude']
+        
+        signal_present = signal_presents[i]
+        snr_db = snr_dbs[i]
+        
+        if signal_present:
+            receivers_with_signal += 1
+            propagation_snr_values.append(snr_db)
+        
+        # Extract IQ data for this receiver from batch
+        iq_data = iq_batch[i]  # Shape: (num_samples,) complex64
+        
+        # Create SyntheticIQSample object (for storage/metadata)
+        iq_sample = SyntheticIQSample(
+            samples=iq_data,
+            sample_rate_hz=200_000.0,
+            duration_ms=1000.0,  # Fixed 1 second duration
+            center_frequency_hz=frequency_mhz * 1e6,
+            rx_id=rx_id,
+            rx_lat=rx_lat,
+            rx_lon=rx_lon,
+            timestamp=float(sample_idx)
+        )
+        
+        # Store IQ sample (for MinIO storage)
+        if dataset_type == 'iq_raw' or sample_idx < 100:
+            iq_samples[rx_id] = iq_sample
+        
+        # Convert to IQSample for feature extraction
+        iq_sample_for_extraction = IQSample(
+            samples=iq_sample.samples,
+            sample_rate_hz=int(iq_sample.sample_rate_hz),
+            center_frequency_hz=int(iq_sample.center_frequency_hz),
+            rx_id=iq_sample.rx_id,
+            rx_lat=iq_sample.rx_lat,
+            rx_lon=iq_sample.rx_lon,
+            timestamp=iq_sample.to_datetime()
+        )
+        iq_samples_for_extraction.append(iq_sample_for_extraction)
+    
+    # NO FEATURE EXTRACTION HERE - deferred to batch processing
+    
+    # Build propagation metadata for later feature extraction
+    propagation_metadata = {
+        'frequency_mhz': frequency_mhz,
+        'tx_power_dbm': tx_power_dbm,
+        'sample_rate_hz': 200_000,
+        'iq_duration_ms': 1000.0,
+        'num_chunks': 5,
+        'chunk_duration_ms': 200.0,
+        'generated_at': sample_idx,
+        'propagation_snr_values': propagation_snr_values,
+        'receivers_with_signal': receivers_with_signal
+    }
+
+    tx_position = {
+        'tx_lat': tx_lat,
+        'tx_lon': tx_lon,
+        'tx_alt': tx_alt,
+        'tx_power_dbm': tx_power_dbm
+    }
+
+    return (sample_idx, iq_samples_for_extraction, receivers_list, distance_kms, 
+            signal_presents, tx_position, propagation_metadata, num_receivers_in_sample, iq_samples)
+
+
 def _generate_single_sample(args):
     """
     Generate a single synthetic sample (for multiprocessing).
@@ -250,12 +486,13 @@ def _generate_single_sample(args):
         batch_size=num_receivers
     )  # Returns shape: (num_receivers, num_samples)
     
-    # Step 4: Process batch results - create individual samples and extract features
+    # Step 4: Process batch results - create IQ samples and prepare for batched feature extraction
     iq_samples = {}
-    receiver_features_list = []
+    iq_samples_for_extraction = []  # Collect IQ samples for batch processing
     receivers_with_signal = 0
     propagation_snr_values = []  # Track SNR from propagation model
     
+    # First pass: Create IQ samples for all receivers
     for i, receiver in enumerate(receivers_list):
         rx_id = receiver['name']
         rx_lat = receiver['latitude']
@@ -273,8 +510,6 @@ def _generate_single_sample(args):
         iq_data = iq_batch[i]  # Shape: (num_samples,) complex64
         
         # Create SyntheticIQSample object (for storage/metadata)
-        # Note: SyntheticIQSample only stores IQ data and receiver metadata
-        # RF parameters (power, SNR, etc.) are not stored in the sample itself
         iq_sample = SyntheticIQSample(
             samples=iq_data,
             sample_rate_hz=200_000.0,
@@ -286,13 +521,11 @@ def _generate_single_sample(args):
             timestamp=float(sample_idx)
         )
         
-        # Store IQ sample
-        # For iq_raw datasets: store ALL samples
-        # For feature_based datasets: store first 100 only (legacy behavior)
+        # Store IQ sample (for MinIO storage)
         if dataset_type == 'iq_raw' or sample_idx < 100:
             iq_samples[rx_id] = iq_sample
         
-        # Convert SyntheticIQSample to IQSample for feature extraction
+        # Convert to IQSample for feature extraction
         iq_sample_for_extraction = IQSample(
             samples=iq_sample.samples,
             sample_rate_hz=int(iq_sample.sample_rate_hz),
@@ -302,24 +535,30 @@ def _generate_single_sample(args):
             rx_lon=iq_sample.rx_lon,
             timestamp=iq_sample.to_datetime()
         )
+        iq_samples_for_extraction.append(iq_sample_for_extraction)
+    
+    # Step 5: Extract features from ALL receivers at once (GPU batched processing)
+    # This processes one chunk at a time across all 7 receivers to avoid OOM
+    features_dicts = feature_extractor.extract_features_batch_conservative(
+        iq_samples_list=iq_samples_for_extraction,
+        chunk_duration_ms=200.0,
+        num_chunks=5
+    )
+    
+    # Step 6: Add receiver metadata to each feature dict
+    receiver_features_list = []
+    for i, features_dict in enumerate(features_dicts):
+        receiver = receivers_list[i]
         
-        # Extract features (chunked: 1000ms → 5×200ms with aggregation)
-        features_dict = feature_extractor.extract_features_chunked(
-            iq_sample_for_extraction,
-            chunk_duration_ms=200.0,
-            num_chunks=5
-        )
-        
-        # Add receiver metadata to features
-        features_dict['rx_id'] = rx_id
-        features_dict['rx_lat'] = rx_lat
-        features_dict['rx_lon'] = rx_lon
+        # Add receiver metadata
+        features_dict['rx_id'] = receiver['name']
+        features_dict['rx_lat'] = receiver['latitude']
+        features_dict['rx_lon'] = receiver['longitude']
         features_dict['distance_km'] = distance_kms[i]
         features_dict['num_receivers_in_sample'] = num_receivers_in_sample
         
         # Override signal_present with propagation model result
-        # (feature extractor may incorrectly detect no signal due to fading/multipath)
-        features_dict['signal_present'] = signal_present
+        features_dict['signal_present'] = signal_presents[i]
         
         receiver_features_list.append(features_dict)
 
@@ -749,8 +988,11 @@ async def generate_synthetic_data_with_iq(
             max_gdop = 200.0
 
     # Use GPU batch processing instead of thread pool
-    # Batch size: 1024 samples per GPU batch for optimal CUDA core utilization
-    batch_size = 1024
+    # Batch size: Process all samples in one batch to amortize GPU initialization overhead
+    # For small datasets (<100 samples), use single batch
+    # For larger datasets, use mini-batches of 800 samples (optimized for RTX 3090 24GB)
+    # batch_size=800 provides 15.86 samples/sec with only 13.9% GPU memory usage
+    batch_size = min(800, num_samples) if num_samples > 10 else num_samples
     
     # Check GPU availability
     try:
@@ -764,7 +1006,7 @@ async def generate_synthetic_data_with_iq(
         use_gpu = False
         logger.warning("PyTorch not available, falling back to CPU batch processing")
     
-    logger.info(f"Using batch size: {batch_size} samples per batch")
+    logger.info(f"Using batch size: {batch_size} samples per batch (REAL batching enabled)")
 
     # Convert training config to dict for serialization
     training_config_dict = {
@@ -809,114 +1051,220 @@ async def generate_synthetic_data_with_iq(
     import time
     last_progress_time = time.time()
     
-    # Number of parallel threads for sample generation
-    # ThreadPoolExecutor orchestrates calls to _generate_single_sample(),
-    # which internally uses GPU-accelerated IQ generation when available
-    num_workers = 4
+    # TRUE BATCH PROCESSING: Process samples in batches to amortize GPU initialization overhead
+    # Strategy: Generate geometries in parallel, then extract features for entire batch at once
+    # This reduces GPU overhead from ~4.5s per sample to ~4.5s per batch_size samples
+    num_workers = min(8, mp.cpu_count())  # More workers for geometry generation (no GPU contention)
     
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        futures = {executor.submit(_generate_single_sample, args): args[0]
-                  for args in args_list}
+    logger.info(f"TRUE BATCH MODE: Processing {num_samples} samples in batches of {batch_size}")
+    
+    completed = 0
+    processed = 0
+    generated_samples = []
+    iq_samples_to_save = {}
+    
+    # Process in batches
+    for batch_start in range(0, num_samples, batch_size):
+        batch_end = min(batch_start + batch_size, num_samples)
+        batch_args = args_list[batch_start:batch_end]
+        logger.info(f"Processing batch {batch_start//batch_size + 1}: samples {batch_start} to {batch_end-1}")
+        
+        # Step 1: Generate geometries + IQ samples in parallel (NO feature extraction yet)
+        batch_raw_results = []  # Store raw results without features
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            futures = {executor.submit(_generate_single_sample_no_features, args): args[0]
+                      for args in batch_args}
 
-        completed = 0
-        processed = 0  # Track total samples processed (including rejected)
+            for future in as_completed(futures):
+                sample_idx = futures[future]
+                processed += 1
 
-        for future in as_completed(futures):
-            sample_idx = futures[future]
-            processed += 1  # Increment for every sample processed, regardless of validation
+                # Check for cancellation
+                if job_id and processed % 10 == 0:
+                    from sqlalchemy import text
+                    check_query = text("SELECT status FROM heimdall.training_jobs WHERE id = :job_id")
+                    result_check = await conn.execute(check_query, {"job_id": job_id})
+                    row = result_check.fetchone()
+                    if row and row[0] == 'cancelled':
+                        logger.warning(f"Job cancelled at {processed}/{num_samples}")
+                        for f in futures:
+                            f.cancel()
+                        break
 
-            # Check for cancellation every 100 samples
-            if job_id and processed % 100 == 0:
-                from sqlalchemy import text
-                check_query = text("""
-                    SELECT status FROM heimdall.training_jobs WHERE id = :job_id
-                """)
-                result = await conn.execute(check_query, {"job_id": job_id})
-                row = result.fetchone()  # fetchone() returns immediately, no await needed
-                if row and row[0] == 'cancelled':
-                    logger.warning(f"Job {job_id} was cancelled, stopping generation at {processed}/{num_samples}")
-                    # Cancel remaining futures
-                    for f in futures:
-                        f.cancel()
-                    # Break out of loop gracefully
-                    break
+                try:
+                    result = future.result()
+                    if result is None:
+                        continue
+                    
+                    # Unpack results (no features yet)
+                    sample_idx_ret, iq_samples_for_extraction, receivers_list, distance_kms, signal_presents, tx_position, propagation_metadata, num_receivers_in_sample, iq_samples = result
 
+                    # Store raw result for batch feature extraction
+                    batch_raw_results.append({
+                        'sample_idx': sample_idx_ret,
+                        'iq_samples_for_extraction': iq_samples_for_extraction,
+                        'receivers_list': receivers_list,
+                        'distance_kms': distance_kms,
+                        'signal_presents': signal_presents,
+                        'tx_position': tx_position,
+                        'propagation_metadata': propagation_metadata,
+                        'num_receivers_in_sample': num_receivers_in_sample,
+                        'iq_samples': iq_samples
+                    })
+
+                except Exception as e:
+                    logger.error(f"Error generating sample {sample_idx}: {e}")
+                    continue
+        
+        logger.info(f"Batch IQ generation complete: {len(batch_raw_results)} samples ready for feature extraction")
+        
+        # Step 2: Extract features for ENTIRE batch at once (amortize GPU initialization overhead)
+        # Collect ALL IQ samples from batch into a single list
+        all_iq_samples = []
+        sample_to_iq_indices = {}  # Map sample_idx -> (start_idx, end_idx) in all_iq_samples
+        
+        current_idx = 0
+        for raw_result in batch_raw_results:
+            sample_idx = raw_result['sample_idx']
+            iq_samples_list = raw_result['iq_samples_for_extraction']
+            num_iq = len(iq_samples_list)
+            
+            sample_to_iq_indices[sample_idx] = (current_idx, current_idx + num_iq)
+            all_iq_samples.extend(iq_samples_list)
+            current_idx += num_iq
+        
+        logger.info(f"Extracting features for {len(all_iq_samples)} IQ samples ({len(batch_raw_results)} samples × ~{len(all_iq_samples)//len(batch_raw_results) if batch_raw_results else 0} receivers)")
+        
+        # Extract features for ALL IQ samples at once (GPU batch processing)
+        # Initialize feature extractor (reuse if already exists)
+        if not hasattr(_thread_local, 'feature_extractor'):
             try:
-                result = future.result()
+                import torch
+                use_gpu = torch.cuda.is_available()
+            except ImportError:
+                use_gpu = False
+            _thread_local.feature_extractor = RFFeatureExtractor(
+                sample_rate_hz=200_000,
+                use_gpu=use_gpu
+            )
+            logger.info(f"Initialized batch feature extractor (GPU={use_gpu})")
+        
+        feature_extractor = _thread_local.feature_extractor
+        
+        # Extract features for entire batch (ONE GPU init for all samples!)
+        all_features_dicts = feature_extractor.extract_features_batch_conservative(
+            iq_samples_list=all_iq_samples,
+            chunk_duration_ms=200.0,
+            num_chunks=5
+        )
+        
+        logger.info(f"Batch feature extraction complete: {len(all_features_dicts)} feature dicts extracted")
+        
+        # Step 3: Reconstruct samples with features and validate
+        batch_results = []
+        for raw_result in batch_raw_results:
+            sample_idx = raw_result['sample_idx']
+            start_idx, end_idx = sample_to_iq_indices[sample_idx]
+            
+            # Extract features for this sample
+            sample_features_dicts = all_features_dicts[start_idx:end_idx]
+            
+            # Add receiver metadata to each feature dict
+            receiver_features_list = []
+            for i, features_dict in enumerate(sample_features_dicts):
+                receiver = raw_result['receivers_list'][i]
                 
-                # Handle pre-rejected samples (GDOP check failed before IQ generation)
-                if result is None:
-                    # Sample was rejected early (GDOP pre-check), skip silently
-                    continue
+                # Add receiver metadata
+                features_dict['rx_id'] = receiver['name']
+                features_dict['rx_lat'] = receiver['latitude']
+                features_dict['rx_lon'] = receiver['longitude']
+                features_dict['distance_km'] = raw_result['distance_kms'][i]
+                features_dict['num_receivers_in_sample'] = raw_result['num_receivers_in_sample']
                 
-                sample_idx_ret, receiver_features, extraction_metadata, quality_metrics, iq_samples, tx_position, num_receivers_in_sample = result
-
-                # Validation checks (post-generation)
-                if quality_metrics['num_receivers_detected'] < min_receivers:
-                    logger.debug(f"Sample {sample_idx}: rejected (receivers={quality_metrics['num_receivers_detected']} < {min_receivers})")
-                    continue
-
-                if quality_metrics['mean_snr_db'] < min_snr_db:
-                    logger.debug(f"Sample {sample_idx}: rejected (SNR={quality_metrics['mean_snr_db']:.1f} < {min_snr_db})")
-                    continue
-
-                if quality_metrics['gdop'] > max_gdop:
-                    logger.debug(f"Sample {sample_idx}: rejected (GDOP={quality_metrics['gdop']:.1f} > {max_gdop})")
-                    continue
-
-                # Store sample
-                generated_samples.append({
-                    'sample_idx': sample_idx_ret,
-                    'receiver_features': receiver_features,
-                    'extraction_metadata': extraction_metadata,
-                    'quality_metrics': quality_metrics,
-                    'tx_position': tx_position
-                })
-
-                # Store IQ samples
-                # For iq_raw: store ALL samples
-                # For feature_based: store first 100 only (legacy behavior)
-                if iq_samples and (dataset_type == 'iq_raw' or sample_idx < 100):
-                    iq_samples_to_save[sample_idx] = iq_samples
-
-                completed += 1
-
-                # Incremental save every 10 valid samples
-                if completed % 10 == 0 and len(generated_samples) >= 10:
-                    # Save last 10 samples to database
-                    samples_to_save = generated_samples[-10:]
-                    try:
-                        await save_features_to_db(dataset_id, samples_to_save, conn)
-                        logger.info(f"Incrementally saved 10 samples (total saved: {completed})")
-                    except Exception as e:
-                        logger.error(f"Failed to incrementally save samples: {e}")
-
-            except Exception as e:
-                logger.error(f"Error generating sample {sample_idx}: {e}")
+                # Override signal_present with propagation model result
+                features_dict['signal_present'] = raw_result['signal_presents'][i]
+                
+                receiver_features_list.append(features_dict)
+            
+            # Calculate quality metrics
+            propagation_snr_values = raw_result['propagation_metadata']['propagation_snr_values']
+            mean_snr_db = float(np.mean(propagation_snr_values)) if propagation_snr_values else 0.0
+            
+            confidence_scores = [f.get('delay_spread_confidence', {}).get('mean', 0.8)
+                                for f in receiver_features_list if f.get('signal_present')]
+            overall_confidence = float(np.mean(confidence_scores)) if confidence_scores else 0.0
+            
+            receiver_positions = [
+                (f['rx_lat'], f['rx_lon'])
+                for f in receiver_features_list
+                if f.get('signal_present')
+            ]
+            gdop = calculate_gdop(receiver_positions, (raw_result['tx_position']['tx_lat'], raw_result['tx_position']['tx_lon'])) if len(receiver_positions) >= 3 else 999.0
+            
+            extraction_metadata = {
+                'extraction_method': 'synthetic',
+                'iq_duration_ms': raw_result['propagation_metadata']['iq_duration_ms'],
+                'sample_rate_hz': raw_result['propagation_metadata']['sample_rate_hz'],
+                'num_chunks': raw_result['propagation_metadata']['num_chunks'],
+                'chunk_duration_ms': raw_result['propagation_metadata']['chunk_duration_ms'],
+                'generated_at': raw_result['propagation_metadata']['generated_at'],
+                'frequency_mhz': raw_result['propagation_metadata']['frequency_mhz'],
+                'tx_power_dbm': raw_result['propagation_metadata']['tx_power_dbm']
+            }
+            
+            quality_metrics = {
+                'overall_confidence': overall_confidence,
+                'mean_snr_db': mean_snr_db,
+                'num_receivers_detected': raw_result['propagation_metadata']['receivers_with_signal'],
+                'gdop': gdop
+            }
+            
+            # Validation
+            if quality_metrics['num_receivers_detected'] < min_receivers:
+                continue
+            if quality_metrics['mean_snr_db'] < min_snr_db:
+                continue
+            if quality_metrics['gdop'] > max_gdop:
                 continue
             
-            # Progress update every 1 second (time-based instead of sample-based)
-            current_time = time.time()
-            time_elapsed = current_time - last_progress_time
-            logger.debug(f"Progress check: callback={progress_callback is not None}, time_elapsed={time_elapsed:.2f}s, condition={(progress_callback is not None) and (time_elapsed >= 1.0)}")
-            if progress_callback and (current_time - last_progress_time) >= 1.0:
-                logger.info(f"[PROGRESS DEBUG] Calling progress_callback with processed={processed}, num_samples={num_samples}")
-                try:
-                    await progress_callback(processed, num_samples)
-                    logger.info(f"[PROGRESS DEBUG] Callback completed successfully")
-                except Exception as e:
-                    logger.error(f"[PROGRESS DEBUG] Callback failed: {e}", exc_info=True)
-                logger.info(f"[PROGRESS] Progress: {processed}/{num_samples} samples processed ({completed} valid)")
-                last_progress_time = current_time
-
+            # Store valid sample
+            batch_results.append({
+                'sample_idx': sample_idx,
+                'receiver_features': receiver_features_list,
+                'extraction_metadata': extraction_metadata,
+                'quality_metrics': quality_metrics,
+                'tx_position': raw_result['tx_position']
+            })
+            
+            # Store IQ samples for MinIO
+            if raw_result['iq_samples'] and (dataset_type == 'iq_raw' or sample_idx < 100):
+                iq_samples_to_save[sample_idx] = raw_result['iq_samples']
+        
+        # Batch complete
+        completed += len(batch_results)
+        generated_samples.extend(batch_results)
+        logger.info(f"Batch complete: {len(batch_results)} valid samples ({completed} total)")
+        
+        # Save batch to database
+        if batch_results:
+            try:
+                await save_features_to_db(dataset_id, batch_results, conn)
+                logger.info(f"Saved batch to database ({completed} total saved)")
+            except Exception as e:
+                logger.error(f"Failed to save batch: {e}")
+        
+        # Progress update after each batch
+        if progress_callback:
+            try:
+                logger.info(f"[PROGRESS DEBUG] Calling progress_callback with processed={completed}, num_samples={num_samples}")
+                await progress_callback(completed, num_samples)
+                logger.info(f"[PROGRESS DEBUG] Callback completed successfully")
+                logger.info(f"[PROGRESS] Progress: {completed}/{num_samples} samples processed")
+            except Exception as e:
+                logger.error(f"[PROGRESS DEBUG] Callback failed: {e}", exc_info=True)
+    
+    # All batches complete
     logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
-
-    # Save remaining samples to database (those not saved incrementally)
-    remaining_samples = len(generated_samples) % 10
-    if remaining_samples > 0:
-        samples_to_save = generated_samples[-remaining_samples:]
-        await save_features_to_db(dataset_id, samples_to_save, conn)
-        logger.info(f"Saved final {remaining_samples} remaining samples")
 
     # Save IQ samples to MinIO and database
     # For feature_based: save first 100 only
