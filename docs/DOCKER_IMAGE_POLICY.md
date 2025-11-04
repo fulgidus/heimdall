@@ -1,6 +1,6 @@
 # Docker Base Image Policy & Maintenance
 
-**Last Updated**: 2025-11-04  
+**Last Updated**: 2024-11-04  
 **Status**: Active
 
 ## Overview
