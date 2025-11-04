@@ -28,3 +28,6 @@ test-results/
 playwright/.cache/
 coverage/.tmp
 e2e-artifacts-*
+
+
+.env

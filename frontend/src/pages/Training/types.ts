@@ -5,6 +5,7 @@
 
 export type TrainingJobStatus = 
   | 'pending'
+  | 'queued'
   | 'running'
   | 'paused'
   | 'completed'
@@ -93,7 +94,7 @@ export interface ExportOptions {
 }
 
 export interface TrainingWebSocketMessage {
-  event: 'training_started' | 'training_progress' | 'training_completed' | 'training_failed';
+  event: 'connected' | 'training_started' | 'training_progress' | 'training_completed' | 'training_failed';
   job_id: string;
   data: Partial<TrainingJob> | TrainingMetric;
   timestamp: string;
@@ -184,6 +185,7 @@ export interface SyntheticSamplesResponse {
 
 export type SyntheticJobStatus = 
   | 'pending'
+  | 'queued'
   | 'running'
   | 'paused'
   | 'completed'
@@ -192,7 +194,8 @@ export type SyntheticJobStatus =
 
 export interface SyntheticGenerationJob {
   id: string;
-  name: string;
+  name?: string;
+  job_name: string;
   job_type: 'synthetic_generation';
   status: SyntheticJobStatus;
   created_at: string;

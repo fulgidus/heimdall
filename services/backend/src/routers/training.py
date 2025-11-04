@@ -481,9 +481,9 @@ async def pause_training_job(job_id: UUID):
 
     try:
         with db_manager.get_session() as session:
-            # Check if job exists and get status
+            # Check if job exists and get status + checkpoint path
             check_query = text("""
-                SELECT status, total_epochs, current_epoch FROM heimdall.training_jobs
+                SELECT status, total_epochs, current_epoch, checkpoint_path FROM heimdall.training_jobs
                 WHERE id = :job_id
             """)
             result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
@@ -491,7 +491,7 @@ async def pause_training_job(job_id: UUID):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
 
-            status, total_epochs, current_epoch = result
+            status, total_epochs, current_epoch, checkpoint_path = result
 
             # Can only pause running jobs
             if status != "running":
@@ -507,13 +507,18 @@ async def pause_training_job(job_id: UUID):
                     detail="Cannot pause synthetic data generation jobs."
                 )
 
-            # Update job status to paused
+            # Update job status to paused and save pause checkpoint
+            # Use the current checkpoint_path as the pause checkpoint
             update_query = text("""
                 UPDATE heimdall.training_jobs
-                SET status = 'paused'
+                SET status = 'paused',
+                    pause_checkpoint_path = :checkpoint_path
                 WHERE id = :job_id
             """)
-            session.execute(update_query, {"job_id": str(job_id)})
+            session.execute(update_query, {
+                "job_id": str(job_id),
+                "checkpoint_path": checkpoint_path
+            })
             session.commit()
 
             logger.info(f"Paused training job {job_id} at epoch {current_epoch}/{total_epochs}")
@@ -564,9 +569,9 @@ async def resume_training_job(job_id: UUID):
 
     try:
         with db_manager.get_session() as session:
-            # Check if job exists and get status
+            # Check if job exists and get status + checkpoint paths
             check_query = text("""
-                SELECT status, pause_checkpoint_path, current_epoch, total_epochs
+                SELECT status, pause_checkpoint_path, checkpoint_path, current_epoch, total_epochs
                 FROM heimdall.training_jobs
                 WHERE id = :job_id
             """)
@@ -575,7 +580,7 @@ async def resume_training_job(job_id: UUID):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
 
-            status, pause_checkpoint_path, current_epoch, total_epochs = result
+            status, pause_checkpoint_path, checkpoint_path, current_epoch, total_epochs = result
 
             # Can only resume paused jobs
             if status != "paused":
@@ -584,12 +589,17 @@ async def resume_training_job(job_id: UUID):
                     detail=f"Cannot resume job in status '{status}'. Only paused jobs can be resumed."
                 )
 
-            # Verify pause checkpoint exists
-            if not pause_checkpoint_path:
+            # Use pause_checkpoint_path if available, otherwise fallback to checkpoint_path
+            # This provides backward compatibility for jobs paused before the fix
+            resume_checkpoint = pause_checkpoint_path or checkpoint_path
+            
+            if not resume_checkpoint:
                 raise HTTPException(
                     status_code=400,
-                    detail="No pause checkpoint found. Cannot resume training."
+                    detail="No checkpoint found. Cannot resume training."
                 )
+            
+            logger.info(f"Resuming job {job_id} from checkpoint: {resume_checkpoint}")
 
             # Update job status to running and queue the training task
             from ..main import celery_app
