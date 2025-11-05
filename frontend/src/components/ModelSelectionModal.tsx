@@ -2,12 +2,17 @@ import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import Modal from './Modal';
 import Tabs from './Tabs';
-import { 
+import type { 
   ModelArchitecture, 
   ModelCategory,
   ComplexityLevel,
+  DataType,
+  SyntheticDataset
+} from '@/services/api/training';
+import { 
   listModelArchitectures,
-  getRecommendedModelArchitecture 
+  getRecommendedModelArchitecture,
+  listSyntheticDatasets
 } from '@/services/api/training';
 
 interface ModelSelectionModalProps {
@@ -21,7 +26,7 @@ interface TrainingConfig {
   batch_size: number;
   learning_rate: number;
   early_stopping_patience: number;
-  dataset_id?: string;
+  dataset_ids: string[];  // Changed to array for multiple selection
   train_ratio: number;
   val_ratio: number;
   test_ratio: number;
@@ -32,6 +37,7 @@ const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
   batch_size: 32,
   learning_rate: 0.001,
   early_stopping_patience: 10,
+  dataset_ids: [],  // Changed to empty array
   train_ratio: 0.7,
   val_ratio: 0.15,
   test_ratio: 0.15,
@@ -112,87 +118,88 @@ const ModelArchitectureCard: React.FC<{
     <div
       onClick={onSelect}
       className={classNames(
-        'border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-lg',
+        'card p-3 cursor-pointer',
         isSelected
-          ? 'border-neon-blue bg-neon-blue bg-opacity-10 shadow-md'
-          : 'border-neon-blue border-opacity-20 bg-oxford-blue hover:border-neon-blue hover:border-opacity-50'
+          ? 'border-primary bg-primary bg-opacity-10 shadow'
+          : 'border-secondary'
       )}
+      style={{ cursor: 'pointer' }}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-3xl">{architecture.emoji}</span>
+      <div className="d-flex justify-content-between align-items-start mb-3">
+        <div className="d-flex align-items-center gap-2">
+          <span style={{ fontSize: '2rem' }}>{architecture.emoji}</span>
           <div>
-            <h3 className="text-lg font-bold text-white">{architecture.display_name}</h3>
-            <p className="text-xs text-french-gray">{architecture.class_name}</p>
+            <h5 className="mb-1">{architecture.display_name}</h5>
+            <small className="text-muted">{architecture.class_name}</small>
           </div>
         </div>
-        {isSelected && <span className="text-neon-blue text-2xl">✓</span>}
+        {isSelected && <span className="text-primary" style={{ fontSize: '1.5rem' }}>✓</span>}
       </div>
 
       {/* Badges */}
       {renderBadges().length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">{renderBadges()}</div>
+        <div className="d-flex flex-wrap gap-1 mb-3">{renderBadges()}</div>
       )}
 
       {/* Description */}
-      <p className="text-sm text-french-gray mb-3">{architecture.metadata.description}</p>
+      <p className="small text-muted mb-3">{architecture.metadata.description}</p>
 
       {/* Metadata indicators */}
-      <div className="flex gap-4 mb-3 text-sm">
-        <div className="flex items-center gap-1">
+      <div className="d-flex gap-3 mb-3 small">
+        <div className="d-flex align-items-center gap-1">
           <span>{CATEGORY_EMOJIS[architecture.category]}</span>
-          <span className="text-french-gray capitalize">{architecture.category.replace('_', ' ')}</span>
+          <span className="text-muted text-capitalize">{architecture.category.replace('_', ' ')}</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="d-flex align-items-center gap-1">
           <span>{SPEED_EMOJIS[architecture.speed_rating]}</span>
-          <span className="text-french-gray">{architecture.speed_rating.replace('_', ' ')}</span>
+          <span className="text-muted">{architecture.speed_rating.replace('_', ' ')}</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="d-flex align-items-center gap-1">
           <span>{COMPLEXITY_EMOJIS[architecture.complexity]}</span>
-          <span className="text-french-gray">{architecture.complexity}</span>
+          <span className="text-muted">{architecture.complexity}</span>
         </div>
       </div>
 
       {/* Star Ratings */}
-      <div className="space-y-1 mb-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-french-gray">Accuracy</span>
+      <div className="mb-3">
+        <div className="d-flex justify-content-between align-items-center small mb-1">
+          <span className="text-muted">Accuracy</span>
           <span>{renderStars(architecture.star_ratings.accuracy)}</span>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-french-gray">Speed</span>
+        <div className="d-flex justify-content-between align-items-center small mb-1">
+          <span className="text-muted">Speed</span>
           <span>{renderStars(architecture.star_ratings.speed)}</span>
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-french-gray">Efficiency</span>
+        <div className="d-flex justify-content-between align-items-center small mb-1">
+          <span className="text-muted">Efficiency</span>
           <span>{renderStars(architecture.star_ratings.efficiency)}</span>
         </div>
       </div>
 
       {/* Performance Metrics */}
-      <div className="grid grid-cols-2 gap-2 text-xs bg-black bg-opacity-30 p-2 rounded">
-        <div>
-          <span className="text-french-gray">Accuracy: </span>
-          <span className="text-white font-semibold">
+      <div className="row g-2 small bg-dark bg-opacity-25 p-2 rounded">
+        <div className="col-6">
+          <span className="text-muted">Accuracy: </span>
+          <span className="fw-bold">
             ±{architecture.performance.accuracy_meters_mean.toFixed(0)}m
           </span>
         </div>
-        <div>
-          <span className="text-french-gray">Inference: </span>
-          <span className="text-white font-semibold">
+        <div className="col-6">
+          <span className="text-muted">Inference: </span>
+          <span className="fw-bold">
             {architecture.performance.inference_ms_mean.toFixed(0)}ms
           </span>
         </div>
-        <div>
-          <span className="text-french-gray">Params: </span>
-          <span className="text-white font-semibold">
+        <div className="col-6">
+          <span className="text-muted">Params: </span>
+          <span className="fw-bold">
             {architecture.parameters_millions.toFixed(1)}M
           </span>
         </div>
-        <div>
-          <span className="text-french-gray">Size: </span>
-          <span className="text-white font-semibold">
+        <div className="col-6">
+          <span className="text-muted">Size: </span>
+          <span className="fw-bold">
             {architecture.model_size_mb.toFixed(0)}MB
           </span>
         </div>
@@ -210,6 +217,10 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Datasets
+  const [datasets, setDatasets] = useState<SyntheticDataset[]>([]);
+  const [loadingDatasets, setLoadingDatasets] = useState(false);
+
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<ModelCategory | 'all'>('all');
   const [complexityFilter, setComplexityFilter] = useState<ComplexityLevel | 'all'>('all');
@@ -217,6 +228,7 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
   useEffect(() => {
     if (isOpen) {
       loadArchitectures();
+      loadDatasets();
     }
   }, [isOpen]);
 
@@ -229,13 +241,30 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
     setError(null);
     try {
       const response = await listModelArchitectures();
-      setArchitectures(response.architectures);
-      setFilteredArchitectures(response.architectures);
+      const archs = response.architectures || [];
+      setArchitectures(archs);
+      setFilteredArchitectures(archs);
     } catch (err) {
       setError('Failed to load model architectures');
       console.error(err);
+      // Ensure we have empty arrays even on error
+      setArchitectures([]);
+      setFilteredArchitectures([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDatasets = async () => {
+    setLoadingDatasets(true);
+    try {
+      const response = await listSyntheticDatasets(100, 0); // Get up to 100 datasets
+      setDatasets(response.datasets || []);
+    } catch (err) {
+      console.error('Failed to load datasets:', err);
+      setDatasets([]);
+    } finally {
+      setLoadingDatasets(false);
     }
   };
 
@@ -277,13 +306,13 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
   const modelSelectionTab = (
     <div>
       {/* Filters */}
-      <div className="mb-4 flex gap-4">
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Category</label>
+      <div className="mb-4 row g-3">
+        <div className="col-md-6">
+          <label className="form-label">Category</label>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as ModelCategory | 'all')}
-            className="bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2 text-sm"
+            className="form-select"
           >
             <option value="all">All Categories</option>
             <option value="spectrogram">🖼️ Spectrogram</option>
@@ -294,12 +323,12 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
             <option value="features">🧮 Features</option>
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Complexity</label>
+        <div className="col-md-6">
+          <label className="form-label">Complexity</label>
           <select
             value={complexityFilter}
             onChange={(e) => setComplexityFilter(e.target.value as ComplexityLevel | 'all')}
-            className="bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2 text-sm"
+            className="form-select"
           >
             <option value="all">All Levels</option>
             <option value="low">📦 Low</option>
@@ -312,78 +341,132 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
 
       {/* Architecture Cards Grid */}
       {loading ? (
-        <div className="text-center py-8 text-french-gray">Loading architectures...</div>
+        <div className="text-center py-5 text-muted">Loading architectures...</div>
       ) : error ? (
-        <div className="text-center py-8 text-red-500">{error}</div>
+        <div className="text-center py-5 text-danger">{error}</div>
+      ) : !filteredArchitectures || filteredArchitectures.length === 0 ? (
+        <div className="text-center py-5 text-muted">No architectures found</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+        <div className="row g-3" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {filteredArchitectures.map(arch => (
-            <ModelArchitectureCard
-              key={arch.id}
-              architecture={arch}
-              isSelected={selectedArchitecture?.id === arch.id}
-              onSelect={() => handleSelectArchitecture(arch)}
-            />
+            <div key={arch.id} className="col-md-6 col-lg-4">
+              <ModelArchitectureCard
+                architecture={arch}
+                isSelected={selectedArchitecture?.id === arch.id}
+                onSelect={() => handleSelectArchitecture(arch)}
+              />
+            </div>
           ))}
         </div>
       )}
 
       {/* Selection Info */}
       {selectedArchitecture && (
-        <div className="mt-4 p-4 bg-neon-blue bg-opacity-10 border border-neon-blue rounded">
-          <h4 className="text-white font-bold mb-2">Selected: {selectedArchitecture.display_name}</h4>
-          <div className="text-sm text-french-gray space-y-1">
-            <p><strong>Recommended for:</strong> {selectedArchitecture.metadata.recommended_for.join(', ')}</p>
-            <p><strong>Training time:</strong> {selectedArchitecture.metadata.training_time_estimate}</p>
-            <p><strong>Dataset size:</strong> {selectedArchitecture.metadata.dataset_size_recommendation}</p>
+        <div className="mt-4 p-3 bg-primary bg-opacity-10 border border-primary rounded">
+          <h6 className="mb-2">Selected: {selectedArchitecture.display_name}</h6>
+          <div className="small text-muted">
+            <p className="mb-1"><strong>Recommended for:</strong> {selectedArchitecture.metadata.recommended_for.join(', ')}</p>
+            <p className="mb-1"><strong>Training time:</strong> {selectedArchitecture.metadata.training_time_estimate}</p>
+            <p className="mb-0"><strong>Dataset size:</strong> {selectedArchitecture.metadata.dataset_size_recommendation}</p>
           </div>
         </div>
       )}
     </div>
   );
 
+  // Filter datasets based on selected architecture's data_type
+  const filteredDatasets = selectedArchitecture
+    ? datasets.filter(dataset => {
+        // Match dataset type with model data_type
+        // TODO: Add proper field in dataset schema for data_type matching
+        // For now, show all datasets
+        return true;
+      })
+    : [];
+
   const trainingConfigTab = (
-    <div className="space-y-4">
+    <div>
       {/* Dataset Selection */}
-      <div>
-        <label className="block text-sm font-medium text-french-gray mb-1">
-          Dataset ID (optional)
+      <div className="mb-3">
+        <label className="form-label">
+          Select Datasets
+          {selectedArchitecture && (
+            <span className="text-muted ms-2">(Compatible with {selectedArchitecture.data_type})</span>
+          )}
         </label>
-        <input
-          type="text"
-          value={trainingConfig.dataset_id || ''}
-          onChange={(e) => setTrainingConfig({ ...trainingConfig, dataset_id: e.target.value })}
-          placeholder="Leave empty for default dataset"
-          className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
-        />
+        {loadingDatasets ? (
+          <div className="text-center py-3 text-muted">
+            <div className="spinner-border spinner-border-sm me-2" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            Loading datasets...
+          </div>
+        ) : filteredDatasets.length === 0 ? (
+          <div className="alert alert-warning mb-0">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            No compatible datasets found. You can proceed with the default dataset.
+          </div>
+        ) : (
+          <div className="border rounded p-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {filteredDatasets.map(dataset => (
+              <div key={dataset.id} className="form-check mb-2">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id={`dataset-${dataset.id}`}
+                  checked={trainingConfig.dataset_ids.includes(dataset.id)}
+                  onChange={(e) => {
+                    const newIds = e.target.checked
+                      ? [...trainingConfig.dataset_ids, dataset.id]
+                      : trainingConfig.dataset_ids.filter(id => id !== dataset.id);
+                    setTrainingConfig({ ...trainingConfig, dataset_ids: newIds });
+                  }}
+                />
+                <label className="form-check-label" htmlFor={`dataset-${dataset.id}`} style={{ cursor: 'pointer' }}>
+                  <strong>{dataset.name}</strong>
+                  <span className="text-muted ms-2">({dataset.num_samples.toLocaleString()} samples)</span>
+                  {dataset.description && (
+                    <div className="small text-muted mt-1">{dataset.description}</div>
+                  )}
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+        {trainingConfig.dataset_ids.length > 0 && (
+          <small className="text-muted d-block mt-2">
+            <i className="bi bi-check-circle-fill text-success me-1"></i>
+            {trainingConfig.dataset_ids.length} dataset{trainingConfig.dataset_ids.length !== 1 ? 's' : ''} selected
+          </small>
+        )}
       </div>
 
       {/* Training Parameters */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Epochs</label>
+      <div className="row g-3 mb-3">
+        <div className="col-md-6">
+          <label className="form-label">Epochs</label>
           <input
             type="number"
             value={trainingConfig.epochs}
             onChange={(e) => setTrainingConfig({ ...trainingConfig, epochs: parseInt(e.target.value) })}
             min={1}
             max={500}
-            className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+            className="form-control"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Batch Size</label>
+        <div className="col-md-6">
+          <label className="form-label">Batch Size</label>
           <input
             type="number"
             value={trainingConfig.batch_size}
             onChange={(e) => setTrainingConfig({ ...trainingConfig, batch_size: parseInt(e.target.value) })}
             min={1}
             max={256}
-            className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+            className="form-control"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Learning Rate</label>
+        <div className="col-md-6">
+          <label className="form-label">Learning Rate</label>
           <input
             type="number"
             value={trainingConfig.learning_rate}
@@ -391,28 +474,31 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
             step={0.0001}
             min={0.00001}
             max={0.1}
-            className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+            className="form-control"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-french-gray mb-1">Early Stop Patience</label>
+        <div className="col-md-6">
+          <label className="form-label">
+            Early Stop Patience
+            <small className="text-muted ms-2">(0 = disabled)</small>
+          </label>
           <input
             type="number"
             value={trainingConfig.early_stopping_patience}
             onChange={(e) => setTrainingConfig({ ...trainingConfig, early_stopping_patience: parseInt(e.target.value) })}
-            min={1}
+            min={0}
             max={50}
-            className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+            className="form-control"
           />
         </div>
       </div>
 
       {/* Data Split Ratios */}
-      <div>
-        <label className="block text-sm font-medium text-french-gray mb-2">Data Split Ratios</label>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs text-french-gray mb-1">Train</label>
+      <div className="mb-3">
+        <label className="form-label">Data Split Ratios</label>
+        <div className="row g-3">
+          <div className="col-md-4">
+            <label className="form-label small">Train</label>
             <input
               type="number"
               value={trainingConfig.train_ratio}
@@ -420,11 +506,11 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
               step={0.05}
               min={0.1}
               max={0.9}
-              className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+              className="form-control"
             />
           </div>
-          <div>
-            <label className="block text-xs text-french-gray mb-1">Validation</label>
+          <div className="col-md-4">
+            <label className="form-label small">Validation</label>
             <input
               type="number"
               value={trainingConfig.val_ratio}
@@ -432,11 +518,11 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
               step={0.05}
               min={0.05}
               max={0.5}
-              className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+              className="form-control"
             />
           </div>
-          <div>
-            <label className="block text-xs text-french-gray mb-1">Test</label>
+          <div className="col-md-4">
+            <label className="form-label small">Test</label>
             <input
               type="number"
               value={trainingConfig.test_ratio}
@@ -444,25 +530,25 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
               step={0.05}
               min={0.05}
               max={0.5}
-              className="w-full bg-oxford-blue border border-neon-blue border-opacity-20 text-white rounded px-3 py-2"
+              className="form-control"
             />
           </div>
         </div>
-        <p className="text-xs text-french-gray mt-1">
+        <small className="text-muted d-block mt-1">
           Total: {(trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio).toFixed(2)}
           {(trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio) !== 1.0 && (
-            <span className="text-red-500 ml-2">⚠️ Must sum to 1.0</span>
+            <span className="text-danger ms-2">⚠️ Must sum to 1.0</span>
           )}
-        </p>
+        </small>
       </div>
 
       {/* Selected Model Summary */}
       {selectedArchitecture && (
-        <div className="mt-4 p-4 bg-neon-blue bg-opacity-10 border border-neon-blue rounded">
-          <h4 className="text-white font-bold mb-2">Training: {selectedArchitecture.display_name}</h4>
-          <div className="text-sm text-french-gray">
-            <p>Expected training time: {selectedArchitecture.metadata.training_time_estimate}</p>
-            <p>Model parameters: {selectedArchitecture.parameters_millions.toFixed(1)}M</p>
+        <div className="p-3 bg-primary bg-opacity-10 border border-primary rounded">
+          <h6 className="mb-2">Training: {selectedArchitecture.display_name}</h6>
+          <div className="small text-muted">
+            <p className="mb-1">Expected training time: {selectedArchitecture.metadata.training_time_estimate}</p>
+            <p className="mb-0">Model parameters: {selectedArchitecture.parameters_millions.toFixed(1)}M</p>
           </div>
         </div>
       )}
@@ -490,19 +576,14 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
         <>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-transparent border border-neon-blue border-opacity-30 text-white rounded hover:bg-neon-blue hover:bg-opacity-10 transition-colors"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleNextToConfig}
             disabled={!selectedArchitecture}
-            className={classNames(
-              'px-4 py-2 rounded transition-colors',
-              selectedArchitecture
-                ? 'bg-neon-blue text-white hover:bg-opacity-80'
-                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            )}
+            className="btn btn-primary"
           >
             Next: Configure Training →
           </button>
@@ -511,19 +592,14 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
         <>
           <button
             onClick={handleBackToSelection}
-            className="px-4 py-2 bg-transparent border border-neon-blue border-opacity-30 text-white rounded hover:bg-neon-blue hover:bg-opacity-10 transition-colors"
+            className="btn btn-secondary"
           >
             ← Back to Selection
           </button>
           <button
             onClick={handleStartTraining}
             disabled={(trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio) !== 1.0}
-            className={classNames(
-              'px-4 py-2 rounded transition-colors',
-              (trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio) === 1.0
-                ? 'bg-sea-green text-white hover:bg-opacity-80'
-                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            )}
+            className="btn btn-success"
           >
             Start Training 🚀
           </button>
