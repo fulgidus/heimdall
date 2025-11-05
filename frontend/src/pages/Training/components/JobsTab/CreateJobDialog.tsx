@@ -12,6 +12,7 @@ import type { ModelArchitecture } from '@/services/api/training';
 interface CreateJobDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onJobCreated?: () => void;  // Optional callback when job is successfully created
 }
 
 interface TrainingConfig {
@@ -25,7 +26,7 @@ interface TrainingConfig {
   test_ratio: number;
 }
 
-export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClose }) => {
+export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClose, onJobCreated }) => {
   const createJob = useTrainingStore(state => state.createJob);
 
   const handleSelectModel = async (
@@ -36,20 +37,14 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       // Build job request matching the backend CreateTrainingJobRequest schema
       const jobRequest = {
         job_name: `${architecture.display_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
-        model_architecture: architecture.id,
-        total_epochs: trainingConfig.epochs,
-        batch_size: trainingConfig.batch_size,
-        learning_rate: trainingConfig.learning_rate,
-        early_stopping_patience: trainingConfig.early_stopping_patience,
-        train_split: trainingConfig.train_ratio,
-        val_split: trainingConfig.val_ratio,
-        use_gpu: true,  // Default to GPU
-        num_workers: 4,  // Default
-        optimizer: 'adam',  // Default
-        scheduler: 'reduce_on_plateau',  // Default
-        // Pass dataset_ids array in config (required by training task)
         config: {
           dataset_ids: trainingConfig.dataset_ids,
+          epochs: trainingConfig.epochs,
+          batch_size: trainingConfig.batch_size,
+          learning_rate: trainingConfig.learning_rate,
+          model_architecture: architecture.id,
+          validation_split: trainingConfig.val_ratio,
+          early_stop_patience: trainingConfig.early_stopping_patience,
         }
       };
 
@@ -65,6 +60,7 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       isOpen={isOpen}
       onClose={onClose}
       onSelectModel={handleSelectModel}
+      onNavigateToConfig={onJobCreated}
     />
   );
 };

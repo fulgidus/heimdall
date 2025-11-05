@@ -111,7 +111,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
 
           {/* Quality Metrics */}
           {metrics && (
-            <div className="mb-3 p-2 bg-light border rounded">
+            <div className="mb-3 p-2 bg-light text-dark border rounded">
               <h6 className="small fw-semibold mb-2">Quality Metrics</h6>
               <div className="row g-2">
                 {metrics.mean_snr_db !== undefined && (

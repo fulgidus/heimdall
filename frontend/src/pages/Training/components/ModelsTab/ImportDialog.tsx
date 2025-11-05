@@ -136,7 +136,7 @@ export const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) =
                 onClick={() => fileInputRef.current?.click()}
                 className={`
                   border border-dashed rounded p-4 text-center mb-3
-                  ${isDragOver ? 'border-primary bg-light' : 'border-secondary'}
+                  ${isDragOver ? 'border-primary bg-light text-dark' : 'border-secondary'}
                   ${isLoading ? 'opacity-50' : 'cursor-pointer'}
                 `}
                 style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

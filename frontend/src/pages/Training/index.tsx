@@ -128,7 +128,7 @@ export const Training: React.FC = () => {
             {/* Tab Content */}
             <div className="card-body">
               <div className="tab-content">
-                {activeTab === 'jobs' && <JobsTab />}
+                {activeTab === 'jobs' && <JobsTab onJobCreated={() => handleTabChange('jobs')} />}
                 {activeTab === 'metrics' && <MetricsTab />}
                 {activeTab === 'models' && <ModelsTab />}
                 {activeTab === 'synthetic' && <SyntheticTab />}

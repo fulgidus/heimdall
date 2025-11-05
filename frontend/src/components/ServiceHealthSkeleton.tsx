@@ -31,7 +31,7 @@ export const WebSDRCardSkeleton: React.FC = () => {
     <>
       {[1, 2, 3, 4, 5, 6, 7].map(index => (
         <div key={index} className="col-lg-3 col-md-4 col-sm-6">
-          <div className="card bg-light border-0 mb-3">
+          <div className="card bg-light text-dark border-0 mb-3">
             <div className="card-body">
               <div className="d-flex align-items-center justify-content-between mb-2">
                 <Skeleton width="80px" height="20px" />

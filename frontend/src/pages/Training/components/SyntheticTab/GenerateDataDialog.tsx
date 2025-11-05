@@ -495,7 +495,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                   </button>
 
                   {showAdvancedOptions && (
-                    <div className="mt-3 border rounded p-3 bg-light">
+                    <div className="mt-3 border rounded p-3 bg-light text-dark">
                       {/* Random Seed */}
                       <div className="mb-3">
                         <label htmlFor="seed" className="form-label">

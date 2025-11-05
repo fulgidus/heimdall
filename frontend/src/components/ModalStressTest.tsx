@@ -90,7 +90,7 @@ const ModalStressTest: React.FC = () => {
 
           <div className="row g-3 mb-4">
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card bg-light text-dark">
                 <div className="card-body text-center">
                   <h6 className="text-muted mb-1">Opens</h6>
                   <h3 className="mb-0">{openCount}</h3>
@@ -98,7 +98,7 @@ const ModalStressTest: React.FC = () => {
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card bg-light text-dark">
                 <div className="card-body text-center">
                   <h6 className="text-muted mb-1">Status</h6>
                   <h3 className="mb-0">
@@ -112,7 +112,7 @@ const ModalStressTest: React.FC = () => {
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card bg-light">
+              <div className="card bg-light text-dark">
                 <div className="card-body text-center">
                   <h6 className="text-muted mb-1">Errors</h6>
                   <h3 className={`mb-0 ${errorCount > 0 ? 'text-danger' : 'text-success'}`}>

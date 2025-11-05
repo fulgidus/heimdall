@@ -19,6 +19,7 @@ interface ModelSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectModel: (architecture: ModelArchitecture, trainingConfig: TrainingConfig) => void;
+  onNavigateToConfig?: () => void;  // Callback when navigating to config tab (to switch to jobs tab)
 }
 
 interface TrainingConfig {
@@ -209,7 +210,7 @@ const ModelArchitectureCard: React.FC<{
   );
 };
 
-const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClose, onSelectModel }) => {
+const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClose, onSelectModel, onNavigateToConfig }) => {
   const [activeTab, setActiveTab] = useState<'select' | 'config'>('select');
   const [architectures, setArchitectures] = useState<ModelArchitecture[]>([]);
   const [filteredArchitectures, setFilteredArchitectures] = useState<ModelArchitecture[]>([]);
@@ -290,6 +291,10 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
   const handleNextToConfig = () => {
     if (selectedArchitecture) {
       setActiveTab('config');
+      // Callback to switch to jobs tab on the main page
+      if (onNavigateToConfig) {
+        onNavigateToConfig();
+      }
     }
   };
 
@@ -303,6 +308,15 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
       onClose();
     }
   };
+
+  // Validation: Check if selected datasets have samples > 0
+  const selectedDatasetsWithSamples = trainingConfig.dataset_ids
+    .map(id => datasets.find(d => d.id === id))
+    .filter(d => d && d.num_samples > 0);
+
+  const hasValidDatasets = selectedDatasetsWithSamples.length > 0;
+  const ratiosSumToOne = (trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio) === 1.0;
+  const canStartTraining = hasValidDatasets && ratiosSumToOne;
 
   const modelSelectionTab = (
     <div>
@@ -435,9 +449,18 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
           </div>
         )}
         {trainingConfig.dataset_ids.length > 0 && (
-          <small className="text-muted d-block mt-2">
-            <i className="bi bi-check-circle-fill text-success me-1"></i>
-            {trainingConfig.dataset_ids.length} dataset{trainingConfig.dataset_ids.length !== 1 ? 's' : ''} selected
+          <small className="d-block mt-2">
+            {selectedDatasetsWithSamples.length > 0 ? (
+              <span className="text-success">
+                <i className="bi bi-check-circle-fill me-1"></i>
+                {selectedDatasetsWithSamples.length} dataset{selectedDatasetsWithSamples.length !== 1 ? 's' : ''} selected with valid samples
+              </span>
+            ) : (
+              <span className="text-danger">
+                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                Selected dataset{trainingConfig.dataset_ids.length !== 1 ? 's have' : ' has'} 0 samples. Training cannot proceed.
+              </span>
+            )}
           </small>
         )}
       </div>
@@ -599,8 +622,9 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
           </button>
           <button
             onClick={handleStartTraining}
-            disabled={(trainingConfig.train_ratio + trainingConfig.val_ratio + trainingConfig.test_ratio) !== 1.0}
+            disabled={!canStartTraining}
             className="btn btn-success"
+            title={!hasValidDatasets ? 'Please select at least one dataset with samples > 0' : (!ratiosSumToOne ? 'Data split ratios must sum to 1.0' : '')}
           >
             Start Training 🚀
           </button>

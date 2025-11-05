@@ -10,7 +10,11 @@ import { useWebSocket } from '../../../../contexts/WebSocketContext';
 import { JobCard } from './JobCard';
 import { CreateJobDialog } from './CreateJobDialog';
 
-export const JobsTab: React.FC = () => {
+interface JobsTabProps {
+  onJobCreated?: () => void;  // Optional callback when job is created
+}
+
+export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
   const { jobs, fetchJobs, handleJobUpdate, isLoading, error } = useTrainingStore();
   const { subscribe } = useWebSocket();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -169,6 +173,7 @@ export const JobsTab: React.FC = () => {
       <CreateJobDialog
         isOpen={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
+        onJobCreated={onJobCreated}
       />
     </div>
   );

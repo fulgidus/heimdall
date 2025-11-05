@@ -121,7 +121,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
 
           {/* Training Metrics */}
           {model.training_metrics && (
-            <div className="mb-3 p-2 bg-light border rounded">
+            <div className="mb-3 p-2 bg-light text-dark border rounded">
               <h6 className="small fw-semibold mb-2">Training Metrics</h6>
               <div className="row g-2">
                 {model.training_metrics.best_val_loss !== undefined && (

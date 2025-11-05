@@ -392,7 +392,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
               <>
                 <div className="mb-2">
                   <label className="form-label text-muted small">Path</label>
-                  <code className="d-block small bg-light p-2 rounded">{fileInfo.onnx.path}</code>
+                  <code className="d-block small bg-light text-dark p-2 rounded">{fileInfo.onnx.path}</code>
                 </div>
                 {fileInfo.onnx.size_display && (
                   <div>
@@ -425,7 +425,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
               <>
                 <div className="mb-2">
                   <label className="form-label text-muted small">Path</label>
-                  <code className="d-block small bg-light p-2 rounded">{fileInfo.pytorch.path}</code>
+                  <code className="d-block small bg-light text-dark p-2 rounded">{fileInfo.pytorch.path}</code>
                 </div>
                 {fileInfo.pytorch.size_display && (
                   <div>

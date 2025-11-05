@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light">
+        <div className="d-flex align-items-center justify-content-center min-vh-100 bg-light text-dark">
           <div className="container">
             <div className="row justify-content-center">
               <div className="col-md-6 col-lg-5">
