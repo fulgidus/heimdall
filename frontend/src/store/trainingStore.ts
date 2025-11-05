@@ -631,6 +631,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
         description: `Additional ${request.num_additional_samples} samples for ${dataset.name}`,
         num_samples: request.num_additional_samples,
         expand_dataset_id: request.dataset_id, // Signal this is an expansion
+        use_gpu: request.use_gpu, // Pass GPU/CPU preference (null = auto, true = GPU, false = CPU)
       };
 
       // Use the same endpoint, but it will add to the existing dataset

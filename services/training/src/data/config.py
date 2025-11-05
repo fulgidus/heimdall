@@ -341,6 +341,10 @@ class MeteorologicalParameters:
     # Tropospheric ducting probability (0.0-1.0)
     ducting_probability: float = 0.05  # 5% chance
     
+    # Sporadic-E parameters
+    solar_flux: float = 70.0  # Solar flux index (70-200, affects ionization)
+    season_factor: float = 0.5  # 0=winter, 0.5=spring/fall, 1.0=summer
+    
     @classmethod
     def random(cls, seed: Optional[int] = None):
         """
@@ -385,6 +389,14 @@ class MeteorologicalParameters:
         else:
             ducting_probability = rng.uniform(0.01, 0.05)  # 1-5%
         
+        # Solar flux (70-200 typical, higher = more ionization)
+        solar_flux = rng.uniform(70.0, 150.0)
+        
+        # Season factor for sporadic-E (peak in summer)
+        season_factors = [0.5, 1.0, 0.5, 0.2]  # Spring, Summer, Autumn, Winter
+        season_factor = season_factors[season] * rng.uniform(0.8, 1.2)  # Add variation
+        season_factor = np.clip(season_factor, 0.0, 1.0)
+        
         return cls(
             ground_temperature=ground_temperature,
             temperature_gradient=-6.5 + rng.uniform(-2, 2),  # Vary around standard
@@ -392,7 +404,9 @@ class MeteorologicalParameters:
             pressure_hpa=pressure_hpa,
             time_of_day=time_of_day,
             season=season,
-            ducting_probability=ducting_probability
+            ducting_probability=ducting_probability,
+            solar_flux=solar_flux,
+            season_factor=season_factor
         )
 
 

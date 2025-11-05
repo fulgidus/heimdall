@@ -221,21 +221,36 @@ def _generate_single_sample_no_features(args):
 
     # Use thread-local storage to reuse extractors instead of creating new ones for each sample
     # This reduces GPU initialization overhead from ~100ms to ~1ms per sample
-    if not hasattr(_thread_local, 'iq_generator'):
-        # Initialize generators with GPU acceleration (ONCE per thread)
-        # Check if GPU is available (use torch as proxy since it's always available in training service)
+    
+    # Determine GPU usage from config (respect user's choice)
+    use_gpu_config = config.get('use_gpu')
+    if use_gpu_config is None:
+        # Auto-detect if not specified
         try:
             import torch
             use_gpu = torch.cuda.is_available()
         except ImportError:
             use_gpu = False
-        
+    else:
+        # Respect user's explicit choice
+        use_gpu = bool(use_gpu_config)
+    
+    # Check if we need to recreate the IQ generator (device changed)
+    needs_new_generator = (
+        not hasattr(_thread_local, 'iq_generator') or
+        _thread_local.iq_generator.use_gpu != use_gpu
+    )
+    
+    if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
             sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu
         )
+        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu})")
+    
+    if not hasattr(_thread_local, 'propagation'):
         _thread_local.propagation = RFPropagationModel()
         
         # Initialize terrain lookup (ONCE per thread)
@@ -340,6 +355,7 @@ def _generate_single_sample_no_features(args):
         rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
 
         # Calculate received power and SNR using propagation model (with antenna gains and meteorological effects)
+        # Include new features: TX power fluctuations, intermittent transmissions, sporadic-E, and knife-edge diffraction
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -352,7 +368,11 @@ def _generate_single_sample_no_features(args):
             terrain_lookup=terrain,
             tx_antenna=tx_antenna,
             rx_antenna=rx_antenna,
-            meteo_params=meteo_params
+            meteo_params=meteo_params,
+            transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality (0.3=poor, 0.95=excellent)
+            transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
+            enable_sporadic_e=True,  # Enable sporadic-E propagation
+            enable_knife_edge=True  # Enable knife-edge diffraction
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -503,26 +523,48 @@ def _generate_single_sample(args):
 
     # Use thread-local storage to reuse extractors instead of creating new ones for each sample
     # This reduces GPU initialization overhead from ~100ms to ~1ms per sample
-    if not hasattr(_thread_local, 'iq_generator'):
-        # Initialize generators with GPU acceleration (ONCE per thread)
-        # Check if GPU is available (use torch as proxy since it's always available in training service)
+    
+    # Determine GPU usage from config (respect user's choice)
+    use_gpu_config = config.get('use_gpu')
+    if use_gpu_config is None:
+        # Auto-detect if not specified
         try:
             import torch
             use_gpu = torch.cuda.is_available()
         except ImportError:
             use_gpu = False
-        
+    else:
+        # Respect user's explicit choice
+        use_gpu = bool(use_gpu_config)
+    
+    # Check if we need to recreate generators (device changed)
+    needs_new_generator = (
+        not hasattr(_thread_local, 'iq_generator') or
+        _thread_local.iq_generator.use_gpu != use_gpu
+    )
+    needs_new_extractor = (
+        not hasattr(_thread_local, 'feature_extractor') or
+        _thread_local.feature_extractor.use_gpu != use_gpu
+    )
+    
+    if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
             sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu
         )
+        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu})")
+    
+    if needs_new_extractor:
         # Create feature extractor with GPU acceleration (reusable)
         _thread_local.feature_extractor = RFFeatureExtractor(
             sample_rate_hz=200_000,
             use_gpu=use_gpu
         )
+        logger.info(f"Thread {threading.current_thread().name}: Initialized feature extractor (GPU={use_gpu})")
+    
+    if not hasattr(_thread_local, 'propagation'):
         _thread_local.propagation = RFPropagationModel()
         
         # Initialize terrain lookup (ONCE per thread)
@@ -624,6 +666,7 @@ def _generate_single_sample(args):
         rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
 
         # Calculate received power and SNR using propagation model
+        # Include new features: TX power fluctuations, intermittent transmissions, sporadic-E, and knife-edge diffraction
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -635,7 +678,11 @@ def _generate_single_sample(args):
             frequency_mhz=frequency_mhz,
             terrain_lookup=terrain,
             tx_antenna=tx_antenna,
-            rx_antenna=rx_antenna
+            rx_antenna=rx_antenna,
+            transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality
+            transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
+            enable_sporadic_e=True,
+            enable_knife_edge=True
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -965,6 +1012,7 @@ class SyntheticDataGenerator:
                 rx_antenna = _select_rx_antenna(self.rng, rx_antenna_dist)
                 
                 # Calculate received power and SNR
+                # Include new features: TX power fluctuations, intermittent transmissions, sporadic-E, and knife-edge diffraction
                 rx_power, snr_db, details = self.propagation.calculate_received_power(
                     tx_power_dbm=tx_power_dbm,
                     tx_lat=tx_lat,
@@ -976,7 +1024,11 @@ class SyntheticDataGenerator:
                     frequency_mhz=frequency_mhz,
                     terrain_lookup=self.terrain,
                     tx_antenna=tx_antenna,
-                    rx_antenna=rx_antenna
+                    rx_antenna=rx_antenna,
+                    transmitter_quality=self.rng.uniform(0.3, 0.95),
+                    transmission_duty_cycle=self.rng.uniform(0.8, 1.0),
+                    enable_sporadic_e=True,
+                    enable_knife_edge=True
                 )
                 
                 # Check if signal is detectable
@@ -1174,7 +1226,8 @@ async def generate_synthetic_data_with_iq(
     progress_callback=None,
     seed: Optional[int] = None,
     job_id: Optional[str] = None,
-    dataset_type: str = 'feature_based'
+    dataset_type: str = 'feature_based',
+    use_gpu: Optional[bool] = None
 ) -> dict:
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -1190,6 +1243,7 @@ async def generate_synthetic_data_with_iq(
         seed: Random seed for reproducibility
         job_id: Optional job ID for cancellation detection
         dataset_type: Dataset type ('feature_based' or 'iq_raw')
+        use_gpu: GPU acceleration: None=auto-detect, True=force GPU, False=force CPU
 
     Returns:
         dict with generation statistics
@@ -1227,17 +1281,34 @@ async def generate_synthetic_data_with_iq(
         batch_size = min(800, num_samples) if num_samples > 10 else num_samples
         logger.info(f"Fixed receivers mode: using batch_size={batch_size} (GPU memory optimized)")
     
-    # Check GPU availability
-    try:
-        import torch
-        use_gpu = torch.cuda.is_available()
-        if use_gpu:
-            logger.info(f"GPU batch processing enabled: {torch.cuda.get_device_name(0)}")
-        else:
-            logger.warning("GPU not available, falling back to CPU batch processing")
-    except ImportError:
-        use_gpu = False
-        logger.warning("PyTorch not available, falling back to CPU batch processing")
+    # Determine GPU usage based on user selection
+    if use_gpu is None:
+        # Auto-detect GPU availability
+        try:
+            import torch
+            use_gpu = torch.cuda.is_available()
+            if use_gpu:
+                logger.info(f"GPU batch processing enabled (auto-detect): {torch.cuda.get_device_name(0)}")
+            else:
+                logger.info("GPU not available, using CPU batch processing (auto-detect)")
+        except ImportError:
+            use_gpu = False
+            logger.warning("PyTorch not available, using CPU batch processing (auto-detect)")
+    elif use_gpu:
+        # User requested GPU - verify availability
+        try:
+            import torch
+            if torch.cuda.is_available():
+                logger.info(f"GPU batch processing FORCED by user: {torch.cuda.get_device_name(0)}")
+            else:
+                logger.warning("GPU FORCED by user but not available, falling back to CPU")
+                use_gpu = False
+        except ImportError:
+            logger.warning("GPU FORCED by user but PyTorch not available, falling back to CPU")
+            use_gpu = False
+    else:
+        # User requested CPU
+        logger.info("CPU batch processing FORCED by user (NumPy mode)")
     
     logger.info(f"Using batch size: {batch_size} samples per batch (REAL batching enabled)")
 
@@ -1389,17 +1460,20 @@ async def generate_synthetic_data_with_iq(
         
         # Extract features for ALL IQ samples at once (GPU batch processing)
         # Initialize feature extractor (reuse if already exists)
-        if not hasattr(_thread_local, 'feature_extractor'):
-            try:
-                import torch
-                use_gpu = torch.cuda.is_available()
-            except ImportError:
-                use_gpu = False
+        # IMPORTANT: Recreate extractor if GPU mode changes (don't reuse wrong device)
+        needs_new_extractor = (
+            not hasattr(_thread_local, 'feature_extractor') or
+            _thread_local.feature_extractor.use_gpu != use_gpu
+        )
+        
+        if needs_new_extractor:
             _thread_local.feature_extractor = RFFeatureExtractor(
                 sample_rate_hz=200_000,
                 use_gpu=use_gpu
             )
-            logger.info(f"Initialized batch feature extractor (GPU={use_gpu})")
+            logger.info(f"Initialized batch feature extractor (GPU={use_gpu}, forced by user)")
+        else:
+            logger.debug(f"Reusing existing feature extractor (GPU={use_gpu})")
         
         feature_extractor = _thread_local.feature_extractor
         

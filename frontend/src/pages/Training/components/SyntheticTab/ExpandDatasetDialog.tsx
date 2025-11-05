@@ -23,6 +23,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
 }) => {
   const { expandDataset } = useTrainingStore();
   const [numSamples, setNumSamples] = useState(10000);
+  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('auto');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -35,14 +36,19 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
     setError(null);
 
     try {
+      // Map acceleration mode to use_gpu parameter
+      const use_gpu = accelerationMode === 'auto' ? null : accelerationMode === 'gpu';
+      
       await expandDataset({
         dataset_id: dataset.id,
         num_additional_samples: numSamples,
+        use_gpu,
       });
       
       // Success - close dialog
       onClose();
       setNumSamples(10000); // Reset
+      setAccelerationMode('auto'); // Reset to auto
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to expand dataset');
     } finally {
@@ -129,6 +135,48 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
                 />
                 <div className="form-text">
                   Min: 1,000 - Max: 5,000,000
+                </div>
+              </div>
+
+              {/* Acceleration Mode */}
+              <div className="mb-3">
+                <label className="form-label">
+                  <i className="ph ph-lightning me-2"></i>
+                  Acceleration Mode
+                </label>
+                <div className="btn-group w-100" role="group" aria-label="Acceleration mode">
+                  <button
+                    type="button"
+                    className={`btn ${accelerationMode === 'auto' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setAccelerationMode('auto')}
+                    disabled={isSubmitting}
+                  >
+                    <i className="ph ph-magic-wand me-1"></i>
+                    AUTO
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${accelerationMode === 'cpu' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setAccelerationMode('cpu')}
+                    disabled={isSubmitting}
+                  >
+                    <i className="ph ph-cpu me-1"></i>
+                    CPU
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${accelerationMode === 'gpu' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                    onClick={() => setAccelerationMode('gpu')}
+                    disabled={isSubmitting}
+                  >
+                    <i className="ph ph-lightning me-1"></i>
+                    GPU
+                  </button>
+                </div>
+                <div className="form-text">
+                  {accelerationMode === 'auto' && 'Automatically detect and use GPU if available, fallback to CPU'}
+                  {accelerationMode === 'cpu' && 'Force CPU-only processing (multi-threaded, uses all 24 cores)'}
+                  {accelerationMode === 'gpu' && 'Force GPU acceleration (10-30x faster if GPU available)'}
                 </div>
               </div>
 

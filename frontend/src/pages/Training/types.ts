@@ -190,6 +190,7 @@ export interface SyntheticDataRequest {
   area_lat_max?: number;
   area_lon_min?: number;
   area_lon_max?: number;
+  use_gpu?: boolean | null;  // null = auto-detect, true = force GPU, false = force CPU
 }
 
 export interface SyntheticSample {
@@ -257,4 +258,5 @@ export interface SyntheticGenerationJob {
 export interface ExpandDatasetRequest {
   dataset_id: string;
   num_additional_samples: number;
+  use_gpu?: boolean | null;  // null = auto-detect, true = force GPU, false = force CPU
 }

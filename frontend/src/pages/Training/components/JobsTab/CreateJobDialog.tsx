@@ -1,15 +1,13 @@
 /**
  * CreateJobDialog Component
  * 
- * Modal dialog for creating a new training job
+ * Wrapper that uses the new ModelSelectionModal for creating training jobs
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
-import type { CreateJobRequest, ModelArchitecture, SyntheticDataset } from '../../types';
-import api from '../../../../lib/api';
-import { usePortal } from '@/hooks/usePortal';
+import ModelSelectionModal from '@/components/ModelSelectionModal';
+import type { ModelArchitecture } from '@/services/api/training';
 
 interface CreateJobDialogProps {
   isOpen: boolean;

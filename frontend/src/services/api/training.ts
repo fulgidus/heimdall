@@ -259,3 +259,156 @@ export async function deployModel(modelId: string, setProduction: boolean = fals
 export async function deleteModel(modelId: string): Promise<void> {
     await api.delete(`/v1/training/models/${modelId}`);
 }
+
+// ============================================================================
+// MODEL ARCHITECTURES API
+// ============================================================================
+
+export type ModelCategory = 'spectrogram' | 'iq_raw_cnn' | 'transformer' | 'temporal' | 'hybrid' | 'features';
+export type ComplexityLevel = 'low' | 'medium' | 'high' | 'very_high';
+export type SpeedRating = 'very_fast' | 'fast' | 'moderate' | 'slow';
+export type QualityRating = 'excellent' | 'good' | 'fair' | 'experimental';
+
+export interface ModelArchitecturePerformance {
+    accuracy_meters_mean: number;
+    accuracy_meters_min: number;
+    accuracy_meters_max: number;
+    inference_ms_mean: number;
+    inference_ms_min: number;
+    inference_ms_max: number;
+}
+
+export interface ModelArchitectureMetadata {
+    description: string;
+    input_format: string;
+    typical_use_cases: string[];
+    advantages: string[];
+    disadvantages: string[];
+    recommended_for: string[];
+    not_recommended_for: string[];
+    training_time_estimate: string;
+    dataset_size_recommendation: string;
+}
+
+export interface ModelArchitectureStarRatings {
+    accuracy: number;  // 1-5
+    speed: number;     // 1-5
+    efficiency: number; // 1-5
+}
+
+export interface ModelArchitectureBadges {
+    recommended?: boolean;
+    maximum_accuracy?: boolean;
+    fastest?: boolean;
+    best_ratio?: boolean;
+    experimental?: boolean;
+    production_ready?: boolean;
+    memory_efficient?: boolean;
+    gpu_optimized?: boolean;
+}
+
+export interface ModelArchitecture {
+    id: string;
+    display_name: string;
+    category: ModelCategory;
+    emoji: string;
+    class_name: string;
+    parameters_millions: number;
+    model_size_mb: number;
+    complexity: ComplexityLevel;
+    speed_rating: SpeedRating;
+    quality_rating: QualityRating;
+    performance: ModelArchitecturePerformance;
+    metadata: ModelArchitectureMetadata;
+    star_ratings: ModelArchitectureStarRatings;
+    badges: ModelArchitectureBadges;
+    created_at: string;
+}
+
+export interface ModelArchitecturesResponse {
+    architectures: ModelArchitecture[];
+    total: number;
+    filters_applied: {
+        category?: ModelCategory;
+        complexity?: ComplexityLevel;
+        min_accuracy?: number;
+        max_inference_ms?: number;
+    };
+}
+
+export interface CompareModelsRequest {
+    architecture_ids: string[];
+}
+
+export interface ModelComparisonDifference {
+    metric: string;
+    difference_percent: number;
+    winner_id: string;
+}
+
+export interface ModelComparisonResponse {
+    architectures: ModelArchitecture[];
+    comparison_table: Record<string, Record<string, any>>;
+    differences: ModelComparisonDifference[];
+    recommendation: {
+        best_accuracy_id: string;
+        best_speed_id: string;
+        best_efficiency_id: string;
+        overall_best_id: string;
+        reasoning: string;
+    };
+}
+
+export interface RecommendedModelResponse {
+    architecture: ModelArchitecture;
+    reasoning: string;
+    alternatives: Array<{
+        architecture: ModelArchitecture;
+        reason: string;
+    }>;
+}
+
+export async function listModelArchitectures(
+    category?: ModelCategory,
+    complexity?: ComplexityLevel,
+    minAccuracy?: number,
+    maxInferenceMs?: number
+): Promise<ModelArchitecturesResponse> {
+    const params: Record<string, string> = {};
+    
+    if (category) params.category = category;
+    if (complexity) params.complexity = complexity;
+    if (minAccuracy !== undefined) params.min_accuracy = minAccuracy.toString();
+    if (maxInferenceMs !== undefined) params.max_inference_ms = maxInferenceMs.toString();
+
+    const response = await api.get('/v1/training/models/architectures', { params });
+    return response.data;
+}
+
+export async function getModelArchitecture(architectureId: string): Promise<ModelArchitecture> {
+    const response = await api.get(`/v1/training/models/architectures/${architectureId}`);
+    return response.data;
+}
+
+export async function compareModelArchitectures(architectureIds: string[]): Promise<ModelComparisonResponse> {
+    const response = await api.post('/v1/training/models/compare', { architecture_ids: architectureIds });
+    return response.data;
+}
+
+export async function getRecommendedModelArchitecture(
+    datasetSize?: number,
+    prioritizeSpeed?: boolean
+): Promise<RecommendedModelResponse> {
+    const params: Record<string, string> = {};
+    
+    if (datasetSize !== undefined) params.dataset_size = datasetSize.toString();
+    if (prioritizeSpeed !== undefined) params.prioritize_speed = prioritizeSpeed.toString();
+
+    const response = await api.get('/v1/training/models/recommended', { params });
+    return response.data;
+}
+
+export async function getModelArchitectureCard(architectureId: string): Promise<{ card: string }> {
+    const response = await api.get(`/v1/training/models/architectures/${architectureId}/card`);
+    return response.data;
+}

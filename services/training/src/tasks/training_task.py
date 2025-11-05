@@ -1452,7 +1452,8 @@ def generate_synthetic_data_task(self, job_id: str):
                     progress_callback=progress_callback,
                     seed=config.get('seed'),
                     job_id=job_id,  # Pass job_id for cancellation detection
-                    dataset_type=config.get('dataset_type', 'feature_based')  # Pass dataset type (iq_raw or feature_based)
+                    dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
+                    use_gpu=config.get('use_gpu')  # Pass GPU selection (None=auto, True=GPU, False=CPU)
                 )
             return stats
 

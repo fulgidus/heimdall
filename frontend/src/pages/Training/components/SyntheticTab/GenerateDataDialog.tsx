@@ -30,6 +30,9 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
   const [powerUnit, setPowerUnit] = useState<'watt' | 'dbm'>('watt');
   const [powerValueWatt, setPowerValueWatt] = useState(2.0); // Default 2W = ~33dBm
 
+  // Acceleration mode (AUTO, CPU, GPU)
+  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('auto');
+
   // Helper functions for power conversion
   const wattToDbm = (watt: number): number => {
     return 10 * Math.log10(watt * 1000);
@@ -96,11 +99,18 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     setError(null);
 
     try {
-      await generateSyntheticData(formData);
+      // Map acceleration mode to use_gpu value
+      const use_gpu = accelerationMode === 'auto' ? null : accelerationMode === 'gpu' ? true : false;
+      
+      await generateSyntheticData({
+        ...formData,
+        use_gpu,
+      });
       
       // Reset form to production baseline defaults
       setPowerValueWatt(2.0);
       setPowerUnit('watt');
+      setAccelerationMode('auto');
       setFormData({
         name: '',
         description: '',
@@ -436,6 +446,47 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                   </div>
                 </div>
 
+                {/* Processing Acceleration */}
+                <div className="mb-4">
+                  <h6 className="fw-semibold mb-3">Processing Acceleration</h6>
+                  
+                  <div className="btn-group w-100" role="group" aria-label="Acceleration mode selector">
+                    <button
+                      type="button"
+                      className={`btn ${accelerationMode === 'auto' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setAccelerationMode('auto')}
+                      disabled={isLoading}
+                    >
+                      <i className="ph ph-magic-wand me-2"></i>
+                      AUTO
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${accelerationMode === 'cpu' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setAccelerationMode('cpu')}
+                      disabled={isLoading}
+                    >
+                      <i className="ph ph-cpu me-2"></i>
+                      CPU
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${accelerationMode === 'gpu' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setAccelerationMode('gpu')}
+                      disabled={isLoading}
+                    >
+                      <i className="ph ph-lightning me-2"></i>
+                      GPU
+                    </button>
+                  </div>
+                  
+                  <div className="form-text mt-2">
+                    {accelerationMode === 'auto' && 'Auto-detect GPU availability (recommended)'}
+                    {accelerationMode === 'cpu' && 'Force CPU processing (slower but always available)'}
+                    {accelerationMode === 'gpu' && 'Force GPU acceleration (requires CUDA-capable GPU)'}
+                  </div>
+                </div>
+
                 {/* Random Receivers Configuration (conditional) */}
                 {(formData.dataset_type === 'iq_raw' || formData.use_random_receivers) && (
                   <div className="mb-4">
@@ -600,6 +651,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         <li><strong>Receivers:</strong> {formData.min_receivers_count}-{formData.max_receivers_count} random per sample</li>
                       )}
                       <li><strong>Terrain:</strong> {formData.use_srtm ? 'SRTM enabled' : 'Flat earth model'}</li>
+                      <li><strong>Acceleration:</strong> {accelerationMode.toUpperCase()} mode</li>
                     </ul>
                   </div>
                 </div>

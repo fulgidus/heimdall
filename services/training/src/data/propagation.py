@@ -4,9 +4,15 @@ RF propagation simulator for synthetic data generation.
 Implements physics-based propagation model:
 - Free Space Path Loss (FSPL)
 - Terrain blockage (LOS check)
+- Knife-edge diffraction (obstacle diffraction)
 - Environment loss (statistical)
 - Multipath fading (Rayleigh)
+- Sporadic-E propagation (VHF skip)
+- Tropospheric refraction and ducting
+- Atmospheric absorption
 - Antenna patterns (omnidirectional, directional)
+- TX power fluctuations
+- Intermittent transmissions
 """
 
 import math
@@ -264,6 +270,214 @@ class RFPropagationModel:
         
         return absorption_db
     
+    def calculate_knife_edge_diffraction(
+        self,
+        tx_alt: float,
+        rx_alt: float,
+        obstacle_alt: float,
+        distance_to_obstacle_km: float,
+        total_distance_km: float,
+        frequency_mhz: float
+    ) -> float:
+        """
+        Calculate knife-edge diffraction loss over a single obstacle.
+        
+        Uses the Fresnel-Kirchhoff diffraction parameter to calculate
+        diffraction loss when signals pass over obstacles like mountains or buildings.
+        
+        Args:
+            tx_alt: Transmitter altitude (meters ASL)
+            rx_alt: Receiver altitude (meters ASL)
+            obstacle_alt: Obstacle altitude (meters ASL)
+            distance_to_obstacle_km: Distance from TX to obstacle (km)
+            total_distance_km: Total distance TX to RX (km)
+            frequency_mhz: Frequency in MHz
+        
+        Returns:
+            Diffraction loss in dB (always positive, 0 if no obstruction)
+        """
+        if distance_to_obstacle_km <= 0 or total_distance_km <= distance_to_obstacle_km:
+            return 0.0
+        
+        # Calculate wavelength
+        wavelength_m = 299.792458 / frequency_mhz
+        
+        # Distance from obstacle to RX
+        distance_from_obstacle_km = total_distance_km - distance_to_obstacle_km
+        
+        # Convert distances to meters
+        d1_m = distance_to_obstacle_km * 1000.0
+        d2_m = distance_from_obstacle_km * 1000.0
+        
+        # Calculate LOS altitude at obstacle position (linear interpolation)
+        los_alt_at_obstacle = tx_alt + (rx_alt - tx_alt) * (distance_to_obstacle_km / total_distance_km)
+        
+        # Height difference (h): negative if obstacle blocks, positive if clear
+        h = los_alt_at_obstacle - obstacle_alt
+        
+        # Calculate Fresnel-Kirchhoff diffraction parameter (v)
+        # v = h * sqrt(2 * (d1 + d2) / (wavelength * d1 * d2))
+        v = h * math.sqrt(2.0 * (d1_m + d2_m) / (wavelength_m * d1_m * d2_m))
+        
+        # Calculate diffraction loss based on v parameter
+        # ITU-R P.526 model
+        if v <= -0.78:
+            # Deep shadow region (obstacle blocks significantly)
+            loss_db = 20.0 * math.log10(0.5 - 0.62 * v) + 6.0
+        elif v < 0:
+            # Partial shadow region
+            loss_db = 6.02 + 9.11 * v + 1.27 * v ** 2
+        elif v < 1.0:
+            # Transition region (obstacle barely clears Fresnel zone)
+            loss_db = 6.02 + 9.11 * v - 1.27 * v ** 2
+        elif v < 2.4:
+            # Clearance region (signal slightly diffracted)
+            loss_db = 13.0 + 20.0 * math.log10(v) - 5.0 * v
+        else:
+            # Full clearance (minimal diffraction)
+            loss_db = 0.0
+        
+        # Ensure loss is non-negative and reasonable
+        loss_db = max(0.0, min(loss_db, 30.0))
+        
+        return loss_db
+    
+    def calculate_sporadic_e_propagation(
+        self,
+        distance_km: float,
+        frequency_mhz: float,
+        solar_flux: float = 70.0,
+        season_factor: float = 0.5
+    ) -> Tuple[bool, float]:
+        """
+        Calculate sporadic-E propagation effects for VHF frequencies.
+        
+        Sporadic-E is a sporadic ionospheric propagation mode that can
+        provide strong VHF signal enhancement over 500-2500 km distances,
+        particularly in summer months.
+        
+        Args:
+            distance_km: Path length in kilometers
+            frequency_mhz: Frequency in MHz
+            solar_flux: Solar flux index (affects ionization, 70-200 typical)
+            season_factor: 0=winter, 0.5=spring/fall, 1.0=summer
+        
+        Returns:
+            Tuple of (sporadic_e_active, enhancement_db)
+        """
+        # Sporadic-E is most common on VHF (28-150 MHz)
+        if frequency_mhz < 28.0 or frequency_mhz > 225.0:
+            return False, 0.0
+        
+        # Distance must be in "skip zone" (500-2500 km for single hop)
+        if distance_km < 500.0 or distance_km > 2500.0:
+            return False, 0.0
+        
+        # Calculate probability of sporadic-E occurrence
+        # Higher in summer, with solar activity, and at optimal frequencies (50-144 MHz)
+        
+        # Frequency factor (peak around 50-100 MHz)
+        if 50.0 <= frequency_mhz <= 100.0:
+            freq_factor = 1.0
+        elif 28.0 <= frequency_mhz < 50.0:
+            freq_factor = (frequency_mhz - 28.0) / 22.0  # Ramp up
+        elif 100.0 < frequency_mhz <= 150.0:
+            freq_factor = 1.0 - (frequency_mhz - 100.0) / 50.0  # Ramp down
+        else:
+            freq_factor = 0.1  # Rare above 150 MHz
+        
+        # Season factor (5x more common in summer)
+        season_prob = 0.01 + season_factor * 0.04  # 1-5% base probability
+        
+        # Solar activity factor
+        solar_factor = min(1.5, solar_flux / 100.0)  # Higher activity = more Es
+        
+        # Distance factor (optimal around 1000-1500 km for single hop)
+        if 1000.0 <= distance_km <= 1500.0:
+            distance_factor = 1.0
+        else:
+            distance_factor = 0.5
+        
+        # Combined probability
+        es_probability = season_prob * freq_factor * solar_factor * distance_factor
+        
+        # Check if sporadic-E is active this moment
+        sporadic_e_active = np.random.random() < es_probability
+        
+        if sporadic_e_active:
+            # Strong signal enhancement (20-40 dB typical)
+            # Compensates for what would otherwise be beyond-horizon path loss
+            enhancement_db = np.random.uniform(20.0, 40.0)
+            return True, enhancement_db
+        else:
+            return False, 0.0
+    
+    def calculate_tx_power_fluctuation(
+        self,
+        nominal_power_dbm: float,
+        transmitter_quality: float = 0.7
+    ) -> float:
+        """
+        Calculate realistic TX power fluctuations.
+        
+        Real transmitters have power output variations due to:
+        - Oscillator drift
+        - Power amplifier non-linearity
+        - Supply voltage variations
+        - Temperature effects
+        - Component aging
+        
+        Args:
+            nominal_power_dbm: Nominal transmitter power in dBm
+            transmitter_quality: Quality factor 0-1 (0.9=high-end, 0.5=poor)
+        
+        Returns:
+            Actual TX power in dBm (with fluctuations applied)
+        """
+        # Power fluctuation standard deviation (better quality = less fluctuation)
+        # High-end: ±0.3 dB, Mid-range: ±0.8 dB, Poor: ±2.0 dB
+        fluctuation_std_db = (1.0 - transmitter_quality) * 2.0 + 0.3
+        
+        # Add Gaussian fluctuation
+        power_variation_db = np.random.normal(0.0, fluctuation_std_db)
+        
+        # Clamp to reasonable range (±3 dB maximum)
+        power_variation_db = np.clip(power_variation_db, -3.0, 3.0)
+        
+        actual_power_dbm = nominal_power_dbm + power_variation_db
+        
+        return actual_power_dbm
+    
+    def check_intermittent_transmission(
+        self,
+        transmission_duty_cycle: float = 0.95,
+        mean_on_time_seconds: float = 300.0,
+        mean_off_time_seconds: float = 10.0
+    ) -> bool:
+        """
+        Simulate intermittent transmissions (on/off behavior).
+        
+        Real-world transmissions can be intermittent due to:
+        - Operator behavior (PTT key-up/key-down)
+        - Repeater timeout
+        - Equipment failures
+        - Interference management
+        - Battery saver modes
+        
+        Args:
+            transmission_duty_cycle: Fraction of time TX is active (0-1)
+            mean_on_time_seconds: Average transmission duration
+            mean_off_time_seconds: Average gap between transmissions
+        
+        Returns:
+            True if transmission is active, False if silent
+        """
+        # Simple Bernoulli trial based on duty cycle
+        # In a more advanced model, this would maintain state over time
+        is_transmitting = np.random.random() < transmission_duty_cycle
+        
+        return is_transmitting
+    
     def calculate_tropospheric_refraction(
         self,
         distance_km: float,
@@ -495,7 +709,11 @@ class RFPropagationModel:
         terrain_lookup=None,
         tx_antenna: Optional[AntennaPattern] = None,
         rx_antenna: Optional[AntennaPattern] = None,
-        meteo_params=None  # MeteorologicalParameters instance (optional)
+        meteo_params=None,  # MeteorologicalParameters instance (optional)
+        transmitter_quality: float = 0.7,  # TX quality for power fluctuations
+        transmission_duty_cycle: float = 0.95,  # Probability TX is active
+        enable_sporadic_e: bool = True,  # Enable sporadic-E propagation
+        enable_knife_edge: bool = True  # Enable knife-edge diffraction
     ) -> Tuple[float, float, dict]:
         """
         Calculate received power at receiver.
@@ -513,6 +731,10 @@ class RFPropagationModel:
             tx_antenna: Optional transmitter antenna pattern
             rx_antenna: Optional receiver antenna pattern
             meteo_params: Optional meteorological parameters for atmospheric effects
+            transmitter_quality: TX quality factor (0-1, affects power fluctuations)
+            transmission_duty_cycle: Probability TX is active (0-1)
+            enable_sporadic_e: Enable sporadic-E propagation modeling
+            enable_knife_edge: Enable knife-edge diffraction modeling
         
         Returns:
             Tuple of (rx_power_dbm, snr_db, details_dict)
@@ -544,7 +766,25 @@ class RFPropagationModel:
         env_loss = self.calculate_environment_loss()
         fading = self.calculate_fading()
         
-        # Calculate atmospheric effects if meteorological parameters provided
+        # 1. CHECK INTERMITTENT TRANSMISSION
+        # Some transmissions are intermittent (operator behavior, failures, etc.)
+        is_transmitting = self.check_intermittent_transmission(transmission_duty_cycle)
+        
+        if not is_transmitting:
+            # Transmission is off - return noise floor
+            return self.noise_floor_dbm, 0.0, {
+                "distance_km": distance_km,
+                "transmission_active": False,
+                "rx_power_dbm": self.noise_floor_dbm,
+                "snr_db": 0.0
+            }
+        
+        # 2. TX POWER FLUCTUATIONS
+        # Real transmitters have power variations (±0.5-2 dB typical)
+        actual_tx_power_dbm = self.calculate_tx_power_fluctuation(tx_power_dbm, transmitter_quality)
+        tx_power_variation_db = actual_tx_power_dbm - tx_power_dbm
+        
+        # 3. ATMOSPHERIC EFFECTS
         atmospheric_absorption_db = 0.0
         tropospheric_effect_db = 0.0
         
@@ -571,9 +811,48 @@ class RFPropagationModel:
                 ducting_active
             )
         
-        # Total received power (including antenna gains and atmospheric effects)
+        # 4. SPORADIC-E PROPAGATION
+        # Can provide strong VHF enhancement over 500-2500 km
+        sporadic_e_active = False
+        sporadic_e_enhancement_db = 0.0
+        
+        if enable_sporadic_e and meteo_params is not None:
+            # Use season_factor from meteo_params if available
+            season_factor = getattr(meteo_params, 'season_factor', 0.5)
+            solar_flux = getattr(meteo_params, 'solar_flux', 70.0)
+            
+            sporadic_e_active, sporadic_e_enhancement_db = self.calculate_sporadic_e_propagation(
+                distance_km,
+                frequency_mhz,
+                solar_flux,
+                season_factor
+            )
+        
+        # 5. KNIFE-EDGE DIFFRACTION
+        # Calculate diffraction loss if terrain causes obstruction
+        knife_edge_loss_db = 0.0
+        
+        if enable_knife_edge and terrain_lookup is not None:
+            # Find highest obstacle along path (simplified - sample at midpoint)
+            mid_lat = (tx_lat + rx_lat) / 2.0
+            mid_lon = (tx_lon + rx_lon) / 2.0
+            mid_distance_km = distance_km / 2.0
+            
+            obstacle_alt = terrain_lookup.get_elevation(mid_lat, mid_lon)
+            
+            # Calculate knife-edge diffraction loss
+            knife_edge_loss_db = self.calculate_knife_edge_diffraction(
+                tx_alt,
+                rx_alt,
+                obstacle_alt,
+                mid_distance_km,
+                distance_km,
+                frequency_mhz
+            )
+        
+        # Total received power (including all effects)
         rx_power_dbm = (
-            tx_power_dbm 
+            actual_tx_power_dbm  # TX power with fluctuations
             + tx_antenna_gain_db 
             + rx_antenna_gain_db
             - fspl 
@@ -582,6 +861,8 @@ class RFPropagationModel:
             + fading
             - atmospheric_absorption_db  # Absorption is always loss
             + tropospheric_effect_db  # Refraction can be gain or loss
+            + sporadic_e_enhancement_db  # Sporadic-E enhancement (if active)
+            - knife_edge_loss_db  # Knife-edge diffraction loss
         )
         
         # SNR
@@ -589,14 +870,20 @@ class RFPropagationModel:
         
         details = {
             "distance_km": distance_km,
+            "transmission_active": is_transmitting,
+            "tx_power_variation_db": tx_power_variation_db,
+            "actual_tx_power_dbm": actual_tx_power_dbm,
             "fspl_db": fspl,
             "terrain_loss_db": terrain_loss,
+            "knife_edge_loss_db": knife_edge_loss_db,
             "env_loss_db": env_loss,
             "fading_db": fading,
             "tx_antenna_gain_db": tx_antenna_gain_db,
             "rx_antenna_gain_db": rx_antenna_gain_db,
             "atmospheric_absorption_db": atmospheric_absorption_db,
             "tropospheric_effect_db": tropospheric_effect_db,
+            "sporadic_e_active": sporadic_e_active,
+            "sporadic_e_enhancement_db": sporadic_e_enhancement_db,
             "rx_power_dbm": rx_power_dbm,
             "snr_db": snr_db
         }

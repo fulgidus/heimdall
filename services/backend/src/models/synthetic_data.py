@@ -83,6 +83,12 @@ class SyntheticDataGenerationRequest(BaseModel):
     area_lon_max: float = Field(
         default=10.0, ge=-180.0, le=180.0, description="Maximum longitude for receiver area"
     )
+    
+    # Processing acceleration (GPU/CPU selection)
+    use_gpu: Optional[bool] = Field(
+        default=None,
+        description="Processing unit: None=auto-detect, True=force GPU (CuPy), False=force CPU (NumPy)"
+    )
 
 
 class SyntheticDatasetResponse(BaseModel):

@@ -7,6 +7,10 @@ Processes both synthetic and real recording session data.
 GPU Acceleration:
 - Automatically uses CuPy if available (10-30x speedup for FFT operations)
 - Falls back to NumPy if CuPy not installed or no GPU
+
+CPU Parallelization:
+- Uses multiprocessing.Pool to parallelize feature extraction across all CPU cores
+- Achieves near-linear speedup on multi-core systems (e.g., 24 cores)
 """
 
 import numpy as np
@@ -14,6 +18,8 @@ import structlog
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Union
+from multiprocessing import Pool, cpu_count
+from functools import partial
 
 # Try to import CuPy for GPU acceleration
 try:
@@ -24,6 +30,26 @@ except (ImportError, Exception):
     GPU_AVAILABLE = False
 
 logger = structlog.get_logger(__name__)
+
+
+def _extract_features_worker(iq_sample: 'IQSample', sample_rate_hz: int) -> 'ExtractedFeatures':
+    """
+    Worker function for multiprocessing feature extraction.
+    
+    This is a module-level function (not a class method) because multiprocessing
+    requires pickleable functions. Each worker process creates its own
+    RFFeatureExtractor instance.
+    
+    Args:
+        iq_sample: IQSample to process
+        sample_rate_hz: Sample rate in Hz
+        
+    Returns:
+        ExtractedFeatures object
+    """
+    # Create extractor instance in worker process (CPU mode only)
+    extractor = RFFeatureExtractor(sample_rate_hz=sample_rate_hz, use_gpu=False)
+    return extractor.extract_features(iq_sample)
 
 
 @dataclass
@@ -92,10 +118,19 @@ class RFFeatureExtractor:
             logger.info(f"RFFeatureExtractor: GPU acceleration ENABLED (CuPy)")
         else:
             self.xp = np  # Use NumPy (CPU arrays)
+            
+            # Force NumPy/OpenBLAS to use ALL available CPU cores for maximum performance
+            import os
+            cpu_count = os.cpu_count() or 1
+            os.environ['OMP_NUM_THREADS'] = str(cpu_count)
+            os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_count)
+            os.environ['MKL_NUM_THREADS'] = str(cpu_count)
+            os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_count)
+            
             if use_gpu and not GPU_AVAILABLE:
-                logger.warning(f"RFFeatureExtractor: GPU requested but not available, using CPU")
+                logger.warning(f"RFFeatureExtractor: GPU requested but not available, using CPU with {cpu_count} threads")
             else:
-                logger.info(f"RFFeatureExtractor: Using CPU (NumPy)")
+                logger.info(f"RFFeatureExtractor: Using CPU (NumPy) with {cpu_count} threads for parallel processing")
         
         logger.info(f"Initialized RFFeatureExtractor with sample_rate={sample_rate_hz} Hz, GPU={self.use_gpu}")
 
@@ -202,8 +237,12 @@ class RFFeatureExtractor:
         # === TIER 4: Advanced Features ===
 
         # Multipath delay spread via autocorrelation
-        autocorr = self.xp.correlate(samples, samples, mode='full')
-        autocorr = autocorr[len(autocorr) // 2:]  # Keep only positive lags
+        # Use FFT-based autocorrelation: O(N log N) instead of O(N²)
+        # autocorr(x) = ifft(fft(x) * conj(fft(x)))
+        fft_x = self.xp.fft.fft(samples)
+        power_spectrum = fft_x * self.xp.conj(fft_x)
+        autocorr_full = self.xp.fft.ifft(power_spectrum).real
+        autocorr = autocorr_full[:len(autocorr_full) // 2 + 1]  # Keep only positive lags
         pdp = self.xp.abs(autocorr) ** 2
         pdp_norm = pdp / (self.xp.max(pdp) + 1e-12)
 
@@ -541,7 +580,10 @@ class RFFeatureExtractor:
         iq_samples_list: List[IQSample]
     ) -> List[ExtractedFeatures]:
         """
-        Extract features from one chunk across all receivers using CPU.
+        Extract features from one chunk across all receivers using CPU with multiprocessing.
+        
+        Uses multiprocessing.Pool to parallelize across all available CPU cores.
+        This provides near-linear speedup on multi-core systems (e.g., 24 cores).
         
         Args:
             chunk_data_list: List of chunk arrays
@@ -550,9 +592,12 @@ class RFFeatureExtractor:
         Returns:
             List of ExtractedFeatures (one per receiver)
         """
-        features_list = []
+        import time
+        t_start = time.perf_counter()
+        
+        # Create list of IQSample objects for parallel processing
+        chunk_iq_list = []
         for chunk_data, iq_sample in zip(chunk_data_list, iq_samples_list):
-            # Create temporary IQSample for this chunk
             chunk_iq = IQSample(
                 samples=chunk_data,
                 sample_rate_hz=iq_sample.sample_rate_hz,
@@ -562,8 +607,19 @@ class RFFeatureExtractor:
                 rx_lon=iq_sample.rx_lon,
                 timestamp=iq_sample.timestamp,
             )
-            features = self.extract_features(chunk_iq)
-            features_list.append(features)
+            chunk_iq_list.append(chunk_iq)
+        
+        # Extract features in parallel using all CPU cores
+        num_workers = cpu_count()
+        logger.info(f"CPU parallel processing: {len(chunk_iq_list)} chunks using {num_workers} workers")
+        
+        with Pool(processes=num_workers) as pool:
+            # Use partial to bind self to the method
+            extract_fn = partial(_extract_features_worker, sample_rate_hz=self.sample_rate_hz)
+            features_list = pool.map(extract_fn, chunk_iq_list)
+        
+        t_end = time.perf_counter()
+        logger.info(f"CPU parallel extraction: {(t_end - t_start)*1000:.1f}ms for {len(chunk_iq_list)} chunks ({num_workers} cores)")
         
         return features_list
     

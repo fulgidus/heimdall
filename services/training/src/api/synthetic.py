@@ -261,6 +261,7 @@ class GenerateDatasetRequest(BaseModel):
     dataset_type: str = "feature_based"
     use_random_receivers: bool = False
     use_srtm_terrain: bool = True
+    use_gpu: Optional[bool] = None  # None = auto-detect, True = force GPU, False = force CPU
     seed: Optional[int] = None
     tx_antenna_dist: Optional[TxAntennaDistributionRequest] = None
     rx_antenna_dist: Optional[RxAntennaDistributionRequest] = None
@@ -378,6 +379,7 @@ async def generate_dataset(
         "dataset_type": request.dataset_type,
         "use_random_receivers": request.use_random_receivers,
         "use_srtm_terrain": request.use_srtm_terrain,
+        "use_gpu": request.use_gpu,
         "seed": request.seed
     }
     
