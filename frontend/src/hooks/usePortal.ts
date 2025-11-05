@@ -86,8 +86,10 @@ export function usePortal(isOpen: boolean): HTMLDivElement | null {
         try {
           document.body.removeChild(portal);
         } catch (error) {
-          // This should theoretically never happen because we checked parentNode
-          // But wrap it anyway for absolute safety
+          // Should theoretically never happen because we checked parentNode.
+          // Could only occur if another cleanup removed the portal between
+          // the check and removeChild call (extremely unlikely but possible
+          // if multiple effects somehow share the same portal ref).
           if (process.env.NODE_ENV === 'development') {
             console.debug('Portal cleanup: removeChild failed despite parent check', error);
           }
