@@ -244,6 +244,7 @@ export interface ReceiverMetadata {
   distance_km: number;
   snr_db: number;
   rx_power_dbm: number;
+  signal_present?: boolean;
   // Propagation details
   fspl_db?: number;
   terrain_loss_db?: number;
