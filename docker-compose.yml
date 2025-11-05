@@ -452,7 +452,7 @@ services:
         VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
         VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
         VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-        VITE_SOCKET_URL: ws://localhost/ws
+        VITE_SOCKET_URL: ws://localhost:3000/ws
         VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     container_name: heimdall-frontend
     environment:
@@ -468,7 +468,7 @@ services:
       VITE_ADMIN_PASSWORD: ${VITE_ADMIN_PASSWORD:-admin}
       VITE_AUTH_TOKEN_KEY: ${VITE_AUTH_TOKEN_KEY:-heimdall_auth_token}
       VITE_SESSION_TIMEOUT: ${VITE_SESSION_TIMEOUT:-3600000}
-      VITE_SOCKET_URL: ws://localhost/ws
+      VITE_SOCKET_URL: ws://localhost:3000/ws
       VITE_MAPBOX_TOKEN: ${VITE_MAPBOX_TOKEN}
     ports:
       - "3000:3000"

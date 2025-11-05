@@ -38,6 +38,7 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/training", tags=["training"])
+models_router = APIRouter(prefix="/api/v1", tags=["models"])
 
 
 @router.post("/jobs", response_model=TrainingJobResponse, status_code=201)
@@ -1644,7 +1645,7 @@ async def delete_synthetic_dataset(dataset_id: UUID):
 # MODEL MANAGEMENT ENDPOINTS
 # ============================================================================
 
-@router.get("/models")
+@models_router.get("/models")
 async def list_models(
     limit: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
@@ -1740,7 +1741,7 @@ async def list_models(
         raise HTTPException(status_code=500, detail=f"Failed to list models: {e!s}")
 
 
-@router.get("/models/{model_id}")
+@models_router.get("/models/{model_id}")
 async def get_model(model_id: UUID):
     """
     Get model details.
@@ -1809,7 +1810,7 @@ async def get_model(model_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to get model: {e!s}")
 
 
-@router.patch("/models/{model_id}", status_code=200)
+@models_router.patch("/models/{model_id}", status_code=200)
 async def update_model_name(model_id: UUID, model_name: str):
     """
     Update model name.
@@ -1870,7 +1871,7 @@ async def update_model_name(model_id: UUID, model_name: str):
         raise HTTPException(status_code=500, detail=f"Failed to update model name: {e!s}")
 
 
-@router.post("/models/{model_id}/deploy", status_code=200)
+@models_router.post("/models/{model_id}/deploy", status_code=200)
 async def deploy_model(model_id: UUID, set_production: bool = False):
     """
     Deploy model (set as active for inference).
@@ -1933,7 +1934,7 @@ async def deploy_model(model_id: UUID, set_production: bool = False):
         raise HTTPException(status_code=500, detail=f"Failed to deploy model: {e!s}")
 
 
-@router.delete("/models/{model_id}", status_code=204)
+@models_router.delete("/models/{model_id}", status_code=204)
 async def delete_model(model_id: UUID):
     """
     Delete model and associated artifacts.
@@ -1981,7 +1982,7 @@ async def delete_model(model_id: UUID):
         raise HTTPException(status_code=500, detail=f"Failed to delete model: {e!s}")
 
 
-@router.get("/models/{model_id}/export", response_class=Response)
+@models_router.get("/models/{model_id}/export", response_class=Response)
 async def export_model_heimdall(
     model_id: str,
     include_config: bool = Query(True, description="Include training configuration"),
@@ -2065,7 +2066,7 @@ async def export_model_heimdall(
         raise HTTPException(status_code=500, detail=f"Failed to export model: {e!s}")
 
 
-@router.post("/models/import", status_code=201)
+@models_router.post("/models/import", status_code=201)
 async def import_model_heimdall(
     file: UploadFile = File(..., description=".heimdall bundle file to import")
 ):
@@ -2126,7 +2127,7 @@ async def import_model_heimdall(
         raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}")
 
 
-@router.get("/architectures")
+@router.get("/models/architectures")
 async def list_architectures(data_type: str | None = Query(None, description="Filter by data type (feature_based, iq_raw, or all)")):
     """
     List all available model architectures with metadata.
@@ -2138,7 +2139,7 @@ async def list_architectures(data_type: str | None = Query(None, description="Fi
         List of architectures with display names, data types, and descriptions
     """
     try:
-        from common.model_architectures import list_architectures as list_arch
+        from common.model_registry import list_architectures as list_arch
         
         architectures = list_arch(data_type=data_type)
         

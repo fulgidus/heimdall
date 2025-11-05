@@ -2,7 +2,6 @@ import os
 import sys
 from datetime import datetime
 
-from celery import Celery
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,7 +16,9 @@ from common.health import HealthChecker
 
 from .config import settings
 from .models.health import HealthResponse
-from .api import synthetic, models
+from .api import synthetic, models, jobs
+# Import the celery_app instance (must be imported after api modules to ensure proper initialization)
+from .celery_app import celery_app
 
 SERVICE_NAME = "training"
 SERVICE_VERSION = "0.1.0"
@@ -26,29 +27,9 @@ SERVICE_PORT = 8002
 app = FastAPI(title=f"Heimdall SDR - {SERVICE_NAME}", version=SERVICE_VERSION)
 
 # Include API routers
-app.include_router(synthetic.router, prefix="/v1/training")
-app.include_router(models.router)  # Already has /api/v1/training/models prefix
-
-# Initialize Celery for training tasks
-celery_app = Celery(
-    SERVICE_NAME, 
-    broker=settings.celery_broker_url, 
-    backend=settings.celery_result_backend_url
-)
-
-celery_app.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="UTC",
-    enable_utc=True,
-    task_track_started=True,
-    task_time_limit=3600 * 6,  # 6 hours for training
-    task_soft_time_limit=3600 * 5.5,  # 5.5 hours
-)
-
-# Auto-discover tasks in tasks module
-celery_app.autodiscover_tasks(['src.tasks'])
+app.include_router(synthetic.router)  # /api/v1/jobs/synthetic/* (RESTful synthetic dataset endpoints)
+app.include_router(models.router)  # /api/v1/models/* (model management endpoints)
+app.include_router(jobs.router)  # /api/v1/jobs/* (RESTful job endpoints)
 
 app.add_middleware(
     CORSMiddleware,

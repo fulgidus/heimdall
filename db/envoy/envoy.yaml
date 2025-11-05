@@ -78,7 +78,43 @@ static_resources:
                             timeout: 30s
                           name: "inference_service"
 
-                        # API Gateway routes - all /api/v1 goes to backend
+                        # API v1 Jobs routes (RESTful) - /api/v1/jobs/* goes to training service
+                        - match:
+                            prefix: "/api/v1/jobs/"
+                          route:
+                            cluster: training_cluster
+                            prefix_rewrite: "/api/v1/jobs/"
+                            timeout: 60s
+                          name: "api_v1_jobs"
+
+                        # API v1 Models routes - /api/v1/models/* goes to backend service
+                        - match:
+                            prefix: "/api/v1/models/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/v1/models/"
+                            timeout: 60s
+                          name: "api_v1_models"
+
+                        # API v1 Training routes - /api/v1/training/* goes to backend service
+                        - match:
+                            prefix: "/api/v1/training/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/v1/training/"
+                            timeout: 60s
+                          name: "api_v1_training"
+
+                        # API v1 Inference routes - /api/v1/inference/* goes to inference service
+                        - match:
+                            prefix: "/api/v1/inference/"
+                          route:
+                            cluster: inference_cluster
+                            prefix_rewrite: "/api/v1/inference/"
+                            timeout: 30s
+                          name: "api_v1_inference"
+
+                        # API Gateway routes - all other /api/v1 goes to backend
                         - match:
                             prefix: "/api/v1/"
                           route:

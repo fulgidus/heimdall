@@ -30,7 +30,11 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy installed packages from builder
 COPY --from=deps-rf /root/.local /home/appuser/.local
 
-# Copy shared common module
+# Invalidate cache for fresh copy of common module
+ARG CACHE_BUST=unknown
+RUN echo "Cache bust: $CACHE_BUST"
+
+# Copy shared common module (includes consolidated model_registry)
 COPY --chown=appuser:appuser services/common/ ./common/
 
 # Copy application code

@@ -5,7 +5,7 @@ This module provides a comprehensive registry of all available ML architectures
 for RF source localization, with detailed metadata for informed model selection.
 
 Features:
-- 12 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, ensemble)
+- 11 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal)
 - Performance metrics (accuracy, speed, memory)
 - Visual indicators (emoji, badges, star ratings)
 - Query and comparison utilities
@@ -21,15 +21,16 @@ Architecture Categories:
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Literal, Optional
-import structlog
+import logging
 
-logger = structlog.get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Type aliases for better type hints
 DataType = Literal["spectrogram", "iq_raw", "features", "hybrid"]
 ArchitectureType = Literal["cnn", "transformer", "tcn", "hybrid", "mlp"]
-Badge = Literal["RECOMMENDED", "MAXIMUM_ACCURACY", "FASTEST", "BEST_RATIO", "BASELINE", "EXPERIMENTAL", "LIGHTWEIGHT", "FLAGSHIP"]
+Badge = Literal["RECOMMENDED", "MAXIMUM_ACCURACY", "FASTEST", "BEST_RATIO", "BASELINE", "EXPERIMENTAL", "LIGHTWEIGHT"]
 
 
 @dataclass
@@ -100,7 +101,7 @@ class ModelArchitectureInfo:
 
 
 # ============================================================================
-# REGISTRY: All 12 Model Architectures
+# REGISTRY: All 11 Model Architectures
 # ============================================================================
 
 MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
@@ -681,70 +682,6 @@ MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
         recommended_batch_size=256,
         implementation_file="models/triangulator.py",
     ),
-    
-    # ------------------------------------------------------------------------
-    # ENSEMBLE MODELS (🎯)
-    # ------------------------------------------------------------------------
-    "localization_ensemble_flagship": ModelArchitectureInfo(
-        id="localization_ensemble_flagship",
-        display_name="Ensemble Flagship (IQ Transformer + HybridNet + WaveNet)",
-        description="Ensemble of top 3 models with learned weighting for ultimate accuracy.",
-        long_description=(
-            "Ultimate accuracy model combining the best of three worlds: IQ Transformer (±10-18m, "
-            "pure attention), IQ HybridNet (±12-20m, CNN+Transformer), and IQ WaveNet/TCN (±20-28m, "
-            "temporal modeling). Runs inference through all 3 models in parallel and combines predictions "
-            "using learned attention-based ensemble weights. Each model contributes its strengths: "
-            "Transformer excels at global dependencies, HybridNet at multi-receiver fusion, and WaveNet "
-            "at temporal dynamics. Target accuracy: ±5-12m (68% confidence). Extremely expensive inference "
-            "(500-800ms) and massive memory (200M params, 20GB training VRAM). Only recommended for "
-            "scenarios where accuracy is paramount and computational resources are abundant. Ideal for "
-            "research benchmarks, competitions, and mission-critical deployments."
-        ),
-        data_type="hybrid",
-        architecture_type="hybrid",
-        architecture_emoji="🎯",
-        performance=PerformanceMetrics(
-            expected_error_min_m=5.0,  # Best-in-class accuracy
-            expected_error_max_m=12.0,
-            accuracy_stars=5,
-            inference_time_min_ms=500.0,  # Sum of all 3 models
-            inference_time_max_ms=800.0,
-            speed_stars=1,
-            parameters_millions=200.0,  # 80M + 70M + 50M
-            vram_training_gb=20.0,  # Peak memory for all 3 models
-            vram_inference_gb=6.0,  # 3.0 + 2.5 + 2.0 (minus sharing)
-            efficiency_stars=1,
-            speed_emoji="🐌",  # Slowest possible
-            memory_emoji="🏢",
-            accuracy_emoji="💎💎",  # Double diamond for ultimate accuracy
-        ),
-        badges=["MAXIMUM_ACCURACY", "EXPERIMENTAL", "FLAGSHIP"],
-        best_for=[
-            "Absolute maximum accuracy requirements (±5-12m)",
-            "Research papers and academic benchmarks",
-            "Mission-critical applications (search & rescue, defense)",
-            "Competitions and leaderboards",
-            "High-end GPU infrastructure (A100/H100 with 40GB+ VRAM)",
-            "Offline batch processing with no latency constraints",
-        ],
-        not_recommended_for=[
-            "Production deployments with latency requirements",
-            "Real-time applications",
-            "Limited GPU resources (<20GB VRAM)",
-            "Edge devices and embedded systems",
-            "Small datasets (<5000 samples)",
-            "Cost-sensitive deployments",
-        ],
-        backbone="Ensemble: ViT-Base + ResNet-50+Transformer + WaveNet-TCN",
-        pretrained_weights=None,
-        input_shape=(None, 10, 2, 1024),  # Same as IQ models
-        output_shape=(None, 2),
-        training_difficulty="hard",
-        convergence_epochs=120,  # Ensemble training takes longer
-        recommended_batch_size=4,  # Very small due to memory
-        paper_url="https://arxiv.org/abs/1906.04569",  # Ensemble methods paper
-        implementation_file="models/ensemble_flagship.py",
-    ),
 }
 
 
@@ -945,10 +882,232 @@ def model_info_to_dict(model_info: ModelArchitectureInfo) -> dict:
     }
 
 
+# ============================================================================
+# FRONTEND ADAPTER FUNCTIONS
+# ============================================================================
+
+def _convert_badge_list_to_dict(badge_list: list[Badge]) -> dict[str, bool]:
+    """
+    Convert badge list to frontend-compatible badge dict.
+    
+    Training registry format: ["RECOMMENDED", "MAXIMUM_ACCURACY"]
+    Frontend format: {"recommended": true, "maximum_accuracy": true}
+    
+    Args:
+        badge_list: List of Badge enums
+    
+    Returns:
+        Dictionary with lowercase badge keys and True values
+    """
+    badge_dict = {}
+    for badge in badge_list:
+        # Convert "MAXIMUM_ACCURACY" to "maximum_accuracy"
+        badge_key = badge.lower()
+        badge_dict[badge_key] = True
+    return badge_dict
+
+
+def _map_data_type_to_frontend(data_type: DataType) -> str:
+    """
+    Map training data_type to frontend data_type.
+    
+    Training types: spectrogram, iq_raw, features, hybrid
+    Frontend types: feature_based, iq_raw, both
+    
+    Args:
+        data_type: Training data type
+    
+    Returns:
+        Frontend-compatible data type string
+    """
+    mapping = {
+        "spectrogram": "feature_based",  # Spectrograms are derived features
+        "iq_raw": "iq_raw",
+        "features": "feature_based",
+        "hybrid": "both",  # Hybrid models work with both types
+    }
+    return mapping.get(data_type, "both")
+
+
+def _map_speed_stars_to_rating(speed_stars: int) -> str:
+    """Map speed star rating (1-5) to rating string."""
+    mapping = {
+        5: "very_fast",
+        4: "fast",
+        3: "moderate",
+        2: "slow",
+        1: "slow",
+    }
+    return mapping.get(speed_stars, "moderate")
+
+
+def _map_accuracy_stars_to_rating(accuracy_stars: int) -> str:
+    """Map accuracy star rating (1-5) to quality rating string."""
+    mapping = {
+        5: "excellent",
+        4: "good",
+        3: "good",
+        2: "fair",
+        1: "experimental",
+    }
+    return mapping.get(accuracy_stars, "good")
+
+
+def _map_training_difficulty_to_complexity(difficulty: str) -> str:
+    """Map training difficulty to complexity string."""
+    mapping = {
+        "easy": "low",
+        "medium": "medium",
+        "hard": "high",
+    }
+    return mapping.get(difficulty, "medium")
+
+
+def model_info_to_frontend_dict(model_info: ModelArchitectureInfo) -> dict:
+    """
+    Convert ModelArchitectureInfo to frontend-compatible dictionary.
+    
+    This adapter function transforms the training registry format into the format
+    expected by the frontend TypeScript interfaces. Key transformations:
+    - badges list -> badges dict
+    - data_type mapping (spectrogram/iq_raw/features/hybrid -> feature_based/iq_raw/both)
+    - performance metrics restructuring
+    - metadata field enrichment
+    
+    Args:
+        model_info: Model architecture info object from MODEL_REGISTRY
+    
+    Returns:
+        Dictionary in frontend-compatible format with all required fields
+    """
+    from datetime import datetime
+    
+    return {
+        "id": model_info.id,
+        "name": model_info.id,  # Keep for backward compatibility
+        "display_name": model_info.display_name,
+        "category": model_info.data_type,  # Keep original category
+        "emoji": model_info.architecture_emoji,
+        "class_name": model_info.id,  # Use ID as class name
+        "data_type": _map_data_type_to_frontend(model_info.data_type),
+        "description": model_info.description,
+        "parameters_millions": model_info.performance.parameters_millions,
+        "model_size_mb": model_info.performance.parameters_millions * 4,  # Rough estimate: 4 bytes per param
+        "complexity": _map_training_difficulty_to_complexity(model_info.training_difficulty),
+        "speed_rating": _map_speed_stars_to_rating(model_info.performance.speed_stars),
+        "quality_rating": _map_accuracy_stars_to_rating(model_info.performance.accuracy_stars),
+        "default_params": {},  # Training registry doesn't have this, use empty dict
+        "performance": {
+            "accuracy_meters_mean": (model_info.performance.expected_error_min_m + 
+                                    model_info.performance.expected_error_max_m) / 2,
+            "accuracy_meters_min": model_info.performance.expected_error_min_m,
+            "accuracy_meters_max": model_info.performance.expected_error_max_m,
+            "inference_ms_mean": (model_info.performance.inference_time_min_ms + 
+                                 model_info.performance.inference_time_max_ms) / 2,
+            "inference_ms_min": model_info.performance.inference_time_min_ms,
+            "inference_ms_max": model_info.performance.inference_time_max_ms,
+        },
+        "metadata": {
+            "description": model_info.long_description,
+            "input_format": f"Input shape: {model_info.input_shape}" if model_info.input_shape else "Variable",
+            "typical_use_cases": model_info.best_for[:3] if model_info.best_for else [],
+            "advantages": model_info.best_for if model_info.best_for else [],
+            "disadvantages": model_info.not_recommended_for if model_info.not_recommended_for else [],
+            "recommended_for": model_info.best_for if model_info.best_for else [],
+            "not_recommended_for": model_info.not_recommended_for if model_info.not_recommended_for else [],
+            "training_time_estimate": f"{model_info.convergence_epochs} epochs (estimate)",
+            "dataset_size_recommendation": f"Batch size: {model_info.recommended_batch_size}",
+        },
+        "star_ratings": {
+            "accuracy": model_info.performance.accuracy_stars,
+            "speed": model_info.performance.speed_stars,
+            "efficiency": model_info.performance.efficiency_stars,
+        },
+        "badges": _convert_badge_list_to_dict(model_info.badges),
+        "created_at": datetime(2025, 10, 1, 12, 0, 0).isoformat() + "Z",
+    }
+
+
+def list_architectures(data_type: Optional[str] = None) -> list[dict]:
+    """
+    List all available architectures in frontend-compatible format.
+    
+    This is the main function used by the backend API to return architecture
+    metadata to the frontend. It converts all 11 architectures from the
+    MODEL_REGISTRY into the format expected by the frontend.
+    
+    Args:
+        data_type: Filter by frontend data type ('feature_based', 'iq_raw', or None for all)
+    
+    Returns:
+        List of architecture dictionaries in frontend-compatible format
+    """
+    architectures = []
+    
+    for model_id, model_info in MODEL_REGISTRY.items():
+        # Convert to frontend format
+        arch_dict = model_info_to_frontend_dict(model_info)
+        
+        # Filter by data type if specified
+        if data_type:
+            if arch_dict["data_type"] == "both":
+                # "both" is compatible with any filter
+                pass
+            elif arch_dict["data_type"] != data_type:
+                # Skip if doesn't match filter
+                continue
+        
+        architectures.append(arch_dict)
+    
+    return architectures
+
+
+def get_architecture_metadata(architecture_name: str) -> dict:
+    """
+    Get frontend-compatible metadata for a specific architecture.
+    
+    Args:
+        architecture_name: Architecture identifier
+    
+    Returns:
+        Architecture metadata in frontend-compatible format
+    
+    Raises:
+        KeyError: If architecture not found
+    """
+    model_info = get_model_info(architecture_name)
+    return model_info_to_frontend_dict(model_info)
+
+
+def is_compatible(architecture_name: str, dataset_type: str) -> bool:
+    """
+    Check if an architecture is compatible with a dataset type.
+    
+    Args:
+        architecture_name: Architecture identifier
+        dataset_type: Dataset type ('feature_based' or 'iq_raw')
+    
+    Returns:
+        True if compatible, False otherwise
+    """
+    try:
+        arch_dict = get_architecture_metadata(architecture_name)
+        arch_data_type = arch_dict["data_type"]
+        
+        # 'both' is compatible with everything
+        if arch_data_type == "both":
+            return True
+        
+        # Exact match
+        return arch_data_type == dataset_type
+    
+    except KeyError:
+        return False
+
+
 # Initialize logging
 logger.info(
-    "model_registry_loaded",
-    total_models=get_model_count(),
-    data_types=list(set(m.data_type for m in MODEL_REGISTRY.values())),
-    architecture_types=list(set(m.architecture_type for m in MODEL_REGISTRY.values())),
+    f"Model registry loaded: {get_model_count()} models, "
+    f"data_types={list(set(m.data_type for m in MODEL_REGISTRY.values()))}, "
+    f"architecture_types={list(set(m.architecture_type for m in MODEL_REGISTRY.values()))}"
 )

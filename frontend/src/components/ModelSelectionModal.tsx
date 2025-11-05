@@ -92,21 +92,22 @@ const ModelArchitectureCard: React.FC<{
 
   const renderBadges = () => {
     const badges = [];
-    if (architecture.badges.recommended) badges.push({ text: 'RECOMMENDED', color: 'bg-neon-blue' });
-    if (architecture.badges.maximum_accuracy) badges.push({ text: 'MAX ACCURACY', color: 'bg-sea-green' });
-    if (architecture.badges.fastest) badges.push({ text: 'FASTEST', color: 'bg-light-green' });
-    if (architecture.badges.best_ratio) badges.push({ text: 'BEST RATIO', color: 'bg-amber-500' });
-    if (architecture.badges.experimental) badges.push({ text: 'EXPERIMENTAL', color: 'bg-red-500' });
-    if (architecture.badges.production_ready) badges.push({ text: 'PRODUCTION', color: 'bg-green-600' });
-    if (architecture.badges.memory_efficient) badges.push({ text: 'MEM EFFICIENT', color: 'bg-purple-500' });
-    if (architecture.badges.gpu_optimized) badges.push({ text: 'GPU OPTIMIZED', color: 'bg-orange-500' });
+    if (architecture.badges.recommended) badges.push({ text: 'RECOMMENDED', color: 'bg-neon-blue', textColor: 'text-white' });
+    if (architecture.badges.maximum_accuracy) badges.push({ text: 'MAX ACCURACY', color: 'bg-sea-green', textColor: 'text-white' });
+    if (architecture.badges.fastest) badges.push({ text: 'FASTEST', color: 'bg-light-green', textColor: 'text-oxford-blue' });
+    if (architecture.badges.best_ratio) badges.push({ text: 'BEST RATIO', color: 'bg-amber-500', textColor: 'text-oxford-blue' });
+    if (architecture.badges.experimental) badges.push({ text: 'EXPERIMENTAL', color: 'bg-red-500', textColor: 'text-white' });
+    if (architecture.badges.production_ready) badges.push({ text: 'PRODUCTION', color: 'bg-green-600', textColor: 'text-white' });
+    if (architecture.badges.memory_efficient) badges.push({ text: 'MEM EFFICIENT', color: 'bg-purple-500', textColor: 'text-white' });
+    if (architecture.badges.gpu_optimized) badges.push({ text: 'GPU OPTIMIZED', color: 'bg-orange-500', textColor: 'text-oxford-blue' });
 
     return badges.map((badge, idx) => (
       <span
         key={idx}
         className={classNames(
-          'text-xs px-2 py-1 rounded font-semibold text-white',
-          badge.color
+          'text-xs px-2 py-1 rounded font-semibold',
+          badge.color,
+          badge.textColor
         )}
       >
         {badge.text}

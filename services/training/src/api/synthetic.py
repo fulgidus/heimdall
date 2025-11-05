@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
 
-router = APIRouter(prefix="/synthetic", tags=["synthetic"])
+router = APIRouter(prefix="/api/v1/jobs/synthetic", tags=["synthetic-datasets"])
 
 # Database connection
 engine = create_engine(settings.database_url)
@@ -345,6 +345,101 @@ async def get_job_status(
         error_message=result[11],
         result_data=None
     )
+
+
+class JobActionResponse(BaseModel):
+    """Response model for job action operations (cancel, pause, resume)."""
+    job_id: str
+    status: str
+    message: str
+    celery_task_id: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=JobActionResponse)
+async def cancel_synthetic_job(
+    job_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel a synthetic data generation job.
+    
+    Args:
+        job_id: UUID of the synthetic generation job
+        db: Database session
+    
+    Returns:
+        Cancellation status
+    """
+    from celery import current_app
+    import structlog
+    
+    logger = structlog.get_logger(__name__)
+    
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    
+    try:
+        # Get celery task ID and verify it's a synthetic generation job
+        query = text("""
+            SELECT celery_task_id, status, job_type FROM heimdall.training_jobs
+            WHERE id = :job_id
+        """)
+        result = db.execute(query, {"job_id": str(job_uuid)}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        
+        celery_task_id, current_status, job_type = result
+        
+        # Verify this is a synthetic generation job
+        if job_type != "synthetic_generation":
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Job {job_id} is not a synthetic generation job (type: {job_type})"
+            )
+        
+        # Check if job is already in a terminal state
+        if current_status in ['completed', 'cancelled', 'failed']:
+            return JobActionResponse(
+                job_id=job_id,
+                status=current_status,
+                message=f"Job already in terminal state: {current_status}",
+                celery_task_id=celery_task_id
+            )
+        
+        # Revoke Celery task
+        if celery_task_id:
+            current_app.control.revoke(celery_task_id, terminate=True, signal='SIGTERM')
+        
+        # Update status
+        update_query = text("""
+            UPDATE heimdall.training_jobs
+            SET status = 'cancelled', completed_at = NOW(), updated_at = NOW()
+            WHERE id = :job_id
+        """)
+        db.execute(update_query, {"job_id": str(job_uuid)})
+        db.commit()
+        
+        logger.info("synthetic_job_cancelled", job_id=job_id, celery_task_id=celery_task_id)
+        
+        return JobActionResponse(
+            job_id=job_id,
+            status="cancelled",
+            message="Synthetic generation job cancelled successfully",
+            celery_task_id=celery_task_id
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error("synthetic_job_cancel_failed", job_id=job_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to cancel job: {str(e)}")
 
 
 @router.post("/generate", response_model=GenerateDatasetResponse)

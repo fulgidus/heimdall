@@ -172,25 +172,25 @@ export interface SyntheticDataRequest {
   description?: string;
   dataset_type?: 'feature_based' | 'iq_raw';
   num_samples: number;
-  inside_ratio?: number;
-  frequency_mhz?: number;
-  tx_power_dbm?: number;
-  min_snr_db?: number;
-  min_receivers?: number;
+  frequency_mhz: number;  // Required by backend
+  tx_power_dbm: number;   // Required by backend
+  min_snr_db: number;     // Required by backend
+  min_receivers: number;  // Required by backend
   max_gdop?: number;
-  use_srtm?: boolean;
-  min_elevation_meters?: number;
-  max_elevation_meters?: number;
-  // Random receiver parameters (for iq_raw datasets)
+  use_srtm_terrain?: boolean;  // Backend expects 'use_srtm_terrain', not 'use_srtm'
   use_random_receivers?: boolean;
-  min_receivers_count?: number;
-  max_receivers_count?: number;
-  receiver_seed?: number;
-  area_lat_min?: number;
-  area_lat_max?: number;
-  area_lon_min?: number;
-  area_lon_max?: number;
   use_gpu?: boolean | null;  // null = auto-detect, true = force GPU, false = force CPU
+  seed?: number;
+  tx_antenna_dist?: {
+    whip: number;
+    rubber_duck: number;
+    portable_directional: number;
+  };
+  rx_antenna_dist?: {
+    omni_vertical: number;
+    yagi: number;
+    collinear: number;
+  };
 }
 
 export interface SyntheticSample {

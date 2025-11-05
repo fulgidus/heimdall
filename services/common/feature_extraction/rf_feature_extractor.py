@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Dict, List, Union
 from multiprocessing import Pool, cpu_count
 from functools import partial
+import threading
 
 # Try to import CuPy for GPU acceleration
 try:
@@ -31,25 +32,45 @@ except (ImportError, Exception):
 
 logger = structlog.get_logger(__name__)
 
+# Thread-local storage for worker extractors (initialized once per worker process)
+_worker_local = threading.local()
 
-def _extract_features_worker(iq_sample: 'IQSample', sample_rate_hz: int) -> 'ExtractedFeatures':
+
+def _init_worker(sample_rate_hz: int):
+    """
+    Initialize worker process with a reusable RFFeatureExtractor.
+    
+    Called once per worker process at pool creation.
+    Stores the extractor in thread-local storage to avoid repeated initialization.
+    
+    Args:
+        sample_rate_hz: Sample rate in Hz
+    """
+    _worker_local.extractor = None  # Will be lazily created
+    _worker_local.sample_rate_hz = sample_rate_hz
+
+
+def _extract_features_worker(iq_sample: 'IQSample') -> 'ExtractedFeatures':
     """
     Worker function for multiprocessing feature extraction.
     
-    This is a module-level function (not a class method) because multiprocessing
-    requires pickleable functions. Each worker process creates its own
-    RFFeatureExtractor instance.
+    Uses a cached RFFeatureExtractor instance stored in thread-local storage
+    to avoid repeated initialization overhead.
     
     Args:
         iq_sample: IQSample to process
-        sample_rate_hz: Sample rate in Hz
         
     Returns:
         ExtractedFeatures object
     """
-    # Create extractor instance in worker process (CPU mode only)
-    extractor = RFFeatureExtractor(sample_rate_hz=sample_rate_hz, use_gpu=False)
-    return extractor.extract_features(iq_sample)
+    # Lazy initialization of extractor (only once per worker)
+    if _worker_local.extractor is None:
+        _worker_local.extractor = RFFeatureExtractor(
+            sample_rate_hz=_worker_local.sample_rate_hz, 
+            use_gpu=False
+        )
+    
+    return _worker_local.extractor.extract_features(iq_sample)
 
 
 @dataclass
@@ -126,13 +147,45 @@ class RFFeatureExtractor:
             os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_count)
             os.environ['MKL_NUM_THREADS'] = str(cpu_count)
             os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_count)
-            
-            if use_gpu and not GPU_AVAILABLE:
-                logger.warning(f"RFFeatureExtractor: GPU requested but not available, using CPU with {cpu_count} threads")
-            else:
-                logger.info(f"RFFeatureExtractor: Using CPU (NumPy) with {cpu_count} threads for parallel processing")
         
-        logger.info(f"Initialized RFFeatureExtractor with sample_rate={sample_rate_hz} Hz, GPU={self.use_gpu}")
+        # CPU multiprocessing pool (created on-demand, reused across batches)
+        self._cpu_pool = None
+    
+    def __del__(self):
+        """Cleanup resources on deletion."""
+        self._cleanup_cpu_pool()
+    
+    def _cleanup_cpu_pool(self):
+        """Close and cleanup the CPU multiprocessing pool if it exists."""
+        if self._cpu_pool is not None:
+            try:
+                self._cpu_pool.close()
+                self._cpu_pool.join()
+                logger.debug("CPU multiprocessing pool cleaned up")
+            except Exception as e:
+                logger.warning(f"Error cleaning up CPU pool: {e}")
+            finally:
+                self._cpu_pool = None
+    
+    def _get_cpu_pool(self):
+        """
+        Get or create the CPU multiprocessing pool.
+        
+        The pool is created once and reused across all batch operations
+        to avoid the overhead of creating/destroying processes.
+        
+        Returns:
+            multiprocessing.Pool instance
+        """
+        if self._cpu_pool is None:
+            num_workers = cpu_count()
+            logger.info(f"Creating CPU multiprocessing pool with {num_workers} workers")
+            self._cpu_pool = Pool(
+                processes=num_workers,
+                initializer=_init_worker,
+                initargs=(self.sample_rate_hz,)
+            )
+        return self._cpu_pool
 
     def extract_features(self, iq_sample: IQSample) -> ExtractedFeatures:
         """
@@ -464,6 +517,12 @@ class RFFeatureExtractor:
         # Shape: [num_receivers][num_chunks][feature_dict]
         all_chunk_features = [[] for _ in range(num_receivers)]
         
+        # For CPU mode: Get the pool once and reuse it for all chunks (massive speedup!)
+        cpu_pool = None
+        if not self.use_gpu:
+            cpu_pool = self._get_cpu_pool()
+            logger.info(f"Reusing CPU pool for all {num_chunks} chunks (eliminates pool creation overhead)")
+        
         t_chunk_start = time.perf_counter()
         # Process one chunk at a time across all receivers
         for chunk_idx in range(num_chunks):
@@ -490,7 +549,7 @@ class RFFeatureExtractor:
                 )
             else:
                 chunk_features_list = self._extract_features_chunk_batch_cpu(
-                    chunk_data_list, iq_samples_list
+                    chunk_data_list, iq_samples_list, cpu_pool
                 )
             
             # Store features for each receiver
@@ -577,7 +636,8 @@ class RFFeatureExtractor:
     def _extract_features_chunk_batch_cpu(
         self, 
         chunk_data_list: List[np.ndarray],
-        iq_samples_list: List[IQSample]
+        iq_samples_list: List[IQSample],
+        pool=None
     ) -> List[ExtractedFeatures]:
         """
         Extract features from one chunk across all receivers using CPU with multiprocessing.
@@ -588,6 +648,7 @@ class RFFeatureExtractor:
         Args:
             chunk_data_list: List of chunk arrays
             iq_samples_list: List of IQSample metadata
+            pool: Optional pre-existing Pool to reuse (massive speedup if provided!)
             
         Returns:
             List of ExtractedFeatures (one per receiver)
@@ -611,15 +672,19 @@ class RFFeatureExtractor:
         
         # Extract features in parallel using all CPU cores
         num_workers = cpu_count()
-        logger.info(f"CPU parallel processing: {len(chunk_iq_list)} chunks using {num_workers} workers")
         
-        with Pool(processes=num_workers) as pool:
-            # Use partial to bind self to the method
-            extract_fn = partial(_extract_features_worker, sample_rate_hz=self.sample_rate_hz)
-            features_list = pool.map(extract_fn, chunk_iq_list)
+        if pool is not None:
+            # Reuse provided pool (FAST - no creation overhead!)
+            logger.debug(f"CPU parallel processing: {len(chunk_iq_list)} samples using REUSED pool with {num_workers} workers")
+            features_list = pool.map(_extract_features_worker, chunk_iq_list)
+        else:
+            # Create temporary pool (SLOW - for backward compatibility only)
+            logger.info(f"CPU parallel processing: {len(chunk_iq_list)} samples using NEW pool with {num_workers} workers (not optimal)")
+            with Pool(processes=num_workers, initializer=_init_worker, initargs=(self.sample_rate_hz,)) as temp_pool:
+                features_list = temp_pool.map(_extract_features_worker, chunk_iq_list)
         
         t_end = time.perf_counter()
-        logger.info(f"CPU parallel extraction: {(t_end - t_start)*1000:.1f}ms for {len(chunk_iq_list)} chunks ({num_workers} cores)")
+        logger.debug(f"CPU parallel extraction: {(t_end - t_start)*1000:.1f}ms for {len(chunk_iq_list)} samples")
         
         return features_list
     

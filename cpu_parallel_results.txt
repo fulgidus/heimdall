@@ -1,0 +1,100 @@
+2025-11-05 03:34:30 [info     ] RFFeatureExtractor: Using CPU (NumPy) with 24 threads for parallel processing
+2025-11-05 03:34:30 [info     ] Initialized RFFeatureExtractor with sample_rate=200000 Hz, GPU=False
+2025-11-05 03:34:30 [info     ] RFFeatureExtractor: Using CPU (NumPy) with 24 threads for parallel processing
+2025-11-05 03:34:30 [info     ] Initialized RFFeatureExtractor with sample_rate=200000 Hz, GPU=False
+2025-11-05 03:34:30 [info     ] CPU parallel extraction: 174.9ms for 50 chunks (24 cores)
+2025-11-05 03:34:30 [info     ] Chunk 5/5 processed in 175.4ms
+2025-11-05 03:34:30 [info     ] All chunks processed in 894.7ms
+2025-11-05 03:34:30 [info     ] Feature aggregation: 13.6ms, Total: 908.4ms
+
+======================================================================
+RESULTS - CPU Mode
+======================================================================
+Total samples: 50
+Total time: 0.91s
+Samples/sec: 55.03
+Time per sample: 18.17ms
+Features extracted: 50
+
+Test 2: GPU Mode
+
+======================================================================
+Feature Extraction Benchmark - GPU Mode
+======================================================================
+Samples: 50
+Chunks per sample: 5
+Sample rate: 200 kHz
+
+Generating test IQ samples...
+  Generated 50 samples
+
+Initializing GPU feature extractor...
+2025-11-05 03:34:31 [info     ] RFFeatureExtractor: GPU acceleration ENABLED (CuPy)
+2025-11-05 03:34:31 [info     ] Initialized RFFeatureExtractor with sample_rate=200000 Hz, GPU=True
+  Extractor initialized (GPU=True)
+
+Warm-up run...
+2025-11-05 03:34:31 [info     ] extract_features_batch_conservative called: 2 receivers, 5 chunks, GPU=True
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=79.4ms, tier2=9.9ms, tier3=5.2ms, autocorr=1.9ms, transfer=0.5ms, total=98.1ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=0.1ms, to_gpu=113.8ms, fft=44.0ms, gpu_features=98.3ms, total=256.4ms
+2025-11-05 03:34:31 [info     ] Chunk 1/5 processed in 256.5ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=0.9ms, tier2=0.7ms, tier3=0.4ms, autocorr=0.5ms, transfer=0.1ms, total=2.8ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=0.1ms, to_gpu=0.1ms, fft=0.3ms, gpu_features=2.9ms, total=3.8ms
+2025-11-05 03:34:31 [info     ] Chunk 2/5 processed in 3.9ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=0.7ms, tier2=0.4ms, tier3=0.4ms, autocorr=0.4ms, transfer=0.1ms, total=2.1ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=0.1ms, to_gpu=0.1ms, fft=0.3ms, gpu_features=2.2ms, total=2.9ms
+2025-11-05 03:34:31 [info     ] Chunk 3/5 processed in 2.9ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=0.7ms, tier2=0.5ms, tier3=0.4ms, autocorr=1.1ms, transfer=0.3ms, total=3.1ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=0.0ms, to_gpu=0.1ms, fft=0.2ms, gpu_features=3.2ms, total=3.9ms
+2025-11-05 03:34:31 [info     ] Chunk 4/5 processed in 3.9ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=0.7ms, tier2=0.4ms, tier3=0.4ms, autocorr=0.4ms, transfer=0.1ms, total=2.2ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=0.1ms, to_gpu=0.1ms, fft=0.2ms, gpu_features=2.2ms, total=2.9ms
+2025-11-05 03:34:31 [info     ] Chunk 5/5 processed in 2.9ms
+2025-11-05 03:34:31 [info     ] All chunks processed in 270.3ms
+2025-11-05 03:34:31 [info     ] Feature aggregation: 0.6ms, Total: 270.9ms
+  Warm-up complete
+
+Running benchmark with GPU mode...
+Monitor CPU usage with: watch -n 0.1 'ps -eo pid,comm,%cpu --sort=-%cpu | head -30'
+
+2025-11-05 03:34:31 [info     ] extract_features_batch_conservative called: 50 receivers, 5 chunks, GPU=True
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=2.8ms, tier2=0.6ms, tier3=0.5ms, autocorr=7.3ms, transfer=0.3ms, total=11.7ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=7.9ms, to_gpu=9.7ms, fft=1.3ms, gpu_features=12.4ms, total=35.3ms
+2025-11-05 03:34:31 [info     ] Chunk 1/5 processed in 36.7ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=3.2ms, tier2=0.8ms, tier3=0.4ms, autocorr=7.0ms, transfer=0.3ms, total=12.0ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=6.7ms, to_gpu=1.5ms, fft=1.0ms, gpu_features=12.2ms, total=25.7ms
+2025-11-05 03:34:31 [info     ] Chunk 2/5 processed in 25.9ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=3.2ms, tier2=0.5ms, tier3=0.4ms, autocorr=2.5ms, transfer=0.2ms, total=7.0ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=2.0ms, to_gpu=1.4ms, fft=1.0ms, gpu_features=7.2ms, total=15.7ms
+2025-11-05 03:34:31 [info     ] Chunk 3/5 processed in 15.8ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=3.0ms, tier2=0.4ms, tier3=0.4ms, autocorr=2.4ms, transfer=0.2ms, total=6.6ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=1.3ms, to_gpu=1.3ms, fft=0.9ms, gpu_features=6.7ms, total=14.1ms
+2025-11-05 03:34:31 [info     ] Chunk 4/5 processed in 14.2ms
+2025-11-05 03:34:31 [info     ] GPU feature extraction timing: tier1=3.1ms, tier2=0.5ms, tier3=0.4ms, autocorr=2.5ms, transfer=0.2ms, total=6.9ms
+2025-11-05 03:34:31 [info     ] GPU batch timing: stack=1.9ms, to_gpu=2.2ms, fft=0.9ms, gpu_features=7.0ms, total=16.1ms
+2025-11-05 03:34:31 [info     ] Chunk 5/5 processed in 16.3ms
+2025-11-05 03:34:31 [info     ] All chunks processed in 109.1ms
+2025-11-05 03:34:31 [info     ] Feature aggregation: 12.4ms, Total: 121.6ms
+
+======================================================================
+RESULTS - GPU Mode
+======================================================================
+Total samples: 50
+Total time: 0.12s
+Samples/sec: 410.78
+Time per sample: 2.43ms
+Features extracted: 50
+
+
+======================================================================
+COMPARISON
+======================================================================
+CPU time: 0.91s (55.03 samples/sec)
+GPU time: 0.12s (410.78 samples/sec)
+
+GPU is 7.47x FASTER than CPU
+CPU is -646.5% vs GPU
+
+======================================================================
+Benchmark complete!
+======================================================================

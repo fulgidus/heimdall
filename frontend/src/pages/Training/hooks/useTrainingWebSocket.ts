@@ -68,11 +68,12 @@ export const useTrainingWebSocket = (jobId: string | null) => {
                   // It's a metric update - flatten the structure
                   // Backend sends: { data: { job_id, epoch, metrics: {...}, ... } }
                   // Frontend expects: { job_id, epoch, train_loss, val_loss, ... }
+                  const data = message.data as any; // Type assertion for nested structure
                   const flattenedMetric: TrainingMetric = {
-                    job_id: message.data.job_id,
-                    epoch: message.data.epoch,
+                    job_id: data.job_id,
+                    epoch: data.epoch,
                     timestamp: message.timestamp,
-                    ...message.data.metrics, // Spread all metrics (train_loss, val_loss, etc.)
+                    ...(data.metrics || {}), // Spread all metrics (train_loss, val_loss, etc.)
                   };
                   storeRef.current.handleMetricUpdate(flattenedMetric);
                 } else {

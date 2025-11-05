@@ -63,6 +63,8 @@ def start_worker():
         "1800",
         "--soft-time-limit",
         "1500",
+        "--queues",
+        "celery,training",  # Listen on both default and training queues
     ]
     print(f"[WORKER] Starting: {' '.join(cmd)}")
     return subprocess.Popen(cmd)

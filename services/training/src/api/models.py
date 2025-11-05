@@ -17,16 +17,16 @@ from ..models.model_registry import (
     MODEL_REGISTRY,
     ModelArchitectureInfo,
     PerformanceMetrics,
-    get_model_by_id,
-    list_models_by_data_type,
-    list_models_by_architecture,
+    get_model_info,
+    list_models,
     compare_models,
-    get_recommended_models,
-    format_model_card,
+    get_recommended_model,
+    get_models_by_badge,
+    model_info_to_dict,
 )
 
 logger = structlog.get_logger(__name__)
-router = APIRouter(prefix="/api/v1/training/models", tags=["models"])
+router = APIRouter(prefix="/api/v1/models", tags=["models"])
 
 
 # ============================================================================
@@ -80,7 +80,7 @@ class ModelListResponse(BaseModel):
     """List of model architectures."""
     
     total: int = Field(..., description="Total number of models")
-    models: List[ModelArchitectureResponse]
+    architectures: List[ModelArchitectureResponse]
 
 
 class ModelComparisonResponse(BaseModel):
@@ -177,11 +177,11 @@ async def list_architectures(
         
         # Filter by data_type
         if data_type:
-            models = list_models_by_data_type(data_type)
+            models = list_models(data_type=data_type)
         
         # Filter by architecture_type
         if architecture_type:
-            models = list_models_by_architecture(architecture_type)
+            models = list_models(architecture_type=architecture_type)
         
         # Filter by badges
         if badges:
@@ -198,7 +198,7 @@ async def list_architectures(
         
         return ModelListResponse(
             total=len(models),
-            models=[_convert_to_response(m) for m in models],
+            architectures=[_convert_to_response(m) for m in models],
         )
     
     except Exception as e:
@@ -229,7 +229,7 @@ async def get_architecture(model_id: str) -> ModelArchitectureResponse:
         404: Model not found
     """
     try:
-        model_info = get_model_by_id(model_id)
+        model_info = get_model_info(model_id)
         
         if not model_info:
             raise HTTPException(
@@ -282,7 +282,7 @@ async def compare_architectures(
         # Validate model IDs
         models = []
         for model_id in model_ids:
-            model_info = get_model_by_id(model_id)
+            model_info = get_model_info(model_id)
             if not model_info:
                 raise HTTPException(
                     status_code=404,
@@ -321,7 +321,7 @@ async def compare_architectures(
         )
         
         return ModelComparisonResponse(
-            models=[_convert_to_response(m) for m in models],
+            architectures=[_convert_to_response(m) for m in models],
             comparison_table=comparison_table,
         )
     
@@ -354,13 +354,13 @@ async def get_recommended() -> ModelListResponse:
         ModelListResponse with recommended models
     """
     try:
-        models = get_recommended_models()
+        models = get_models_by_badge("RECOMMENDED")
         
         logger.info("recommended_architectures_retrieved", count=len(models))
         
         return ModelListResponse(
             total=len(models),
-            models=[_convert_to_response(m) for m in models],
+            architectures=[_convert_to_response(m) for m in models],
         )
     
     except Exception as e:
@@ -391,7 +391,7 @@ async def get_model_card(model_id: str) -> dict:
         404: Model not found
     """
     try:
-        model_info = get_model_by_id(model_id)
+        model_info = get_model_info(model_id)
         
         if not model_info:
             raise HTTPException(
@@ -399,7 +399,7 @@ async def get_model_card(model_id: str) -> dict:
                 detail=f"Model architecture '{model_id}' not found.",
             )
         
-        card = format_model_card(model_info)
+        card = model_info_to_dict(model_info)
         
         logger.info("model_card_generated", model_id=model_id)
         

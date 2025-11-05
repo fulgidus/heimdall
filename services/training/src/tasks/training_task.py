@@ -19,9 +19,12 @@ import torch.nn as nn
 import torch.optim as optim
 from io import BytesIO
 
-from celery import Task, shared_task
+from celery import Task
 from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
+
+# Import the celery_app instance
+from ..celery_app import celery_app
 
 logger = get_task_logger(__name__)
 
@@ -82,7 +85,7 @@ class TrainingTask(Task):
     retry_jitter = True
 
 
-@shared_task(bind=True, base=AbortableTask)
+@celery_app.task(bind=True, base=AbortableTask, name='src.tasks.training_task.start_training_job')
 def start_training_job(self, job_id: str):
     """
     Start training job with real PyTorch triangulation model.
@@ -1149,7 +1152,7 @@ def start_training_job(self, job_id: str):
                 logger.warning(f"Error closing val session: {e}")
 
 
-@shared_task(bind=True, base=AbortableTask)
+@celery_app.task(bind=True, base=AbortableTask, name='src.tasks.training_task.generate_synthetic_data_task')
 def generate_synthetic_data_task(self, job_id: str):
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -1608,7 +1611,7 @@ def generate_synthetic_data_task(self, job_id: str):
         raise
 
 
-@shared_task(bind=True, base=TrainingTask)
+@celery_app.task(bind=True, base=TrainingTask, name='src.tasks.training_task.evaluate_model_task')
 def evaluate_model_task(self, model_id: str, dataset_id: str = None):
     """
     Evaluate trained model.
@@ -1628,7 +1631,7 @@ def evaluate_model_task(self, model_id: str, dataset_id: str = None):
     return {"status": "not_implemented", "model_id": model_id}
 
 
-@shared_task(bind=True, base=TrainingTask)
+@celery_app.task(bind=True, base=TrainingTask, name='src.tasks.training_task.export_model_onnx_task')
 def export_model_onnx_task(self, model_id: str, optimize: bool = True):
     """
     Export model to ONNX format.

@@ -82,15 +82,26 @@ export interface SyntheticDataRequest {
     name: string;
     description?: string;
     num_samples: number;
-    inside_ratio?: number;
-    train_ratio?: number;
-    val_ratio?: number;
-    test_ratio?: number;
-    frequency_mhz?: number;
-    tx_power_dbm?: number;
-    min_snr_db?: number;
-    min_receivers?: number;
+    frequency_mhz: number;  // Required by backend
+    tx_power_dbm: number;   // Required by backend
+    min_snr_db: number;     // Required by backend
+    min_receivers: number;  // Required by backend
     max_gdop?: number;
+    dataset_type?: string;
+    use_random_receivers?: boolean;
+    use_srtm_terrain?: boolean;
+    use_gpu?: boolean | null;
+    seed?: number;
+    tx_antenna_dist?: {
+        whip: number;
+        rubber_duck: number;
+        portable_directional: number;
+    };
+    rx_antenna_dist?: {
+        omni_vertical: number;
+        yagi: number;
+        collinear: number;
+    };
 }
 
 // ============================================================================
@@ -98,7 +109,7 @@ export interface SyntheticDataRequest {
 // ============================================================================
 
 export async function createTrainingJob(config: Record<string, any>): Promise<AnyTrainingJob> {
-    const response = await api.post('/v1/training/jobs', config);
+    const response = await api.post('/v1/jobs/training', config);
     return response.data;
 }
 
@@ -116,27 +127,27 @@ export async function listTrainingJobs(
         params.status = status;
     }
 
-    const response = await api.get('/v1/training/jobs', { params });
+    const response = await api.get('/v1/jobs/training', { params });
     return response.data;
 }
 
 export async function getTrainingJob(jobId: string): Promise<AnyTrainingJob> {
-    const response = await api.get(`/v1/training/jobs/${jobId}`);
+    const response = await api.get(`/v1/jobs/training/${jobId}`);
     return response.data;
 }
 
 export async function cancelTrainingJob(jobId: string): Promise<{ status: string; job_id: string }> {
-    const response = await api.post(`/v1/training/jobs/${jobId}/cancel`);
+    const response = await api.post(`/v1/jobs/training/${jobId}/cancel`);
     return response.data;
 }
 
 export async function pauseTrainingJob(jobId: string): Promise<{ status: string; job_id: string; message: string }> {
-    const response = await api.post(`/v1/training/jobs/${jobId}/pause`);
+    const response = await api.post(`/v1/jobs/training/${jobId}/pause`);
     return response.data;
 }
 
 export async function resumeTrainingJob(jobId: string): Promise<{ status: string; job_id: string; celery_task_id: string; message: string }> {
-    const response = await api.post(`/v1/training/jobs/${jobId}/resume`);
+    const response = await api.post(`/v1/jobs/training/${jobId}/resume`);
     return response.data;
 }
 
@@ -153,12 +164,12 @@ export async function continueSyntheticJob(jobId: string): Promise<{
     status_url: string;
     message: string;
 }> {
-    const response = await api.post(`/v1/training/jobs/${jobId}/continue`);
+    const response = await api.post(`/v1/jobs/training/${jobId}/continue`);
     return response.data;
 }
 
 export async function deleteTrainingJob(jobId: string): Promise<void> {
-    await api.delete(`/v1/training/jobs/${jobId}`);
+    await api.delete(`/v1/jobs/training/${jobId}`);
 }
 
 // ============================================================================
@@ -166,7 +177,7 @@ export async function deleteTrainingJob(jobId: string): Promise<void> {
 // ============================================================================
 
 export async function generateSyntheticData(request: SyntheticDataRequest): Promise<{ job_id: string }> {
-    const response = await api.post('/v1/training/synthetic/generate', request);
+    const response = await api.post('/v1/jobs/synthetic/generate', request);
     return response.data;
 }
 
@@ -179,17 +190,17 @@ export async function listSyntheticDatasets(
         offset: offset.toString(),
     };
 
-    const response = await api.get('/v1/training/synthetic/datasets', { params });
+    const response = await api.get('/v1/jobs/synthetic/datasets', { params });
     return response.data;
 }
 
 export async function getSyntheticDataset(datasetId: string): Promise<SyntheticDataset> {
-    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}`);
+    const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}`);
     return response.data;
 }
 
 export async function deleteSyntheticDataset(datasetId: string): Promise<void> {
-    await api.delete(`/v1/training/synthetic/datasets/${datasetId}`);
+    await api.delete(`/v1/jobs/synthetic/datasets/${datasetId}`);
 }
 
 export interface SyntheticSampleResponse {
@@ -221,7 +232,7 @@ export async function getSyntheticDatasetSamples(
         params.split = split;
     }
 
-    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/samples`, { params });
+    const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}/samples`, { params });
     return response.data;
 }
 
@@ -240,24 +251,24 @@ export async function listModels(
         active_only: activeOnly.toString(),
     };
 
-    const response = await api.get('/v1/training/models', { params });
+    const response = await api.get('/v1/models', { params });
     return response.data;
 }
 
 export async function getModel(modelId: string): Promise<TrainedModel> {
-    const response = await api.get(`/v1/training/models/${modelId}`);
+    const response = await api.get(`/v1/models/${modelId}`);
     return response.data;
 }
 
 export async function deployModel(modelId: string, setProduction: boolean = false): Promise<{ status: string }> {
-    const response = await api.post(`/v1/training/models/${modelId}/deploy`, null, {
+    const response = await api.post(`/v1/models/${modelId}/deploy`, null, {
         params: { set_production: setProduction }
     });
     return response.data;
 }
 
 export async function deleteModel(modelId: string): Promise<void> {
-    await api.delete(`/v1/training/models/${modelId}`);
+    await api.delete(`/v1/models/${modelId}`);
 }
 
 // ============================================================================
@@ -268,6 +279,7 @@ export type ModelCategory = 'spectrogram' | 'iq_raw_cnn' | 'transformer' | 'temp
 export type ComplexityLevel = 'low' | 'medium' | 'high' | 'very_high';
 export type SpeedRating = 'very_fast' | 'fast' | 'moderate' | 'slow';
 export type QualityRating = 'excellent' | 'good' | 'fair' | 'experimental';
+export type DataType = 'spectrogram' | 'iq_raw' | 'hybrid' | 'features' | 'feature_based';
 
 export interface ModelArchitecturePerformance {
     accuracy_meters_mean: number;
@@ -313,6 +325,7 @@ export interface ModelArchitecture {
     category: ModelCategory;
     emoji: string;
     class_name: string;
+    data_type: DataType;
     parameters_millions: number;
     model_size_mb: number;
     complexity: ComplexityLevel;
@@ -375,7 +388,7 @@ export async function listModelArchitectures(
     maxInferenceMs?: number
 ): Promise<ModelArchitecturesResponse> {
     const params: Record<string, string> = {};
-    
+
     if (category) params.category = category;
     if (complexity) params.complexity = complexity;
     if (minAccuracy !== undefined) params.min_accuracy = minAccuracy.toString();
@@ -400,7 +413,7 @@ export async function getRecommendedModelArchitecture(
     prioritizeSpeed?: boolean
 ): Promise<RecommendedModelResponse> {
     const params: Record<string, string> = {};
-    
+
     if (datasetSize !== undefined) params.dataset_size = datasetSize.toString();
     if (prioritizeSpeed !== undefined) params.prioritize_speed = prioritizeSpeed.toString();
 

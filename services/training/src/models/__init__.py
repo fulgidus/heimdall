@@ -8,7 +8,7 @@ Available Models:
 - IQ-Raw CNNs: IQResNet18, IQResNet50, IQResNet101, IQVGGNet
 - IQ EfficientNet: IQEfficientNet
 - IQ Transformer: IQTransformer
-- IQ Temporal: IQWaveNet, IQTCN
+- IQ Temporal: IQWaveNet
 - Hybrid: IQHybridNet
 - Feature-based: TriangulationMLP
 
@@ -31,13 +31,13 @@ from .iq_cnn_models import (
 )
 
 # IQ EfficientNet
-from .iq_efficientnet import IQEfficientNet
+from .iq_efficientnet import IQEfficientNetB4 as IQEfficientNet
 
 # IQ Transformer
 from .iq_transformer import IQTransformer
 
 # IQ Temporal models
-from .iq_wavenet import IQWaveNet, IQTCN
+from .iq_wavenet import IQWaveNet
 
 # Hybrid models
 from .hybrid_models import IQHybridNet
@@ -47,12 +47,14 @@ from .model_registry import (
     MODEL_REGISTRY,
     ModelArchitectureInfo,
     PerformanceMetrics,
-    get_model_by_id,
-    list_models_by_data_type,
-    list_models_by_architecture,
+    get_model_info,
+    list_models,
     compare_models,
-    get_recommended_models,
-    format_model_card,
+    get_recommended_model,
+    get_models_by_badge,
+    get_all_model_ids,
+    get_model_count,
+    model_info_to_dict,
 )
 
 __all__ = [
@@ -70,7 +72,6 @@ __all__ = [
     "IQEfficientNet",
     "IQTransformer",
     "IQWaveNet",
-    "IQTCN",
     
     # Hybrid
     "IQHybridNet",
@@ -82,11 +83,13 @@ __all__ = [
     "PerformanceMetrics",
     
     # Utilities
-    "get_model_by_id",
+    "get_model_info",
     "get_iq_model",
-    "list_models_by_data_type",
-    "list_models_by_architecture",
+    "list_models",
     "compare_models",
-    "get_recommended_models",
-    "format_model_card",
+    "get_recommended_model",
+    "get_models_by_badge",
+    "get_all_model_ids",
+    "get_model_count",
+    "model_info_to_dict",
 ]

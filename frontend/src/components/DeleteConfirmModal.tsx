@@ -67,9 +67,9 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
               <p className="mb-3">Are you sure you want to delete the WebSDR station:</p>
 
-              <div className="card bg-light mb-3">
+              <div className="card bg-light text-dark mb-3">
                 <div className="card-body">
-                  <h6 className="mb-1">
+                  <h6 className="mb-1 text-dark">
                     <i className="ph ph-radio-button me-2"></i>
                     {websdr.name}
                   </h6>

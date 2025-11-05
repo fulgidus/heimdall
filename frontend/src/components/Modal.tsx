@@ -64,62 +64,59 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
   if (!isOpen) return null;
 
   const sizeClasses = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
+    sm: 'modal-sm',
+    md: '',
+    lg: 'modal-lg',
+    xl: 'modal-xl',
   };
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Bootstrap Modal Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+        className="modal-backdrop fade show"
         onClick={onClose}
         aria-hidden="true"
+        style={{ zIndex: 1040 }}
       />
 
-      {/* Modal */}
+      {/* Bootstrap Modal */}
       <div
-        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        className="modal fade show d-block"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
+        style={{ zIndex: 1050 }}
+        tabIndex={-1}
       >
         <div
-          ref={modalRef}
-          className={classNames(
-            'bg-oxford-blue rounded-lg shadow-2xl w-full',
-            'border border-neon-blue border-opacity-20',
-            'animate-slideIn',
-            sizeClasses[size]
-          )}
+          className={classNames('modal-dialog modal-dialog-centered modal-dialog-scrollable', sizeClasses[size])}
           onClick={e => e.stopPropagation()}
-          tabIndex={-1}
         >
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-neon-blue border-opacity-20 flex items-center justify-between">
-            <h2 id="modal-title" className="text-xl font-bold text-white">
-              {title}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-sea-green hover:bg-opacity-20 rounded transition-colors text-french-gray"
-              aria-label="Close modal"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 py-4 max-h-96 overflow-y-auto">{children}</div>
-
-          {/* Footer */}
-          {footer && (
-            <div className="px-6 py-4 border-t border-neon-blue border-opacity-20 flex justify-end gap-3">
-              {footer}
+          <div ref={modalRef} className="modal-content" tabIndex={-1}>
+            {/* Header */}
+            <div className="modal-header">
+              <h5 id="modal-title" className="modal-title">
+                {title}
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={onClose}
+                aria-label="Close"
+              />
             </div>
-          )}
+
+            {/* Content */}
+            <div className="modal-body">{children}</div>
+
+            {/* Footer */}
+            {footer && (
+              <div className="modal-footer">
+                {footer}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>

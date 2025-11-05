@@ -181,7 +181,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
               </div>
 
               {/* Preview */}
-              <div className="bg-light p-3 rounded">
+              <div className="bg-light text-dark p-3 rounded">
                 <div className="d-flex justify-content-between mb-2">
                   <span className="text-muted">Current samples:</span>
                   <strong>{dataset.num_samples.toLocaleString()}</strong>

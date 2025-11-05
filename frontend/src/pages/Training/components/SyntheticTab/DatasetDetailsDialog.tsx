@@ -90,7 +90,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
             {/* Modal Body */}
             <div className="modal-body">
               {/* Dataset Configuration Info */}
-              <div className="card bg-light border-0 mb-3">
+              <div className="card bg-light text-dark border-0 mb-3">
                 <div className="card-body">
                   <h6 className="card-title mb-3">
                     <i className="ph ph-gear me-2"></i>

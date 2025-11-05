@@ -50,14 +50,14 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
     <div className="widget-content">
       <div className="row g-3 mb-3">
         <div className="col-6">
-          <div className="text-center p-3 bg-light rounded">
-            <h4 className="h2 mb-1">{accuracy}%</h4>
+          <div className="text-center p-3 bg-light text-dark rounded">
+            <h4 className="h2 mb-1 text-dark">{accuracy}%</h4>
             <p className="text-muted small mb-0">Accuracy</p>
           </div>
         </div>
         <div className="col-6">
-          <div className="text-center p-3 bg-light rounded">
-            <h4 className="h2 mb-1">{successRate}%</h4>
+          <div className="text-center p-3 bg-light text-dark rounded">
+            <h4 className="h2 mb-1 text-dark">{successRate}%</h4>
             <p className="text-muted small mb-0">Success Rate</p>
           </div>
         </div>

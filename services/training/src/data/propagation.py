@@ -13,6 +13,7 @@ Implements physics-based propagation model:
 - Antenna patterns (omnidirectional, directional)
 - TX power fluctuations
 - Intermittent transmissions
+- Polarization mismatch loss
 """
 
 import math
@@ -22,6 +23,15 @@ from typing import Tuple, Optional
 from enum import Enum
 
 logger = structlog.get_logger(__name__)
+
+
+class Polarization(Enum):
+    """Antenna polarization types for VHF/UHF."""
+    VERTICAL = "vertical"
+    HORIZONTAL = "horizontal"
+    CIRCULAR_RIGHT = "circular_right"  # RHCP (rare in terrestrial VHF/UHF)
+    CIRCULAR_LEFT = "circular_left"    # LHCP (rare in terrestrial VHF/UHF)
+    SLANT_45 = "slant_45"              # ±45° slant (rare)
 
 
 class AntennaType(Enum):
@@ -76,48 +86,58 @@ class AntennaPattern:
             self.pointing_error = 0.0
     
     def _setup_antenna_parameters(self):
-        """Setup antenna parameters (gain, beamwidth) based on type."""
+        """Setup antenna parameters (gain, beamwidth, polarization) based on type."""
         if self.antenna_type == AntennaType.OMNI_VERTICAL:
             self.max_gain_dbi = np.random.uniform(0.0, 3.0)
             self.azimuth_beamwidth = 360.0  # Omnidirectional
             self.elevation_beamwidth = 60.0
             self.front_to_back_ratio = 0.0
+            self.polarization = Polarization.VERTICAL  # Always vertical
             
         elif self.antenna_type == AntennaType.YAGI:
             self.max_gain_dbi = np.random.uniform(10.0, 15.0)
             self.azimuth_beamwidth = np.random.uniform(30.0, 60.0)
             self.elevation_beamwidth = np.random.uniform(40.0, 70.0)
             self.front_to_back_ratio = np.random.uniform(15.0, 25.0)  # dB
+            # Yagis are typically horizontal (70%) but can be vertical (30%)
+            self.polarization = Polarization.HORIZONTAL if np.random.random() < 0.7 else Polarization.VERTICAL
             
         elif self.antenna_type == AntennaType.COLLINEAR:
             self.max_gain_dbi = np.random.uniform(6.0, 9.0)
             self.azimuth_beamwidth = 360.0  # Omnidirectional
             self.elevation_beamwidth = 30.0  # Narrower than vertical
             self.front_to_back_ratio = 0.0
+            self.polarization = Polarization.VERTICAL  # Always vertical
             
         elif self.antenna_type == AntennaType.WHIP:
             self.max_gain_dbi = np.random.uniform(0.0, 2.0)
             self.azimuth_beamwidth = 360.0
             self.elevation_beamwidth = 80.0
             self.front_to_back_ratio = 0.0
+            self.polarization = Polarization.VERTICAL  # Always vertical (mobile whips)
             
         elif self.antenna_type == AntennaType.RUBBER_DUCK:
             self.max_gain_dbi = np.random.uniform(-3.0, 0.0)
             self.azimuth_beamwidth = 360.0
             self.elevation_beamwidth = 90.0
             self.front_to_back_ratio = 0.0
+            self.polarization = Polarization.VERTICAL  # Always vertical (handheld)
             
         elif self.antenna_type == AntennaType.LOG_PERIODIC:
             self.max_gain_dbi = np.random.uniform(8.0, 12.0)
             self.azimuth_beamwidth = np.random.uniform(50.0, 80.0)
             self.elevation_beamwidth = np.random.uniform(50.0, 80.0)
             self.front_to_back_ratio = np.random.uniform(18.0, 28.0)  # dB
+            # Log-periodics are typically horizontal (80%) but can be vertical (20%)
+            self.polarization = Polarization.HORIZONTAL if np.random.random() < 0.8 else Polarization.VERTICAL
             
         elif self.antenna_type == AntennaType.PORTABLE_DIRECTIONAL:
             self.max_gain_dbi = np.random.uniform(3.0, 6.0)
             self.azimuth_beamwidth = np.random.uniform(60.0, 90.0)
             self.elevation_beamwidth = np.random.uniform(60.0, 90.0)
             self.front_to_back_ratio = np.random.uniform(10.0, 15.0)
+            # Portable directionals are 50/50 vertical/horizontal
+            self.polarization = Polarization.VERTICAL if np.random.random() < 0.5 else Polarization.HORIZONTAL
     
     def get_gain(self, azimuth_to_target: float, elevation_to_target: float = 0.0) -> float:
         """
@@ -478,6 +498,82 @@ class RFPropagationModel:
         
         return is_transmitting
     
+    def calculate_polarization_mismatch_loss(
+        self,
+        tx_polarization: Polarization,
+        rx_polarization: Polarization,
+        include_multipath_depolarization: bool = True
+    ) -> float:
+        """
+        Calculate polarization mismatch loss between TX and RX antennas.
+        
+        Polarization mismatch causes signal loss when TX and RX antennas have
+        different polarizations. This is a critical real-world effect in VHF/UHF.
+        
+        Theoretical cross-pol isolation: 20-30 dB
+        Practical values (with multipath depolarization): 15-25 dB
+        
+        Args:
+            tx_polarization: Transmitter antenna polarization
+            rx_polarization: Receiver antenna polarization
+            include_multipath_depolarization: If True, reduce loss due to multipath effects
+        
+        Returns:
+            Polarization mismatch loss in dB (always >= 0)
+        """
+        # Same polarization (V-V, H-H) → minimal loss
+        if tx_polarization == rx_polarization:
+            # Even with matching polarization, imperfections cause small losses
+            # Antenna alignment errors, feed imperfections, etc.
+            return np.random.uniform(0.0, 0.5)
+        
+        # Cross-polarization (V-H or H-V) → large loss
+        if (
+            (tx_polarization == Polarization.VERTICAL and rx_polarization == Polarization.HORIZONTAL) or
+            (tx_polarization == Polarization.HORIZONTAL and rx_polarization == Polarization.VERTICAL)
+        ):
+            # Theoretical cross-pol isolation: 20-30 dB
+            # Practical values reduced by multipath depolarization
+            if include_multipath_depolarization:
+                # Multipath reflections cause depolarization, reducing cross-pol isolation
+                # More reflections → more depolarization → less isolation
+                # Urban/suburban environments: 15-25 dB typical
+                return np.random.uniform(15.0, 25.0)
+            else:
+                # Free space or direct LOS (rare in real world)
+                return np.random.uniform(20.0, 30.0)
+        
+        # Circular polarization to linear (CP-V, CP-H) → 3 dB theoretical loss
+        if tx_polarization in [Polarization.CIRCULAR_RIGHT, Polarization.CIRCULAR_LEFT]:
+            if rx_polarization in [Polarization.VERTICAL, Polarization.HORIZONTAL]:
+                # Circular to linear: 3 dB theoretical + 0-2 dB practical variation
+                return np.random.uniform(3.0, 5.0)
+        
+        if rx_polarization in [Polarization.CIRCULAR_RIGHT, Polarization.CIRCULAR_LEFT]:
+            if tx_polarization in [Polarization.VERTICAL, Polarization.HORIZONTAL]:
+                # Linear to circular: same loss
+                return np.random.uniform(3.0, 5.0)
+        
+        # Opposite circular polarizations (RHCP vs LHCP) → very high isolation
+        if (
+            (tx_polarization == Polarization.CIRCULAR_RIGHT and rx_polarization == Polarization.CIRCULAR_LEFT) or
+            (tx_polarization == Polarization.CIRCULAR_LEFT and rx_polarization == Polarization.CIRCULAR_RIGHT)
+        ):
+            # Opposite circular: 20-30 dB isolation (similar to V-H)
+            return np.random.uniform(20.0, 30.0)
+        
+        # Slant 45° polarization mismatches
+        if tx_polarization == Polarization.SLANT_45 or rx_polarization == Polarization.SLANT_45:
+            if tx_polarization == rx_polarization:
+                # Matching slant polarization
+                return np.random.uniform(0.0, 0.5)
+            else:
+                # Slant vs V/H: 3-5 dB loss (45° angle → √2 reduction)
+                return np.random.uniform(3.0, 5.0)
+        
+        # Default fallback (should not reach here)
+        return np.random.uniform(3.0, 8.0)
+    
     def calculate_tropospheric_refraction(
         self,
         distance_km: float,
@@ -713,7 +809,8 @@ class RFPropagationModel:
         transmitter_quality: float = 0.7,  # TX quality for power fluctuations
         transmission_duty_cycle: float = 0.95,  # Probability TX is active
         enable_sporadic_e: bool = True,  # Enable sporadic-E propagation
-        enable_knife_edge: bool = True  # Enable knife-edge diffraction
+        enable_knife_edge: bool = True,  # Enable knife-edge diffraction
+        enable_polarization_effects: bool = True  # Enable polarization mismatch loss
     ) -> Tuple[float, float, dict]:
         """
         Calculate received power at receiver.
@@ -735,6 +832,7 @@ class RFPropagationModel:
             transmission_duty_cycle: Probability TX is active (0-1)
             enable_sporadic_e: Enable sporadic-E propagation modeling
             enable_knife_edge: Enable knife-edge diffraction modeling
+            enable_polarization_effects: Enable polarization mismatch loss modeling
         
         Returns:
             Tuple of (rx_power_dbm, snr_db, details_dict)
@@ -772,9 +870,19 @@ class RFPropagationModel:
         
         if not is_transmitting:
             # Transmission is off - return noise floor
+            # Calculate polarization info even when off (for consistency)
+            tx_polarization = None
+            rx_polarization = None
+            if enable_polarization_effects and tx_antenna is not None and rx_antenna is not None:
+                tx_polarization = tx_antenna.polarization
+                rx_polarization = rx_antenna.polarization
+            
             return self.noise_floor_dbm, 0.0, {
                 "distance_km": distance_km,
                 "transmission_active": False,
+                "polarization_loss_db": 0.0,
+                "tx_polarization": tx_polarization.value if tx_polarization else None,
+                "rx_polarization": rx_polarization.value if rx_polarization else None,
                 "rx_power_dbm": self.noise_floor_dbm,
                 "snr_db": 0.0
             }
@@ -850,6 +958,22 @@ class RFPropagationModel:
                 frequency_mhz
             )
         
+        # 6. POLARIZATION MISMATCH LOSS
+        # Calculate loss due to polarization mismatch between TX and RX antennas
+        polarization_loss_db = 0.0
+        tx_polarization = None
+        rx_polarization = None
+        
+        if enable_polarization_effects and tx_antenna is not None and rx_antenna is not None:
+            tx_polarization = tx_antenna.polarization
+            rx_polarization = rx_antenna.polarization
+            
+            polarization_loss_db = self.calculate_polarization_mismatch_loss(
+                tx_polarization,
+                rx_polarization,
+                include_multipath_depolarization=True
+            )
+        
         # Total received power (including all effects)
         rx_power_dbm = (
             actual_tx_power_dbm  # TX power with fluctuations
@@ -863,6 +987,7 @@ class RFPropagationModel:
             + tropospheric_effect_db  # Refraction can be gain or loss
             + sporadic_e_enhancement_db  # Sporadic-E enhancement (if active)
             - knife_edge_loss_db  # Knife-edge diffraction loss
+            - polarization_loss_db  # Polarization mismatch loss
         )
         
         # SNR
@@ -884,6 +1009,9 @@ class RFPropagationModel:
             "tropospheric_effect_db": tropospheric_effect_db,
             "sporadic_e_active": sporadic_e_active,
             "sporadic_e_enhancement_db": sporadic_e_enhancement_db,
+            "polarization_loss_db": polarization_loss_db,
+            "tx_polarization": tx_polarization.value if tx_polarization else None,
+            "rx_polarization": rx_polarization.value if rx_polarization else None,
             "rx_power_dbm": rx_power_dbm,
             "snr_db": snr_db
         }

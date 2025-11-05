@@ -33,6 +33,9 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
   // Acceleration mode (AUTO, CPU, GPU)
   const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('auto');
 
+  // Advanced options toggle
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
   // Helper functions for power conversion
   const wattToDbm = (watt: number): number => {
     return 10 * Math.log10(watt * 1000);
@@ -48,22 +51,16 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     description: '',
     dataset_type: 'feature_based',  // Default: traditional feature-based
     num_samples: 10000,
-    inside_ratio: 0.75,    // Production baseline
-    frequency_mhz: 144.0,  // 2m band
-    tx_power_dbm: wattToDbm(2.0), // 2W = ~33dBm
-    min_snr_db: 3.0,       // Reasonable minimum SNR
-    min_receivers: 3,      // Minimum triangulation
+    frequency_mhz: 144.0,  // 2m band (REQUIRED)
+    tx_power_dbm: wattToDbm(2.0), // 2W = ~33dBm (REQUIRED)
+    min_snr_db: 3.0,       // Reasonable minimum SNR (REQUIRED)
+    min_receivers: 3,      // Minimum triangulation (REQUIRED)
     max_gdop: 150.0,       // Acceptable geometry (150 for clustered receivers)
-    use_srtm: true,        // Use SRTM terrain data (production baseline)
-    // Random receiver defaults (for iq_raw datasets)
+    use_srtm_terrain: true, // Use SRTM terrain data (production baseline)
     use_random_receivers: false,
-    min_receivers_count: 5,
-    max_receivers_count: 10,
-    receiver_seed: undefined,
-    area_lat_min: 44.0,
-    area_lat_max: 46.0,
-    area_lon_min: 7.0,
-    area_lon_max: 10.0,
+    seed: undefined,
+    tx_antenna_dist: undefined,
+    rx_antenna_dist: undefined,
   });
 
   const handleInputChange = (field: keyof SyntheticDataRequest, value: string | number | boolean) => {
@@ -111,26 +108,22 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
       setPowerValueWatt(2.0);
       setPowerUnit('watt');
       setAccelerationMode('auto');
+      setShowAdvancedOptions(false);
       setFormData({
         name: '',
         description: '',
         dataset_type: 'feature_based',
         num_samples: 10000,
-        inside_ratio: 0.75,
         frequency_mhz: 144.0,
         tx_power_dbm: wattToDbm(2.0),
         min_snr_db: 3.0,
         min_receivers: 3,
         max_gdop: 150.0,
-        use_srtm: true,
+        use_srtm_terrain: true,
         use_random_receivers: false,
-        min_receivers_count: 5,
-        max_receivers_count: 10,
-        receiver_seed: undefined,
-        area_lat_min: 44.0,
-        area_lat_max: 46.0,
-        area_lon_min: 7.0,
-        area_lon_max: 10.0,
+        seed: undefined,
+        tx_antenna_dist: undefined,
+        rx_antenna_dist: undefined,
       });
       
       onClose();
@@ -269,41 +262,21 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                     </div>
                   </div>
 
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label htmlFor="num_samples" className="form-label">
-                        Number of Samples
-                      </label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        id="num_samples"
-                        value={formData.num_samples}
-                        onChange={(e) => handleInputChange('num_samples', parseInt(e.target.value))}
-                        min={100}
-                        max={1000000}
-                        disabled={isLoading}
-                      />
-                      <div className="form-text">Default: 10,000 (production baseline)</div>
-                    </div>
-
-                    <div className="col-md-6 mb-3">
-                      <label htmlFor="inside_ratio" className="form-label">
-                        Inside Coverage Ratio
-                      </label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        id="inside_ratio"
-                        value={formData.inside_ratio}
-                        onChange={(e) => handleInputChange('inside_ratio', parseFloat(e.target.value))}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        disabled={isLoading}
-                      />
-                      <div className="form-text">0-1, Default: 0.75 (75% inside)</div>
-                    </div>
+                  <div className="mb-3">
+                    <label htmlFor="num_samples" className="form-label">
+                      Number of Samples
+                    </label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id="num_samples"
+                      value={formData.num_samples}
+                      onChange={(e) => handleInputChange('num_samples', parseInt(e.target.value))}
+                      min={100}
+                      max={1000000}
+                      disabled={isLoading}
+                    />
+                    <div className="form-text">Default: 10,000 (production baseline)</div>
                   </div>
                 </div>
 
@@ -432,12 +405,12 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                     <input
                       className="form-check-input"
                       type="checkbox"
-                      id="use_srtm"
-                      checked={formData.use_srtm}
-                      onChange={(e) => handleInputChange('use_srtm', e.target.checked)}
+                      id="use_srtm_terrain"
+                      checked={formData.use_srtm_terrain}
+                      onChange={(e) => handleInputChange('use_srtm_terrain', e.target.checked)}
                       disabled={isLoading}
                     />
-                    <label className="form-check-label" htmlFor="use_srtm">
+                    <label className="form-check-label" htmlFor="use_srtm_terrain">
                       Use SRTM Terrain Data
                     </label>
                     <div className="form-text">
@@ -487,155 +460,215 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                   </div>
                 </div>
 
-                {/* Random Receivers Configuration (conditional) */}
-                {(formData.dataset_type === 'iq_raw' || formData.use_random_receivers) && (
-                  <div className="mb-4">
-                    <h6 className="fw-semibold mb-3">
-                      Random Receivers Configuration
-                      {formData.dataset_type === 'iq_raw' && (
-                        <span className="badge bg-primary ms-2">Required for IQ Raw</span>
-                      )}
-                    </h6>
-                    
-                    <div className="alert alert-info d-flex align-items-start mb-3" role="alert">
-                      <i className="ph ph-info me-2 mt-1"></i>
-                      <div className="small">
-                        Each sample will use a random subset of receivers (between min and max count)
-                        placed within the specified geographic area. This creates dataset diversity
-                        essential for CNN generalization.
-                      </div>
-                    </div>
-
-                    <div className="row">
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="min_receivers_count" className="form-label">
-                          Min Receivers per Sample
-                        </label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          id="min_receivers_count"
-                          value={formData.min_receivers_count}
-                          onChange={(e) => handleInputChange('min_receivers_count', parseInt(e.target.value))}
-                          min={3}
-                          max={15}
-                          disabled={isLoading}
-                        />
-                        <div className="form-text">Default: 5 (minimum 3 for triangulation)</div>
-                      </div>
-
-                      <div className="col-md-6 mb-3">
-                        <label htmlFor="max_receivers_count" className="form-label">
-                          Max Receivers per Sample
-                        </label>
-                        <input
-                          type="number"
-                          className="form-control"
-                          id="max_receivers_count"
-                          value={formData.max_receivers_count}
-                          onChange={(e) => handleInputChange('max_receivers_count', parseInt(e.target.value))}
-                          min={3}
-                          max={15}
-                          disabled={isLoading}
-                        />
-                        <div className="form-text">Default: 10</div>
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="form-label">Geographic Area (Receiver Placement)</label>
-                      <div className="row">
-                        <div className="col-md-6 mb-2">
-                          <label htmlFor="area_lat_min" className="form-label small">
-                            Latitude Min (°)
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            id="area_lat_min"
-                            value={formData.area_lat_min}
-                            onChange={(e) => handleInputChange('area_lat_min', parseFloat(e.target.value))}
-                            min={-90}
-                            max={90}
-                            step={0.1}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="col-md-6 mb-2">
-                          <label htmlFor="area_lat_max" className="form-label small">
-                            Latitude Max (°)
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            id="area_lat_max"
-                            value={formData.area_lat_max}
-                            onChange={(e) => handleInputChange('area_lat_max', parseFloat(e.target.value))}
-                            min={-90}
-                            max={90}
-                            step={0.1}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </div>
-                      <div className="row">
-                        <div className="col-md-6 mb-2">
-                          <label htmlFor="area_lon_min" className="form-label small">
-                            Longitude Min (°)
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            id="area_lon_min"
-                            value={formData.area_lon_min}
-                            onChange={(e) => handleInputChange('area_lon_min', parseFloat(e.target.value))}
-                            min={-180}
-                            max={180}
-                            step={0.1}
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div className="col-md-6 mb-2">
-                          <label htmlFor="area_lon_max" className="form-label small">
-                            Longitude Max (°)
-                          </label>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
-                            id="area_lon_max"
-                            value={formData.area_lon_max}
-                            onChange={(e) => handleInputChange('area_lon_max', parseFloat(e.target.value))}
-                            min={-180}
-                            max={180}
-                            step={0.1}
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </div>
-                      <div className="form-text">
-                        Default: Northern Italy (Lat: 44-46°, Lon: 7-10°)
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <label htmlFor="receiver_seed" className="form-label">
-                        Random Seed (Optional)
-                      </label>
+                {/* Random Receivers Toggle */}
+                {formData.dataset_type === 'feature_based' && (
+                  <div className="mb-3">
+                    <div className="form-check form-switch">
                       <input
-                        type="number"
-                        className="form-control"
-                        id="receiver_seed"
-                        value={formData.receiver_seed || ''}
-                        onChange={(e) => handleInputChange('receiver_seed', e.target.value ? parseInt(e.target.value) : undefined)}
-                        placeholder="Leave empty for random generation"
+                        className="form-check-input"
+                        type="checkbox"
+                        id="use_random_receivers"
+                        checked={formData.use_random_receivers}
+                        onChange={(e) => handleInputChange('use_random_receivers', e.target.checked)}
                         disabled={isLoading}
                       />
+                      <label className="form-check-label" htmlFor="use_random_receivers">
+                        Use Random Receiver Placement
+                      </label>
                       <div className="form-text">
-                        Set a seed for reproducible receiver placement (useful for experiments)
+                        Generate random receiver positions instead of using fixed Italian WebSDRs
                       </div>
                     </div>
                   </div>
                 )}
+
+                {/* Advanced Options */}
+                <div className="mb-4">
+                  <button
+                    type="button"
+                    className="btn btn-link text-decoration-none p-0 d-flex align-items-center gap-2"
+                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    disabled={isLoading}
+                  >
+                    <i className={`ph ${showAdvancedOptions ? 'ph-caret-down' : 'ph-caret-right'}`}></i>
+                    <span className="fw-semibold">Advanced Options</span>
+                  </button>
+
+                  {showAdvancedOptions && (
+                    <div className="mt-3 border rounded p-3 bg-light">
+                      {/* Random Seed */}
+                      <div className="mb-3">
+                        <label htmlFor="seed" className="form-label">
+                          Random Seed
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          id="seed"
+                          value={formData.seed ?? ''}
+                          onChange={(e) => handleInputChange('seed', e.target.value ? parseInt(e.target.value) : undefined)}
+                          placeholder="Leave empty for random"
+                          disabled={isLoading}
+                        />
+                        <div className="form-text">
+                          Set a fixed seed for reproducible datasets (optional)
+                        </div>
+                      </div>
+
+                      {/* TX Antenna Distribution */}
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">
+                          TX Antenna Distribution
+                        </label>
+                        <div className="form-text mb-2">
+                          Probability distribution of transmitter antenna types (must sum to 1.0)
+                        </div>
+                        
+                        <div className="row g-2">
+                          <div className="col-md-4">
+                            <label htmlFor="tx_whip" className="form-label small">Whip</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="tx_whip"
+                              value={formData.tx_antenna_dist?.whip ?? 0.60}
+                              onChange={(e) => handleInputChange('tx_antenna_dist', {
+                                ...formData.tx_antenna_dist,
+                                whip: parseFloat(e.target.value) || 0.60
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label htmlFor="tx_rubber_duck" className="form-label small">Rubber Duck</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="tx_rubber_duck"
+                              value={formData.tx_antenna_dist?.rubber_duck ?? 0.38}
+                              onChange={(e) => handleInputChange('tx_antenna_dist', {
+                                ...formData.tx_antenna_dist,
+                                rubber_duck: parseFloat(e.target.value) || 0.38
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label htmlFor="tx_portable_directional" className="form-label small">Portable Directional</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="tx_portable_directional"
+                              value={formData.tx_antenna_dist?.portable_directional ?? 0.02}
+                              onChange={(e) => handleInputChange('tx_antenna_dist', {
+                                ...formData.tx_antenna_dist,
+                                portable_directional: parseFloat(e.target.value) || 0.02
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                        </div>
+                        {formData.tx_antenna_dist && (
+                          <div className="form-text mt-1">
+                            Sum: {((formData.tx_antenna_dist.whip ?? 0.60) + 
+                                   (formData.tx_antenna_dist.rubber_duck ?? 0.38) + 
+                                   (formData.tx_antenna_dist.portable_directional ?? 0.02)).toFixed(2)}
+                            {Math.abs(((formData.tx_antenna_dist.whip ?? 0.60) + 
+                                      (formData.tx_antenna_dist.rubber_duck ?? 0.38) + 
+                                      (formData.tx_antenna_dist.portable_directional ?? 0.02)) - 1.0) > 0.01 && (
+                              <span className="text-danger ms-2">⚠ Must sum to 1.0</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* RX Antenna Distribution */}
+                      <div className="mb-0">
+                        <label className="form-label fw-semibold">
+                          RX Antenna Distribution
+                        </label>
+                        <div className="form-text mb-2">
+                          Probability distribution of receiver antenna types (must sum to 1.0)
+                        </div>
+                        
+                        <div className="row g-2">
+                          <div className="col-md-4">
+                            <label htmlFor="rx_omni_vertical" className="form-label small">Omni Vertical</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="rx_omni_vertical"
+                              value={formData.rx_antenna_dist?.omni_vertical ?? 0.80}
+                              onChange={(e) => handleInputChange('rx_antenna_dist', {
+                                ...formData.rx_antenna_dist,
+                                omni_vertical: parseFloat(e.target.value) || 0.80
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label htmlFor="rx_yagi" className="form-label small">Yagi</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="rx_yagi"
+                              value={formData.rx_antenna_dist?.yagi ?? 0.15}
+                              onChange={(e) => handleInputChange('rx_antenna_dist', {
+                                ...formData.rx_antenna_dist,
+                                yagi: parseFloat(e.target.value) || 0.15
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                          <div className="col-md-4">
+                            <label htmlFor="rx_collinear" className="form-label small">Collinear</label>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              id="rx_collinear"
+                              value={formData.rx_antenna_dist?.collinear ?? 0.05}
+                              onChange={(e) => handleInputChange('rx_antenna_dist', {
+                                ...formData.rx_antenna_dist,
+                                collinear: parseFloat(e.target.value) || 0.05
+                              })}
+                              min={0}
+                              max={1}
+                              step={0.01}
+                              disabled={isLoading}
+                            />
+                          </div>
+                        </div>
+                        {formData.rx_antenna_dist && (
+                          <div className="form-text mt-1">
+                            Sum: {((formData.rx_antenna_dist.omni_vertical ?? 0.80) + 
+                                   (formData.rx_antenna_dist.yagi ?? 0.15) + 
+                                   (formData.rx_antenna_dist.collinear ?? 0.05)).toFixed(2)}
+                            {Math.abs(((formData.rx_antenna_dist.omni_vertical ?? 0.80) + 
+                                      (formData.rx_antenna_dist.yagi ?? 0.15) + 
+                                      (formData.rx_antenna_dist.collinear ?? 0.05)) - 1.0) > 0.01 && (
+                              <span className="text-danger ms-2">⚠ Must sum to 1.0</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Info Box */}
                 <div className="alert alert-info d-flex align-items-start" role="alert">
@@ -644,14 +677,20 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                     <strong>Configuration Summary</strong>
                     <ul className="mb-0 mt-2 small">
                       <li><strong>Dataset Type:</strong> {formData.dataset_type === 'iq_raw' ? 'IQ Raw (CNN training)' : 'Feature-Based (traditional)'}</li>
-                      <li><strong>Samples:</strong> {formData.num_samples?.toLocaleString()} with {((formData.inside_ratio || 0) * 100).toFixed(0)}% inside coverage</li>
+                      <li><strong>Samples:</strong> {formData.num_samples?.toLocaleString()} samples</li>
                       <li><strong>RF:</strong> {formData.frequency_mhz} MHz, {powerValueWatt.toFixed(1)}W TX power</li>
                       <li><strong>Quality:</strong> Min {formData.min_receivers} receivers, SNR ≥{formData.min_snr_db} dB, GDOP ≤{formData.max_gdop}</li>
-                      {formData.dataset_type === 'iq_raw' && (
-                        <li><strong>Receivers:</strong> {formData.min_receivers_count}-{formData.max_receivers_count} random per sample</li>
-                      )}
-                      <li><strong>Terrain:</strong> {formData.use_srtm ? 'SRTM enabled' : 'Flat earth model'}</li>
+                      <li><strong>Terrain:</strong> {formData.use_srtm_terrain ? 'SRTM enabled' : 'Flat earth model'}</li>
                       <li><strong>Acceleration:</strong> {accelerationMode.toUpperCase()} mode</li>
+                      {formData.seed !== undefined && (
+                        <li><strong>Seed:</strong> {formData.seed} (reproducible)</li>
+                      )}
+                      {formData.tx_antenna_dist && (
+                        <li><strong>TX Antennas:</strong> Whip {(formData.tx_antenna_dist.whip * 100).toFixed(0)}%, Rubber Duck {(formData.tx_antenna_dist.rubber_duck * 100).toFixed(0)}%, Directional {(formData.tx_antenna_dist.portable_directional * 100).toFixed(0)}%</li>
+                      )}
+                      {formData.rx_antenna_dist && (
+                        <li><strong>RX Antennas:</strong> Omni {(formData.rx_antenna_dist.omni_vertical * 100).toFixed(0)}%, Yagi {(formData.rx_antenna_dist.yagi * 100).toFixed(0)}%, Collinear {(formData.rx_antenna_dist.collinear * 100).toFixed(0)}%</li>
+                      )}
                     </ul>
                   </div>
                 </div>

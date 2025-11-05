@@ -91,7 +91,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   fetchJobs: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/v1/training/jobs');
+      const response = await api.get('/v1/jobs/training');
       set({ jobs: response.data.jobs || response.data, isLoading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch training jobs';
@@ -104,7 +104,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   createJob: async (jobConfig: CreateJobRequest) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post<CreateJobResponse>('/v1/training/jobs', jobConfig);
+      const response = await api.post<CreateJobResponse>('/v1/jobs/training', jobConfig);
       set({ isLoading: false });
       
       // Refresh jobs list
@@ -124,7 +124,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     console.log('[trainingStore] cancelJob called:', { jobId: jobId.slice(0, 8) });
     set({ error: null });
     try {
-      const endpoint = `/v1/training/jobs/${jobId}/cancel`;
+      const endpoint = `/v1/jobs/training/${jobId}/cancel`;
       console.log('[trainingStore] Calling POST', endpoint);
       await api.post(endpoint);
       console.log('[trainingStore] Cancel API call successful');
@@ -148,7 +148,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   pauseJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/pause`);
+      await api.post(`/v1/jobs/training/${jobId}/pause`);
       
       // Update job status locally
       set(state => ({
@@ -168,7 +168,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   resumeJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/resume`);
+      await api.post(`/v1/jobs/training/${jobId}/resume`);
       
       // Update job status locally
       set(state => ({
@@ -189,7 +189,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     console.log('[trainingStore] deleteJob called:', { jobId: jobId.slice(0, 8) });
     set({ error: null });
     try {
-      const endpoint = `/v1/training/jobs/${jobId}`;
+      const endpoint = `/v1/jobs/training/${jobId}`;
       console.log('[trainingStore] Calling DELETE', endpoint);
       await api.delete(endpoint);
       console.log('[trainingStore] Delete API call successful');
@@ -219,7 +219,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   fetchMetrics: async (jobId: string) => {
     set({ error: null });
     try {
-      const response = await api.get(`/v1/training/jobs/${jobId}/metrics`);
+      const response = await api.get(`/v1/jobs/training/${jobId}/metrics`);
       const metrics = response.data.metrics || response.data;
       
       set(state => {
@@ -238,7 +238,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   fetchModels: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.get('/v1/training/models');
+      const response = await api.get('/v1/models');
       set({ models: response.data.models || response.data, isLoading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch trained models';
@@ -259,7 +259,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       if (options.num_samples) params.append('num_samples', options.num_samples.toString());
       if (options.description) params.append('description', options.description);
 
-      const response = await api.get(`/v1/training/models/${modelId}/export?${params.toString()}`, {
+      const response = await api.get(`/v1/models/${modelId}/export?${params.toString()}`, {
         responseType: 'blob',
       });
 
@@ -306,7 +306,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const formData = new FormData();
       formData.append('file', file);
 
-      await api.post('/v1/training/models/import', formData, {
+      await api.post('/v1/models/import', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -328,7 +328,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   deleteModel: async (modelId: string) => {
     set({ error: null });
     try {
-      await api.delete(`/v1/training/models/${modelId}`);
+      await api.delete(`/v1/models/${modelId}`);
       
       // Remove model from list
       set(state => ({
@@ -358,7 +358,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       const params = new URLSearchParams();
       params.append('model_name', newName);
 
-      await api.patch(`/v1/training/models/${modelId}?${params.toString()}`);
+      await api.patch(`/v1/models/${modelId}?${params.toString()}`);
       
       // Update model in local state
       set(state => ({
@@ -378,7 +378,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   setModelActive: async (modelId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/models/${modelId}/deploy`, null, {
+      await api.post(`/v1/models/${modelId}/deploy`, null, {
         params: { set_production: false }
       });
       
@@ -396,7 +396,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   setModelProduction: async (modelId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/models/${modelId}/deploy`, null, {
+      await api.post(`/v1/models/${modelId}/deploy`, null, {
         params: { set_production: true }
       });
       
@@ -541,7 +541,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set({ isLoading: true, error: null });
     }
     try {
-      const response = await api.get('/v1/training/synthetic/datasets');
+      const response = await api.get('/v1/jobs/synthetic/datasets');
       set({ datasets: response.data.datasets || response.data, isLoading: false });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch synthetic datasets';
@@ -554,7 +554,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   generateSyntheticData: async (request: SyntheticDataRequest) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await api.post('/v1/training/synthetic/generate', request);
+      const response = await api.post('/v1/jobs/synthetic/generate', request);
       set({ isLoading: false });
       
       // Refresh datasets list
@@ -573,7 +573,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   deleteDataset: async (datasetId: string) => {
     set({ error: null });
     try {
-      await api.delete(`/v1/training/synthetic/datasets/${datasetId}`);
+      await api.delete(`/v1/jobs/synthetic/datasets/${datasetId}`);
       
       // Remove dataset from list
       set(state => ({
@@ -600,7 +600,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   fetchDatasetSamples: async (datasetId: string, limit: number = 10) => {
     set({ error: null });
     try {
-      const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/samples`, {
+      const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}/samples`, {
         params: { limit },
       });
       return response.data;
@@ -635,7 +635,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       };
 
       // Use the same endpoint, but it will add to the existing dataset
-      const response = await api.post('/v1/training/synthetic/generate', generationRequest);
+      const response = await api.post('/v1/jobs/synthetic/generate', generationRequest);
       
       set({ isLoading: false });
       
@@ -657,12 +657,10 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
       set({ isLoading: true, error: null });
     }
     try {
-      const response = await api.get('/v1/training/jobs', {
-        params: { job_type: 'synthetic_generation' },
-      });
+      const response = await api.get('/v1/jobs/synthetic');
       const jobs = response.data.jobs || response.data;
       set({ 
-        generationJobs: jobs.filter((j: any) => j.job_type === 'synthetic_generation'),
+        generationJobs: jobs,
         isLoading: false 
       });
     } catch (error) {
@@ -676,7 +674,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   pauseGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/pause`);
+      await api.post(`/v1/jobs/synthetic/${jobId}/pause`);
       
       // Update job status locally
       set(state => ({
@@ -696,7 +694,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   resumeGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/resume`);
+      await api.post(`/v1/jobs/synthetic/${jobId}/resume`);
       
       // Update job status locally
       set(state => ({
@@ -716,7 +714,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   cancelGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.post(`/v1/training/jobs/${jobId}/cancel`);
+      await api.post(`/v1/jobs/synthetic/${jobId}/cancel`);
       
       // Update job status locally
       set(state => ({
@@ -736,7 +734,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
   deleteGenerationJob: async (jobId: string) => {
     set({ error: null });
     try {
-      await api.delete(`/v1/training/jobs/${jobId}`);
+      await api.delete(`/v1/jobs/synthetic/${jobId}`);
       
       // Remove job from list
       set(state => ({

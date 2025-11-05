@@ -245,11 +245,34 @@ async def create_training_job(
         row = result.fetchone()
         
         # Submit Celery task
-        task = start_training_job.apply_async(
-            args=[job_id],
-            task_id=job_id,
-            queue='training'
+        logger.info(
+            "dispatching_celery_task",
+            job_id=job_id,
+            task_name="start_training_job",
+            queue="training"
         )
+        
+        try:
+            task = start_training_job.apply_async(
+                args=[job_id],
+                task_id=job_id,
+                queue='training'
+            )
+            
+            logger.info(
+                "celery_task_dispatched",
+                task_id=task.id,
+                task_state=task.state,
+                task_backend=str(task.backend)
+            )
+        except Exception as task_error:
+            logger.error(
+                "celery_task_dispatch_failed",
+                job_id=job_id,
+                error=str(task_error),
+                exc_info=True
+            )
+            raise
         
         # Update celery_task_id
         update_query = text("""
