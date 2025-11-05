@@ -120,8 +120,6 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                             {sortedReceivers.map((rx) => {
                                 const isSelected = selectedRxId === rx.rx_id;
                                 const hasSignal = rx.signal_present !== undefined ? rx.signal_present : (rx.snr_db > -20);
-                                const normalizedSnr = normalizeSnr(rx.snr_db);
-                                const snrColor = getSnrColor(normalizedSnr);
                                 
                                 return (
                                     <tr
@@ -158,13 +156,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                         )}
                                         <td>
                                             <button
-                                                className="btn btn-sm"
-                                                style={{
-                                                    backgroundColor: snrColor,
-                                                    borderColor: snrColor,
-                                                    color: 'white',
-                                                    fontWeight: '500'
-                                                }}
+                                                className="btn btn-sm btn-outline-primary"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     if (onRxSelect) {
@@ -172,7 +164,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                     }
                                                 }}
                                             >
-                                                Details ({normalizedSnr.toFixed(2)})
+                                                Details
                                             </button>
                                         </td>
                                     </tr>

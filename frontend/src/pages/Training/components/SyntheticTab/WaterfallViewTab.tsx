@@ -38,6 +38,47 @@ export const WaterfallViewTab: React.FC<WaterfallViewTabProps> = ({ sample, data
 
     const receivers = sample.receivers as ReceiverMetadata[];
 
+    // Calculate min/max SNR for normalization
+    const snrValues = receivers.map(rx => rx.snr_db);
+    const minSnr = Math.min(...snrValues);
+    const maxSnr = Math.max(...snrValues);
+    const snrRange = maxSnr - minSnr;
+
+    /**
+     * Normalize SNR value to 0-1 range
+     */
+    const normalizeSnr = (snr: number): number => {
+        if (snrRange === 0) return 1; // All receivers have same SNR
+        return (snr - minSnr) / snrRange;
+    };
+
+    /**
+     * Convert normalized SNR (0-1) to color gradient: red → yellow → green
+     * 0.0 = red (#dc3545)
+     * 0.5 = yellow (#ffc107)
+     * 1.0 = green (#28a745)
+     */
+    const getSnrColor = (normalizedSnr: number): string => {
+        // Clamp to 0-1 range
+        const value = Math.max(0, Math.min(1, normalizedSnr));
+        
+        if (value < 0.5) {
+            // Interpolate red → yellow (0.0 to 0.5)
+            const t = value * 2; // Scale to 0-1
+            const r = 220; // Red component stays high
+            const g = Math.round(60 + (252 - 60) * t); // 60 → 252
+            const b = Math.round(69 - 69 * t); // 69 → 0
+            return `rgb(${r}, ${g}, ${b})`;
+        } else {
+            // Interpolate yellow → green (0.5 to 1.0)
+            const t = (value - 0.5) * 2; // Scale to 0-1
+            const r = Math.round(255 - (255 - 40) * t); // 255 → 40
+            const g = Math.round(193 + (167 - 193) * t); // 193 → 167
+            const b = Math.round(7 + (69 - 7) * t); // 7 → 69
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+    };
+
     // Auto-select first receiver if available
     useEffect(() => {
         if (receivers.length > 0 && !selectedRxId) {
@@ -82,16 +123,28 @@ export const WaterfallViewTab: React.FC<WaterfallViewTabProps> = ({ sample, data
                 <Col md={6}>
                     <Form.Label className="text-dark"><strong>Select Receiver:</strong></Form.Label>
                     <ButtonGroup className="d-flex flex-wrap">
-                        {receivers.map((rx) => (
-                            <Button
-                                key={rx.rx_id}
-                                variant={selectedRxId === rx.rx_id ? 'primary' : 'outline-primary'}
-                                onClick={() => setSelectedRxId(rx.rx_id)}
-                                size="sm"
-                            >
-                                {rx.rx_id} ({rx.snr_db.toFixed(1)} dB)
-                            </Button>
-                        ))}
+                        {receivers.map((rx) => {
+                            const normalizedSnr = normalizeSnr(rx.snr_db);
+                            const snrColor = getSnrColor(normalizedSnr);
+                            const isSelected = selectedRxId === rx.rx_id;
+
+                            return (
+                                <Button
+                                    key={rx.rx_id}
+                                    variant={isSelected ? 'primary' : undefined}
+                                    onClick={() => setSelectedRxId(rx.rx_id)}
+                                    size="sm"
+                                    style={!isSelected ? {
+                                        backgroundColor: snrColor,
+                                        borderColor: snrColor,
+                                        color: 'white',
+                                        fontWeight: '500'
+                                    } : undefined}
+                                >
+                                    {rx.rx_id} ({rx.snr_db.toFixed(1)} dB)
+                                </Button>
+                            );
+                        })}
                     </ButtonGroup>
                 </Col>
             </Row>
