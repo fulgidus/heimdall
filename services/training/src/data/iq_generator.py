@@ -9,6 +9,17 @@ Generates realistic complex IQ samples with:
 GPU Acceleration:
 - Automatically uses CuPy if available (10-15x speedup)
 - Falls back to NumPy if CuPy not installed or no GPU
+
+Spatial Coherence for ML Training:
+- When generating batches (multiple receivers), all receivers MUST receive
+  the SAME audio content to maintain spatial coherence
+- Only RF propagation effects (multipath, fading, SNR, frequency offset)
+  should differ between receivers
+- This is critical for ML training: the model learns spatial localization
+  from time-of-arrival and signal strength differences, NOT from different
+  audio content at each receiver
+- Both GPU and CPU paths implement this by calling batch audio generation
+  once, then applying per-receiver effects
 """
 
 import numpy as np
@@ -16,6 +27,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 import structlog
+
+# Audio library integration
+from .audio_library import get_audio_loader, AudioLibraryEmptyError
 
 # Try to import CuPy for GPU acceleration
 try:
@@ -63,7 +77,9 @@ class SyntheticIQGenerator:
         sample_rate_hz: float = 200_000,
         duration_ms: float = 1000.0,
         seed: Optional[int] = None,
-        use_gpu: bool = True
+        use_gpu: bool = True,
+        use_audio_library: bool = False,
+        audio_library_fallback: bool = True
     ):
         """
         Initialize IQ generator.
@@ -73,9 +89,13 @@ class SyntheticIQGenerator:
             duration_ms: Signal duration in milliseconds
             seed: Random seed for reproducibility
             use_gpu: Use GPU acceleration if available (default: True)
+            use_audio_library: Use audio library for voice samples (default: False)
+            audio_library_fallback: Fallback to formant synthesis if library fails (default: True)
         """
         self.sample_rate_hz = sample_rate_hz
         self.duration_ms = duration_ms
+        self.use_audio_library = use_audio_library
+        self.audio_library_fallback = audio_library_fallback
         
         # GPU acceleration setup
         self.use_gpu = use_gpu and GPU_AVAILABLE
@@ -97,16 +117,39 @@ class SyntheticIQGenerator:
             self.rng_normal = lambda loc, scale, size: self.xp.random.normal(loc, scale, size)
             self.rng_uniform = lambda low, high, size=None: self.xp.random.uniform(low, high, size)
             self.rng_integers = lambda low, high: int(self.xp.random.randint(low, high))
+            # Store the RNG object for audio library (GPU mode uses global state)
+            self.rng = None  # GPU doesn't have a dedicated RNG object
         else:
             # NumPy uses Generator API
             cpu_rng = np.random.default_rng(seed)
             self.rng_normal = cpu_rng.normal
             self.rng_uniform = cpu_rng.uniform
             self.rng_integers = cpu_rng.integers
+            # Store the RNG object for audio library
+            self.rng = cpu_rng
 
         # Calculate number of samples
         self.num_samples = int(sample_rate_hz * duration_ms / 1000.0)
         self.time_axis = self.xp.arange(self.num_samples) / sample_rate_hz
+        
+        # Initialize audio loader ONCE (reuse same instance for all batches)
+        # This ensures audio consistency: all batches use the same loader with
+        # predictable RNG state progression
+        self.audio_loader = None  # Lazy initialization on first use
+        if self.use_audio_library:
+            # Create audio loader with seeded RNG for reproducibility
+            # Use CPU RNG even in GPU mode (audio loading happens on CPU)
+            audio_rng = np.random.default_rng(seed) if seed is not None else None
+            self.audio_loader = get_audio_loader(
+                target_sample_rate=int(self.sample_rate_hz),
+                rng=audio_rng,
+                force_new=True,  # Don't use singleton (each generator has its own loader)
+            )
+            logger.info(
+                "audio_loader_initialized",
+                use_library=True,
+                rng_seeded=seed is not None,
+            )
 
     def generate_iq_sample(
         self,
@@ -189,6 +232,10 @@ class SyntheticIQGenerator:
         """
         Generate multiple IQ samples in parallel (GPU-accelerated batch processing).
         
+        All receivers in the batch receive the SAME audio content, with only
+        RF propagation effects (multipath, fading, SNR) differing. This ensures
+        spatial coherence required for ML training.
+        
         Args:
             frequency_offsets: Frequency offsets in Hz, shape (batch_size,)
             bandwidths: Signal bandwidths in Hz, shape (batch_size,)
@@ -203,34 +250,36 @@ class SyntheticIQGenerator:
             Array of complex IQ samples, shape (batch_size, num_samples)
         """
         if not self.use_gpu:
-            # CPU fallback: generate samples sequentially
-            batch_signals = []
+            # CPU fallback: Use batch function to ensure audio consistency
+            # Convert to numpy arrays if needed
+            freq_offsets = np.array(frequency_offsets, dtype=np.float32)
+            bandwidths_cpu = np.array(bandwidths, dtype=np.float32)
+            signal_powers = np.array(signal_powers_dbm, dtype=np.float32)
+            noise_floors = np.array(noise_floors_dbm, dtype=np.float32)
+            snr_dbs_cpu = np.array(snr_dbs, dtype=np.float32)
+            
+            # Generate ALL clean signals at once (same audio for all receivers)
+            batch_signals = self._generate_clean_signal_batch(freq_offsets, bandwidths_cpu, batch_size)
+            
+            # Add effects per-receiver (sequential, but same audio content)
             for i in range(batch_size):
-                # Generate clean signal
-                signal = self._generate_clean_signal(
-                    frequency_offset_hz=float(frequency_offsets[i]),
-                    bandwidth_hz=float(bandwidths[i])
-                )
-                
                 # Add multipath (if enabled)
                 if enable_multipath:
-                    signal = self._add_multipath(signal, num_paths=self.rng_integers(2, 4))
+                    batch_signals[i] = self._add_multipath(batch_signals[i], num_paths=self.rng_integers(2, 4))
                 
                 # Add fading (if enabled)
                 if enable_fading:
-                    signal = self._add_rayleigh_fading(signal)
+                    batch_signals[i] = self._add_rayleigh_fading(batch_signals[i])
                 
                 # Normalize power
-                signal = self._normalize_power(signal, float(signal_powers_dbm[i]))
+                batch_signals[i] = self._normalize_power(batch_signals[i], float(signal_powers[i]))
                 
                 # Add AWGN
-                signal = self._add_awgn(
-                    signal,
-                    noise_floor_dbm=float(noise_floors_dbm[i]),
-                    snr_db=float(snr_dbs[i])
+                batch_signals[i] = self._add_awgn(
+                    batch_signals[i],
+                    noise_floor_dbm=float(noise_floors[i]),
+                    snr_db=float(snr_dbs_cpu[i])
                 )
-                
-                batch_signals.append(signal)
             
             return np.array(batch_signals, dtype=np.complex64)
         
@@ -273,36 +322,192 @@ class SyntheticIQGenerator:
         
         return batch_signals_cpu.astype(np.complex64)
 
+    def _generate_voice_audio(self) -> np.ndarray:
+        """
+        Generate voice audio using audio library or formant synthesis fallback.
+        
+        Uses the pre-initialized audio loader (created in __init__) to ensure
+        consistent audio selection across batch generations. The loader's RNG
+        state advances predictably, ensuring reproducibility.
+        
+        Returns:
+            Audio signal array normalized to [-1, 1]
+        """
+        # If audio library disabled, use formant synthesis
+        if not self.use_audio_library or self.audio_loader is None:
+            return self._generate_formant_voice_audio()
+        
+        # Load from audio library using the pre-initialized loader
+        try:
+            audio_samples, sample_rate = self.audio_loader.get_random_sample(
+                category=None,  # Use weighted random selection based on category weights
+                duration_ms=self.duration_ms
+            )
+            
+            # Convert to GPU array if using GPU
+            if self.use_gpu:
+                audio_samples = self.xp.array(audio_samples)
+            
+            logger.info(
+                "voice_audio_generated_from_library",
+                duration_ms=self.duration_ms,
+                sample_rate=sample_rate,
+                audio_shape=audio_samples.shape if hasattr(audio_samples, 'shape') else len(audio_samples),
+            )
+            
+            return audio_samples
+            
+        except (AudioLibraryEmptyError, Exception) as e:
+            # Fallback to formant synthesis if configured
+            if self.audio_library_fallback:
+                logger.warning(
+                    "audio_library_fallback",
+                    reason=str(e),
+                    fallback_to="formant_synthesis",
+                )
+                return self._generate_formant_voice_audio()
+            else:
+                # Re-raise if no fallback configured
+                raise
+
+    def _generate_formant_voice_audio(self) -> np.ndarray:
+        """
+        Generate realistic human voice audio using formant synthesis.
+        
+        Simulates amateur radio voice transmission with:
+        - 3 formants (F1: 500-800 Hz, F2: 1000-2000 Hz, F3: 2500-3000 Hz)
+        - Speech pauses (70% duty cycle)
+        - Smooth attack/decay envelopes
+        - 300-3000 Hz voice band
+        
+        Returns:
+            Audio signal array normalized to [-1, 1]
+        """
+        # Generate 3 formant frequencies (fundamental voice components)
+        f1 = self.rng_uniform(500, 800)    # First formant (vowel quality)
+        f2 = self.rng_uniform(1000, 2000)  # Second formant (vowel quality)
+        f3 = self.rng_uniform(2500, 3000)  # Third formant (naturalness)
+        
+        # Generate formant signals
+        formant1 = self.xp.sin(2 * self.xp.pi * f1 * self.time_axis)
+        formant2 = self.xp.sin(2 * self.xp.pi * f2 * self.time_axis)
+        formant3 = self.xp.sin(2 * self.xp.pi * f3 * self.time_axis)
+        
+        # Mix formants with realistic amplitudes (F1 strongest, F3 weakest)
+        audio = 0.6 * formant1 + 0.3 * formant2 + 0.1 * formant3
+        
+        # Add speech pauses (70% duty cycle for realistic speech)
+        pause_duration = int(self.num_samples * 0.3)  # 30% pauses
+        speech_duration = self.num_samples - pause_duration
+        
+        # Create envelope with attack/decay
+        envelope = self.xp.ones(self.num_samples)
+        
+        # Random pause in the middle
+        pause_start = self.rng_integers(speech_duration // 4, 3 * speech_duration // 4)
+        pause_end = pause_start + pause_duration
+        
+        # Smooth attack (10ms)
+        attack_samples = int(0.01 * self.sample_rate_hz)
+        envelope[:attack_samples] = self.xp.linspace(0, 1, attack_samples)
+        
+        # Smooth decay (10ms)
+        decay_samples = int(0.01 * self.sample_rate_hz)
+        envelope[-decay_samples:] = self.xp.linspace(1, 0, decay_samples)
+        
+        # Apply pause
+        if pause_end < self.num_samples:
+            # Decay before pause
+            envelope[pause_start:pause_start + decay_samples] = self.xp.linspace(1, 0, decay_samples)
+            # Zero during pause
+            envelope[pause_start + decay_samples:pause_end - attack_samples] = 0
+            # Attack after pause
+            envelope[pause_end - attack_samples:pause_end] = self.xp.linspace(0, 1, attack_samples)
+        
+        # Apply envelope to audio
+        audio = audio * envelope
+        
+        # Normalize to [-1, 1]
+        audio_max = self.xp.max(self.xp.abs(audio))
+        if audio_max > 0:
+            audio = audio / audio_max
+        
+        return audio
+
     def _generate_clean_signal(
         self,
         frequency_offset_hz: float,
         bandwidth_hz: float
     ) -> np.ndarray:
         """
-        Generate clean complex exponential signal.
+        Generate FM-modulated signal with realistic audio content.
+        
+        Amateur radio FM characteristics:
+        - Narrow FM: ±5 kHz deviation, 12.5 kHz bandwidth
+        - Wide FM: ±15 kHz deviation, 25 kHz bandwidth
+        - Signal mix: 75% voice, 10% single tone, 10% dual-tone (DTMF), 5% carrier
+        - Pre-emphasis: 6 dB/octave
 
         Args:
             frequency_offset_hz: Frequency offset from center
-            bandwidth_hz: Signal bandwidth (used for phase modulation)
+            bandwidth_hz: Signal bandwidth (12.5 kHz or 25 kHz)
 
         Returns:
-            Complex signal array (NumPy for CPU compatibility)
+            Complex FM-modulated signal array
         """
-        # Complex exponential: exp(j * 2π * f * t)
-        phase = 2 * self.xp.pi * frequency_offset_hz * self.time_axis
-
-        # Add random phase modulation to simulate FM/PM
-        # Modulation bandwidth proportional to signal bandwidth
-        phase_mod = self.rng_normal(0, 0.3, self.num_samples)  # Random phase deviation (on GPU if available)
+        # Determine FM deviation based on bandwidth
+        # Narrow FM: 12.5 kHz → ±5 kHz deviation
+        # Wide FM: 25 kHz → ±15 kHz deviation
+        if bandwidth_hz <= 15000:
+            freq_deviation_hz = 5000.0  # Narrow FM
+        else:
+            freq_deviation_hz = 15000.0  # Wide FM
         
-        # Smooth the phase modulation (convolve with moving average)
-        # Create smoothing kernel
-        smooth_kernel = self.xp.ones(10) / 10
-        # Use FFT-based convolution for efficiency (especially on GPU)
-        phase_mod = self.xp.convolve(phase_mod, smooth_kernel, mode='same')
-
-        phase += phase_mod
-
+        # Generate audio content based on signal type distribution
+        signal_type = self.rng_uniform(0, 1)
+        
+        if signal_type < 0.75:
+            # 75% - Voice modulation
+            audio = self._generate_voice_audio()
+            
+            # Apply pre-emphasis filter (6 dB/octave) for voice
+            # Pre-emphasis = HPF with time constant τ = 75 μs (Europe) or 50 μs (US)
+            # Transfer function: H(s) = 1 + sτ
+            # Discrete approximation: y[n] = x[n] - 0.95*x[n-1]
+            pre_emphasized = self.xp.copy(audio)
+            pre_emphasized[1:] = audio[1:] - 0.95 * audio[:-1]
+            audio = pre_emphasized
+            
+        elif signal_type < 0.85:
+            # 10% - Single tone (e.g., test tone, beacon)
+            tone_freq = self.rng_uniform(800, 1200)  # Voice range single tone
+            audio = self.xp.sin(2 * self.xp.pi * tone_freq * self.time_axis)
+            
+        elif signal_type < 0.95:
+            # 10% - Dual-tone (DTMF-like)
+            tone1_freq = self.rng_uniform(697, 941)   # Low DTMF group
+            tone2_freq = self.rng_uniform(1209, 1633) # High DTMF group
+            audio = 0.5 * self.xp.sin(2 * self.xp.pi * tone1_freq * self.time_axis) + \
+                    0.5 * self.xp.sin(2 * self.xp.pi * tone2_freq * self.time_axis)
+        else:
+            # 5% - Unmodulated carrier (CW-like)
+            audio = self.xp.zeros(self.num_samples)
+        
+        # FM modulation: phase(t) = 2π * fc * t + 2π * Δf * ∫audio(t)dt
+        # Discrete integration: cumulative sum with time step
+        dt = 1.0 / self.sample_rate_hz
+        audio_integral = self.xp.cumsum(audio) * dt
+        
+        # Carrier phase with frequency offset
+        carrier_phase = 2 * self.xp.pi * frequency_offset_hz * self.time_axis
+        
+        # FM modulation phase
+        modulation_phase = 2 * self.xp.pi * freq_deviation_hz * audio_integral
+        
+        # Total phase
+        phase = carrier_phase + modulation_phase
+        
+        # Generate complex FM signal
         signal = self.xp.exp(1j * phase)
 
         return signal
@@ -437,7 +642,12 @@ class SyntheticIQGenerator:
         snr_db: float
     ) -> np.ndarray:
         """
-        Add additive white Gaussian noise.
+        Add additive white Gaussian noise with enhanced realism.
+        
+        For waterfall visualization:
+        - Increases noise for SNR < 10 dB (30% boost)
+        - Adds 10% extra noise floor for visible "carpet" in waterfall
+        - Ensures realistic noise characteristics for amateur radio
 
         Args:
             signal: Input signal
@@ -445,16 +655,26 @@ class SyntheticIQGenerator:
             snr_db: Target SNR (signal-to-noise ratio)
 
         Returns:
-            Noisy signal
+            Noisy signal with realistic noise floor
         """
         # Calculate signal power
         signal_power = self.xp.mean(self.xp.abs(signal) ** 2)
 
-        # Calculate noise power from SNR
+        # Calculate base noise power from SNR
         # SNR = P_signal / P_noise (linear)
         # P_noise = P_signal / (10^(SNR_dB / 10))
         snr_linear = 10 ** (snr_db / 10.0)
         noise_power = signal_power / snr_linear
+        
+        # Increase noise for low SNR signals (< 10 dB)
+        # This creates a more visible waterfall for weak signals
+        if snr_db < 10.0:
+            noise_boost_factor = 1.3  # 30% more noise
+            noise_power *= noise_boost_factor
+        
+        # Always add 10% extra noise for realistic background
+        # This creates the visible "noise carpet" in waterfall
+        noise_power *= 1.1
 
         # Generate complex Gaussian noise (I and Q components)
         # For complex noise: variance = noise_power / 2 per component
@@ -474,7 +694,18 @@ class SyntheticIQGenerator:
         batch_size: int
     ) -> 'np.ndarray':
         """
-        Generate clean signals for entire batch (TRUE GPU vectorization).
+        Generate FM-modulated signals for entire batch (GPU vectorization).
+        
+        CRITICAL FOR ML TRAINING: This method generates the SAME audio content
+        for all receivers in a batch to maintain spatial coherence. Only the
+        frequency offsets differ per receiver. This ensures the model learns
+        spatial localization from propagation effects (time-of-arrival, signal
+        strength), NOT from different audio content at each receiver.
+        
+        Generates realistic FM voice signals with:
+        - 75% voice, 10% single tone, 10% dual-tone, 5% carrier
+        - ±5 kHz deviation (narrow FM) or ±15 kHz (wide FM)
+        - Pre-emphasis for voice
         
         Args:
             frequency_offsets: Array of frequency offsets (batch_size,)
@@ -482,34 +713,85 @@ class SyntheticIQGenerator:
             batch_size: Number of signals to generate
             
         Returns:
-            Batch of complex signals, shape (batch_size, num_samples)
+            Batch of complex FM signals, shape (batch_size, num_samples)
+            All signals have identical audio content, different frequency offsets
         """
         # Expand time axis to batch dimension: (1, num_samples) → (batch_size, num_samples)
         time_batch = self.xp.tile(self.time_axis[self.xp.newaxis, :], (batch_size, 1))
         
-        # Expand frequency offsets: (batch_size,) → (batch_size, 1) for broadcasting
+        # Determine FM deviation per signal based on bandwidth
+        # Shape: (batch_size,)
+        freq_deviations = self.xp.where(
+            bandwidths <= 15000,
+            5000.0,   # Narrow FM
+            15000.0   # Wide FM
+        )
+        
+        # Generate audio content for each signal in batch
+        # Initialize audio batch: (batch_size, num_samples)
+        audio_batch = self.xp.zeros((batch_size, self.num_samples))
+        
+        # Determine signal type ONCE for the entire batch (all receivers get same signal type)
+        # This ensures spatial coherence - all receivers "hear" the same content
+        signal_type = self.rng_uniform(0, 1)
+        
+        logger.info(
+            "batch_signal_type_determined",
+            signal_type=float(signal_type),
+            batch_size=batch_size,
+        )
+        
+        if signal_type < 0.75:
+            # 75% - Voice modulation
+            # Generate audio ONCE and broadcast to all receivers
+            logger.info("generating_voice_audio_for_batch", batch_size=batch_size)
+            audio = self._generate_voice_audio()
+            
+            # Apply pre-emphasis filter (6 dB/octave)
+            pre_emphasized = self.xp.copy(audio)
+            pre_emphasized[1:] = audio[1:] - 0.95 * audio[:-1]
+            
+            # Broadcast same audio to ALL receivers in batch
+            logger.info("broadcasting_audio_to_batch", batch_size=batch_size)
+            for i in range(batch_size):
+                audio_batch[i] = pre_emphasized
+                
+        elif signal_type < 0.85:
+            # 10% - Single tone
+            # Generate ONCE and broadcast to all receivers
+            tone_freq = self.rng_uniform(800, 1200)
+            audio = self.xp.sin(2 * self.xp.pi * tone_freq * self.time_axis)
+            for i in range(batch_size):
+                audio_batch[i] = audio
+                
+        elif signal_type < 0.95:
+            # 10% - Dual-tone (DTMF-like)
+            # Generate ONCE and broadcast to all receivers
+            tone1_freq = self.rng_uniform(697, 941)
+            tone2_freq = self.rng_uniform(1209, 1633)
+            audio = 0.5 * self.xp.sin(2 * self.xp.pi * tone1_freq * self.time_axis) + \
+                    0.5 * self.xp.sin(2 * self.xp.pi * tone2_freq * self.time_axis)
+            for i in range(batch_size):
+                audio_batch[i] = audio
+        # else: 5% - Carrier (audio_batch remains zeros for all receivers)
+        
+        # FM modulation for entire batch
+        # Discrete integration: cumulative sum along time axis
+        dt = 1.0 / self.sample_rate_hz
+        audio_integral = self.xp.cumsum(audio_batch, axis=1) * dt
+        
+        # Expand frequency offsets and deviations for broadcasting
         freq_offsets_expanded = frequency_offsets[:, self.xp.newaxis]
+        freq_deviations_expanded = freq_deviations[:, self.xp.newaxis]
         
-        # Vectorized phase calculation: (batch_size, num_samples)
-        phase = 2 * self.xp.pi * freq_offsets_expanded * time_batch
+        # Carrier phase with frequency offset: (batch_size, num_samples)
+        carrier_phase = 2 * self.xp.pi * freq_offsets_expanded * time_batch
         
-        # Add random phase modulation for each signal in batch
-        # Shape: (batch_size, num_samples)
-        phase_mod = self.rng_normal(0, 0.3, (batch_size, self.num_samples))
+        # FM modulation phase: (batch_size, num_samples)
+        modulation_phase = 2 * self.xp.pi * freq_deviations_expanded * audio_integral
         
-        # Smooth phase modulation using FFT-based 2D convolution (TRUE vectorization)
-        smooth_kernel = self.xp.ones(10) / 10
-        
-        # Pad kernel to match signal length for FFT convolution
-        kernel_padded = self.xp.zeros((1, self.num_samples))
-        kernel_padded[0, :len(smooth_kernel)] = smooth_kernel
-        
-        # FFT-based convolution (all batch samples at once)
-        phase_mod_fft = self.xp.fft.fft(phase_mod, axis=1)
-        kernel_fft = self.xp.fft.fft(kernel_padded, axis=1)
-        phase_mod = self.xp.fft.ifft(phase_mod_fft * kernel_fft, axis=1).real
-        
-        phase += phase_mod
+        # Total phase
+        phase = carrier_phase + modulation_phase
         
         # Vectorized complex exponential: shape (batch_size, num_samples)
         signals = self.xp.exp(1j * phase)

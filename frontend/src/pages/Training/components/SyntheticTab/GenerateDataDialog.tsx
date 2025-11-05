@@ -67,6 +67,9 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     enable_knife_edge: true,
     enable_polarization: true,
     enable_antenna_patterns: true,
+    // Audio library (OFF by default - user must enable explicitly)
+    use_audio_library: false,
+    audio_library_fallback: true,  // If audio library fails, fallback to formant synthesis
   });
 
   const handleInputChange = (field: keyof SyntheticDataRequest, value: string | number | boolean) => {
@@ -135,6 +138,8 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         enable_knife_edge: true,
         enable_polarization: true,
         enable_antenna_patterns: true,
+        use_audio_library: false,
+        audio_library_fallback: true,
       });
       
       onClose();
@@ -524,6 +529,24 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                     </label>
                     <div className="form-text">
                       Realistic antenna gain patterns (omnidirectional, directional)
+                    </div>
+                  </div>
+
+                  {/* Audio Library */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="use_audio_library"
+                      checked={formData.use_audio_library}
+                      onChange={(e) => handleInputChange('use_audio_library', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="use_audio_library">
+                      <strong>Real Audio Library</strong>
+                    </label>
+                    <div className="form-text">
+                      Use real voice/music audio instead of synthetic formant tones
                     </div>
                   </div>
                 </div>

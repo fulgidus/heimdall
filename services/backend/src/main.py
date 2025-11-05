@@ -23,6 +23,7 @@ from .db import close_pool, init_pool
 from .models.health import HealthResponse
 from .routers.acquisition import router as acquisition_router
 from .routers.admin import router as admin_router
+from .routers.audio_library import router as audio_library_router
 from .routers.health import router as health_router
 from .routers.import_export import router as import_export_router
 from .routers.sessions import router as sessions_router
@@ -217,6 +218,7 @@ async def shutdown_event():
 # Include routers
 app.include_router(acquisition_router)
 app.include_router(admin_router)
+app.include_router(audio_library_router)
 app.include_router(health_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)

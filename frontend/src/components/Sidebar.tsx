@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Dashboard', path: '/dashboard', icon: '📊' },
   { name: 'Analytics', path: '/analytics', icon: '📈' },
   { name: 'Training', path: '/training', icon: '🧠' },
+  { name: 'Audio Library', path: '/audio-library', icon: '🎵' },
   { name: 'Settings', path: '/settings', icon: '⚙️' },
   { name: 'Profile', path: '/profile', icon: '👤' },
 ];

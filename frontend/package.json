@@ -40,6 +40,7 @@
         "chart.js": "^4.5.1",
         "classnames": "^2.5.1",
         "clsx": "^2.1.1",
+        "fft.js": "^4.0.4",
         "lucide-react": "^0.546.0",
         "mapbox-gl": "^3.16.0",
         "postcss": "^8.5.6",

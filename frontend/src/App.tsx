@@ -22,6 +22,7 @@ const SourcesManagement = lazy(() => import('./pages/SourcesManagement'));
 const ImportExport = lazy(() => import('./pages/ImportExport'));
 const Training = lazy(() => import('./pages/Training'));
 const TerrainManagement = lazy(() => import('./pages/TerrainManagement'));
+const AudioLibrary = lazy(() => import('./pages/AudioLibrary'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -179,6 +180,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <TerrainManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/audio-library"
+                element={
+                  <ProtectedRoute>
+                    <AudioLibrary />
                   </ProtectedRoute>
                 }
               />

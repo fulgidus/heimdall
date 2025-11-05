@@ -23,9 +23,50 @@ export const SyntheticTab: React.FC = () => {
     
     // Subscribe to real-time updates via WebSocket
     const unsubscribeJob = subscribe('training_job_update', (data: any) => {
-      console.log('[SyntheticTab] Received training job update:', data);
-      // Refresh generation jobs silently (without loading spinner)
-      fetchGenerationJobs(true);
+      console.log('[SyntheticTab] Received training_job_update:', data);
+      
+      // Event now includes complete job data from backend:
+      // { job_id, status, action, current_progress, total_progress, progress_percent, 
+      //   progress_message, job_name, job_type, dataset_id, created_at, result }
+      
+      if (data.job_id) {
+        // Update job directly in store using complete data from event
+        const jobUpdate: any = {
+          id: data.job_id,
+          name: data.job_name || 'Unnamed Job',
+          status: data.status,
+          job_type: data.job_type || 'synthetic_generation',
+          current: data.current_progress,
+          total: data.total_progress,
+          progress_percent: data.progress_percent,
+          progress_message: data.progress_message,
+          dataset_id: data.dataset_id,
+        };
+        
+        // For completed jobs, include result data
+        if (data.action === 'completed' && data.result) {
+          jobUpdate.result = data.result;
+        }
+        
+        console.log('[SyntheticTab] Updating job in store with complete data:', jobUpdate);
+        handleGenerationJobUpdate(jobUpdate);
+        
+        // For 'started' action, also refresh the full list after a short delay
+        // to ensure any additional jobs are loaded (in case of multiple concurrent jobs)
+        if (data.action === 'started') {
+          setTimeout(() => fetchGenerationJobs(true), 1000);
+        }
+        
+        // For 'completed' action, also refresh datasets to show the new dataset
+        if (data.action === 'completed') {
+          setTimeout(() => {
+            fetchGenerationJobs(true);
+            fetchDatasets(true);
+          }, 500);
+        }
+      } else {
+        console.warn('[SyntheticTab] Received training_job_update without job_id, ignoring');
+      }
     });
 
     const unsubscribeDataset = subscribe('dataset_update', (data: any) => {

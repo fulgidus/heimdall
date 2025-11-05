@@ -34,17 +34,20 @@ def get_db():
 
 class SampleResponse(BaseModel):
     """Individual synthetic sample response."""
-    id: int
+    id: Union[int, str]  # int for training samples, UUID string for IQ samples
     timestamp: datetime
     tx_lat: float
     tx_lon: float
     tx_power_dbm: float
     frequency_hz: float
-    receivers: dict  # JSON data
+    receivers: Union[dict, list]  # dict for feature_based, list for iq_raw
     gdop: float
     num_receivers: int
-    split: str
+    split: Optional[str] = None  # Only for feature_based datasets
     created_at: datetime
+    iq_available: bool = False  # Whether IQ data is available for this sample
+    iq_metadata: Optional[dict] = None  # IQ metadata (sample_rate, duration, etc.)
+    sample_idx: Optional[int] = None  # Sample index (for IQ data lookup)
 
     class Config:
         from_attributes = True
@@ -175,36 +178,101 @@ async def get_dataset_samples(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid dataset_id format")
     
-    # Build query
-    where_clause = "WHERE dataset_id = :dataset_id"
+    # First, determine the dataset type
+    dataset_query = text("""
+        SELECT dataset_type FROM heimdall.synthetic_datasets WHERE id = :dataset_id
+    """)
+    dataset_result = db.execute(dataset_query, {"dataset_id": str(dataset_uuid)}).fetchone()
+    
+    if not dataset_result:
+        raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
+    
+    dataset_type = dataset_result[0]
+    
+    # Build query based on dataset type
     params = {"dataset_id": str(dataset_uuid), "limit": limit, "offset": offset}
     
-    if split:
-        where_clause += " AND split = :split"
-        params["split"] = split
+    if dataset_type == "iq_raw":
+        # For IQ datasets, query synthetic_iq_samples table
+        where_clause = "WHERE dataset_id = :dataset_id"
+        
+        # Note: IQ datasets don't have split column, so we ignore that filter
+        if split:
+            raise HTTPException(
+                status_code=400, 
+                detail="Split filtering not supported for iq_raw datasets"
+            )
+        
+        # Count total
+        count_query = text(f"""
+            SELECT COUNT(*) as total
+            FROM heimdall.synthetic_iq_samples
+            {where_clause}
+        """)
+        
+        count_result = db.execute(count_query, params).fetchone()
+        total = count_result[0] if count_result else 0
+        
+        # Fetch IQ samples
+        samples_query = text(f"""
+            SELECT 
+                id::text as id, timestamp, tx_lat, tx_lon, tx_power_dbm, frequency_hz,
+                receivers_metadata as receivers, gdop, num_receivers, 
+                NULL as split, created_at,
+                iq_metadata, sample_idx,
+                TRUE as iq_available
+            FROM heimdall.synthetic_iq_samples
+            {where_clause}
+            ORDER BY sample_idx
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        rows = db.execute(samples_query, params).fetchall()
+        
+    else:  # feature_based dataset
+        # For feature-based datasets, query synthetic_training_samples table
+        where_clause = "WHERE dataset_id = :dataset_id"
+        
+        if split:
+            where_clause += " AND split = :split"
+            params["split"] = split
+        
+        # Count total
+        count_query = text(f"""
+            SELECT COUNT(*) as total
+            FROM heimdall.synthetic_training_samples
+            {where_clause}
+        """)
+        
+        count_result = db.execute(count_query, params).fetchone()
+        total = count_result[0] if count_result else 0
+        
+        # Fetch samples with IQ availability check
+        # Use ROW_NUMBER() to calculate sample index within dataset
+        samples_query = text(f"""
+            WITH numbered_samples AS (
+                SELECT 
+                    s.id, s.timestamp, s.tx_lat, s.tx_lon, s.tx_power_dbm, s.frequency_hz,
+                    s.receivers, s.gdop, s.num_receivers, s.split, s.created_at, s.dataset_id,
+                    ROW_NUMBER() OVER (PARTITION BY s.dataset_id ORDER BY s.timestamp, s.id) - 1 as sample_idx
+                FROM heimdall.synthetic_training_samples s
+                {where_clause}
+            )
+            SELECT 
+                ns.id, ns.timestamp, ns.tx_lat, ns.tx_lon, ns.tx_power_dbm, ns.frequency_hz,
+                ns.receivers, ns.gdop, ns.num_receivers, ns.split, ns.created_at,
+                iq.iq_metadata, ns.sample_idx,
+                CASE WHEN iq.id IS NOT NULL THEN TRUE ELSE FALSE END as iq_available
+            FROM numbered_samples ns
+            LEFT JOIN heimdall.synthetic_iq_samples iq ON iq.dataset_id = ns.dataset_id 
+                AND iq.sample_idx = ns.sample_idx
+            ORDER BY ns.timestamp, ns.id
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        rows = db.execute(samples_query, params).fetchall()
     
-    # Count total
-    count_query = text(f"""
-        SELECT COUNT(*) as total
-        FROM heimdall.synthetic_training_samples
-        {where_clause}
-    """)
-    
-    count_result = db.execute(count_query, params).fetchone()
-    total = count_result[0] if count_result else 0
-    
-    # Fetch samples
-    samples_query = text(f"""
-        SELECT id, timestamp, tx_lat, tx_lon, tx_power_dbm, frequency_hz,
-               receivers, gdop, num_receivers, split, created_at
-        FROM heimdall.synthetic_training_samples
-        {where_clause}
-        ORDER BY id
-        LIMIT :limit OFFSET :offset
-    """)
-    
-    rows = db.execute(samples_query, params).fetchall()
-    
+    # Parse results (same for both dataset types)
     samples = []
     for row in rows:
         samples.append(SampleResponse(
@@ -218,7 +286,10 @@ async def get_dataset_samples(
             gdop=row[7],
             num_receivers=row[8],
             split=row[9],
-            created_at=row[10]
+            created_at=row[10],
+            iq_metadata=row[11],
+            sample_idx=row[12],
+            iq_available=row[13]
         ))
     
     return SamplesListResponse(
@@ -271,6 +342,8 @@ class GenerateDatasetRequest(BaseModel):
     enable_knife_edge: bool = True  # Terrain diffraction effects
     enable_polarization: bool = True  # Polarization mismatch loss
     enable_antenna_patterns: bool = True  # Realistic antenna radiation patterns
+    use_audio_library: bool = False  # Use real audio from library instead of formant synthesis
+    audio_library_fallback: bool = True  # Fallback to formant synthesis if audio library fails
 
 
 class GenerateDatasetResponse(BaseModel):
@@ -645,6 +718,148 @@ async def rename_dataset(
 
 
 
+@router.get("/datasets/{dataset_id}/samples/{sample_idx}/iq/{rx_id}")
+async def get_sample_iq_data(
+    dataset_id: str,
+    sample_idx: int,
+    rx_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get IQ data for a specific receiver in a sample.
+    
+    Args:
+        dataset_id: UUID of the dataset
+        sample_idx: Sample index within dataset
+        rx_id: Receiver ID (e.g., 'rx_0', 'rx_1')
+        db: Database session
+    
+    Returns:
+        IQ data as base64-encoded complex64 array + metadata
+    """
+    import base64
+    import io
+    import sys
+    import os
+    import structlog
+    import numpy as np
+    
+    logger = structlog.get_logger(__name__)
+    
+    try:
+        # Validate UUID
+        dataset_uuid = uuid.UUID(dataset_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid dataset_id format")
+    
+    try:
+        # Import MinIOClient from backend service
+        sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+        from storage.minio_client import MinIOClient
+        from config import settings as backend_settings
+        
+        # Query IQ sample metadata
+        query = text("""
+            SELECT iq_storage_paths, iq_metadata, receivers_metadata, 
+                   tx_lat, tx_lon, tx_power_dbm, frequency_hz
+            FROM heimdall.synthetic_iq_samples
+            WHERE dataset_id = :dataset_id AND sample_idx = :sample_idx
+        """)
+        
+        result = db.execute(query, {
+            "dataset_id": str(dataset_uuid),
+            "sample_idx": sample_idx
+        }).fetchone()
+        
+        if not result:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Sample {sample_idx} not found in dataset {dataset_id}"
+            )
+        
+        iq_storage_paths, iq_metadata, receivers_metadata, tx_lat, tx_lon, tx_power_dbm, frequency_hz = result
+        
+        # Check if rx_id exists in storage paths
+        if rx_id not in iq_storage_paths:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Receiver {rx_id} not found in sample {sample_idx}"
+            )
+        
+        # Get MinIO path for this receiver
+        minio_path = iq_storage_paths[rx_id]
+        
+        # Initialize MinIO client (using synthetic-iq bucket)
+        minio_client = MinIOClient(
+            endpoint_url=backend_settings.minio_url,
+            access_key=backend_settings.minio_access_key,
+            secret_key=backend_settings.minio_secret_key,
+            bucket_name="heimdall-synthetic-iq"
+        )
+        
+        # Download IQ data from MinIO
+        iq_bytes = minio_client.download_iq_data(s3_path=minio_path)
+        
+        # Load numpy array from bytes
+        buffer = io.BytesIO(iq_bytes)
+        iq_array = np.load(buffer)
+        
+        # Convert complex64 to separate real/imag arrays for JSON transport
+        # Base64 encode the raw bytes (more efficient than JSON array)
+        iq_real = iq_array.real.astype(np.float32)
+        iq_imag = iq_array.imag.astype(np.float32)
+        
+        # Encode as base64
+        real_b64 = base64.b64encode(iq_real.tobytes()).decode('utf-8')
+        imag_b64 = base64.b64encode(iq_imag.tobytes()).decode('utf-8')
+        
+        # Find receiver metadata
+        rx_metadata = None
+        for rx in receivers_metadata:
+            if rx.get('rx_id') == rx_id:
+                rx_metadata = rx
+                break
+        
+        logger.info(
+            "iq_data_fetched",
+            dataset_id=dataset_id,
+            sample_idx=sample_idx,
+            rx_id=rx_id,
+            samples_count=len(iq_array),
+            size_kb=len(iq_bytes) / 1024
+        )
+        
+        return {
+            "dataset_id": dataset_id,
+            "sample_idx": sample_idx,
+            "rx_id": rx_id,
+            "iq_data": {
+                "real_b64": real_b64,
+                "imag_b64": imag_b64,
+                "length": len(iq_array),
+                "dtype": "complex64"
+            },
+            "iq_metadata": iq_metadata,
+            "rx_metadata": rx_metadata,
+            "tx_metadata": {
+                "lat": tx_lat,
+                "lon": tx_lon,
+                "power_dbm": tx_power_dbm,
+                "frequency_hz": frequency_hz
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("iq_data_fetch_failed", 
+                    dataset_id=dataset_id, 
+                    sample_idx=sample_idx, 
+                    rx_id=rx_id, 
+                    error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch IQ data: {str(e)}")
+
+
 @router.post("/generate", response_model=GenerateDatasetResponse)
 async def generate_dataset(
     request: GenerateDatasetRequest,
@@ -734,7 +949,9 @@ async def generate_dataset(
         "enable_sporadic_e": request.enable_sporadic_e,
         "enable_knife_edge": request.enable_knife_edge,
         "enable_polarization": request.enable_polarization,
-        "enable_antenna_patterns": request.enable_antenna_patterns
+        "enable_antenna_patterns": request.enable_antenna_patterns,
+        "use_audio_library": request.use_audio_library,
+        "audio_library_fallback": request.audio_library_fallback
     }
     
     # Add antenna distributions if provided

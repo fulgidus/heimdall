@@ -174,9 +174,25 @@ class RFFeatureExtractor:
         The pool is created once and reused across all batch operations
         to avoid the overhead of creating/destroying processes.
         
+        IMPORTANT: In Celery worker context (daemon process), multiprocessing.Pool
+        cannot be created. We detect this and return None to use single-threaded fallback.
+        
         Returns:
-            multiprocessing.Pool instance
+            multiprocessing.Pool instance or None if in Celery context
         """
+        # Check if we're running inside a Celery worker (daemon process)
+        # Daemon processes cannot spawn child processes
+        import sys
+        if 'celery' in sys.modules:
+            try:
+                from celery import current_task
+                if current_task and current_task.request.id:
+                    logger.warning("Running in Celery worker context - CPU multiprocessing disabled (daemon restriction)")
+                    logger.warning("Using single-threaded CPU fallback for feature extraction")
+                    return None
+            except (ImportError, AttributeError):
+                pass  # Not in Celery context, proceed normally
+        
         if self._cpu_pool is None:
             num_workers = cpu_count()
             logger.info(f"Creating CPU multiprocessing pool with {num_workers} workers")
@@ -573,6 +589,19 @@ class RFFeatureExtractor:
         t_total = time.perf_counter() - t_start
         logger.info(f"Feature aggregation: {(t_agg_end - t_agg_start)*1000:.1f}ms, Total: {t_total*1000:.1f}ms")
         
+        # Final GPU memory cleanup after batch completion
+        if self.use_gpu:
+            try:
+                import cupy as cp
+                mempool = cp.get_default_memory_pool()
+                pinned_mempool = cp.get_default_pinned_memory_pool()
+                used_before = mempool.used_bytes()
+                mempool.free_all_blocks()
+                pinned_mempool.free_all_blocks()
+                logger.debug(f"GPU memory freed after batch: {used_before / 1e9:.2f}GB released")
+            except Exception as e:
+                logger.warning(f"GPU memory cleanup failed: {e}")
+        
         return aggregated_list
     
     def _extract_features_chunk_batch_gpu(
@@ -688,10 +717,27 @@ class RFFeatureExtractor:
             logger.debug(f"CPU parallel processing: {len(chunk_iq_list)} samples using REUSED pool with {num_workers} workers")
             features_list = pool.map(_extract_features_worker, chunk_iq_list)
         else:
-            # Create temporary pool (SLOW - for backward compatibility only)
-            logger.info(f"CPU parallel processing: {len(chunk_iq_list)} samples using NEW pool with {num_workers} workers (not optimal)")
-            with Pool(processes=num_workers, initializer=_init_worker, initargs=(self.sample_rate_hz,)) as temp_pool:
-                features_list = temp_pool.map(_extract_features_worker, chunk_iq_list)
+            # Check if we can create a pool (not in Celery daemon context)
+            import sys
+            in_celery = False
+            try:
+                if 'celery' in sys.modules:
+                    from celery import current_task
+                    if current_task and current_task.request.id:
+                        in_celery = True
+            except (ImportError, AttributeError):
+                pass
+            
+            if in_celery:
+                # Single-threaded fallback for Celery worker (daemon restriction)
+                logger.warning(f"CPU single-threaded processing: {len(chunk_iq_list)} samples (Celery daemon restriction)")
+                _init_worker(self.sample_rate_hz)  # Initialize in main thread
+                features_list = [_extract_features_worker(iq) for iq in chunk_iq_list]
+            else:
+                # Create temporary pool (SLOW - for backward compatibility only)
+                logger.info(f"CPU parallel processing: {len(chunk_iq_list)} samples using NEW pool with {num_workers} workers (not optimal)")
+                with Pool(processes=num_workers, initializer=_init_worker, initargs=(self.sample_rate_hz,)) as temp_pool:
+                    features_list = temp_pool.map(_extract_features_worker, chunk_iq_list)
         
         t_end = time.perf_counter()
         logger.debug(f"CPU parallel extraction: {(t_end - t_start)*1000:.1f}ms for {len(chunk_iq_list)} samples")

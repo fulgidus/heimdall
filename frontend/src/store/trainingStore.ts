@@ -18,6 +18,7 @@ import type {
     SyntheticSamplesResponse,
     SyntheticGenerationJob,
     ExpandDatasetRequest,
+    IQDataResponse,
 } from '../pages/Training/types';
 
 interface TrainingStore {
@@ -58,6 +59,7 @@ interface TrainingStore {
     deleteDataset: (datasetId: string) => Promise<void>;
     updateDatasetName: (datasetId: string, newName: string) => Promise<void>;
     fetchDatasetSamples: (datasetId: string, limit?: number) => Promise<SyntheticSamplesResponse>;
+    fetchSampleIQData: (datasetId: string, sampleIdx: number, rxId: string) => Promise<IQDataResponse>;
     expandDataset: (request: ExpandDatasetRequest) => Promise<string>;
 
     // Actions - Synthetic Generation Jobs
@@ -601,7 +603,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     fetchDatasetSamples: async (datasetId: string, limit: number = 10) => {
         set({ error: null });
         try {
-            const response = await api.get(`/v1/training/jobs/synthetic/datasets/${datasetId}/samples`, {
+            const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}/samples`, {
                 params: { limit },
             });
             return response.data;
@@ -613,11 +615,53 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
         }
     },
 
+    // Fetch IQ data for a specific sample and receiver
+    fetchSampleIQData: async (datasetId: string, sampleIdx: number, rxId: string) => {
+        set({ error: null });
+        try {
+            const response = await api.get<IQDataResponse>(
+                `/v1/jobs/synthetic/datasets/${datasetId}/samples/${sampleIdx}/iq/${rxId}`
+            );
+            
+            // Decode base64 to Float32Array for convenience
+            const iqData = response.data.iq_data;
+            
+            // Helper function to decode base64 to Float32Array
+            const base64ToFloat32Array = (base64: string): Float32Array => {
+                // Decode base64 to binary string
+                const binaryString = atob(base64);
+                // Create Uint8Array from binary string
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                // Create Float32Array from Uint8Array buffer
+                return new Float32Array(bytes.buffer);
+            };
+            
+            const decodedData = {
+                ...response.data,
+                iq_data: {
+                    ...iqData,
+                    i_samples: base64ToFloat32Array(iqData.real_b64),
+                    q_samples: base64ToFloat32Array(iqData.imag_b64),
+                },
+            };
+
+            return decodedData;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch IQ data';
+            set({ error: errorMessage });
+            console.error('IQ data fetch error:', error);
+            throw error;
+        }
+    },
+
     // Update dataset name
     updateDatasetName: async (datasetId: string, newName: string) => {
         set({ error: null });
         try {
-            await api.patch(`/v1/training/synthetic/datasets/${datasetId}`, null, {
+            await api.patch(`/v1/jobs/synthetic/datasets/${datasetId}`, null, {
                 params: { dataset_name: newName },
             })
             // Update dataset in local state

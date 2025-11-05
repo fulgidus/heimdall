@@ -259,12 +259,9 @@ const WebSDRModal: React.FC<WebSDRModalProps> = ({ show, onHide, onSave, websdr,
       if (formData.altitude_asl) {
         payload.altitude_asl = parseInt(formData.altitude_asl);
       }
-      if (formData.frequency_min_hz) {
-        payload.frequency_min_hz = parseInt(formData.frequency_min_hz);
-      }
-      if (formData.frequency_max_hz) {
-        payload.frequency_max_hz = parseInt(formData.frequency_max_hz);
-      }
+      // Note: frequency_min_hz and frequency_max_hz are NOT sent to the backend
+      // They are read-only fields auto-populated from the WebSDR's status.json
+      // The backend's WebSDRCreateRequest model does not accept these fields
 
       await onSave(payload);
       onHide();

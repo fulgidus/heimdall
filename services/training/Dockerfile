@@ -38,6 +38,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     postgresql-client \
     curl \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symlinks for python

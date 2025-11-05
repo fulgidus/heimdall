@@ -261,6 +261,10 @@ def _generate_single_sample_no_features(args):
         # Respect user's explicit choice
         use_gpu = bool(use_gpu_config)
     
+    # Get audio library configuration from config
+    use_audio_library = config.get('use_audio_library', False)
+    audio_library_fallback = config.get('audio_library_fallback', True)
+    
     # Check if we need to recreate the IQ generator (device changed)
     needs_new_generator = (
         not hasattr(_thread_local, 'iq_generator') or
@@ -272,9 +276,11 @@ def _generate_single_sample_no_features(args):
             sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
-            use_gpu=use_gpu
+            use_gpu=use_gpu,
+            use_audio_library=use_audio_library,
+            audio_library_fallback=audio_library_fallback
         )
-        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu})")
+        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu}, audio_library={use_audio_library})")
     
     if not hasattr(_thread_local, 'propagation'):
         _thread_local.propagation = RFPropagationModel()
@@ -577,6 +583,10 @@ def _generate_single_sample(args):
         # Respect user's explicit choice
         use_gpu = bool(use_gpu_config)
     
+    # Get audio library configuration from config
+    use_audio_library = config.get('use_audio_library', False)
+    audio_library_fallback = config.get('audio_library_fallback', True)
+    
     # Check if we need to recreate generators (device changed)
     needs_new_generator = (
         not hasattr(_thread_local, 'iq_generator') or
@@ -592,9 +602,11 @@ def _generate_single_sample(args):
             sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
-            use_gpu=use_gpu
+            use_gpu=use_gpu,
+            use_audio_library=use_audio_library,
+            audio_library_fallback=audio_library_fallback
         )
-        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu})")
+        logger.info(f"Thread {threading.current_thread().name}: Initialized IQ generator (GPU={use_gpu}, audio_library={use_audio_library})")
     
     if needs_new_extractor:
         # Create feature extractor with GPU acceleration (reusable)
@@ -1640,18 +1652,64 @@ async def generate_synthetic_data_with_iq(
         success_rate = valid_samples_collected / total_attempted * 100 if total_attempted > 0 else 0
         logger.info(f"Batch {batch_number} complete: {valid_in_batch} valid samples | Total: {valid_samples_collected}/{target_valid_samples} valid ({total_attempted} attempted, {success_rate:.1f}% success rate)")
         
-        # Save batch to database
+        # Save batch to database based on dataset_type
         if batch_results:
             try:
-                await save_features_to_db(dataset_id, batch_results, conn)
-                logger.info(f"Saved batch to database ({valid_samples_collected} total saved)")
+                if dataset_type == 'feature_based':
+                    # For feature_based: save extracted features to measurement_features
+                    await save_features_to_db(dataset_id, batch_results, conn)
+                    logger.info(f"Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
+                
+                elif dataset_type == 'iq_raw':
+                    # For iq_raw: save IQ data to MinIO and metadata to synthetic_iq_samples
+                    # Get IQ samples for this batch (matching sample_idx)
+                    batch_sample_indices = [s['sample_idx'] for s in batch_results]
+                    batch_iq_samples = {idx: iq_samples_to_save[idx] for idx in batch_sample_indices if idx in iq_samples_to_save}
+                    
+                    if batch_iq_samples:
+                        # Save IQ samples to MinIO
+                        storage_paths = await save_iq_to_minio(dataset_id, batch_iq_samples)
+                        logger.info(f"Saved {len(batch_iq_samples)} IQ samples to MinIO")
+                        
+                        # Save metadata to synthetic_iq_samples table
+                        samples_with_iq = [s for s in batch_results if s['sample_idx'] in storage_paths]
+                        await save_iq_metadata_to_db(dataset_id, samples_with_iq, storage_paths, conn)
+                        logger.info(f"Saved {len(samples_with_iq)} IQ metadata to database ({valid_samples_collected} total)")
+                    else:
+                        logger.warning(f"No IQ samples found for batch {batch_number} (indices: {batch_sample_indices})")
                 
                 # OPTION A: Update num_samples after each batch (incremental checkpoint)
                 # This ensures partial progress is preserved even if job is killed
                 actual_count = await update_dataset_sample_count(dataset_id, conn)
-                logger.info(f"Dataset sample count updated: {actual_count} samples")
+                logger.info(f"Dataset sample count updated: {actual_count} samples (type: {dataset_type})")
+                
+                # Commit batch changes immediately (incremental checkpoint)
+                await conn.commit()
+                logger.info(f"Batch {batch_number} committed ({actual_count} samples persisted)")
+                
+                # Publish dataset update event via RabbitMQ for real-time WebSocket updates
+                try:
+                    import sys
+                    sys.path.insert(0, '/app/backend/src')
+                    from events.publisher import get_event_publisher
+                    
+                    event_publisher = get_event_publisher()
+                    event_publisher.publish_dataset_updated(
+                        dataset_id=str(dataset_id),
+                        num_samples=actual_count,
+                        dataset_type=dataset_type
+                    )
+                    logger.info(f"Published dataset update event: {dataset_id} with {actual_count} samples")
+                except Exception as pub_error:
+                    logger.warning(f"Failed to publish dataset update event: {pub_error}")
+                
+                # Start new transaction for next batch
+                await conn.begin()
             except Exception as e:
-                logger.error(f"Failed to save batch: {e}")
+                logger.error(f"Failed to save batch: {e}", exc_info=True)
+                # Rollback failed batch and start new transaction
+                await conn.rollback()
+                await conn.begin()
         
         # Progress update after each batch
         if progress_callback:
@@ -1676,17 +1734,11 @@ async def generate_synthetic_data_with_iq(
     else:
         logger.warning(f"✗ Generation stopped early: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted)")
 
-    # Save IQ samples to MinIO and database
-    # For feature_based: save first 100 only
-    # For iq_raw: save ALL samples
-    if iq_samples_to_save:
+    # For feature_based datasets: save first 100 IQ samples to MinIO as reference
+    # (iq_raw datasets already saved IQ samples during batch processing)
+    if dataset_type == 'feature_based' and iq_samples_to_save:
         storage_paths = await save_iq_to_minio(dataset_id, iq_samples_to_save)
-        
-        # For iq_raw datasets, also save metadata to synthetic_iq_samples table
-        if dataset_type == 'iq_raw':
-            # Filter generated_samples to only include those with IQ storage paths
-            samples_with_iq = [s for s in generated_samples if s['sample_idx'] in storage_paths]
-            await save_iq_metadata_to_db(dataset_id, samples_with_iq, storage_paths, conn)
+        logger.info(f"Saved {len(iq_samples_to_save)} reference IQ samples to MinIO for feature_based dataset")
 
     return {
         'total_generated': valid_samples_collected,
@@ -1705,36 +1757,61 @@ async def update_dataset_sample_count(
     conn
 ) -> int:
     """
-    Update synthetic_datasets.num_samples to reflect actual count in measurement_features.
+    Update synthetic_datasets.num_samples to reflect actual count in the correct storage table.
     This ensures partial progress is preserved even if job fails or is killed.
+    
+    NOTE: With manual transaction control (.connect() + .commit()), this update
+    will be committed immediately after each batch.
     
     Args:
         dataset_id: Dataset UUID
-        conn: Database connection (async)
+        conn: Database connection (async SQLAlchemy)
     
     Returns:
         Updated sample count
     """
+    from sqlalchemy import text
     try:
-        raw_conn = await conn.get_raw_connection()
-        asyncpg_conn = raw_conn.driver_connection
+        # Get dataset_type
+        type_query = text("""
+            SELECT dataset_type FROM heimdall.synthetic_datasets
+            WHERE id = :dataset_id
+        """)
+        result = await conn.execute(type_query, {"dataset_id": str(dataset_id)})
+        row = result.fetchone()
+        if not row:
+            logger.error(f"Dataset {dataset_id} not found")
+            return 0
         
-        # Count actual samples
-        count_query = """
-            SELECT COUNT(*) FROM heimdall.measurement_features
-            WHERE dataset_id = $1
-        """
-        actual_count = await asyncpg_conn.fetchval(count_query, dataset_id)
+        dataset_type = row[0]
+        
+        # Count actual samples from the correct table
+        if dataset_type == 'iq_raw':
+            count_query = text("""
+                SELECT COUNT(*) FROM heimdall.synthetic_iq_samples
+                WHERE dataset_id = :dataset_id
+            """)
+        else:  # 'feature_based'
+            count_query = text("""
+                SELECT COUNT(*) FROM heimdall.measurement_features
+                WHERE dataset_id = :dataset_id
+            """)
+        
+        count_result = await conn.execute(count_query, {"dataset_id": str(dataset_id)})
+        actual_count = count_result.scalar()
         
         # Update dataset record
-        update_query = """
+        update_query = text("""
             UPDATE heimdall.synthetic_datasets
-            SET num_samples = $1
-            WHERE id = $2
-        """
-        await asyncpg_conn.execute(update_query, actual_count, dataset_id)
+            SET num_samples = :count
+            WHERE id = :dataset_id
+        """)
+        await conn.execute(update_query, {"count": actual_count, "dataset_id": str(dataset_id)})
         
-        logger.debug(f"Updated dataset {dataset_id} sample count to {actual_count}")
+        # DO NOT commit here - caller will commit after this function returns
+        # (Committing here would commit the outer transaction prematurely)
+        
+        logger.info(f"Updated dataset {dataset_id} sample count to {actual_count} (type: {dataset_type})")
         return actual_count
     except Exception as e:
         logger.error(f"Failed to update dataset sample count: {e}", exc_info=True)

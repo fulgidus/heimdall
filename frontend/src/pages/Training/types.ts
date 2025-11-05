@@ -198,20 +198,82 @@ export interface SyntheticDataRequest {
   enable_knife_edge?: boolean;      // Knife-edge diffraction over obstacles
   enable_polarization?: boolean;    // Polarization mismatch loss
   enable_antenna_patterns?: boolean; // Realistic antenna radiation patterns
+  // Audio library flags
+  use_audio_library?: boolean;      // Use real audio from library instead of formant synthesis
+  audio_library_fallback?: boolean; // Fallback to formant synthesis if audio library fails
 }
 
 export interface SyntheticSample {
-  id: string;
+  id: string | number;  // UUID string for IQ samples, int for feature samples
   timestamp: string;
   tx_lat: number;
   tx_lon: number;
   tx_power_dbm: number;
   frequency_hz: number;
-  receivers: any[];
+  receivers: any[];  // Array for iq_raw, object for feature_based
   gdop: number;
   num_receivers: number;
-  split: 'train' | 'val' | 'test';
+  split?: 'train' | 'val' | 'test' | null;  // Only for feature_based datasets
   created_at: string;
+  iq_available?: boolean;  // Whether IQ data is available for this sample
+  iq_metadata?: IQMetadata;  // IQ metadata (sample_rate, duration, etc.)
+  sample_idx?: number;  // Sample index (for IQ data lookup)
+}
+
+export interface IQMetadata {
+  sample_rate_hz: number;
+  duration_ms: number;
+  center_frequency_hz: number;
+}
+
+export interface IQData {
+  real_b64: string;  // Base64-encoded float32 array
+  imag_b64: string;  // Base64-encoded float32 array
+  length: number;
+  dtype: string;
+  // Decoded arrays (added by trainingStore after base64 decoding)
+  i_samples?: Float32Array;
+  q_samples?: Float32Array;
+}
+
+export interface ReceiverMetadata {
+  rx_id: string;
+  lat: number;
+  lon: number;
+  alt: number;
+  distance_km: number;
+  snr_db: number;
+  rx_power_dbm: number;
+  // Propagation details
+  fspl_db?: number;
+  terrain_loss_db?: number;
+  knife_edge_loss_db?: number;
+  atmospheric_absorption_db?: number;
+  tropospheric_effect_db?: number;
+  sporadic_e_enhancement_db?: number;
+  polarization_loss_db?: number;
+  // Antenna info
+  tx_antenna_gain_db?: number;
+  rx_antenna_gain_db?: number;
+  tx_polarization?: string;
+  rx_polarization?: string;
+  tx_antenna_type?: string;
+  rx_antenna_type?: string;
+}
+
+export interface IQDataResponse {
+  dataset_id: string;
+  sample_idx: number;
+  rx_id: string;
+  iq_data: IQData;
+  iq_metadata: IQMetadata;
+  rx_metadata: ReceiverMetadata;
+  tx_metadata: {
+    lat: number;
+    lon: number;
+    power_dbm: number;
+    frequency_hz: number;
+  };
 }
 
 export interface ModelArchitecture {

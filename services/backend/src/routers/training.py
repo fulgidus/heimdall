@@ -1358,7 +1358,8 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
         Job ID and status URL
     """
     # Convert to dict for storage (mode='json' converts UUID to string)
-    request_dict = request.model_dump(mode='json')
+    # exclude_none=False to ensure all fields are included (even False values)
+    request_dict = request.model_dump(mode='json', exclude_none=False)
     
     db_manager = get_db_manager()
     

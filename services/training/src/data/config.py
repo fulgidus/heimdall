@@ -419,6 +419,13 @@ class SyntheticGenerationConfig:
     validate_tiles_before_generation: bool = True
     fallback_to_simplified_terrain: bool = True
     
+    # Audio library settings (realistic voice/music samples)
+    use_audio_library: bool = True  # Enable/disable audio library feature
+    audio_library_fallback_to_formant: bool = True  # Fallback to formant synthesis if library empty
+    audio_library_categories: List[str] = field(default_factory=lambda: [
+        "voice", "music", "documentary", "conference", "custom"
+    ])
+    
     # Antenna pattern distributions (must sum to 1.0 each)
     tx_antenna_dist: TxAntennaDistribution = field(default_factory=TxAntennaDistribution)
     rx_antenna_dist: RxAntennaDistribution = field(default_factory=RxAntennaDistribution)
@@ -439,8 +446,8 @@ class SyntheticGenerationConfig:
     tropospheric_ducting_probability: float = 0.05  # 5% chance of ducting
     
     # Signal quality
-    min_snr_db: float = 5.0  # Minimum SNR for signal detection
-    noise_floor_dbm: float = -120.0
+    min_snr_db: float = 0.0  # Minimum SNR for signal detection (realistic weak signals)
+    noise_floor_dbm: float = -115.0  # Visible noise floor for waterfall
     
     # Geometry constraints
     min_receivers_with_signal: int = 3  # Minimum for localization
@@ -472,6 +479,8 @@ class SyntheticGenerationConfig:
         logger.info(
             "SyntheticGenerationConfig initialized",
             use_srtm_terrain=self.use_srtm_terrain,
+            use_audio_library=self.use_audio_library,
+            audio_library_fallback=self.audio_library_fallback_to_formant,
             tx_antenna_dist=self.tx_antenna_dist.to_arrays(),
             rx_antenna_dist=self.rx_antenna_dist.to_arrays(),
             frequency_drift_ratio=self.frequency_drift_ratio,

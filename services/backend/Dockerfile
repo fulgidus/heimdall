@@ -22,7 +22,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y postgresql-client curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y postgresql-client curl ffmpeg && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser

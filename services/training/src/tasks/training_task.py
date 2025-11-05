@@ -14,6 +14,7 @@ import sys
 import os
 import math
 import multiprocessing
+import datetime
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -1255,7 +1256,7 @@ def generate_synthetic_data_task(self, job_id: str):
             })
             session.commit()
 
-        # Publish job status update event
+        # Publish job status update event with complete job data
         from backend.src.events.publisher import get_event_publisher
         publisher = get_event_publisher()
         publisher.publish_training_job_update(
@@ -1263,7 +1264,14 @@ def generate_synthetic_data_task(self, job_id: str):
             status='running',
             action='started',
             current_progress=samples_offset,
-            total_progress=total_progress_value
+            total_progress=total_progress_value,
+            # Include complete job data for frontend to update directly
+            job_name=config.get('job_name', 'Unnamed Job'),
+            job_type='synthetic_generation',
+            progress_percent=0.0,
+            progress_message=f'Continuing from {samples_offset} samples...' if samples_offset > 0 else 'Starting synthetic data generation...',
+            dataset_id=expand_dataset_id,  # For expansion jobs, otherwise None
+            created_at=datetime.datetime.now(datetime.timezone.utc).isoformat()
         )
         logger.info(f"Published job start event for {job_id}")
 
@@ -1474,20 +1482,31 @@ def generate_synthetic_data_task(self, job_id: str):
             logger.info(f"Generating {config['num_samples']} synthetic samples with IQ generation")
 
         async def run_generation():
-            async with async_engine.begin() as conn:
-                stats = await generate_synthetic_data_with_iq(
-                    dataset_id=dataset_id,
-                    num_samples=config['num_samples'],
-                    receivers_config=receivers,
-                    training_config=training_config,
-                    config=config,
-                    conn=conn,
-                    progress_callback=progress_callback,
-                    seed=config.get('seed'),
-                    job_id=job_id,  # Pass job_id for cancellation detection
-                    dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
-                    use_gpu=config.get('use_gpu')  # Pass GPU selection (None=auto, True=GPU, False=CPU)
-                )
+            # Use .connect() instead of .begin() to allow manual transaction control
+            # This enables incremental commits after each batch for partial progress preservation
+            async with async_engine.connect() as conn:
+                # Start transaction manually
+                await conn.begin()
+                try:
+                    stats = await generate_synthetic_data_with_iq(
+                        dataset_id=dataset_id,
+                        num_samples=config['num_samples'],
+                        receivers_config=receivers,
+                        training_config=training_config,
+                        config=config,
+                        conn=conn,
+                        progress_callback=progress_callback,
+                        seed=config.get('seed'),
+                        job_id=job_id,  # Pass job_id for cancellation detection
+                        dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
+                        use_gpu=config.get('use_gpu')  # Pass GPU selection (None=auto, True=GPU, False=CPU)
+                    )
+                    # Final commit after all batches
+                    await conn.commit()
+                except Exception as e:
+                    # Rollback on error (though partial commits already happened)
+                    await conn.rollback()
+                    raise
             return stats
 
         # Run async generation
@@ -1497,13 +1516,23 @@ def generate_synthetic_data_task(self, job_id: str):
                     f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
 
         # Update dataset record with final counts
-        # Count actual samples saved to measurement_features table using dataset_id
+        # Count actual samples from the correct table based on dataset_type
         with db_manager.get_session() as session:
-            # Count actual samples in measurement_features
-            count_query = text("""
-                SELECT COUNT(*) FROM heimdall.measurement_features
-                WHERE dataset_id = :dataset_id
-            """)
+            # Get dataset_type to determine which table to query
+            dataset_type = config.get('dataset_type', 'feature_based')
+            
+            # Count actual samples from the correct table
+            if dataset_type == 'iq_raw':
+                count_query = text("""
+                    SELECT COUNT(*) FROM heimdall.synthetic_iq_samples
+                    WHERE dataset_id = :dataset_id
+                """)
+            else:  # 'feature_based'
+                count_query = text("""
+                    SELECT COUNT(*) FROM heimdall.measurement_features
+                    WHERE dataset_id = :dataset_id
+                """)
+            
             actual_count = session.execute(count_query, {"dataset_id": str(dataset_id)}).scalar() or 0
 
             # Update dataset metadata
@@ -1520,7 +1549,7 @@ def generate_synthetic_data_task(self, job_id: str):
                 }
             )
             session.commit()
-            logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']})")
+            logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']}, type: {dataset_type})")
 
         # Calculate and update storage size (PostgreSQL + MinIO)
         try:
@@ -1613,11 +1642,18 @@ def generate_synthetic_data_task(self, job_id: str):
             session.execute(complete_query, {"job_id": job_id})
             session.commit()
 
-        # Publish job completion event
+        # Publish job completion event with complete data
         event_publisher.publish_training_job_update(
             job_id=job_id,
             status='completed',
             action='completed',
+            current_progress=stats['total_generated'],
+            total_progress=config.get('num_samples', stats['total_generated']),
+            progress_percent=100.0,
+            progress_message=f"Completed: {stats['total_generated']} samples generated",
+            job_name=config.get('job_name', 'Unnamed Job'),
+            job_type='synthetic_generation',
+            dataset_id=str(dataset_id),
             result={
                 "dataset_id": str(dataset_id),
                 "num_samples": stats['total_generated'],

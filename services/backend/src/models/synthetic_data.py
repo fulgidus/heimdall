@@ -89,6 +89,16 @@ class SyntheticDataGenerationRequest(BaseModel):
         default=None,
         description="Processing unit: None=auto-detect, True=force GPU (CuPy), False=force CPU (NumPy)"
     )
+    
+    # Audio library configuration
+    use_audio_library: bool = Field(
+        default=False,
+        description="Use real audio from library instead of synthetic formant tones"
+    )
+    audio_library_fallback: bool = Field(
+        default=True,
+        description="Fallback to formant synthesis if audio library fails or is empty"
+    )
 
 
 class SyntheticDatasetResponse(BaseModel):
