@@ -28,6 +28,7 @@ export interface TrainingJob {
   id: string;
   job_name: string;
   name?: string; // Deprecated - use job_name
+  job_type?: 'training' | 'synthetic_generation'; // Job type discriminator
   status: TrainingJobStatus;
   created_at: string;
   started_at?: string;
@@ -191,6 +192,12 @@ export interface SyntheticDataRequest {
     yagi: number;
     collinear: number;
   };
+  // Simulation enhancement flags
+  enable_meteorological?: boolean;  // Meteorological effects (tropospheric refraction/ducting)
+  enable_sporadic_e?: boolean;      // Sporadic-E ionospheric propagation
+  enable_knife_edge?: boolean;      // Knife-edge diffraction over obstacles
+  enable_polarization?: boolean;    // Polarization mismatch loss
+  enable_antenna_patterns?: boolean; // Realistic antenna radiation patterns
 }
 
 export interface SyntheticSample {

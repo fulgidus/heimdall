@@ -593,6 +593,16 @@ class RFFeatureExtractor:
         import time
         t_start = time.perf_counter()
         
+        # Handle empty input gracefully
+        if not chunk_data_list:
+            logger.warning("_extract_features_chunk_batch_gpu called with empty chunk_data_list")
+            return []
+        
+        # Handle empty input gracefully
+        if not chunk_data_list:
+            logger.warning("_extract_features_chunk_batch_gpu called with empty chunk_data_list")
+            return []
+        
         # Stack all chunks into batch [num_receivers, chunk_samples]
         batch = np.stack(chunk_data_list, axis=0)
         t_stack = time.perf_counter()

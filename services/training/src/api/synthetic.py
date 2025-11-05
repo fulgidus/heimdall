@@ -2,11 +2,11 @@
 API endpoints for synthetic data management.
 """
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -249,14 +249,14 @@ class RxAntennaDistributionRequest(BaseModel):
 
 
 class GenerateDatasetRequest(BaseModel):
-    """Request model for synthetic dataset generation."""
+    """Request model for synthetic dataset generation and expansion."""
     name: str
     description: Optional[str] = None
     num_samples: int
-    frequency_mhz: float
-    tx_power_dbm: float
-    min_snr_db: float
-    min_receivers: int
+    frequency_mhz: Optional[float] = Field(default=None)  # Optional for expansion (inherited from parent dataset)
+    tx_power_dbm: Optional[float] = Field(default=None)  # Optional for expansion (inherited from parent dataset)
+    min_snr_db: Optional[float] = Field(default=None)  # Optional for expansion (inherited from parent dataset)
+    min_receivers: Optional[int] = Field(default=None)  # Optional for expansion (inherited from parent dataset)
     max_gdop: float = 150.0  # Default: 150 GDOP for clustered receivers (Italian WebSDRs) - relaxed for 50%+ success rate
     dataset_type: str = "feature_based"
     use_random_receivers: bool = False
@@ -265,6 +265,12 @@ class GenerateDatasetRequest(BaseModel):
     seed: Optional[int] = None
     tx_antenna_dist: Optional[TxAntennaDistributionRequest] = None
     rx_antenna_dist: Optional[RxAntennaDistributionRequest] = None
+    expand_dataset_id: Optional[str] = None  # If provided, expand existing dataset instead of creating new one
+    enable_meteorological: bool = True  # Tropospheric refraction and ducting effects
+    enable_sporadic_e: bool = True  # Ionospheric skip propagation
+    enable_knife_edge: bool = True  # Terrain diffraction effects
+    enable_polarization: bool = True  # Polarization mismatch loss
+    enable_antenna_patterns: bool = True  # Realistic antenna radiation patterns
 
 
 class GenerateDatasetResponse(BaseModel):
@@ -295,7 +301,7 @@ class JobStatusResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/jobs/{job_id}", response_model=JobStatusResponse)
+@router.get("/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(
     job_id: str,
     db: Session = Depends(get_db)
@@ -358,7 +364,7 @@ class JobActionResponse(BaseModel):
         from_attributes = True
 
 
-@router.post("/jobs/{job_id}/cancel", response_model=JobActionResponse)
+@router.post("/{job_id}/cancel", response_model=JobActionResponse)
 async def cancel_synthetic_job(
     job_id: str,
     db: Session = Depends(get_db)
@@ -442,6 +448,203 @@ async def cancel_synthetic_job(
         raise HTTPException(status_code=500, detail=f"Failed to cancel job: {str(e)}")
 
 
+@router.delete("/{job_id}")
+async def delete_synthetic_job(
+    job_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a synthetic data generation job.
+    
+    This endpoint deletes the job record and associated data. If the job is
+    currently running, it will be cancelled first.
+    
+    Args:
+        job_id: UUID of the synthetic generation job
+        db: Database session
+    
+    Returns:
+        Deletion confirmation
+    """
+    from celery import current_app
+    import structlog
+    
+    logger = structlog.get_logger(__name__)
+    
+    try:
+        job_uuid = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
+    
+    try:
+        # Check if job exists and get its details
+        query = text("""
+            SELECT status, celery_task_id, job_type FROM heimdall.training_jobs
+            WHERE id = :job_id
+        """)
+        result = db.execute(query, {"job_id": str(job_uuid)}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+        
+        status, celery_task_id, job_type = result
+        
+        # Verify this is a synthetic generation job
+        if job_type != "synthetic_generation":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job {job_id} is not a synthetic generation job (type: {job_type})"
+            )
+        
+        # If job is running, cancel it first
+        if status == 'running':
+            if celery_task_id:
+                current_app.control.revoke(celery_task_id, terminate=True, signal='SIGTERM')
+                logger.info("cancelled_running_job_before_delete", job_id=job_id, celery_task_id=celery_task_id)
+        
+        # Delete the job record
+        delete_query = text("""
+            DELETE FROM heimdall.training_jobs
+            WHERE id = :job_id
+        """)
+        db.execute(delete_query, {"job_id": str(job_uuid)})
+        db.commit()
+        
+        logger.info("synthetic_job_deleted", job_id=job_id)
+        
+        return {
+            "message": f"Synthetic generation job {job_id} deleted successfully",
+            "job_id": job_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error("synthetic_job_delete_failed", job_id=job_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete job: {str(e)}")
+
+
+@router.delete("/datasets/{dataset_id}", status_code=204)
+async def delete_synthetic_dataset(
+    dataset_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a synthetic dataset and all its samples.
+    
+    This endpoint deletes the dataset record and all associated samples.
+    If the dataset was created by a job, the job record remains intact.
+    
+    Args:
+        dataset_id: UUID of the dataset to delete
+        db: Database session
+    
+    Returns:
+        204 No Content on success
+    """
+    import structlog
+    
+    logger = structlog.get_logger(__name__)
+    
+    try:
+        dataset_uuid = uuid.UUID(dataset_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid dataset_id format")
+    
+    try:
+        # Check if dataset exists
+        check_query = text("""
+            SELECT id, name FROM heimdall.synthetic_datasets
+            WHERE id = :dataset_id
+        """)
+        result = db.execute(check_query, {"dataset_id": str(dataset_uuid)}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
+        
+        dataset_name = result[1]
+        
+        # Delete dataset (CASCADE will delete associated samples)
+        delete_query = text("""
+            DELETE FROM heimdall.synthetic_datasets
+            WHERE id = :dataset_id
+        """)
+        db.execute(delete_query, {"dataset_id": str(dataset_uuid)})
+        db.commit()
+        
+        logger.info("synthetic_dataset_deleted", dataset_id=dataset_id, dataset_name=dataset_name)
+        
+        # Return 204 No Content (no body)
+        return None
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error("synthetic_dataset_delete_failed", dataset_id=dataset_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {str(e)}")
+
+
+@router.patch("/datasets/{dataset_id}", status_code=200)
+async def rename_dataset(
+    dataset_id: str,
+    dataset_name: str = Query(..., min_length=1, max_length=200, description="New dataset name"),
+    db: Session = Depends(get_db)
+):
+    """
+    Update dataset name.
+    
+    Args:
+        dataset_id: Dataset UUID
+        dataset_name: New dataset name (1-200 characters)
+        db: Database session
+    
+    Returns:
+        Success message with updated dataset name
+    """
+    import structlog
+    
+    logger = structlog.get_logger(__name__)
+    
+    try:
+        dataset_uuid = uuid.UUID(dataset_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid dataset_id format")
+    
+    try:
+        # Check if dataset exists
+        check_query = text("SELECT id, name FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+        result = db.execute(check_query, {"dataset_id": str(dataset_uuid)}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        
+        old_name = result[1]
+        
+        # Update dataset name
+        update_query = text("""
+            UPDATE heimdall.synthetic_datasets 
+            SET name = :dataset_name, updated_at = NOW()
+            WHERE id = :dataset_id
+        """)
+        db.execute(update_query, {"dataset_id": str(dataset_uuid), "dataset_name": dataset_name})
+        db.commit()
+        
+        logger.info("dataset_renamed", dataset_id=dataset_id, old_name=old_name, new_name=dataset_name)
+        
+        return {"success": True, "dataset_id": str(dataset_uuid), "dataset_name": dataset_name}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error("dataset_rename_failed", dataset_id=dataset_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to rename dataset: {str(e)}")
+
+
+
+
 @router.post("/generate", response_model=GenerateDatasetResponse)
 async def generate_dataset(
     request: GenerateDatasetRequest,
@@ -458,24 +661,80 @@ async def generate_dataset(
         Job ID and initial status
     """
     import json
+    import structlog
     from ..tasks.training_task import generate_synthetic_data_task
+    
+    logger = structlog.get_logger()
+    logger.info("generate_dataset_request", 
+                expand_dataset_id=request.expand_dataset_id,
+                frequency_mhz=request.frequency_mhz,
+                tx_power_dbm=request.tx_power_dbm)
     
     # Create training job record
     job_id = str(uuid.uuid4())
+    
+    # If expanding an existing dataset, fetch parent config and inherit RF parameters
+    if request.expand_dataset_id:
+        logger.info("fetching_parent_dataset", parent_id=request.expand_dataset_id)
+        parent_query = text("""
+            SELECT config FROM heimdall.synthetic_datasets
+            WHERE id = :dataset_id
+        """)
+        parent_result = db.execute(parent_query, {"dataset_id": request.expand_dataset_id}).fetchone()
+        
+        if not parent_result:
+            logger.error("parent_dataset_not_found", parent_id=request.expand_dataset_id)
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Parent dataset {request.expand_dataset_id} not found"
+            )
+        
+        parent_config = parent_result[0]  # config is jsonb, may be dict or string
+        logger.info("parent_config_fetched", config_type=type(parent_config).__name__, config_sample=str(parent_config)[:100])
+        
+        # Parse config if it's a string
+        if isinstance(parent_config, str):
+            parent_config = json.loads(parent_config)
+        
+        logger.info("parent_config_parsed", 
+                   freq=parent_config.get("frequency_mhz"),
+                   power=parent_config.get("tx_power_dbm"),
+                   snr=parent_config.get("min_snr_db"))
+        
+        # Inherit RF parameters from parent if not explicitly provided
+        frequency_mhz = request.frequency_mhz if request.frequency_mhz is not None else parent_config.get("frequency_mhz")
+        tx_power_dbm = request.tx_power_dbm if request.tx_power_dbm is not None else parent_config.get("tx_power_dbm")
+        min_snr_db = request.min_snr_db if request.min_snr_db is not None else parent_config.get("min_snr_db")
+        min_receivers = request.min_receivers if request.min_receivers is not None else parent_config.get("min_receivers")
+        
+        logger.info("inherited_parameters", freq=frequency_mhz, power=tx_power_dbm, snr=min_snr_db, min_rx=min_receivers)
+    else:
+        # For new datasets, use provided values (which are now required to be set by frontend or will be None)
+        frequency_mhz = request.frequency_mhz
+        tx_power_dbm = request.tx_power_dbm
+        min_snr_db = request.min_snr_db
+        min_receivers = request.min_receivers
+    
     config = {
         "name": request.name,
         "description": request.description,
         "num_samples": request.num_samples,
-        "frequency_mhz": request.frequency_mhz,
-        "tx_power_dbm": request.tx_power_dbm,
-        "min_snr_db": request.min_snr_db,
-        "min_receivers": request.min_receivers,
+        "frequency_mhz": frequency_mhz,
+        "tx_power_dbm": tx_power_dbm,
+        "min_snr_db": min_snr_db,
+        "min_receivers": min_receivers,
         "max_gdop": request.max_gdop,
         "dataset_type": request.dataset_type,
         "use_random_receivers": request.use_random_receivers,
         "use_srtm_terrain": request.use_srtm_terrain,
         "use_gpu": request.use_gpu,
-        "seed": request.seed
+        "seed": request.seed,
+        "expand_dataset_id": request.expand_dataset_id,
+        "enable_meteorological": request.enable_meteorological,
+        "enable_sporadic_e": request.enable_sporadic_e,
+        "enable_knife_edge": request.enable_knife_edge,
+        "enable_polarization": request.enable_polarization,
+        "enable_antenna_patterns": request.enable_antenna_patterns
     }
     
     # Add antenna distributions if provided

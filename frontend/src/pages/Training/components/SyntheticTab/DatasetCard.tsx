@@ -9,13 +9,14 @@ import type { SyntheticDataset } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { DatasetDetailsDialog } from './DatasetDetailsDialog';
 import { ExpandDatasetDialog } from './ExpandDatasetDialog';
+import { InlineEditText } from '../../../../components/InlineEditText';
 
 interface DatasetCardProps {
   dataset: SyntheticDataset;
 }
 
 export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
-  const { deleteDataset } = useTrainingStore();
+  const { deleteDataset, updateDatasetName } = useTrainingStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [isExpandDialogOpen, setIsExpandDialogOpen] = useState(false);
@@ -33,7 +34,7 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
   };
 
   const formatStorageSize = (bytes: number | undefined) => {
-    if (bytes === undefined || bytes === null) return 'Calculating...';
+    if (bytes === undefined || bytes === null) return 'N/A';
     if (bytes === 0) return '0 B';
     
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -64,7 +65,15 @@ export const DatasetCard: React.FC<DatasetCardProps> = ({ dataset }) => {
           {/* Header */}
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="flex-grow-1">
-              <h5 className="mb-1">{dataset.name}</h5>
+              <h5 className="mb-1">
+                <InlineEditText
+                  value={dataset.name}
+                  onSave={(newName) => updateDatasetName(dataset.id, newName)}
+                  className="d-inline-block"
+                  placeholder="Dataset Name"
+                  maxLength={200}
+                />
+              </h5>
               {dataset.description && (
                 <p className="text-muted small mb-0">{dataset.description}</p>
               )}

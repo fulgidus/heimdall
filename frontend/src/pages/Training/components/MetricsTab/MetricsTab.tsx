@@ -22,8 +22,8 @@ export const MetricsTab: React.FC = () => {
 
   // Filter out synthetic generation jobs (only show training jobs)
   const trainingJobs = jobs.filter(job => {
-    // @ts-ignore - job_type exists on backend response but not in TrainingJob type
-    return !job.job_type || job.job_type === 'training';
+    // Only show jobs explicitly marked as 'training' or jobs without job_type (legacy jobs)
+    return job.job_type === 'training' || job.job_type === undefined;
   });
 
   // Find the selected job to check if it's running

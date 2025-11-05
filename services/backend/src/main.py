@@ -28,7 +28,7 @@ from .routers.import_export import router as import_export_router
 from .routers.sessions import router as sessions_router
 from .routers.settings import router as settings_router
 from .routers.terrain import router as terrain_router
-from .routers.training import router as training_router, models_router
+from .routers.training import router as training_router, models_router, jobs_router
 from .routers.users import router as users_router
 from .routers.websocket import router as websocket_router
 
@@ -223,6 +223,7 @@ app.include_router(settings_router)
 app.include_router(terrain_router)
 app.include_router(training_router)
 app.include_router(models_router)
+app.include_router(jobs_router)
 app.include_router(users_router)
 app.include_router(websocket_router)
 app.include_router(import_export_router)

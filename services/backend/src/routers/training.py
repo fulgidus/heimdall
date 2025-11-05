@@ -158,6 +158,9 @@ async def list_training_jobs(
 ):
     """
     List all training jobs with optional filtering.
+    
+    This endpoint returns ONLY jobs with job_type='training'.
+    For synthetic data generation jobs, use /jobs/synthetic endpoint.
 
     Args:
         status: Filter by job status
@@ -165,19 +168,21 @@ async def list_training_jobs(
         offset: Pagination offset
 
     Returns:
-        List of training jobs
+        List of training jobs (excluding synthetic generation jobs)
     """
     db_manager = get_db_manager()
 
     try:
         with db_manager.get_session() as session:
-            # Build query
-            where_clause = ""
+            # Build query - ALWAYS filter for training jobs only
+            where_clauses = ["job_type = 'training'"]
             params: dict[str, Any] = {"limit": limit, "offset": offset}
 
             if status:
-                where_clause = "WHERE status = :status"
+                where_clauses.append("status = :status")
                 params["status"] = status.value
+
+            where_clause = "WHERE " + " AND ".join(where_clauses)
 
             # Get jobs
             query = text(f"""
@@ -260,6 +265,123 @@ async def list_training_jobs(
     except Exception as e:
         logger.error(f"Error listing training jobs: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to list training jobs: {e!s}")
+
+
+@router.get("/jobs/synthetic", response_model=TrainingJobListResponse)
+async def list_synthetic_jobs(
+    status: TrainingStatus | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    List all synthetic data generation jobs.
+    
+    This endpoint returns ONLY jobs with job_type='synthetic_generation'.
+    For training jobs, use /jobs endpoint.
+
+    Args:
+        status: Filter by job status
+        limit: Maximum number of jobs to return
+        offset: Pagination offset
+
+    Returns:
+        List of synthetic data generation jobs (excluding training jobs)
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Build query - ALWAYS filter for synthetic_generation jobs only
+            where_clauses = ["job_type = 'synthetic_generation'"]
+            params: dict[str, Any] = {"limit": limit, "offset": offset}
+
+            if status:
+                where_clauses.append("status = :status")
+                params["status"] = status.value
+
+            where_clause = "WHERE " + " AND ".join(where_clauses)
+
+            # Get jobs
+            query = text(f"""
+                SELECT id, job_name, job_type, status, created_at, started_at, completed_at,
+                       config, current_epoch, total_epochs, progress_percent,
+                       train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                       best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                       mlflow_run_id, error_message, dataset_size, train_samples,
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message
+                FROM heimdall.training_jobs
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+
+            results = session.execute(query, params).fetchall()
+
+            # Get total count
+            count_query = text(f"""
+                SELECT COUNT(*) FROM heimdall.training_jobs
+                {where_clause}
+            """)
+            count_params = {k: v for k, v in params.items() if k not in ["limit", "offset"]}
+            total = session.execute(count_query, count_params).scalar() or 0
+
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
+            # Convert to response models
+            jobs = []
+            for row in results:
+                jobs.append(
+                    TrainingJobResponse(
+                        id=row[0],
+                        job_name=row[1],
+                        job_type=row[2],
+                        status=TrainingStatus(row[3]),
+                        created_at=row[4],
+                        started_at=row[5],
+                        completed_at=row[6],
+                        config=row[7] if row[7] else {},
+                        current_epoch=row[8] or 0,
+                        total_epochs=row[9],
+                        progress_percent=sanitize_float(row[10]) or 0.0,
+                        train_loss=sanitize_float(row[11]),
+                        val_loss=sanitize_float(row[12]),
+                        train_accuracy=sanitize_float(row[13]),
+                        val_accuracy=sanitize_float(row[14]),
+                        learning_rate=sanitize_float(row[15]),
+                        best_epoch=row[16],
+                        best_val_loss=sanitize_float(row[17]),
+                        checkpoint_path=row[18],
+                        onnx_model_path=row[19],
+                        mlflow_run_id=row[20],
+                        error_message=row[21],
+                        dataset_size=row[22],
+                        train_samples=row[23],
+                        val_samples=row[24],
+                        model_architecture=row[25],
+                        celery_task_id=row[26],
+                        current=row[27],
+                        total=row[28],
+                        message=row[29],
+                    )
+                )
+
+            return TrainingJobListResponse(jobs=jobs, total=total)
+
+    except Exception as e:
+        logger.error(f"Error listing synthetic jobs: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list synthetic jobs: {e!s}")
 
 
 @router.get("/jobs/{job_id}", response_model=TrainingJobStatusResponse)
@@ -767,10 +889,8 @@ async def continue_synthetic_job(job_id: UUID):
             
             continuation_config = {
                 **original_config,
-                "is_continuation": True,
-                "existing_dataset_id": str(dataset_id),
-                "num_samples": remaining_samples,
-                "samples_offset": actual_samples
+                "expand_dataset_id": str(dataset_id),  # Single source of truth for expansion
+                "num_samples": remaining_samples
             }
             
             # Create new job with parent reference
@@ -1263,7 +1383,7 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
             # These parameters define the dataset's identity and must remain consistent
             # across all expansions to ensure training data integrity
             params_to_inherit = [
-                'frequency_mhz', 'tx_power_dbm', 'min_snr_db', 
+                'frequency_mhz', 'tx_power_dbm', 'min_snr_db', 'min_receivers',
                 'max_gdop', 'inside_ratio'
             ]
             
@@ -1278,12 +1398,11 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
             
             logger.info(f"Dataset expansion: inherited {inherited_count}/{len(params_to_inherit)} parameters from original dataset")
             
-            # Set continuation flags in config
-            request_dict['is_continuation'] = True
-            request_dict['existing_dataset_id'] = str(request.expand_dataset_id)
-            request_dict['samples_offset'] = existing_samples
+            # Set expand_dataset_id as single source of truth (no fragile flags)
+            # The task will detect expansion by checking if expand_dataset_id exists
+            request_dict['expand_dataset_id'] = str(request.expand_dataset_id)
             
-            logger.info(f"Expanding dataset {request.expand_dataset_id}: adding {request.num_samples} samples (offset: {existing_samples})")
+            logger.info(f"Expanding dataset {request.expand_dataset_id}: adding {request.num_samples} samples (current: {existing_samples})")
         
         # Create job record
         with db_manager.get_session() as session:
@@ -1606,6 +1725,65 @@ async def get_dataset_samples(
     except Exception as e:
         logger.error(f"Error getting samples for dataset {dataset_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get samples: {e!s}")
+
+
+@router.patch("/synthetic/datasets/{dataset_id}", status_code=200)
+async def update_dataset_name(dataset_id: UUID, dataset_name: str):
+    """
+    Update dataset name.
+    
+    Args:
+        dataset_id: Dataset UUID
+        dataset_name: New dataset name (1-200 characters)
+    
+    Returns:
+        Success message with updated dataset name
+    """
+    from ..events.publisher import get_event_publisher
+    
+    # Validate dataset name length
+    if not dataset_name or len(dataset_name) < 1 or len(dataset_name) > 200:
+        raise HTTPException(status_code=400, detail="Dataset name must be between 1 and 200 characters")
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if dataset exists
+            check_query = text("SELECT id, name FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            old_name = result[1]
+            
+            # Update dataset name
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets 
+                SET name = :dataset_name
+                WHERE id = :dataset_id
+            """)
+            session.execute(update_query, {"dataset_id": str(dataset_id), "dataset_name": dataset_name})
+            session.commit()
+            
+            logger.info(f"Updated dataset {dataset_id} name from '{old_name}' to '{dataset_name}'")
+            
+            # Broadcast WebSocket event (optional - if you want real-time updates)
+            # event_publisher = get_event_publisher()
+            # event_publisher.publish_dataset_updated(
+            #     dataset_id=str(dataset_id),
+            #     old_name=old_name,
+            #     new_name=dataset_name
+            # )
+            
+            return {"message": f"Dataset name updated to '{dataset_name}'", "dataset_id": str(dataset_id)}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating dataset name {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update dataset name: {e!s}")
 
 
 @router.delete("/synthetic/datasets/{dataset_id}", status_code=204)
@@ -2151,3 +2329,21 @@ async def list_architectures(data_type: str | None = Query(None, description="Fi
     except Exception as e:
         logger.error(f"Error listing architectures: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Alias router for /v1/jobs path (for frontend compatibility)
+jobs_router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
+
+@jobs_router.patch("/synthetic/datasets/{dataset_id}", status_code=200)
+async def update_dataset_name_alias(dataset_id: UUID, dataset_name: str = Query(..., min_length=1, max_length=200)):
+    """
+    Update dataset name (alias for /api/v1/training/synthetic/datasets/{dataset_id}).
+    
+    Args:
+        dataset_id: Dataset UUID
+        dataset_name: New dataset name (1-200 characters, query parameter)
+    
+    Returns:
+        Success message with updated dataset name
+    """
+    return await update_dataset_name(dataset_id, dataset_name)

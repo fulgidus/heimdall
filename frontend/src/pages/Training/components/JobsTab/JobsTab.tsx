@@ -97,8 +97,8 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
 
   // Filter out synthetic generation jobs (they have their own tab)
   const trainingJobs = jobs.filter(job => {
-    // @ts-ignore - job_type exists on backend response but not in TrainingJob type
-    return !job.job_type || job.job_type === 'training';
+    // Only show jobs explicitly marked as 'training'
+    return job.job_type === 'training';
   });
 
   return (

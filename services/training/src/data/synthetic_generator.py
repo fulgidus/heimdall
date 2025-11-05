@@ -46,6 +46,32 @@ logger = structlog.get_logger(__name__)
 _thread_local = threading.local()
 
 
+def convert_numpy_types(obj):
+    """
+    Recursively convert NumPy types to native Python types for JSON serialization.
+    
+    Handles:
+    - np.bool_ -> bool
+    - np.integer -> int
+    - np.floating -> float
+    - np.ndarray -> list
+    - dict/list recursion
+    """
+    if isinstance(obj, np.bool_):
+        return bool(obj)
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy_types(item) for item in obj]
+    return obj
+
+
 def _generate_random_receivers(
     num_receivers: int,
     area_lat_min: float,
@@ -323,6 +349,12 @@ def _generate_single_sample_no_features(args):
     max_gdop_threshold = config.get('max_gdop', 150.0)
     min_receivers_threshold = config.get('min_receivers', 3)
     
+    # Ensure threshold values are not None (defensive programming)
+    if max_gdop_threshold is None:
+        max_gdop_threshold = 150.0
+    if min_receivers_threshold is None:
+        min_receivers_threshold = 3
+    
     # Early rejection: if GDOP is already too high, skip IQ generation
     if gdop_precheck > max_gdop_threshold or len(receiver_positions_precheck) < min_receivers_threshold:
         logger.debug(f"Sample {sample_idx}: PRE-REJECTED (GDOP={gdop_precheck:.1f} > {max_gdop_threshold} or receivers={len(receiver_positions_precheck)} < {min_receivers_threshold})")
@@ -333,11 +365,13 @@ def _generate_single_sample_no_features(args):
     # Extract antenna distributions from config (if provided)
     tx_antenna_dist = config.get('tx_antenna_dist', None)
     rx_antenna_dist = config.get('rx_antenna_dist', None)
-    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist)
+    enable_antenna_patterns = config.get('enable_antenna_patterns', True)
+    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist) if enable_antenna_patterns else None
     
     # Generate meteorological parameters for this sample (add diversity)
     # Use sample_seed to ensure reproducibility
-    meteo_params = MeteorologicalParameters.random(seed=sample_seed)
+    enable_meteorological = config.get('enable_meteorological', True)
+    meteo_params = MeteorologicalParameters.random(seed=sample_seed) if enable_meteorological else None
     
     # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
@@ -352,10 +386,13 @@ def _generate_single_sample_no_features(args):
         rx_alt = receiver['altitude']
         
         # Each receiver has its own antenna (with random type and pointing direction)
-        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
+        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist) if enable_antenna_patterns else None
 
         # Calculate received power and SNR using propagation model (with antenna gains and meteorological effects)
         # Include new features: TX power fluctuations, intermittent transmissions, sporadic-E, and knife-edge diffraction
+        enable_sporadic_e = config.get('enable_sporadic_e', True)
+        enable_knife_edge = config.get('enable_knife_edge', True)
+        enable_polarization = config.get('enable_polarization', True)
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -371,8 +408,9 @@ def _generate_single_sample_no_features(args):
             meteo_params=meteo_params,
             transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality (0.3=poor, 0.95=excellent)
             transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
-            enable_sporadic_e=True,  # Enable sporadic-E propagation
-            enable_knife_edge=True  # Enable knife-edge diffraction
+            enable_sporadic_e=enable_sporadic_e,
+            enable_knife_edge=enable_knife_edge,
+            enable_polarization_effects=enable_polarization
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -460,15 +498,17 @@ def _generate_single_sample_no_features(args):
         'chunk_duration_ms': 200.0,
         'generated_at': sample_idx,
         'propagation_snr_values': propagation_snr_values,
-        'receivers_with_signal': receivers_with_signal,
-        'meteo_params': {
+        'receivers_with_signal': receivers_with_signal
+    }
+    
+    if meteo_params is not None:
+        propagation_metadata['meteo_params'] = {
             'ground_temperature': meteo_params.ground_temperature,
             'relative_humidity': meteo_params.relative_humidity,
             'pressure_hpa': meteo_params.pressure_hpa,
             'time_of_day': meteo_params.time_of_day,
             'season': meteo_params.season
         }
-    }
 
     tx_position = {
         'tx_lat': tx_lat,
@@ -638,6 +678,12 @@ def _generate_single_sample(args):
     max_gdop_threshold = config.get('max_gdop', 150.0)
     min_receivers_threshold = config.get('min_receivers', 3)
     
+    # Ensure threshold values are not None (defensive programming)
+    if max_gdop_threshold is None:
+        max_gdop_threshold = 150.0
+    if min_receivers_threshold is None:
+        min_receivers_threshold = 3
+    
     # Early rejection: if GDOP is already too high, skip IQ generation
     if gdop_precheck > max_gdop_threshold or len(receiver_positions_precheck) < min_receivers_threshold:
         logger.debug(f"Sample {sample_idx}: PRE-REJECTED (GDOP={gdop_precheck:.1f} > {max_gdop_threshold} or receivers={len(receiver_positions_precheck)} < {min_receivers_threshold})")
@@ -648,7 +694,12 @@ def _generate_single_sample(args):
     # Extract antenna distributions from config (if provided)
     tx_antenna_dist = config.get('tx_antenna_dist', None)
     rx_antenna_dist = config.get('rx_antenna_dist', None)
-    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist)
+    enable_antenna_patterns = config.get('enable_antenna_patterns', True)
+    tx_antenna = _select_tx_antenna(rng, tx_antenna_dist) if enable_antenna_patterns else None
+    
+    # Generate meteorological parameters for this sample (add diversity)
+    enable_meteorological = config.get('enable_meteorological', True)
+    meteo_params = MeteorologicalParameters.random(seed=sample_seed) if enable_meteorological else None
     
     # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
@@ -663,10 +714,13 @@ def _generate_single_sample(args):
         rx_alt = receiver['altitude']
 
         # Select RX antenna for this receiver
-        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
+        rx_antenna = _select_rx_antenna(rng, rx_antenna_dist) if enable_antenna_patterns else None
 
         # Calculate received power and SNR using propagation model
         # Include new features: TX power fluctuations, intermittent transmissions, sporadic-E, and knife-edge diffraction
+        enable_sporadic_e = config.get('enable_sporadic_e', True)
+        enable_knife_edge = config.get('enable_knife_edge', True)
+        enable_polarization = config.get('enable_polarization', True)
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -679,10 +733,12 @@ def _generate_single_sample(args):
             terrain_lookup=terrain,
             tx_antenna=tx_antenna,
             rx_antenna=rx_antenna,
+            meteo_params=meteo_params,
             transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality
             transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
-            enable_sporadic_e=True,
-            enable_knife_edge=True
+            enable_sporadic_e=enable_sporadic_e,
+            enable_knife_edge=enable_knife_edge,
+            enable_polarization_effects=enable_polarization
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -1682,7 +1738,10 @@ async def save_features_to_db(
 
         # Convert receiver features to list of JSON strings
         # Raw asyncpg can handle this directly without PostgreSQL array literal format
-        receiver_features_json_strings = [json.dumps(feat) for feat in sample['receiver_features']]
+        # Convert NumPy types to native Python types before JSON serialization
+        receiver_features_json_strings = [
+            json.dumps(convert_numpy_types(feat)) for feat in sample['receiver_features']
+        ]
 
         # Use raw asyncpg connection execute (NOT SQLAlchemy wrapper)
         await asyncpg_conn.execute(
@@ -1694,7 +1753,7 @@ async def save_features_to_db(
             sample['tx_position']['tx_lon'],                         # $5
             sample['tx_position']['tx_alt'],                         # $6
             sample['tx_position']['tx_power_dbm'],                   # $7
-            json.dumps(sample['extraction_metadata']),               # $8
+            json.dumps(convert_numpy_types(sample['extraction_metadata'])),  # $8
             sample['quality_metrics']['overall_confidence'],         # $9
             sample['quality_metrics']['mean_snr_db'],                # $10
             sample['quality_metrics']['num_receivers_detected'],     # $11
@@ -1806,14 +1865,20 @@ async def save_iq_metadata_to_db(
         # Build receivers_metadata from receiver_features
         receivers_metadata = []
         for feat in sample['receiver_features']:
+            # Extract SNR - may be a simple value or nested in dict
+            snr_value = feat.get('snr_db', 0.0)
+            if isinstance(snr_value, dict):
+                # If it's a dict, try to extract 'mean' or first numeric value
+                snr_value = snr_value.get('mean', snr_value.get('value', 0.0))
+            
             receivers_metadata.append({
                 'rx_id': feat['rx_id'],
-                'lat': feat['rx_lat'],
-                'lon': feat['rx_lon'],
-                'alt': feat.get('rx_alt', 300.0),  # Fallback to default
-                'distance_km': feat['distance_km'],
-                'snr_db': feat.get('snr_db', 0.0),
-                'signal_present': feat['signal_present']
+                'lat': float(feat['rx_lat']),
+                'lon': float(feat['rx_lon']),
+                'alt': float(feat.get('rx_alt', 300.0)),  # Fallback to default
+                'distance_km': float(feat['distance_km']),
+                'snr_db': float(snr_value),
+                'signal_present': bool(feat['signal_present'])  # Convert numpy bool to Python bool
             })
         
         # Build IQ metadata from extraction metadata

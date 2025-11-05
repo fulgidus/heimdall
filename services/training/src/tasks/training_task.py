@@ -1200,10 +1200,25 @@ def generate_synthetic_data_task(self, job_id: str):
             config = result[0] if isinstance(result[0], dict) else json.loads(result[0])
 
         # Update status to running and initialize progress tracking
-        # For continuation jobs, total_progress should include samples_offset
-        is_continuation = config.get('is_continuation', False)
-        samples_offset = config.get('samples_offset', 0)
-        total_progress_value = samples_offset + config['num_samples'] if is_continuation else config['num_samples']
+        # For dataset expansion, fetch samples_offset from database
+        expand_dataset_id = config.get('expand_dataset_id')
+        samples_offset = 0
+        
+        if expand_dataset_id:
+            # Fetch current sample count from database
+            with db_manager.get_session() as session:
+                count_query = text("""
+                    SELECT num_samples FROM heimdall.synthetic_datasets
+                    WHERE id = :dataset_id
+                """)
+                result = session.execute(count_query, {"dataset_id": expand_dataset_id}).fetchone()
+                if result:
+                    samples_offset = result[0]
+                    logger.info(f"Expanding dataset {expand_dataset_id}: current samples = {samples_offset}")
+                else:
+                    raise ValueError(f"Dataset {expand_dataset_id} not found for expansion")
+        
+        total_progress_value = samples_offset + config['num_samples']
         
         with db_manager.get_session() as session:
             update_query = text("""
@@ -1215,10 +1230,10 @@ def generate_synthetic_data_task(self, job_id: str):
                     progress_message = :progress_message
                 WHERE id = :job_id
             """)
-            progress_message = f'Continuing from {samples_offset} samples...' if is_continuation else 'Starting synthetic data generation...'
+            progress_message = f'Continuing from {samples_offset} samples...' if samples_offset > 0 else 'Starting synthetic data generation...'
             session.execute(update_query, {
                 "job_id": job_id,
-                "current_progress": samples_offset if is_continuation else 0,
+                "current_progress": samples_offset,
                 "total_samples": total_progress_value,
                 "progress_message": progress_message
             })
@@ -1231,7 +1246,7 @@ def generate_synthetic_data_task(self, job_id: str):
             job_id=job_id,
             status='running',
             action='started',
-            current_progress=samples_offset if is_continuation else 0,
+            current_progress=samples_offset,
             total_progress=total_progress_value
         )
         logger.info(f"Published job start event for {job_id}")
@@ -1283,20 +1298,16 @@ def generate_synthetic_data_task(self, job_id: str):
 
         training_config = TrainingConfig.from_receivers(receivers, margin_degrees=0.5)
 
-        # Handle continuation vs new dataset
-        is_continuation = config.get('is_continuation', False)
-        samples_offset = config.get('samples_offset', 0)
+        # Handle dataset expansion vs new dataset creation
+        # Use expand_dataset_id as single source of truth (no fragile flags)
+        expand_dataset_id = config.get('expand_dataset_id')
         
-        if is_continuation:
-            # Reuse existing dataset
-            dataset_id_str = config.get('existing_dataset_id')
-            if not dataset_id_str:
-                raise ValueError("is_continuation=True but no existing_dataset_id provided")
-            
-            dataset_id = uuid.UUID(dataset_id_str)
-            logger.info(f"Continuing dataset {dataset_id} from {samples_offset} samples")
+        if expand_dataset_id:
+            # Expanding existing dataset
+            dataset_id = uuid.UUID(expand_dataset_id)
+            logger.info(f"Expanding dataset {dataset_id} (current samples: {samples_offset})")
         else:
-            # Create dataset record (or get existing by name)
+            # Create new dataset
             dataset_id = uuid.uuid4()
             with db_manager.get_session() as session:
                 # Check if dataset with this name already exists
@@ -1355,17 +1366,20 @@ def generate_synthetic_data_task(self, job_id: str):
                 logger.info(f"Synthetic data generation job {job_id} cancelled at {current}/{total} samples")
                 raise asyncio.CancelledError("Task cancelled by user")
             
-            # Add offset for continuation jobs
+            # Add offset for dataset expansion (samples_offset > 0 means expanding)
             cumulative_current = samples_offset + current
-            # Note: total_progress in DB was set to original total (not remaining)
-            # so we calculate progress based on cumulative progress
-            total_samples = samples_offset + total if is_continuation else total
-            progress_pct = (cumulative_current / total_samples) * 100
+            total_samples = samples_offset + total
+            
+            # Clamp progress to not exceed 100% (batch generation may overshoot target)
+            cumulative_current = min(cumulative_current, total_samples)
+            current = min(current, total)
+            progress_pct = min((cumulative_current / total_samples) * 100, 100.0)
             
             # Calculate success rate if attempted is provided
             success_rate = (current / attempted * 100) if attempted and attempted > 0 else 100.0
             
-            if is_continuation:
+            # Show different messages for expansion vs new dataset
+            if samples_offset > 0:
                 if attempted:
                     message = f'Generated {cumulative_current}/{total_samples} valid samples (continued from {samples_offset}, attempted: {attempted}, {success_rate:.1f}% success)'
                 else:
@@ -1382,7 +1396,7 @@ def generate_synthetic_data_task(self, job_id: str):
             self.update_state(
                 state='PROGRESS',
                 meta={
-                    'current': cumulative_current if is_continuation else current,
+                    'current': cumulative_current,
                     'total': total_samples,
                     'attempted': attempted,
                     'success_rate': success_rate,
@@ -1404,7 +1418,7 @@ def generate_synthetic_data_task(self, job_id: str):
                             WHERE id = :job_id
                         """),
                         {
-                            "current": cumulative_current if is_continuation else current,
+                            "current": cumulative_current,
                             "total": total_samples,
                             "progress": progress_pct,
                             "message": message,
@@ -1412,7 +1426,7 @@ def generate_synthetic_data_task(self, job_id: str):
                         }
                     )
                     session.commit()
-                    logger.info(f"[PROGRESS] Database updated: {cumulative_current if is_continuation else current}/{total_samples}")
+                    logger.info(f"[PROGRESS] Database updated: {cumulative_current}/{total_samples}")
             except Exception as e:
                 logger.error(f"Failed to update progress in database: {e}", exc_info=True)
 
@@ -1420,7 +1434,7 @@ def generate_synthetic_data_task(self, job_id: str):
             try:
                 event_publisher.publish_dataset_generation_progress(
                     job_id=job_id,
-                    current=cumulative_current if is_continuation else current,
+                    current=cumulative_current,
                     total=total_samples,
                     message=message
                 )
@@ -1437,7 +1451,7 @@ def generate_synthetic_data_task(self, job_id: str):
         )
 
         # Generate samples with IQ generation and feature extraction
-        if is_continuation:
+        if samples_offset > 0:
             logger.info(f"Continuing generation: {config['num_samples']} remaining samples "
                        f"(total: {samples_offset + config['num_samples']})")
         else:

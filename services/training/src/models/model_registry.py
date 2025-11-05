@@ -5,7 +5,7 @@ This module provides a comprehensive registry of all available ML architectures
 for RF source localization, with detailed metadata for informed model selection.
 
 Features:
-- 12 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, ensemble)
+- 13 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, ensemble, multi-modal)
 - Performance metrics (accuracy, speed, memory)
 - Visual indicators (emoji, badges, star ratings)
 - Query and comparison utilities
@@ -18,6 +18,7 @@ Architecture Categories:
 - 🧠 Transformer: Vision Transformer architectures
 - 🌊 Temporal: Temporal Convolutional Networks (TCN/WaveNet)
 - 🧮 Feature-based: MLP on extracted features (triangulation)
+- 👁️  Multi-Modal: Combine IQ raw + extracted features + geometry
 """
 
 from dataclasses import dataclass, field
@@ -27,8 +28,8 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Type aliases for better type hints
-DataType = Literal["spectrogram", "iq_raw", "features", "hybrid"]
-ArchitectureType = Literal["cnn", "transformer", "tcn", "hybrid", "mlp"]
+DataType = Literal["spectrogram", "iq_raw", "features", "hybrid", "multi_modal"]
+ArchitectureType = Literal["cnn", "transformer", "tcn", "hybrid", "mlp", "multi_modal"]
 Badge = Literal["RECOMMENDED", "MAXIMUM_ACCURACY", "FASTEST", "BEST_RATIO", "BASELINE", "EXPERIMENTAL", "LIGHTWEIGHT", "FLAGSHIP"]
 
 
@@ -100,7 +101,7 @@ class ModelArchitectureInfo:
 
 
 # ============================================================================
-# REGISTRY: All 12 Model Architectures
+# REGISTRY: All 13 Model Architectures
 # ============================================================================
 
 MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
@@ -629,6 +630,65 @@ MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
     ),
     
     # ------------------------------------------------------------------------
+    # MULTI-MODAL MODELS (👁️)
+    # ------------------------------------------------------------------------
+    "heimdall_net": ModelArchitectureInfo(
+        id="heimdall_net",
+        display_name="HeimdallNet 👁️ (Multi-Modal Fusion)",
+        description="Adaptive multi-receiver network combining IQ raw + extracted features + geometry with learnable antenna embeddings.",
+        long_description=(
+            "Advanced multi-modal architecture named after Heimdall, Norse guardian known for extraordinary "
+            "sight. Combines three information sources: (1) raw IQ samples processed by EfficientNet-B2 1D, "
+            "(2) extracted RF features (SNR, PSD, freq_offset), and (3) geometric relationships between receivers. "
+            "Key innovation: learnable per-receiver embeddings capture unique antenna characteristics (gain patterns, "
+            "directivity, hardware biases) while maintaining permutation invariance via set-based aggregation. "
+            "Handles variable receiver count (1-10) with dropout resilience training. Quality-weighted attention "
+            "aggregation ensures robust operation with 2-3 active receivers typical in real deployments. "
+            "Target accuracy: ±8-15m with 40-60ms inference. Recommended as primary model for production."
+        ),
+        data_type="multi_modal",
+        architecture_type="multi_modal",
+        architecture_emoji="👁️",
+        performance=PerformanceMetrics(
+            expected_error_min_m=8.0,
+            expected_error_max_m=15.0,
+            accuracy_stars=5,
+            inference_time_min_ms=40.0,
+            inference_time_max_ms=60.0,
+            speed_stars=4,
+            parameters_millions=2.2,
+            vram_training_gb=3.0,
+            vram_inference_gb=0.8,
+            efficiency_stars=5,
+            speed_emoji="🏃",
+            memory_emoji="📦",
+            accuracy_emoji="💎",
+        ),
+        badges=["RECOMMENDED"],
+        best_for=[
+            "Production deployments with multi-modal data",
+            "Variable receiver count (1-10 SDRs)",
+            "Unstable receivers with frequent dropouts",
+            "Maximum precision (±8-15m target)",
+            "Real-world WebSDR scenarios (3/6 online typical)",
+            "Capturing antenna-specific characteristics",
+        ],
+        not_recommended_for=[
+            "When only IQ raw is available (use IQ HybridNet)",
+            "When only features available (use Triangulation MLP)",
+            "Single receiver scenarios",
+        ],
+        backbone="EfficientNet-B2 1D + Set Attention + Geometry Encoder",
+        pretrained_weights=None,
+        input_shape=(None, 10, 2, 1024),  # (batch, max_receivers, [I,Q], seq_len)
+        output_shape=(None, 2),  # (batch, [lat, lon])
+        training_difficulty="medium",
+        convergence_epochs=50,
+        recommended_batch_size=32,
+        implementation_file="models/heimdall_net.py",
+    ),
+    
+    # ------------------------------------------------------------------------
     # FEATURE-BASED MODELS (🧮)
     # ------------------------------------------------------------------------
     "triangulation_model": ModelArchitectureInfo(
@@ -858,7 +918,7 @@ def get_recommended_model(
     recommendations = {
         "accuracy": "iq_transformer",  # Maximum accuracy
         "speed": "iq_vggnet",  # Fastest inference
-        "balanced": "iq_hybrid",  # Best overall
+        "balanced": "heimdall_net",  # Best overall (multi-modal)
         "edge": "iq_vggnet",  # Lightweight
     }
     

@@ -45,7 +45,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     return Math.pow(10, dbm / 10) / 1000;
   };
 
-  // Production Baseline defaults (balanced quality/performance with SRTM terrain)
+  // Production Baseline defaults (balanced quality/performance with all enhancements ON)
   const [formData, setFormData] = useState<SyntheticDataRequest>({
     name: '',
     description: '',
@@ -61,6 +61,12 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     seed: undefined,
     tx_antenna_dist: undefined,
     rx_antenna_dist: undefined,
+    // Simulation enhancements (all ON by default for realism)
+    enable_meteorological: true,
+    enable_sporadic_e: true,
+    enable_knife_edge: true,
+    enable_polarization: true,
+    enable_antenna_patterns: true,
   });
 
   const handleInputChange = (field: keyof SyntheticDataRequest, value: string | number | boolean) => {
@@ -124,6 +130,11 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         seed: undefined,
         tx_antenna_dist: undefined,
         rx_antenna_dist: undefined,
+        enable_meteorological: true,
+        enable_sporadic_e: true,
+        enable_knife_edge: true,
+        enable_polarization: true,
+        enable_antenna_patterns: true,
       });
       
       onClose();
@@ -229,10 +240,10 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         onChange={(e) => handleInputChange('dataset_type', e.target.value)}
                         disabled={isLoading}
                       />
-                      <label className="form-check-label" htmlFor="dataset_type_feature">
+                      <label className="form-check-label text-dark" htmlFor="dataset_type_feature">
                         <strong>Feature-Based</strong> (TriangulationModel)
                         <div className="form-text">
-                          Uses 7 fixed Italian WebSDRs. Stores extracted features only (mel-spectrograms, MFCCs).
+                          Stores extracted features only (mel-spectrograms, MFCCs).
                           Smaller storage footprint (~1-5 MB per 1000 samples).
                         </div>
                       </label>
@@ -252,10 +263,10 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         }}
                         disabled={isLoading}
                       />
-                      <label className="form-check-label" htmlFor="dataset_type_iq">
+                      <label className="form-check-label text-dark" htmlFor="dataset_type_iq">
                         <strong>IQ Raw</strong> (LocalizationNet/CNN)
                         <div className="form-text">
-                          Uses 5-10 random receivers per sample. Stores ALL raw IQ samples + extracted features.
+                          Stores ALL raw IQ samples + extracted features.
                           Larger storage (~50-200 MB per 1000 samples). Required for CNN training.
                         </div>
                       </label>
@@ -397,11 +408,19 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                   </div>
                 </div>
 
-                {/* Terrain Options */}
-                <div className="mb-3">
-                  <h6 className="fw-semibold mb-3">Terrain Options</h6>
+                {/* Simulation Enhancements */}
+                <div className="mb-4">
+                  <h6 className="fw-semibold mb-3">Simulation Enhancements</h6>
+                  <div className="alert alert-info d-flex align-items-start mb-3" role="alert">
+                    <i className="ph ph-info me-2 mt-1"></i>
+                    <div className="small">
+                      Advanced propagation features for realistic RF simulation. Disable to speed up sample generation for quick testing.
+                      <strong> Production baseline: All ON.</strong>
+                    </div>
+                  </div>
                   
-                  <div className="form-check form-switch">
+                  {/* SRTM Terrain */}
+                  <div className="form-check form-switch mb-2">
                     <input
                       className="form-check-input"
                       type="checkbox"
@@ -410,11 +429,101 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                       onChange={(e) => handleInputChange('use_srtm_terrain', e.target.checked)}
                       disabled={isLoading}
                     />
-                    <label className="form-check-label" htmlFor="use_srtm_terrain">
-                      Use SRTM Terrain Data
+                    <label className="form-check-label text-dark" htmlFor="use_srtm_terrain">
+                      <strong>SRTM Terrain Data</strong>
                     </label>
                     <div className="form-text">
-                      Enable real terrain elevation (production baseline: ON)
+                      Real terrain elevation and line-of-sight blockage
+                    </div>
+                  </div>
+
+                  {/* Meteorological Effects */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="enable_meteorological"
+                      checked={formData.enable_meteorological}
+                      onChange={(e) => handleInputChange('enable_meteorological', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="enable_meteorological">
+                      <strong>Meteorological Effects</strong>
+                    </label>
+                    <div className="form-text">
+                      Tropospheric refraction and ducting
+                    </div>
+                  </div>
+
+                  {/* Sporadic-E Propagation */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="enable_sporadic_e"
+                      checked={formData.enable_sporadic_e}
+                      onChange={(e) => handleInputChange('enable_sporadic_e', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="enable_sporadic_e">
+                      <strong>Sporadic-E Propagation</strong>
+                    </label>
+                    <div className="form-text">
+                      Ionospheric skip propagation (VHF/UHF)
+                    </div>
+                  </div>
+
+                  {/* Knife-Edge Diffraction */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="enable_knife_edge"
+                      checked={formData.enable_knife_edge}
+                      onChange={(e) => handleInputChange('enable_knife_edge', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="enable_knife_edge">
+                      <strong>Knife-Edge Diffraction</strong>
+                    </label>
+                    <div className="form-text">
+                      Signal diffraction over terrain obstacles
+                    </div>
+                  </div>
+
+                  {/* Polarization Effects */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="enable_polarization"
+                      checked={formData.enable_polarization}
+                      onChange={(e) => handleInputChange('enable_polarization', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="enable_polarization">
+                      <strong>Polarization Mismatch</strong>
+                    </label>
+                    <div className="form-text">
+                      Antenna polarization loss (vertical/horizontal)
+                    </div>
+                  </div>
+
+                  {/* Antenna Patterns */}
+                  <div className="form-check form-switch mb-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="enable_antenna_patterns"
+                      checked={formData.enable_antenna_patterns}
+                      onChange={(e) => handleInputChange('enable_antenna_patterns', e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label text-dark" htmlFor="enable_antenna_patterns">
+                      <strong>Antenna Radiation Patterns</strong>
+                    </label>
+                    <div className="form-text">
+                      Realistic antenna gain patterns (omnidirectional, directional)
                     </div>
                   </div>
                 </div>
@@ -472,7 +581,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         onChange={(e) => handleInputChange('use_random_receivers', e.target.checked)}
                         disabled={isLoading}
                       />
-                      <label className="form-check-label" htmlFor="use_random_receivers">
+                      <label className="form-check-label text-dark" htmlFor="use_random_receivers">
                         Use Random Receiver Placement
                       </label>
                       <div className="form-text">

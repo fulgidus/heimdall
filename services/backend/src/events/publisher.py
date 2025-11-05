@@ -433,6 +433,52 @@ class EventPublisher:
         self._publish('terrain.tile.progress', event)
         logger.debug(f"Published terrain tile progress: {tile_name} - {status} ({current}/{total})")
 
+    def publish_dataset_updated(
+        self,
+        dataset_id: str,
+        num_samples: int,
+        action: str = "updated",
+        **kwargs
+    ) -> None:
+        """
+        Publish dataset metadata update event.
+        
+        Used to notify frontend when dataset metadata changes (sample count, storage size, etc.).
+        This triggers UI refresh of the datasets table.
+        
+        Args:
+            dataset_id: Dataset UUID
+            num_samples: Updated sample count
+            action: Action type (updated/created/deleted/expanded)
+            **kwargs: Additional metadata (storage_size_bytes, dataset_type, etc.)
+        
+        Example:
+            publisher.publish_dataset_updated(
+                dataset_id="uuid-string",
+                num_samples=139,
+                action="expanded",
+                storage_size_bytes=1024000
+            )
+        """
+        event_data = {
+            'dataset_id': dataset_id,
+            'num_samples': num_samples,
+            'action': action,
+        }
+        
+        # Include any additional kwargs
+        for key, value in kwargs.items():
+            event_data[key] = value
+        
+        event = {
+            'event': 'dataset_update',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': event_data
+        }
+
+        self._publish(f'dataset.update.{dataset_id}', event)
+        logger.info(f"Published dataset update: dataset {dataset_id}, samples={num_samples}, action={action}")
+
     def publish_training_job_update(
         self,
         job_id: str,
