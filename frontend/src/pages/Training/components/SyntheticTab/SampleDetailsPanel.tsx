@@ -28,6 +28,47 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
     // Sort receivers by SNR (descending)
     const sortedReceivers = [...receivers].sort((a, b) => b.snr_db - a.snr_db);
 
+    // Calculate min/max SNR for normalization
+    const snrValues = receivers.map(rx => rx.snr_db);
+    const minSnr = Math.min(...snrValues);
+    const maxSnr = Math.max(...snrValues);
+    const snrRange = maxSnr - minSnr;
+
+    /**
+     * Normalize SNR value to 0-1 range
+     */
+    const normalizeSnr = (snr: number): number => {
+        if (snrRange === 0) return 1; // All receivers have same SNR
+        return (snr - minSnr) / snrRange;
+    };
+
+    /**
+     * Convert normalized SNR (0-1) to color gradient: red → yellow → green
+     * 0.0 = red (#dc3545)
+     * 0.5 = yellow (#ffc107)
+     * 1.0 = green (#28a745)
+     */
+    const getSnrColor = (normalizedSnr: number): string => {
+        // Clamp to 0-1 range
+        const value = Math.max(0, Math.min(1, normalizedSnr));
+        
+        if (value < 0.5) {
+            // Interpolate red → yellow (0.0 to 0.5)
+            const t = value * 2; // Scale to 0-1
+            const r = 220; // Red component stays high
+            const g = Math.round(60 + (252 - 60) * t); // 60 → 252
+            const b = Math.round(69 - 69 * t); // 69 → 0
+            return `rgb(${r}, ${g}, ${b})`;
+        } else {
+            // Interpolate yellow → green (0.5 to 1.0)
+            const t = (value - 0.5) * 2; // Scale to 0-1
+            const r = Math.round(255 - (255 - 40) * t); // 255 → 40
+            const g = Math.round(193 + (167 - 193) * t); // 193 → 167
+            const b = Math.round(7 + (69 - 7) * t); // 7 → 69
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+    };
+
     return (
         <div className="sample-details-panel">
             {/* Transmitter Info */}
@@ -79,6 +120,9 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                             {sortedReceivers.map((rx) => {
                                 const isSelected = selectedRxId === rx.rx_id;
                                 const hasSignal = rx.signal_present !== undefined ? rx.signal_present : (rx.snr_db > -20);
+                                const normalizedSnr = normalizeSnr(rx.snr_db);
+                                const snrColor = getSnrColor(normalizedSnr);
+                                
                                 return (
                                     <tr
                                         key={rx.rx_id}
@@ -114,13 +158,21 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                         )}
                                         <td>
                                             <button
-                                                className="btn btn-sm btn-outline-primary"
+                                                className="btn btn-sm"
+                                                style={{
+                                                    backgroundColor: snrColor,
+                                                    borderColor: snrColor,
+                                                    color: 'white',
+                                                    fontWeight: '500'
+                                                }}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    onRxSelect && onRxSelect(rx.rx_id);
+                                                    if (onRxSelect) {
+                                                        onRxSelect(rx.rx_id);
+                                                    }
                                                 }}
                                             >
-                                                Details
+                                                Details ({normalizedSnr.toFixed(2)})
                                             </button>
                                         </td>
                                     </tr>
