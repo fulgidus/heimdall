@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { useTrainingWebSocket } from '../../hooks/useTrainingWebSocket';
 import { LossChart } from './LossChart';
 import { AccuracyChart } from './AccuracyChart';
 import { LearningRateChart } from './LearningRateChart';
@@ -25,6 +26,14 @@ export const MetricsTab: React.FC = () => {
     return !job.job_type || job.job_type === 'training';
   });
 
+  // Find the selected job to check if it's running
+  const selectedJob = trainingJobs.find(j => j.id === selectedJobId);
+  
+  // Connect to WebSocket for running jobs to get real-time metric updates
+  const { isConnected } = useTrainingWebSocket(
+    selectedJob && selectedJob.status === 'running' ? selectedJobId : null
+  );
+
   // Auto-select first running job or first job
   useEffect(() => {
     if (!selectedJobId && trainingJobs.length > 0) {
@@ -33,7 +42,7 @@ export const MetricsTab: React.FC = () => {
     }
   }, [trainingJobs, selectedJobId]);
 
-  // Fetch metrics when job is selected (WebSocket will handle real-time updates)
+  // Fetch metrics when job is selected (initial load - WebSocket will handle real-time updates)
   useEffect(() => {
     if (selectedJobId) {
       fetchMetrics(selectedJobId);
@@ -42,7 +51,6 @@ export const MetricsTab: React.FC = () => {
   }, [selectedJobId]); // Only re-run when job selection changes, not on every jobs update
 
   const selectedMetrics = selectedJobId ? metrics.get(selectedJobId) || [] : [];
-  const selectedJob = trainingJobs.find(j => j.id === selectedJobId);
 
   return (
     <div>
@@ -98,6 +106,24 @@ export const MetricsTab: React.FC = () => {
                   <div>
                     <span className="fw-medium">Progress:</span>
                     <span className="ms-2">{selectedJob.progress_percent.toFixed(1)}%</span>
+                  </div>
+                )}
+                {selectedJob.status === 'running' && (
+                  <div>
+                    <span className="fw-medium">Real-time Updates:</span>
+                    <span className={`ms-2 badge ${isConnected ? 'bg-light-success text-success' : 'bg-light-warning text-warning'}`}>
+                      {isConnected ? (
+                        <>
+                          <i className="ph ph-check-circle me-1"></i>
+                          CONNECTED
+                        </>
+                      ) : (
+                        <>
+                          <i className="ph ph-warning-circle me-1"></i>
+                          CONNECTING...
+                        </>
+                      )}
+                    </span>
                   </div>
                 )}
               </div>

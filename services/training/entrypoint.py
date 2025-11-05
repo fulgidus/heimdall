@@ -56,7 +56,9 @@ def start_worker():
         "--loglevel",
         log_level,
         "--pool",
-        "solo",  # Use solo pool to avoid daemon process issues with DataLoader workers
+        "prefork",  # Use prefork pool for proper signal handling and task termination
+        "--concurrency",
+        "1",  # Single worker to avoid resource contention
         "--time-limit",
         "21600",  # 6 hours
         "--soft-time-limit",

@@ -20,6 +20,7 @@ import torch.optim as optim
 from io import BytesIO
 
 from celery import Task, shared_task
+from celery.contrib.abortable import AbortableTask
 from celery.utils.log import get_task_logger
 
 logger = get_task_logger(__name__)
@@ -81,7 +82,7 @@ class TrainingTask(Task):
     retry_jitter = True
 
 
-@shared_task(bind=True, base=TrainingTask)
+@shared_task(bind=True, base=AbortableTask)
 def start_training_job(self, job_id: str):
     """
     Start training job with real PyTorch triangulation model.
@@ -402,6 +403,34 @@ def start_training_job(self, job_id: str):
         
         # Training loop
         for epoch in range(resume_epoch + 1, epochs + 1):
+            # Check for cancellation at start of each epoch
+            if self.is_aborted():
+                logger.info(f"Training job {job_id} cancelled at epoch {epoch}. Stopping gracefully...")
+                
+                # Update job status to cancelled
+                with db_manager.get_session() as session:
+                    session.execute(
+                        text("UPDATE heimdall.training_jobs SET status = 'cancelled', completed_at = NOW() WHERE id = :job_id"),
+                        {"job_id": job_id}
+                    )
+                    session.commit()
+                
+                # Publish cancellation event
+                event_publisher.publish_training_completed(
+                    job_id=job_id,
+                    status='cancelled',
+                    best_epoch=best_epoch,
+                    best_val_loss=float(best_val_loss)
+                )
+                
+                return {
+                    "status": "cancelled",
+                    "job_id": job_id,
+                    "cancelled_at_epoch": epoch - 1,
+                    "best_epoch": best_epoch,
+                    "best_val_loss": float(best_val_loss)
+                }
+            
             model.train()
             train_loss_sum = 0.0
             train_distance_sum = 0.0
@@ -416,6 +445,35 @@ def start_training_job(self, job_id: str):
 
             # Training phase
             for batch_idx, batch in enumerate(train_loader, 1):
+                # Check for cancellation every 10 batches for responsive cancellation
+                if batch_idx % 10 == 0 and self.is_aborted():
+                    logger.info(f"Training job {job_id} cancelled during batch {batch_idx}. Stopping immediately...")
+                    
+                    # Update job status to cancelled
+                    with db_manager.get_session() as session:
+                        session.execute(
+                            text("UPDATE heimdall.training_jobs SET status = 'cancelled', completed_at = NOW() WHERE id = :job_id"),
+                            {"job_id": job_id}
+                        )
+                        session.commit()
+                    
+                    # Publish cancellation event
+                    event_publisher.publish_training_completed(
+                        job_id=job_id,
+                        status='cancelled',
+                        best_epoch=best_epoch,
+                        best_val_loss=float(best_val_loss)
+                    )
+                    
+                    return {
+                        "status": "cancelled",
+                        "job_id": job_id,
+                        "cancelled_at_epoch": epoch,
+                        "cancelled_at_batch": batch_idx,
+                        "best_epoch": best_epoch,
+                        "best_val_loss": float(best_val_loss)
+                    }
+                
                 receiver_features = batch["receiver_features"].to(device)
                 signal_mask = batch["signal_mask"].to(device)
                 target_position = batch["target_position"].to(device)
@@ -1091,7 +1149,7 @@ def start_training_job(self, job_id: str):
                 logger.warning(f"Error closing val session: {e}")
 
 
-@shared_task(bind=True, base=TrainingTask)
+@shared_task(bind=True, base=AbortableTask)
 def generate_synthetic_data_task(self, job_id: str):
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -1289,6 +1347,11 @@ def generate_synthetic_data_task(self, job_id: str):
         # For continuations, show cumulative progress
         # Now accepts attempted parameter to show total attempts vs valid samples
         async def progress_callback(current, total, attempted=None):
+            # Check for cancellation during generation
+            if self.is_aborted():
+                logger.info(f"Synthetic data generation job {job_id} cancelled at {current}/{total} samples")
+                raise asyncio.CancelledError("Task cancelled by user")
+            
             # Add offset for continuation jobs
             cumulative_current = samples_offset + current
             # Note: total_progress in DB was set to original total (not remaining)

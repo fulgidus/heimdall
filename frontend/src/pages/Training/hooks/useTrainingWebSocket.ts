@@ -64,9 +64,17 @@ export const useTrainingWebSocket = (jobId: string | null) => {
 
               case 'training_progress':
                 // Could be job update or metric update
-                if ('epoch' in message.data) {
-                  // It's a metric update
-                  storeRef.current.handleMetricUpdate(message.data as TrainingMetric);
+                if ('epoch' in message.data && 'metrics' in message.data) {
+                  // It's a metric update - flatten the structure
+                  // Backend sends: { data: { job_id, epoch, metrics: {...}, ... } }
+                  // Frontend expects: { job_id, epoch, train_loss, val_loss, ... }
+                  const flattenedMetric: TrainingMetric = {
+                    job_id: message.data.job_id,
+                    epoch: message.data.epoch,
+                    timestamp: message.timestamp,
+                    ...message.data.metrics, // Spread all metrics (train_loss, val_loss, etc.)
+                  };
+                  storeRef.current.handleMetricUpdate(flattenedMetric);
                 } else {
                   // It's a job update
                   storeRef.current.handleJobUpdate({

@@ -234,6 +234,20 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
             </button>
           )}
 
+          {/* Resume button for cancelled/failed jobs with checkpoints */}
+          {(job.status === 'cancelled' || job.status === 'failed') && job.checkpoint_path && (
+            <button
+              onClick={handleResume}
+              disabled={isLoading}
+              className="btn btn-sm btn-outline-success flex-fill"
+              data-action="resume"
+              title="Resume training from last checkpoint"
+            >
+              <i className="ph ph-arrow-clockwise me-1"></i>
+              {isLoading ? 'Resuming...' : 'Resume from Checkpoint'}
+            </button>
+          )}
+
           {(job.status === 'pending' || job.status === 'queued') && (
             <button
               onClick={(e) => {
@@ -254,8 +268,10 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
             </button>
           )}
 
-          {/* Delete button for completed/failed/cancelled jobs */}
-          {(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') && (
+          {/* Delete button for completed jobs, or failed/cancelled without checkpoints */}
+          {(job.status === 'completed' || 
+            (job.status === 'failed' && !job.checkpoint_path) || 
+            (job.status === 'cancelled' && !job.checkpoint_path)) && (
             <button
               onClick={(e) => {
                 console.log('[JobCard] Delete button clicked!', {
@@ -268,6 +284,27 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
               }}
               disabled={isLoading}
               className="btn btn-sm btn-outline-danger w-100"
+              data-action="delete"
+            >
+              <i className="ph ph-trash me-1"></i>
+              {isLoading ? 'Deleting...' : 'Delete Job'}
+            </button>
+          )}
+
+          {/* Show both Resume and Delete for failed/cancelled jobs with checkpoints */}
+          {(job.status === 'failed' || job.status === 'cancelled') && job.checkpoint_path && (
+            <button
+              onClick={(e) => {
+                console.log('[JobCard] Delete button clicked!', {
+                  jobId: job.id.slice(0, 8),
+                  jobStatus: job.status,
+                  buttonElement: e.currentTarget,
+                  dataAction: e.currentTarget.getAttribute('data-action'),
+                });
+                handleDelete();
+              }}
+              disabled={isLoading}
+              className="btn btn-sm btn-outline-danger flex-fill"
               data-action="delete"
             >
               <i className="ph ph-trash me-1"></i>

@@ -49,7 +49,7 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
   return (
     <div className="card">
       <div className="card-body">
-        <h5 className="card-title mb-1">Uncertainty Calibration</h5>
+        <h5 className="card-title mb-1">Uncertainty Calibration (Log Scale)</h5>
         <p className="text-muted small mb-3">
           Model's predicted uncertainty vs actual error. Goal: calibration error → 0
         </p>
@@ -62,9 +62,18 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
               stroke="#6b7280"
             />
             <YAxis 
-              label={{ value: 'Distance (m)', angle: -90, position: 'insideLeft' }}
+              scale="log"
+              domain={['auto', 'auto']}
+              label={{ value: 'Distance (m) - Log Scale', angle: -90, position: 'insideLeft' }}
               stroke="#6b7280"
-              domain={[0, 'auto']}
+              tickFormatter={(value: number) => {
+                // Format with appropriate precision for log scale
+                if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+                if (value >= 100) return value.toFixed(0);
+                if (value >= 10) return value.toFixed(1);
+                if (value >= 1) return value.toFixed(1);
+                return value.toFixed(2);
+              }}
             />
             <Tooltip 
               contentStyle={{ 
@@ -72,7 +81,13 @@ export const UncertaintyCalibrationChart: React.FC<UncertaintyCalibrationChartPr
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.375rem',
               }}
-              formatter={(value: number) => `${value.toFixed(1)} m`}
+              formatter={(value: number) => {
+                // Format with appropriate precision
+                if (value >= 1000) return `${(value / 1000).toFixed(2)}k m`;
+                if (value >= 100) return `${value.toFixed(0)} m`;
+                if (value >= 1) return `${value.toFixed(1)} m`;
+                return `${value.toFixed(2)} m`;
+              }}
             />
             <Legend />
             

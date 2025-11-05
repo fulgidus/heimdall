@@ -38,6 +38,8 @@ export interface TrainingJob {
   total_epochs: number;
   estimated_completion?: string;
   error_message?: string;
+  checkpoint_path?: string; // Path to model checkpoint in MinIO
+  pause_checkpoint_path?: string; // Path to pause checkpoint (if paused)
 }
 
 export interface TrainingMetric {

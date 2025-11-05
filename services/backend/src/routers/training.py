@@ -439,12 +439,12 @@ async def cancel_training_job(job_id: UUID):
                 try:
                     from celery.result import AsyncResult
                     from celery import current_app
+                    from celery.contrib.abortable import AbortableAsyncResult
 
-                    # Use AsyncResult.revoke() for direct task termination
-                    task = AsyncResult(celery_task_id, app=current_app)
-                    # Terminate with SIGKILL for immediate termination (SIGTERM can be ignored)
-                    task.revoke(terminate=True, signal='SIGKILL')
-                    logger.info(f"Cancelled Celery task {celery_task_id} for job {job_id}")
+                    # Use AbortableAsyncResult.abort() for graceful task cancellation
+                    task = AbortableAsyncResult(celery_task_id, app=current_app)
+                    task.abort()
+                    logger.info(f"Aborted Celery task {celery_task_id} for job {job_id}")
                 except Exception as e:
                     logger.warning(f"Failed to cancel Celery task: {e}")
 
@@ -600,11 +600,11 @@ async def resume_training_job(job_id: UUID):
 
             status, pause_checkpoint_path, checkpoint_path, current_epoch, total_epochs = result
 
-            # Can only resume paused jobs
-            if status != "paused":
+            # Can resume paused, cancelled, or failed jobs
+            if status not in ["paused", "cancelled", "failed"]:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Cannot resume job in status '{status}'. Only paused jobs can be resumed."
+                    detail=f"Cannot resume job in status '{status}'. Only paused, cancelled, or failed jobs can be resumed."
                 )
 
             # Use pause_checkpoint_path if available, otherwise fallback to checkpoint_path
