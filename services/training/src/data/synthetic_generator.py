@@ -1645,6 +1645,11 @@ async def generate_synthetic_data_with_iq(
             try:
                 await save_features_to_db(dataset_id, batch_results, conn)
                 logger.info(f"Saved batch to database ({valid_samples_collected} total saved)")
+                
+                # OPTION A: Update num_samples after each batch (incremental checkpoint)
+                # This ensures partial progress is preserved even if job is killed
+                actual_count = await update_dataset_sample_count(dataset_id, conn)
+                logger.info(f"Dataset sample count updated: {actual_count} samples")
             except Exception as e:
                 logger.error(f"Failed to save batch: {e}")
         
@@ -1693,6 +1698,47 @@ async def generate_synthetic_data_with_iq(
         'dataset_type': dataset_type,
         'stopped_reason': 'target_reached' if reached_target else ('max_attempts' if total_attempted >= max_attempts else ('consecutive_failures' if consecutive_failures >= max_consecutive_failures else 'unknown'))
     }
+
+
+async def update_dataset_sample_count(
+    dataset_id: uuid.UUID,
+    conn
+) -> int:
+    """
+    Update synthetic_datasets.num_samples to reflect actual count in measurement_features.
+    This ensures partial progress is preserved even if job fails or is killed.
+    
+    Args:
+        dataset_id: Dataset UUID
+        conn: Database connection (async)
+    
+    Returns:
+        Updated sample count
+    """
+    try:
+        raw_conn = await conn.get_raw_connection()
+        asyncpg_conn = raw_conn.driver_connection
+        
+        # Count actual samples
+        count_query = """
+            SELECT COUNT(*) FROM heimdall.measurement_features
+            WHERE dataset_id = $1
+        """
+        actual_count = await asyncpg_conn.fetchval(count_query, dataset_id)
+        
+        # Update dataset record
+        update_query = """
+            UPDATE heimdall.synthetic_datasets
+            SET num_samples = $1
+            WHERE id = $2
+        """
+        await asyncpg_conn.execute(update_query, actual_count, dataset_id)
+        
+        logger.debug(f"Updated dataset {dataset_id} sample count to {actual_count}")
+        return actual_count
+    except Exception as e:
+        logger.error(f"Failed to update dataset sample count: {e}", exc_info=True)
+        return 0
 
 
 async def save_features_to_db(

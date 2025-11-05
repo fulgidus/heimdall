@@ -1183,6 +1183,22 @@ def generate_synthetic_data_task(self, job_id: str):
     logger.info(f"Starting synthetic data generation job {job_id}")
 
     db_manager = get_db_manager()
+    
+    # OPTION B: Setup signal handler for graceful shutdown (SIGTERM)
+    # This allows us to save partial progress when user cancels job
+    import signal
+    shutdown_requested = {'value': False}
+    
+    def handle_shutdown_signal(signum, frame):
+        """Handle SIGTERM/SIGINT gracefully by saving partial progress."""
+        sig_name = 'SIGTERM' if signum == signal.SIGTERM else 'SIGINT'
+        logger.warning(f"Received {sig_name}, saving partial progress before shutdown...")
+        shutdown_requested['value'] = True
+    
+    # Register signal handlers (SIGTERM = graceful shutdown, SIGINT = Ctrl+C)
+    signal.signal(signal.SIGTERM, handle_shutdown_signal)
+    signal.signal(signal.SIGINT, handle_shutdown_signal)
+    logger.info("Signal handlers registered for graceful shutdown (SIGTERM/SIGINT)")
 
     try:
         # Load job configuration
@@ -1561,9 +1577,31 @@ def generate_synthetic_data_task(self, job_id: str):
                            f"PostgreSQL={pg_size / (1024**2):.2f}MB, "
                            f"MinIO={minio_size / (1024**2):.2f}MB, "
                            f"Total={total_size / (1024**2):.2f}MB")
+                
+                # Publish dataset update event to trigger UI refresh
+                event_publisher.publish_dataset_updated(
+                    dataset_id=str(dataset_id),
+                    num_samples=actual_count,
+                    action="expanded" if samples_offset > 0 else "created",
+                    storage_size_bytes=total_size,
+                    dataset_type=config.get('dataset_type', 'feature_based')
+                )
+                logger.info(f"Published dataset update event for dataset {dataset_id} (samples={actual_count})")
         except Exception as e:
             logger.error(f"Failed to calculate storage size for dataset {dataset_id}: {e}", exc_info=True)
             # Non-critical error, continue with job completion
+            
+            # Still publish dataset update event even if storage calculation failed
+            try:
+                event_publisher.publish_dataset_updated(
+                    dataset_id=str(dataset_id),
+                    num_samples=actual_count,
+                    action="expanded" if samples_offset > 0 else "created",
+                    dataset_type=config.get('dataset_type', 'feature_based')
+                )
+                logger.info(f"Published dataset update event for dataset {dataset_id} (samples={actual_count}, storage calc failed)")
+            except Exception as publish_error:
+                logger.error(f"Failed to publish dataset update event: {publish_error}", exc_info=True)
 
         # Update job as completed
         with db_manager.get_session() as session:
@@ -1576,7 +1614,7 @@ def generate_synthetic_data_task(self, job_id: str):
             session.commit()
 
         # Publish job completion event
-        publisher.publish_training_job_update(
+        event_publisher.publish_training_job_update(
             job_id=job_id,
             status='completed',
             action='completed',
@@ -1603,6 +1641,59 @@ def generate_synthetic_data_task(self, job_id: str):
     except Exception as e:
         logger.error(f"Error in synthetic data generation job {job_id}: {e}", exc_info=True)
 
+        # Count and preserve any samples generated before failure (if dataset_id is defined)
+        # This handles partial progress: if job fails after generating some samples,
+        # we update num_samples to reflect partial results instead of losing all work
+        if 'dataset_id' in locals():
+            try:
+                with db_manager.get_session() as session:
+                    # Count actual samples in measurement_features
+                    count_query = text("""
+                        SELECT COUNT(*) FROM heimdall.measurement_features
+                        WHERE dataset_id = :dataset_id
+                    """)
+                    actual_count = session.execute(count_query, {"dataset_id": str(dataset_id)}).scalar() or 0
+
+                    # Update dataset with partial results
+                    if actual_count > 0:
+                        update_query = text("""
+                            UPDATE heimdall.synthetic_datasets
+                            SET num_samples = :num_samples
+                            WHERE id = :id
+                        """)
+                        session.execute(
+                            update_query,
+                            {
+                                "id": str(dataset_id),
+                                "num_samples": actual_count
+                            }
+                        )
+                        session.commit()
+                        logger.info(f"Preserved {actual_count} samples generated before failure for dataset {dataset_id}")
+
+                        # Publish dataset update event for partial results
+                        try:
+                            # Get event publisher (may not be initialized if failure was early)
+                            from backend.src.events.publisher import get_event_publisher
+                            failure_publisher = get_event_publisher()
+                            dataset_type = config.get('dataset_type', 'feature_based') if 'config' in locals() else 'feature_based'
+                            failure_publisher.publish_dataset_updated(
+                                dataset_id=str(dataset_id),
+                                num_samples=actual_count,
+                                action="partial_failure",
+                                dataset_type=dataset_type
+                            )
+                            logger.info(f"Published dataset update event for partial results (samples={actual_count})")
+                        except Exception as publish_error:
+                            logger.error(f"Failed to publish dataset update event: {publish_error}", exc_info=True)
+                    else:
+                        logger.info(f"No samples to preserve for dataset {dataset_id} (count=0)")
+
+            except Exception as count_error:
+                logger.error(f"Failed to count/preserve partial samples: {count_error}", exc_info=True)
+        else:
+            logger.info("Job failed before dataset_id was defined - no partial samples to preserve")
+
         # Update job as failed
         with db_manager.get_session() as session:
             fail_query = text("""
@@ -1614,13 +1705,19 @@ def generate_synthetic_data_task(self, job_id: str):
             session.commit()
 
         # Publish job failure event
-        publisher.publish_training_job_update(
-            job_id=job_id,
-            status='failed',
-            action='failed',
-            error_message=str(e)
-        )
-        logger.error(f"Published job failure event for {job_id}")
+        try:
+            # Get event publisher (may not be initialized if failure was early)
+            from backend.src.events.publisher import get_event_publisher
+            failure_publisher = get_event_publisher()
+            failure_publisher.publish_training_job_update(
+                job_id=job_id,
+                status='failed',
+                action='failed',
+                error_message=str(e)
+            )
+            logger.error(f"Published job failure event for {job_id}")
+        except Exception as publish_error:
+            logger.error(f"Failed to publish job failure event: {publish_error}", exc_info=True)
 
         raise
 
