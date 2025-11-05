@@ -94,7 +94,7 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
             </span>
           </div>
         </div>
-        {modelInfo.latency_p95_ms && (
+        {modelInfo.latency_p95_ms != null && (
           <div className="list-group-item px-0 py-2">
             <div className="d-flex justify-content-between">
               <span className="text-muted">P95 Latency</span>
@@ -102,7 +102,7 @@ export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () 
             </div>
           </div>
         )}
-        {modelInfo.cache_hit_rate !== undefined && (
+        {modelInfo.cache_hit_rate != null && (
           <div className="list-group-item px-0 py-2">
             <div className="d-flex justify-content-between">
               <span className="text-muted">Cache Hit Rate</span>

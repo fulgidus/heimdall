@@ -225,8 +225,8 @@ def _generate_single_sample_no_features(args):
     
     # Generate random receivers if requested (for iq_raw datasets)
     if use_random_receivers:
-        min_rx = config.get('min_receivers_count', 5)
-        max_rx = config.get('max_receivers_count', 10)
+        min_rx = config.get('min_receivers_count') or 5
+        max_rx = config.get('max_receivers_count') or 10
         num_receivers = rng.integers(min_rx, max_rx + 1)  # Inclusive upper bound
         
         # Initialize terrain lookup for random receiver generation
@@ -321,11 +321,11 @@ def _generate_single_sample_no_features(args):
     # Reset RNG seed for this sample (iq_generator supports seed reset)
     iq_generator.rng = np.random.default_rng(sample_seed)
 
-    # Extract config parameters
-    frequency_mhz = config.get('frequency_mhz', 145.0)
-    tx_power_dbm = config.get('tx_power_dbm', 37.0)
-    inside_ratio = config.get('inside_ratio', 0.7)
-    min_snr_db = config.get('min_snr_db', 3.0)
+    # Extract config parameters (handle None values explicitly with 'or')
+    frequency_mhz = config.get('frequency_mhz') or 145.0
+    tx_power_dbm = config.get('tx_power_dbm') or 37.0
+    inside_ratio = config.get('inside_ratio') or 0.7
+    min_snr_db = config.get('min_snr_db') if config.get('min_snr_db') is not None else 3.0  # min_snr_db can be 0
 
     # Generate random TX position
     # Reconstruct bounding boxes from config dict
@@ -352,8 +352,8 @@ def _generate_single_sample_no_features(args):
     gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
     
     # Get max_gdop and min_receivers from config
-    max_gdop_threshold = config.get('max_gdop', 150.0)
-    min_receivers_threshold = config.get('min_receivers', 3)
+    max_gdop_threshold = config.get('max_gdop') or 150.0
+    min_receivers_threshold = config.get('min_receivers') or 3
     
     # Ensure threshold values are not None (defensive programming)
     if max_gdop_threshold is None:
@@ -547,8 +547,8 @@ def _generate_single_sample(args):
     
     # Generate random receivers if requested (for iq_raw datasets)
     if use_random_receivers:
-        min_rx = config.get('min_receivers_count', 5)
-        max_rx = config.get('max_receivers_count', 10)
+        min_rx = config.get('min_receivers_count') or 5
+        max_rx = config.get('max_receivers_count') or 10
         num_receivers = rng.integers(min_rx, max_rx + 1)  # Inclusive upper bound
         
         # Initialize terrain lookup for random receiver generation
@@ -657,10 +657,10 @@ def _generate_single_sample(args):
     iq_generator.rng = np.random.default_rng(sample_seed)
 
     # Extract config parameters
-    frequency_mhz = config.get('frequency_mhz', 145.0)
-    tx_power_dbm = config.get('tx_power_dbm', 37.0)
-    inside_ratio = config.get('inside_ratio', 0.7)
-    min_snr_db = config.get('min_snr_db', 3.0)
+    frequency_mhz = config.get('frequency_mhz') or 145.0
+    tx_power_dbm = config.get('tx_power_dbm') or 37.0
+    inside_ratio = config.get('inside_ratio') or 0.7
+    min_snr_db = config.get('min_snr_db') if config.get('min_snr_db') is not None else 3.0
 
     # Generate random TX position
     # Reconstruct bounding boxes from config dict
@@ -687,8 +687,8 @@ def _generate_single_sample(args):
     gdop_precheck = calculate_gdop(receiver_positions_precheck, (tx_lat, tx_lon)) if len(receiver_positions_precheck) >= 3 else 999.0
     
     # Get max_gdop and min_receivers from config
-    max_gdop_threshold = config.get('max_gdop', 150.0)
-    min_receivers_threshold = config.get('min_receivers', 3)
+    max_gdop_threshold = config.get('max_gdop') or 150.0
+    min_receivers_threshold = config.get('min_receivers') or 3
     
     # Ensure threshold values are not None (defensive programming)
     if max_gdop_threshold is None:
@@ -1319,9 +1319,9 @@ async def generate_synthetic_data_with_iq(
     logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples (type: {dataset_type})")
 
     # Extract generation parameters
-    min_snr_db = config.get('min_snr_db', 3.0)
-    min_receivers = config.get('min_receivers', 3)
-    max_gdop = config.get('max_gdop', 150.0)
+    min_snr_db = config.get('min_snr_db') if config.get('min_snr_db') is not None else 3.0
+    min_receivers = config.get('min_receivers') or 3
+    max_gdop = config.get('max_gdop') or 150.0
     
     # For iq_raw datasets, use random receivers
     use_random_receivers = (dataset_type == 'iq_raw') or config.get('use_random_receivers', False)
@@ -1504,7 +1504,7 @@ async def generate_synthetic_data_with_iq(
                     })
 
                 except Exception as e:
-                    logger.error(f"Error generating sample {sample_idx}: {e}")
+                    logger.error(f"Error generating sample {sample_idx}: {e}", exc_info=True)
                     continue
         
         logger.info(f"Batch IQ generation complete: {len(batch_raw_results)} samples ready for feature extraction")

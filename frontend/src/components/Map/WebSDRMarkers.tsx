@@ -53,10 +53,10 @@ function createPopupHTML(websdr: WebSDRConfig, health?: WebSDRHealthStatus): str
                     </tr>
                     <tr>
                         <td class="text-muted">Coordinates:</td>
-                        <td>${websdr.latitude.toFixed(4)}, ${websdr.longitude.toFixed(4)}</td>
+                        <td>${websdr.latitude != null ? websdr.latitude.toFixed(4) : 'N/A'}, ${websdr.longitude != null ? websdr.longitude.toFixed(4) : 'N/A'}</td>
                     </tr>
                     ${
-                      health?.response_time_ms
+                      health?.response_time_ms != null
                         ? `<tr>
                             <td class="text-muted">Response:</td>
                             <td>${health.response_time_ms}ms</td>
@@ -64,7 +64,7 @@ function createPopupHTML(websdr: WebSDRConfig, health?: WebSDRHealthStatus): str
                         : ''
                     }
                     ${
-                      health?.avg_snr !== undefined && health?.avg_snr !== null
+                      health?.avg_snr != null
                         ? `<tr>
                             <td class="text-muted">Avg SNR:</td>
                             <td>${health.avg_snr.toFixed(1)} dB</td>

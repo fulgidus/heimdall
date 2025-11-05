@@ -39,18 +39,18 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                     <div className="row">
                         <div className="col-md-6">
                             <p className="mb-1">
-                                <strong>Position:</strong> {sample.tx_lat.toFixed(6)}, {sample.tx_lon.toFixed(6)}
+                                <strong>Position:</strong> {sample.tx_lat != null ? sample.tx_lat.toFixed(6) : 'N/A'}, {sample.tx_lon != null ? sample.tx_lon.toFixed(6) : 'N/A'}
                             </p>
                             <p className="mb-1">
-                                <strong>Power:</strong> {sample.tx_power_dbm.toFixed(1)} dBm
+                                <strong>Power:</strong> {sample.tx_power_dbm != null ? sample.tx_power_dbm.toFixed(1) : 'N/A'} dBm
                             </p>
                         </div>
                         <div className="col-md-6">
                             <p className="mb-1">
-                                <strong>Frequency:</strong> {(sample.frequency_hz / 1e6).toFixed(3)} MHz
+                                <strong>Frequency:</strong> {sample.frequency_hz != null ? (sample.frequency_hz / 1e6).toFixed(3) : 'N/A'} MHz
                             </p>
                             <p className="mb-1">
-                                <strong>GDOP:</strong> {sample.gdop.toFixed(2)}
+                                <strong>GDOP:</strong> {sample.gdop != null ? sample.gdop.toFixed(2) : 'N/A'}
                             </p>
                         </div>
                     </div>
@@ -91,10 +91,10 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                 {rx.rx_id}
                                             </Badge>
                                         </td>
-                                        <td>{rx.distance_km.toFixed(1)} km</td>
+                                        <td>{rx.distance_km != null ? rx.distance_km.toFixed(1) : 'N/A'} km</td>
                                         <td>
-                                            <span className={rx.snr_db > 10 ? 'text-success' : rx.snr_db > 0 ? 'text-warning' : 'text-danger'}>
-                                                {rx.snr_db.toFixed(1)} dB
+                                            <span className={rx.snr_db != null && rx.snr_db > 10 ? 'text-success' : rx.snr_db != null && rx.snr_db > 0 ? 'text-warning' : 'text-danger'}>
+                                                {rx.snr_db != null ? rx.snr_db.toFixed(1) : 'N/A'} dB
                                             </span>
                                         </td>
                                         <td>
@@ -148,18 +148,18 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                     <div className="row mb-3">
                                         <div className="col-md-6">
                                             <p className="mb-1">
-                                                <strong>Position:</strong> {rx.lat.toFixed(6)}, {rx.lon.toFixed(6)}
+                                                <strong>Position:</strong> {rx.lat != null ? rx.lat.toFixed(6) : 'N/A'}, {rx.lon != null ? rx.lon.toFixed(6) : 'N/A'}
                                             </p>
                                             <p className="mb-1">
-                                                <strong>Altitude:</strong> {rx.alt.toFixed(0)} m
+                                                <strong>Altitude:</strong> {rx.alt != null ? rx.alt.toFixed(0) : 'N/A'} m
                                             </p>
                                         </div>
                                         <div className="col-md-6">
                                             <p className="mb-1">
-                                                <strong>Distance:</strong> {rx.distance_km.toFixed(2)} km
+                                                <strong>Distance:</strong> {rx.distance_km != null ? rx.distance_km.toFixed(2) : 'N/A'} km
                                             </p>
                                             <p className="mb-1">
-                                                <strong>SNR:</strong> {rx.snr_db.toFixed(2)} dB
+                                                <strong>SNR:</strong> {rx.snr_db != null ? rx.snr_db.toFixed(2) : 'N/A'} dB
                                             </p>
                                         </div>
                                     </div>
@@ -170,31 +170,31 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                     <h6 className="text-muted mb-2">Propagation Path Loss Components:</h6>
                                     <Table size="sm" bordered>
                                         <tbody>
-                                            {rx.fspl_db !== undefined && (
+                                            {rx.fspl_db != null && (
                                                 <tr>
                                                     <td><strong>Free Space Path Loss (FSPL)</strong></td>
                                                     <td className="text-end">{rx.fspl_db.toFixed(2)} dB</td>
                                                 </tr>
                                             )}
-                                            {rx.terrain_loss_db !== undefined && (
+                                            {rx.terrain_loss_db != null && (
                                                 <tr>
                                                     <td><strong>Terrain Obstruction Loss</strong></td>
                                                     <td className="text-end">{rx.terrain_loss_db.toFixed(2)} dB</td>
                                                 </tr>
                                             )}
-                                            {rx.knife_edge_loss_db !== undefined && (
+                                            {rx.knife_edge_loss_db != null && (
                                                 <tr>
                                                     <td><strong>Knife-Edge Diffraction</strong></td>
                                                     <td className="text-end">{rx.knife_edge_loss_db.toFixed(2)} dB</td>
                                                 </tr>
                                             )}
-                                            {rx.atmospheric_absorption_db !== undefined && (
+                                            {rx.atmospheric_absorption_db != null && (
                                                 <tr>
                                                     <td><strong>Atmospheric Absorption</strong></td>
                                                     <td className="text-end">{rx.atmospheric_absorption_db.toFixed(2)} dB</td>
                                                 </tr>
                                             )}
-                                            {rx.polarization_loss_db !== undefined && (
+                                            {rx.polarization_loss_db != null && (
                                                 <tr>
                                                     <td><strong>Polarization Mismatch</strong></td>
                                                     <td className="text-end">{rx.polarization_loss_db.toFixed(2)} dB</td>
@@ -204,12 +204,12 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                     </Table>
 
                                     {/* Enhancements */}
-                                    {(rx.tropospheric_effect_db !== undefined || rx.sporadic_e_enhancement_db !== undefined) && (
+                                    {(rx.tropospheric_effect_db != null || rx.sporadic_e_enhancement_db != null) && (
                                         <>
                                             <h6 className="text-muted mb-2 mt-3">Propagation Enhancements:</h6>
                                             <Table size="sm" bordered>
                                                 <tbody>
-                                                    {rx.tropospheric_effect_db !== undefined && (
+                                                    {rx.tropospheric_effect_db != null && (
                                                         <tr>
                                                             <td><strong>Tropospheric Effect</strong></td>
                                                             <td className="text-end text-success">
@@ -218,7 +218,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                             </td>
                                                         </tr>
                                                     )}
-                                                    {rx.sporadic_e_enhancement_db !== undefined && (
+                                                    {rx.sporadic_e_enhancement_db != null && (
                                                         <tr>
                                                             <td><strong>Sporadic-E Enhancement</strong></td>
                                                             <td className="text-end text-success">
@@ -241,7 +241,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                 <td><strong>TX Antenna</strong></td>
                                                 <td>
                                                     {rx.tx_antenna_type || 'N/A'}
-                                                    {rx.tx_antenna_gain_db !== undefined && (
+                                                    {rx.tx_antenna_gain_db != null && (
                                                         <span className="text-muted"> ({rx.tx_antenna_gain_db.toFixed(1)} dBi)</span>
                                                     )}
                                                 </td>
@@ -250,7 +250,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                 <td><strong>RX Antenna</strong></td>
                                                 <td>
                                                     {rx.rx_antenna_type || 'N/A'}
-                                                    {rx.rx_antenna_gain_db !== undefined && (
+                                                    {rx.rx_antenna_gain_db != null && (
                                                         <span className="text-muted"> ({rx.rx_antenna_gain_db.toFixed(1)} dBi)</span>
                                                     )}
                                                 </td>

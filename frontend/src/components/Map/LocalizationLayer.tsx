@@ -53,27 +53,27 @@ function createPopupHTML(localization: LocalizationResult, totalWebSDRs?: number
                     </tr>
                     <tr>
                         <td class="text-muted">Latitude:</td>
-                        <td>${localization.latitude.toFixed(6)}</td>
+                        <td>${localization.latitude != null ? localization.latitude.toFixed(6) : 'N/A'}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Longitude:</td>
-                        <td>${localization.longitude.toFixed(6)}</td>
+                        <td>${localization.longitude != null ? localization.longitude.toFixed(6) : 'N/A'}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Uncertainty:</td>
-                        <td>±${localization.uncertainty_m.toFixed(1)}m</td>
+                        <td>±${localization.uncertainty_m != null ? localization.uncertainty_m.toFixed(1) : 'N/A'}m</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Confidence:</td>
-                        <td>${(localization.confidence * 100).toFixed(1)}%</td>
+                        <td>${localization.confidence != null ? (localization.confidence * 100).toFixed(1) : 'N/A'}%</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Frequency:</td>
-                        <td>${localization.source_frequency_mhz.toFixed(3)} MHz</td>
+                        <td>${localization.source_frequency_mhz != null ? localization.source_frequency_mhz.toFixed(3) : 'N/A'} MHz</td>
                     </tr>
                     <tr>
                         <td class="text-muted">SNR:</td>
-                        <td>${localization.snr_avg_db.toFixed(1)} dB</td>
+                        <td>${localization.snr_avg_db != null ? localization.snr_avg_db.toFixed(1) : 'N/A'} dB</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Receivers:</td>

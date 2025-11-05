@@ -111,7 +111,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                     >
                       {samples.map((sample, idx) => (
                         <option key={sample.id} value={idx}>
-                          #{idx + 1} - {sample.tx_lat.toFixed(4)}, {sample.tx_lon.toFixed(4)} ({sample.num_receivers} RX)
+                          #{idx + 1} - {sample.tx_lat != null ? sample.tx_lat.toFixed(4) : 'N/A'}, {sample.tx_lon != null ? sample.tx_lon.toFixed(4) : 'N/A'} ({sample.num_receivers || 0} RX)
                         </option>
                       ))}
                     </select>
@@ -201,7 +201,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                           </h6>
                           <div className="row g-3">
                             {/* Frequency */}
-                            {dataset.config?.frequency_mhz !== undefined && (
+                            {dataset.config?.frequency_mhz != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Frequency:</span>
@@ -211,7 +211,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* TX Power */}
-                            {dataset.config?.tx_power_dbm !== undefined && (
+                            {dataset.config?.tx_power_dbm != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">TX Power:</span>
@@ -221,7 +221,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Min SNR */}
-                            {dataset.config?.min_snr_db !== undefined && (
+                            {dataset.config?.min_snr_db != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Min SNR:</span>
@@ -231,7 +231,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Min Receivers */}
-                            {dataset.config?.min_receivers !== undefined && (
+                            {dataset.config?.min_receivers != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Min Receivers:</span>
@@ -241,7 +241,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Max GDOP */}
-                            {dataset.config?.max_gdop !== undefined && (
+                            {dataset.config?.max_gdop != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Max GDOP:</span>
@@ -251,7 +251,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Inside Ratio */}
-                            {dataset.config?.inside_ratio !== undefined && (
+                            {dataset.config?.inside_ratio != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Inside Ratio:</span>
@@ -261,7 +261,7 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Use SRTM */}
-                            {dataset.config?.use_srtm !== undefined && (
+                            {dataset.config?.use_srtm != null && (
                               <div className="col-md-6">
                                 <div className="d-flex justify-content-between">
                                   <span className="text-muted small">Use SRTM:</span>
@@ -300,14 +300,14 @@ export const DatasetDetailsDialog: React.FC<DatasetDetailsDialogProps> = ({
                             )}
 
                             {/* Geographic Area (if configured) */}
-                            {(dataset.config?.area_lat_min !== undefined || dataset.config?.area_lon_min !== undefined) && (
+                            {(dataset.config?.area_lat_min != null || dataset.config?.area_lon_min != null) && (
                               <div className="col-12">
                                 <hr className="my-2" />
                                 <div className="small">
                                   <strong className="text-muted">Geographic Area:</strong>
                                   <div className="mt-1">
-                                    Lat: {dataset.config.area_lat_min?.toFixed(4)} - {dataset.config.area_lat_max?.toFixed(4)}, 
-                                    Lon: {dataset.config.area_lon_min?.toFixed(4)} - {dataset.config.area_lon_max?.toFixed(4)}
+                                    Lat: {dataset.config.area_lat_min != null ? dataset.config.area_lat_min.toFixed(4) : 'N/A'} - {dataset.config.area_lat_max != null ? dataset.config.area_lat_max.toFixed(4) : 'N/A'}, 
+                                    Lon: {dataset.config.area_lon_min != null ? dataset.config.area_lon_min.toFixed(4) : 'N/A'} - {dataset.config.area_lon_max != null ? dataset.config.area_lon_max.toFixed(4) : 'N/A'}
                                   </div>
                                 </div>
                               </div>

@@ -63,7 +63,7 @@ export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = () => {
                         <div className="fw-medium">
                           {sdr.location_description?.split(',')[0] || sdr.name}
                         </div>
-                        {health?.response_time_ms && (
+                        {health?.response_time_ms != null && (
                           <small className="text-muted">
                             {health.response_time_ms.toFixed(0)}ms
                           </small>
