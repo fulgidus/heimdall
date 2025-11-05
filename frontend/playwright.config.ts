@@ -3,12 +3,12 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright E2E Test Configuration
  * 
- * Tests real HTTP calls from frontend to backend (NO mocks/stubs).
+ * Tests run with VITE_ENABLE_DEBUG=true to bypass authentication.
+ * This allows testing core functionality without Keycloak user setup.
  * 
- * Environment Variables (from .env.test):
- * - VITE_TEST_USER_EMAIL: Test user email
- * - VITE_TEST_USER_PASSWORD: Test user password
- * - VITE_API_BACKEND_ORIGIN: Backend URL
+ * Vite automatically loads .env.test when running with --mode test.
+ * 
+ * Real authentication testing is handled separately via Keycloak integration tests.
  */
 
 export default defineConfig({
@@ -25,6 +25,10 @@ export default defineConfig({
 
     /* Opt out of parallel tests on CI. */
     workers: process.env.CI ? 1 : undefined,
+
+    /* Global setup - set environment variables for test runner */
+    globalSetup: undefined,
+    globalTeardown: undefined,
 
     /* Reporter to use. See https://playwright.dev/docs/test-reporters */
     reporter: [
@@ -76,9 +80,15 @@ export default defineConfig({
 
     /* Run your local dev server before starting the tests */
     webServer: process.env.CI ? undefined : {
-        command: 'npm run dev',
+        command: 'npm run dev -- --mode test',
         url: 'http://localhost:3001',
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,
+        env: {
+            // Ensure Vite loads .env.test
+            MODE: 'test',
+            // Pass debug mode to test environment (not browser)
+            VITE_ENABLE_DEBUG: 'true',
+        },
     },
 });

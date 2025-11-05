@@ -109,7 +109,12 @@ async def get_export_metadata():
         sources_size = sources_count * 500 if sources_count else 0
         websdrs_size = websdrs_count * 400 if websdrs_count else 0
         sessions_size = sessions_count * 600 if sessions_count else 0
-        sample_sets_size = sum(s["num_samples"] * 200 for s in sample_sets)
+        # Sample size calculation:
+        # - 7 receivers × 593 bytes (17 features × 4 stats each × 8 bytes + metadata)
+        # - Ground truth + sample metadata: ~136 bytes
+        # - JSONB overhead (PostgreSQL): ~1.3x
+        # Total: ~5600 bytes per sample
+        sample_sets_size = sum(s["num_samples"] * 5600 for s in sample_sets)
         models_size = len(models) * 50000000  # ~50MB per model (rough estimate)
 
         return MetadataResponse(

@@ -1287,7 +1287,8 @@ def generate_synthetic_data_task(self, job_id: str):
 
         # Progress callback (async wrapper for Celery)
         # For continuations, show cumulative progress
-        async def progress_callback(current, total):
+        # Now accepts attempted parameter to show total attempts vs valid samples
+        async def progress_callback(current, total, attempted=None):
             # Add offset for continuation jobs
             cumulative_current = samples_offset + current
             # Note: total_progress in DB was set to original total (not remaining)
@@ -1295,10 +1296,19 @@ def generate_synthetic_data_task(self, job_id: str):
             total_samples = samples_offset + total if is_continuation else total
             progress_pct = (cumulative_current / total_samples) * 100
             
+            # Calculate success rate if attempted is provided
+            success_rate = (current / attempted * 100) if attempted and attempted > 0 else 100.0
+            
             if is_continuation:
-                message = f'Processing {cumulative_current}/{total_samples} samples (continued from {samples_offset})'
+                if attempted:
+                    message = f'Generated {cumulative_current}/{total_samples} valid samples (continued from {samples_offset}, attempted: {attempted}, {success_rate:.1f}% success)'
+                else:
+                    message = f'Processing {cumulative_current}/{total_samples} samples (continued from {samples_offset})'
             else:
-                message = f'Processing {current}/{total} samples'
+                if attempted:
+                    message = f'Generated {current}/{total} valid samples (attempted: {attempted}, {success_rate:.1f}% success)'
+                else:
+                    message = f'Processing {current}/{total} samples'
 
             logger.info(f"[PROGRESS] {message} ({progress_pct:.1f}%)")
 
@@ -1308,6 +1318,8 @@ def generate_synthetic_data_task(self, job_id: str):
                 meta={
                     'current': cumulative_current if is_continuation else current,
                     'total': total_samples,
+                    'attempted': attempted,
+                    'success_rate': success_rate,
                     'message': message,
                     'progress_percent': progress_pct
                 }

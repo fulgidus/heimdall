@@ -36,3 +36,6 @@ pnpm-debug.log*
 # Dependency audit results (generated, can be ignored)
 audit-results/
 services/requirements/*.audit.json
+
+playwright-report/
+frontend/playwright-report/

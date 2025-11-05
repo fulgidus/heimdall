@@ -1276,18 +1276,37 @@ async def generate_synthetic_data_with_iq(
     # This reduces GPU overhead from ~4.5s per sample to ~4.5s per batch_size samples
     num_workers = min(8, mp.cpu_count())  # More workers for geometry generation (no GPU contention)
     
-    logger.info(f"TRUE BATCH MODE: Processing {num_samples} samples in batches of {batch_size}")
+    logger.info(f"TRUE BATCH MODE: Generating {num_samples} VALID samples in batches of {batch_size}")
     
-    completed = 0
-    processed = 0
+    # Rename for clarity: num_samples is the TARGET number of VALID samples
+    target_valid_samples = num_samples
+    valid_samples_collected = 0
+    total_attempted = 0
     generated_samples = []
     iq_samples_to_save = {}
     
-    # Process in batches
-    for batch_start in range(0, num_samples, batch_size):
-        batch_end = min(batch_start + batch_size, num_samples)
-        batch_args = args_list[batch_start:batch_end]
-        logger.info(f"Processing batch {batch_start//batch_size + 1}: samples {batch_start} to {batch_end-1}")
+    # Safety limits to prevent infinite loops with impossible parameters
+    max_attempts = num_samples * 20  # Allow down to 5% success rate
+    max_consecutive_failures = 5  # Stop if 5 consecutive batches have 0 valid samples
+    consecutive_failures = 0
+    
+    batch_number = 0
+    
+    # Process batches until we have enough VALID samples
+    logger.info(f"Target: {target_valid_samples} valid samples, max attempts: {max_attempts}")
+    
+    while valid_samples_collected < target_valid_samples and total_attempted < max_attempts:
+        batch_number += 1
+        batch_start = total_attempted
+        batch_end = batch_start + batch_size
+        
+        # Generate args for this batch (indices continue from total_attempted)
+        batch_args = [
+            (batch_start + i, receivers_list, training_config_dict, config, seed, dataset_type, use_random_receivers)
+            for i in range(batch_size)
+        ]
+        
+        logger.info(f"Processing batch {batch_number}: attempting samples {batch_start} to {batch_end-1} (valid so far: {valid_samples_collected}/{target_valid_samples})")
         
         # Step 1: Generate geometries + IQ samples in parallel (NO feature extraction yet)
         batch_raw_results = []  # Store raw results without features
@@ -1297,16 +1316,16 @@ async def generate_synthetic_data_with_iq(
 
             for future in as_completed(futures):
                 sample_idx = futures[future]
-                processed += 1
+                total_attempted += 1
 
                 # Check for cancellation
-                if job_id and processed % 10 == 0:
+                if job_id and total_attempted % 10 == 0:
                     from sqlalchemy import text
                     check_query = text("SELECT status FROM heimdall.training_jobs WHERE id = :job_id")
                     result_check = await conn.execute(check_query, {"job_id": job_id})
                     row = result_check.fetchone()
                     if row and row[0] == 'cancelled':
-                        logger.warning(f"Job cancelled at {processed}/{num_samples}")
+                        logger.warning(f"Job cancelled at {valid_samples_collected} valid samples ({total_attempted} attempted)")
                         for f in futures:
                             f.cancel()
                         break
@@ -1460,31 +1479,54 @@ async def generate_synthetic_data_with_iq(
             if raw_result['iq_samples'] and (dataset_type == 'iq_raw' or sample_idx < 100):
                 iq_samples_to_save[sample_idx] = raw_result['iq_samples']
         
-        # Batch complete
-        completed += len(batch_results)
+        # Batch complete - update counters
+        valid_in_batch = len(batch_results)
+        valid_samples_collected += valid_in_batch
         generated_samples.extend(batch_results)
-        logger.info(f"Batch complete: {len(batch_results)} valid samples ({completed} total)")
+        
+        # Track consecutive failures for safety
+        if valid_in_batch == 0:
+            consecutive_failures += 1
+            logger.warning(f"Batch {batch_number} produced 0 valid samples (consecutive failures: {consecutive_failures}/{max_consecutive_failures})")
+            if consecutive_failures >= max_consecutive_failures:
+                logger.error(f"Stopping: {consecutive_failures} consecutive batches with 0 valid samples. Parameters may be too strict (GDOP={max_gdop}, min_receivers={min_receivers}, min_snr={min_snr_db})")
+                break
+        else:
+            consecutive_failures = 0  # Reset on success
+        
+        success_rate = valid_samples_collected / total_attempted * 100 if total_attempted > 0 else 0
+        logger.info(f"Batch {batch_number} complete: {valid_in_batch} valid samples | Total: {valid_samples_collected}/{target_valid_samples} valid ({total_attempted} attempted, {success_rate:.1f}% success rate)")
         
         # Save batch to database
         if batch_results:
             try:
                 await save_features_to_db(dataset_id, batch_results, conn)
-                logger.info(f"Saved batch to database ({completed} total saved)")
+                logger.info(f"Saved batch to database ({valid_samples_collected} total saved)")
             except Exception as e:
                 logger.error(f"Failed to save batch: {e}")
         
         # Progress update after each batch
         if progress_callback:
             try:
-                logger.info(f"[PROGRESS DEBUG] Calling progress_callback with processed={completed}, num_samples={num_samples}")
-                await progress_callback(completed, num_samples)
+                logger.info(f"[PROGRESS DEBUG] Calling progress_callback with valid={valid_samples_collected}, target={target_valid_samples}, attempted={total_attempted}")
+                await progress_callback(valid_samples_collected, target_valid_samples, total_attempted)
                 logger.info(f"[PROGRESS DEBUG] Callback completed successfully")
-                logger.info(f"[PROGRESS] Progress: {completed}/{num_samples} samples processed")
+                logger.info(f"[PROGRESS] Progress: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted)")
             except Exception as e:
                 logger.error(f"[PROGRESS DEBUG] Callback failed: {e}", exc_info=True)
     
     # All batches complete
-    logger.info(f"Generated {len(generated_samples)} valid samples (success rate: {len(generated_samples)/num_samples*100:.1f}%)")
+    final_success_rate = valid_samples_collected / total_attempted * 100 if total_attempted > 0 else 0
+    reached_target = valid_samples_collected >= target_valid_samples
+    
+    if reached_target:
+        logger.info(f"✓ Target reached: {valid_samples_collected}/{target_valid_samples} valid samples generated ({total_attempted} attempted, {final_success_rate:.1f}% success rate)")
+    elif total_attempted >= max_attempts:
+        logger.warning(f"✗ Max attempts reached: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted, {final_success_rate:.1f}% success rate)")
+    elif consecutive_failures >= max_consecutive_failures:
+        logger.warning(f"✗ Too many consecutive failures: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted)")
+    else:
+        logger.warning(f"✗ Generation stopped early: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted)")
 
     # Save IQ samples to MinIO and database
     # For feature_based: save first 100 only
@@ -1499,11 +1541,14 @@ async def generate_synthetic_data_with_iq(
             await save_iq_metadata_to_db(dataset_id, samples_with_iq, storage_paths, conn)
 
     return {
-        'total_generated': len(generated_samples),
-        'total_attempted': num_samples,
-        'success_rate': len(generated_samples) / num_samples if num_samples > 0 else 0,
+        'total_generated': valid_samples_collected,
+        'total_attempted': total_attempted,
+        'success_rate': final_success_rate / 100,  # Convert to 0-1 range
+        'target_samples': target_valid_samples,
+        'reached_target': reached_target,
         'iq_samples_saved': len(iq_samples_to_save),
-        'dataset_type': dataset_type
+        'dataset_type': dataset_type,
+        'stopped_reason': 'target_reached' if reached_target else ('max_attempts' if total_attempted >= max_attempts else ('consecutive_failures' if consecutive_failures >= max_consecutive_failures else 'unknown'))
     }
 
 
