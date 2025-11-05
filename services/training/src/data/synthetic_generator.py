@@ -23,7 +23,7 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .config import TrainingConfig, TxAntennaDistribution, RxAntennaDistribution
+from .config import TrainingConfig, TxAntennaDistribution, RxAntennaDistribution, MeteorologicalParameters
 from .propagation import (
     RFPropagationModel, 
     calculate_psd, 
@@ -140,8 +140,9 @@ def _select_rx_antenna(rng: np.random.Generator, rx_antenna_dist=None) -> Antenn
     Select a realistic RX antenna based on configurable distribution.
     
     Default distribution (if rx_antenna_dist not provided):
-    - 80% OMNI_VERTICAL (most common for monitoring stations)
+    - 70% OMNI_VERTICAL (most common for monitoring stations)
     - 15% YAGI (directional, pointed at specific area)
+    - 10% LOG_PERIODIC (wideband directional antenna)
     - 5% COLLINEAR (high-gain omnidirectional)
     
     Args:
@@ -156,16 +157,16 @@ def _select_rx_antenna(rng: np.random.Generator, rx_antenna_dist=None) -> Antenn
         # Convert dict to dataclass if needed
         if isinstance(rx_antenna_dist, dict):
             rx_antenna_dist = RxAntennaDistribution(**rx_antenna_dist)
-        antenna_probs = [rx_antenna_dist.omni_vertical, rx_antenna_dist.yagi, rx_antenna_dist.collinear]
+        antenna_probs = [rx_antenna_dist.omni_vertical, rx_antenna_dist.yagi, rx_antenna_dist.log_periodic, rx_antenna_dist.collinear]
     else:
-        antenna_probs = [0.80, 0.15, 0.05]  # Default distribution
+        antenna_probs = [0.70, 0.15, 0.10, 0.05]  # Default distribution (updated to include log_periodic)
     
-    antenna_types = [AntennaType.OMNI_VERTICAL, AntennaType.YAGI, AntennaType.COLLINEAR]
+    antenna_types = [AntennaType.OMNI_VERTICAL, AntennaType.YAGI, AntennaType.LOG_PERIODIC, AntennaType.COLLINEAR]
     
     antenna_type = rng.choice(antenna_types, p=antenna_probs)
     
-    # For directional antennas (Yagi), randomize pointing direction
-    if antenna_type == AntennaType.YAGI:
+    # For directional antennas (Yagi, Log-Periodic), randomize pointing direction
+    if antenna_type in [AntennaType.YAGI, AntennaType.LOG_PERIODIC]:
         pointing_azimuth = rng.uniform(0.0, 360.0)
     else:
         pointing_azimuth = 0.0  # Omnidirectional, doesn't matter
@@ -319,6 +320,10 @@ def _generate_single_sample_no_features(args):
     rx_antenna_dist = config.get('rx_antenna_dist', None)
     tx_antenna = _select_tx_antenna(rng, tx_antenna_dist)
     
+    # Generate meteorological parameters for this sample (add diversity)
+    # Use sample_seed to ensure reproducibility
+    meteo_params = MeteorologicalParameters.random(seed=sample_seed)
+    
     # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
     rx_powers_dbm = []
@@ -334,7 +339,7 @@ def _generate_single_sample_no_features(args):
         # Each receiver has its own antenna (with random type and pointing direction)
         rx_antenna = _select_rx_antenna(rng, rx_antenna_dist)
 
-        # Calculate received power and SNR using propagation model (with antenna gains)
+        # Calculate received power and SNR using propagation model (with antenna gains and meteorological effects)
         rx_power_dbm, snr_db, details = propagation.calculate_received_power(
             tx_power_dbm=tx_power_dbm,
             tx_lat=tx_lat,
@@ -346,7 +351,8 @@ def _generate_single_sample_no_features(args):
             frequency_mhz=frequency_mhz,
             terrain_lookup=terrain,
             tx_antenna=tx_antenna,
-            rx_antenna=rx_antenna
+            rx_antenna=rx_antenna,
+            meteo_params=meteo_params
         )
         
         rx_powers_dbm.append(rx_power_dbm)
@@ -434,7 +440,14 @@ def _generate_single_sample_no_features(args):
         'chunk_duration_ms': 200.0,
         'generated_at': sample_idx,
         'propagation_snr_values': propagation_snr_values,
-        'receivers_with_signal': receivers_with_signal
+        'receivers_with_signal': receivers_with_signal,
+        'meteo_params': {
+            'ground_temperature': meteo_params.ground_temperature,
+            'relative_humidity': meteo_params.relative_humidity,
+            'pressure_hpa': meteo_params.pressure_hpa,
+            'time_of_day': meteo_params.time_of_day,
+            'season': meteo_params.season
+        }
     }
 
     tx_position = {

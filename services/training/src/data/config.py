@@ -299,21 +299,100 @@ class TxAntennaDistribution:
 @dataclass
 class RxAntennaDistribution:
     """RX antenna type probability distribution (WebSDR fixed stations)."""
-    omni_vertical: float = 0.80   # Standard WebSDR omni (0-3 dBi)
+    omni_vertical: float = 0.70   # Standard WebSDR omni (0-3 dBi)
     yagi: float = 0.15            # Directional stations (10-15 dBi)
+    log_periodic: float = 0.10    # Wideband directional (8-12 dBi)
     collinear: float = 0.05       # High-gain omni (6-9 dBi)
     
     def validate(self):
         """Ensure probabilities sum to 1.0."""
-        total = self.omni_vertical + self.yagi + self.collinear
+        total = self.omni_vertical + self.yagi + self.log_periodic + self.collinear
         if not (0.99 <= total <= 1.01):
             raise ValueError(f"RX antenna probabilities must sum to 1.0, got {total:.3f}")
     
     def to_arrays(self) -> Tuple[List[str], List[float]]:
         """Return (antenna_types, probabilities) for np.random.choice()."""
         return (
-            ["OMNI_VERTICAL", "YAGI", "COLLINEAR"],
-            [self.omni_vertical, self.yagi, self.collinear]
+            ["OMNI_VERTICAL", "YAGI", "LOG_PERIODIC", "COLLINEAR"],
+            [self.omni_vertical, self.yagi, self.log_periodic, self.collinear]
+        )
+
+
+@dataclass
+class MeteorologicalParameters:
+    """Meteorological conditions affecting RF propagation."""
+    
+    # Temperature (Celsius)
+    ground_temperature: float = 20.0  # Surface temperature
+    temperature_gradient: float = -6.5  # °C per km (standard atmosphere)
+    
+    # Humidity (relative humidity %)
+    relative_humidity: float = 50.0  # 0-100%
+    
+    # Atmospheric pressure (hPa)
+    pressure_hpa: float = 1013.25  # Sea level standard
+    
+    # Time of day (0-24 hours, affects temperature/humidity)
+    time_of_day: float = 12.0  # Noon by default
+    
+    # Season (0-3: spring, summer, autumn, winter)
+    season: int = 1  # Summer by default
+    
+    # Tropospheric ducting probability (0.0-1.0)
+    ducting_probability: float = 0.05  # 5% chance
+    
+    @classmethod
+    def random(cls, seed: Optional[int] = None):
+        """
+        Generate random meteorological parameters with realistic correlations.
+        
+        Args:
+            seed: Random seed for reproducibility
+        
+        Returns:
+            MeteorologicalParameters with randomized values
+        """
+        import numpy as np
+        rng = np.random.default_rng(seed)
+        
+        # Random time of day (0-24 hours)
+        time_of_day = rng.uniform(0, 24)
+        
+        # Random season (0=spring, 1=summer, 2=autumn, 3=winter)
+        season = rng.integers(0, 4)
+        
+        # Base temperature depends on season and time of day
+        season_base_temps = [15.0, 25.0, 12.0, 5.0]  # Spring, Summer, Autumn, Winter
+        base_temp = season_base_temps[season]
+        
+        # Diurnal temperature variation (peak at ~14:00, minimum at ~04:00)
+        hour_offset = (time_of_day - 14.0) / 24.0 * 2 * np.pi
+        diurnal_variation = -8.0 * np.cos(hour_offset)  # ±8°C swing
+        
+        ground_temperature = base_temp + diurnal_variation + rng.uniform(-3, 3)
+        
+        # Humidity inversely correlated with temperature
+        # Higher in winter/night, lower in summer/day
+        base_humidity = 70.0 - (ground_temperature - 10.0) * 1.5
+        relative_humidity = np.clip(base_humidity + rng.uniform(-15, 15), 20, 95)
+        
+        # Pressure variation (typical range: 980-1040 hPa)
+        pressure_hpa = 1013.25 + rng.uniform(-20, 20)
+        
+        # Ducting more likely in summer with high temperature gradients
+        if season == 1:  # Summer
+            ducting_probability = rng.uniform(0.05, 0.15)  # 5-15%
+        else:
+            ducting_probability = rng.uniform(0.01, 0.05)  # 1-5%
+        
+        return cls(
+            ground_temperature=ground_temperature,
+            temperature_gradient=-6.5 + rng.uniform(-2, 2),  # Vary around standard
+            relative_humidity=relative_humidity,
+            pressure_hpa=pressure_hpa,
+            time_of_day=time_of_day,
+            season=season,
+            ducting_probability=ducting_probability
         )
 
 

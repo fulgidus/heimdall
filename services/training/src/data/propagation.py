@@ -21,9 +21,10 @@ logger = structlog.get_logger(__name__)
 class AntennaType(Enum):
     """Antenna types for VHF/UHF amateur radio."""
     # RX antennas (WebSDR - typically fixed stations)
-    OMNI_VERTICAL = "omni_vertical"      # 0-3 dBi, circular pattern (80% of RX)
+    OMNI_VERTICAL = "omni_vertical"      # 0-3 dBi, circular pattern (70% of RX)
     YAGI = "yagi"                        # 10-15 dBi, directional 30-60° (15% of RX)
     COLLINEAR = "collinear"              # 6-9 dBi, omnidirectional (5% of RX)
+    LOG_PERIODIC = "log_periodic"        # 8-12 dBi, wideband directional (10% of RX)
     
     # TX antennas (mobile/portable)
     WHIP = "whip"                        # 0-2 dBi, omnidirectional (90% of TX)
@@ -51,6 +52,22 @@ class AntennaPattern:
         
         # Define antenna parameters based on type
         self._setup_antenna_parameters()
+        
+        # Add pointing error for directional antennas (simulates imperfect alignment)
+        if self.azimuth_beamwidth < 360.0:
+            # Pointing error is proportional to beamwidth (wider beam = easier to aim)
+            # Typical pointing error: ±5-15° for handheld, ±2-8° for fixed installations
+            max_error = min(15.0, self.azimuth_beamwidth * 0.2)
+            self.pointing_error = np.random.uniform(-max_error, max_error)
+            self.pointing_azimuth += self.pointing_error
+            
+            # Normalize to 0-360
+            if self.pointing_azimuth < 0:
+                self.pointing_azimuth += 360.0
+            elif self.pointing_azimuth >= 360.0:
+                self.pointing_azimuth -= 360.0
+        else:
+            self.pointing_error = 0.0
     
     def _setup_antenna_parameters(self):
         """Setup antenna parameters (gain, beamwidth) based on type."""
@@ -83,6 +100,12 @@ class AntennaPattern:
             self.azimuth_beamwidth = 360.0
             self.elevation_beamwidth = 90.0
             self.front_to_back_ratio = 0.0
+            
+        elif self.antenna_type == AntennaType.LOG_PERIODIC:
+            self.max_gain_dbi = np.random.uniform(8.0, 12.0)
+            self.azimuth_beamwidth = np.random.uniform(50.0, 80.0)
+            self.elevation_beamwidth = np.random.uniform(50.0, 80.0)
+            self.front_to_back_ratio = np.random.uniform(18.0, 28.0)  # dB
             
         elif self.antenna_type == AntennaType.PORTABLE_DIRECTIONAL:
             self.max_gain_dbi = np.random.uniform(3.0, 6.0)
@@ -179,6 +202,146 @@ class RFPropagationModel:
         self.env_loss_max_db = env_loss_max_db
         self.fading_scale_db = fading_scale_db
         self.noise_floor_dbm = noise_floor_dbm
+    
+    def calculate_atmospheric_absorption(
+        self,
+        distance_km: float,
+        frequency_mhz: float,
+        temperature_c: float = 20.0,
+        relative_humidity: float = 50.0,
+        pressure_hpa: float = 1013.25
+    ) -> float:
+        """
+        Calculate atmospheric absorption loss for VHF/UHF frequencies.
+        
+        Based on ITU-R P.676 recommendations for gaseous absorption.
+        For VHF/UHF (30-3000 MHz), absorption is primarily from water vapor and oxygen.
+        
+        Args:
+            distance_km: Path length in kilometers
+            frequency_mhz: Frequency in MHz
+            temperature_c: Temperature in Celsius
+            relative_humidity: Relative humidity (0-100%)
+            pressure_hpa: Atmospheric pressure in hPa
+        
+        Returns:
+            Atmospheric absorption loss in dB
+        """
+        if distance_km <= 0:
+            return 0.0
+        
+        # Convert to absolute temperature
+        temperature_k = temperature_c + 273.15
+        
+        # Water vapor density (g/m³) from relative humidity
+        # Simplified August-Roche-Magnus formula
+        es = 6.1094 * math.exp(17.625 * temperature_c / (temperature_c + 243.04))  # Saturation vapor pressure (hPa)
+        e = relative_humidity / 100.0 * es  # Actual vapor pressure
+        water_vapor_density = 216.7 * e / temperature_k  # g/m³
+        
+        # Specific attenuation (dB/km) for VHF/UHF
+        # For frequencies < 1 GHz, absorption is very small but increases with humidity
+        
+        # Oxygen absorption (negligible below 10 GHz, but include for completeness)
+        freq_ghz = frequency_mhz / 1000.0
+        gamma_o = 7.2e-3 * (pressure_hpa / 1013.25) * (1.0 / (freq_ghz ** 2 + 0.6))  # dB/km
+        
+        # Water vapor absorption (frequency-dependent, humidity-dependent)
+        # Simplified model for VHF/UHF range
+        gamma_w = (
+            0.05 * water_vapor_density * freq_ghz ** 2 / 
+            ((freq_ghz - 22.235) ** 2 + 2.0)  # 22.235 GHz water vapor line
+        )
+        
+        # Total specific attenuation
+        gamma_total = gamma_o + gamma_w
+        
+        # Total atmospheric absorption
+        absorption_db = gamma_total * distance_km
+        
+        # Typical values for 145 MHz at 50% humidity: ~0.01-0.05 dB per 100 km
+        # This scales up to 0.5-2 dB for 500 km paths in humid conditions
+        
+        return absorption_db
+    
+    def calculate_tropospheric_refraction(
+        self,
+        distance_km: float,
+        frequency_mhz: float,
+        ground_temperature_c: float = 20.0,
+        relative_humidity: float = 50.0,
+        pressure_hpa: float = 1013.25,
+        ducting_active: bool = False
+    ) -> float:
+        """
+        Calculate tropospheric refraction effects on signal strength.
+        
+        Tropospheric refraction can cause:
+        - Path loss variations (±3-5 dB typical)
+        - Ducting conditions (signal enhancement, 5-20 dB)
+        - Temperature inversion effects
+        
+        Args:
+            distance_km: Path length in kilometers
+            frequency_mhz: Frequency in MHz
+            ground_temperature_c: Ground temperature in Celsius
+            relative_humidity: Relative humidity (0-100%)
+            pressure_hpa: Atmospheric pressure in hPa
+            ducting_active: Whether tropospheric ducting is active
+        
+        Returns:
+            Refraction effect in dB (positive = enhancement, negative = loss)
+        """
+        if distance_km <= 0:
+            return 0.0
+        
+        # Calculate refractive index gradient (N-units per km)
+        # Standard atmosphere: -40 N-units/km
+        # N = (n-1) × 10^6, where n is refractive index
+        
+        # Temperature and humidity affect refractive index
+        temperature_k = ground_temperature_c + 273.15
+        
+        # Water vapor pressure
+        es = 6.1094 * math.exp(17.625 * ground_temperature_c / (ground_temperature_c + 243.04))
+        e = relative_humidity / 100.0 * es  # hPa
+        
+        # Refractive index at ground level (simplified ITU-R P.453)
+        N_surface = 77.6 * (pressure_hpa / temperature_k) + 3.73e5 * (e / temperature_k ** 2)
+        
+        # Refractivity gradient (depends on temperature gradient)
+        # Standard: -40 N/km, but varies with weather conditions
+        # Strong negative gradients → ducting
+        # Typical range: -20 to -80 N/km
+        
+        if ducting_active:
+            # Tropospheric ducting: strong negative gradient
+            # Signal trapped in duct → enhanced propagation beyond horizon
+            N_gradient = np.random.uniform(-150, -80)  # Strong negative gradient
+            
+            # Ducting enhancement depends on distance (stronger for longer paths)
+            # and frequency (better at VHF/UHF)
+            ducting_enhancement = np.random.uniform(5.0, 20.0)  # 5-20 dB enhancement
+            
+            # Add some frequency dependence (better at higher VHF)
+            freq_factor = min(1.0, frequency_mhz / 200.0)  # Peak around 200 MHz
+            ducting_enhancement *= freq_factor
+            
+            return ducting_enhancement
+        
+        else:
+            # Normal refraction variations
+            # Temperature inversions, humidity gradients cause ±3-5 dB variations
+            N_gradient = np.random.uniform(-60, -20)  # Normal range
+            
+            # Path loss variation based on gradient deviation from standard (-40)
+            gradient_deviation = N_gradient - (-40)
+            
+            # More negative gradient → better propagation (signal refracted down toward ground)
+            # Less negative gradient → worse propagation (signal refracted up away from ground)
+            refraction_effect = gradient_deviation * 0.08 * (distance_km / 100.0)  # ±3-5 dB for 100 km
+            
+            return refraction_effect
     
     def calculate_fspl(self, distance_km: float, frequency_mhz: float) -> float:
         """
@@ -331,7 +494,8 @@ class RFPropagationModel:
         frequency_mhz: float,
         terrain_lookup=None,
         tx_antenna: Optional[AntennaPattern] = None,
-        rx_antenna: Optional[AntennaPattern] = None
+        rx_antenna: Optional[AntennaPattern] = None,
+        meteo_params=None  # MeteorologicalParameters instance (optional)
     ) -> Tuple[float, float, dict]:
         """
         Calculate received power at receiver.
@@ -348,6 +512,7 @@ class RFPropagationModel:
             terrain_lookup: Optional terrain elevation lookup
             tx_antenna: Optional transmitter antenna pattern
             rx_antenna: Optional receiver antenna pattern
+            meteo_params: Optional meteorological parameters for atmospheric effects
         
         Returns:
             Tuple of (rx_power_dbm, snr_db, details_dict)
@@ -379,7 +544,34 @@ class RFPropagationModel:
         env_loss = self.calculate_environment_loss()
         fading = self.calculate_fading()
         
-        # Total received power (including antenna gains)
+        # Calculate atmospheric effects if meteorological parameters provided
+        atmospheric_absorption_db = 0.0
+        tropospheric_effect_db = 0.0
+        
+        if meteo_params is not None:
+            # Atmospheric absorption (always present, small for VHF/UHF)
+            atmospheric_absorption_db = self.calculate_atmospheric_absorption(
+                distance_km,
+                frequency_mhz,
+                meteo_params.ground_temperature,
+                meteo_params.relative_humidity,
+                meteo_params.pressure_hpa
+            )
+            
+            # Tropospheric refraction (can be positive or negative)
+            # Check if ducting is active (probabilistic)
+            ducting_active = np.random.random() < meteo_params.ducting_probability
+            
+            tropospheric_effect_db = self.calculate_tropospheric_refraction(
+                distance_km,
+                frequency_mhz,
+                meteo_params.ground_temperature,
+                meteo_params.relative_humidity,
+                meteo_params.pressure_hpa,
+                ducting_active
+            )
+        
+        # Total received power (including antenna gains and atmospheric effects)
         rx_power_dbm = (
             tx_power_dbm 
             + tx_antenna_gain_db 
@@ -388,6 +580,8 @@ class RFPropagationModel:
             - terrain_loss 
             - env_loss 
             + fading
+            - atmospheric_absorption_db  # Absorption is always loss
+            + tropospheric_effect_db  # Refraction can be gain or loss
         )
         
         # SNR
@@ -401,6 +595,8 @@ class RFPropagationModel:
             "fading_db": fading,
             "tx_antenna_gain_db": tx_antenna_gain_db,
             "rx_antenna_gain_db": rx_antenna_gain_db,
+            "atmospheric_absorption_db": atmospheric_absorption_db,
+            "tropospheric_effect_db": tropospheric_effect_db,
             "rx_power_dbm": rx_power_dbm,
             "snr_db": snr_db
         }
