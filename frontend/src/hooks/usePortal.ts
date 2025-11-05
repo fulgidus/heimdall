@@ -64,14 +64,12 @@ export function usePortal(isOpen: boolean): HTMLDivElement | null {
       if (portal.parentNode !== document.body) {
         try {
           document.body.appendChild(portal);
-          document.body.style.overflow = 'hidden';
         } catch (error) {
           console.error('Failed to mount portal:', error);
         }
-      } else {
-        // Portal already mounted, just ensure body scroll is prevented
-        document.body.style.overflow = 'hidden';
       }
+      // Always set overflow after mount attempt or when already mounted
+      document.body.style.overflow = 'hidden';
     }
 
     // Cleanup function (runs on dependency change or unmount)
