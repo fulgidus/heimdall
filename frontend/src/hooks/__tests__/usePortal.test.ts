@@ -161,4 +161,50 @@ describe('usePortal', () => {
     // Should not throw errors
     expect(true).toBe(true);
   });
+
+  it('should handle extreme rapid toggling without removeChild errors', async () => {
+    const { rerender, result } = renderHook(({ isOpen }) => usePortal(isOpen), {
+      initialProps: { isOpen: false },
+    });
+
+    if (result.current) createdPortals.push(result.current);
+
+    // Extreme rapid toggling (100 cycles)
+    for (let i = 0; i < 100; i++) {
+      rerender({ isOpen: true });
+      rerender({ isOpen: false });
+    }
+
+    // Final toggle to open state
+    rerender({ isOpen: true });
+    
+    // Portal should be mounted and in DOM
+    expect(result.current?.parentNode).toBe(document.body);
+    
+    // Close it
+    rerender({ isOpen: false });
+    
+    // Should not throw "not a child of this node" error
+    expect(true).toBe(true);
+  });
+
+  it('should handle cleanup during rapid state changes', () => {
+    const { rerender, result, unmount } = renderHook(({ isOpen }) => usePortal(isOpen), {
+      initialProps: { isOpen: true },
+    });
+
+    if (result.current) createdPortals.push(result.current);
+
+    // Rapid state changes
+    rerender({ isOpen: false });
+    rerender({ isOpen: true });
+    rerender({ isOpen: false });
+    rerender({ isOpen: true });
+    
+    // Unmount while in open state
+    unmount();
+    
+    // Should not throw errors
+    expect(true).toBe(true);
+  });
 });

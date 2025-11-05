@@ -5,19 +5,27 @@
  * "Node.removeChild: The node to be removed is not a child of this node" error.
  * 
  * ROOT CAUSE OF THE BUG:
- * When a modal closes and the component unmounts, React's cleanup function
- * can run multiple times in these scenarios:
- * 1. When isOpen changes from true → false (cleanup runs)
- * 2. When component unmounts (cleanup runs AGAIN)
- * 3. Between these events, WebSocket updates can trigger re-renders
- * 4. The portal might be removed before the second cleanup attempt
+ * When a modal closes and the component unmounts, React's cleanup functions
+ * can run multiple times or be queued asynchronously:
+ * 1. When isOpen changes from true → false (cleanup queued)
+ * 2. When component unmounts (cleanup queued AGAIN)
+ * 3. Rapid state changes can queue multiple cleanups
+ * 4. Cleanup functions from previous effects may run after state has changed
+ * 5. Using refs to track state creates race conditions because refs can be
+ *    modified while cleanup functions are queued but not yet executed
  * 
- * SOLUTION:
- * - Use isCleaningUpRef to track cleanup state
- * - Reset flag when reopening modal (in effect body, not cleanup)
- * - Defensive checks: portal exists AND is child of body
- * - Try-catch for removeChild (silent fail if already removed)
- * - No setTimeout (eliminates race conditions)
+ * SOLUTION - THE KEY INSIGHT:
+ * NEVER trust cached state (refs, flags). ALWAYS check the actual DOM state.
+ * - Check portal.parentNode === document.body before EVERY operation
+ * - No isMountedRef (source of race conditions)
+ * - No isCleaningUpRef (source of race conditions)
+ * - The DOM itself is the source of truth
+ * - appendChild only if not already appended (check parentNode)
+ * - removeChild only if actually in DOM (check parentNode)
+ * - Try-catch as final safety net (though should never trigger)
+ * 
+ * This eliminates ALL race conditions because we always check the current
+ * DOM state at operation time, not cached state from when effect was scheduled.
  * 
  * USAGE:
  * ```tsx
@@ -39,8 +47,6 @@ import { useEffect, useRef } from 'react';
 
 export function usePortal(isOpen: boolean): HTMLDivElement | null {
   const portalRef = useRef<HTMLDivElement | null>(null);
-  const isMountedRef = useRef(false);
-  const isCleaningUpRef = useRef(false);
 
   // Lazy initialization: create div once and reuse
   if (!portalRef.current) {
@@ -53,49 +59,39 @@ export function usePortal(isOpen: boolean): HTMLDivElement | null {
     if (!portal) return;
 
     if (isOpen) {
-      // CRITICAL: Reset cleanup flag when opening
-      // This allows the portal to be removed again on next close
-      isCleaningUpRef.current = false;
-
-      // Mount portal if not already mounted
-      if (!isMountedRef.current) {
+      // Mount portal only if not already in DOM
+      // Check actual DOM state, not flags - this is the source of truth
+      if (portal.parentNode !== document.body) {
         try {
           document.body.appendChild(portal);
-          isMountedRef.current = true;
-          // Prevent body scroll when modal is open (set once on mount)
           document.body.style.overflow = 'hidden';
         } catch (error) {
           console.error('Failed to mount portal:', error);
         }
+      } else {
+        // Portal already mounted, just ensure body scroll is prevented
+        document.body.style.overflow = 'hidden';
       }
     }
 
     // Cleanup function (runs on dependency change or unmount)
     return () => {
-      // GUARD: Prevent double cleanup
-      if (isCleaningUpRef.current) {
-        return;
-      }
-      isCleaningUpRef.current = true;
-
       // Restore body scroll
       document.body.style.overflow = '';
 
-      // DEFENSIVE: Only remove if mounted AND actually in DOM
-      if (isMountedRef.current && portal.parentNode === document.body) {
+      // CRITICAL: Only remove if actually in DOM at cleanup time
+      // Check the actual DOM state, not any cached flags
+      // This eliminates ALL race conditions
+      if (portal.parentNode === document.body) {
         try {
           document.body.removeChild(portal);
-          isMountedRef.current = false;
         } catch (error) {
-          // Silent fail - portal already removed by another cleanup
-          // This is expected in race conditions and not an error
+          // This should theoretically never happen because we checked parentNode
+          // But wrap it anyway for absolute safety
           if (process.env.NODE_ENV === 'development') {
-            console.debug('Portal cleanup: already removed (expected in fast close/open cycles)');
+            console.debug('Portal cleanup: removeChild failed despite parent check', error);
           }
         }
-      } else {
-        // Portal not mounted or not in body - just update state
-        isMountedRef.current = false;
       }
     };
   }, [isOpen]);
