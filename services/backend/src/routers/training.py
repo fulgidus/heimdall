@@ -192,7 +192,7 @@ async def list_training_jobs(
                        best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
                        mlflow_run_id, error_message, dataset_size, train_samples,
                        val_samples, model_architecture, celery_task_id,
-                       current_progress, total_progress, progress_message
+                       current_progress, total_progress, progress_message, dataset_id
                 FROM heimdall.training_jobs
                 {where_clause}
                 ORDER BY created_at DESC
@@ -257,6 +257,7 @@ async def list_training_jobs(
                         current=row[27],
                         total=row[28],
                         message=row[29],
+                        dataset_id=str(row[30]) if row[30] else None,
                     )
                 )
 
@@ -309,7 +310,7 @@ async def list_synthetic_jobs(
                        best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
                        mlflow_run_id, error_message, dataset_size, train_samples,
                        val_samples, model_architecture, celery_task_id,
-                       current_progress, total_progress, progress_message
+                       current_progress, total_progress, progress_message, dataset_id
                 FROM heimdall.training_jobs
                 {where_clause}
                 ORDER BY created_at DESC
@@ -374,6 +375,7 @@ async def list_synthetic_jobs(
                         current=row[27],
                         total=row[28],
                         message=row[29],
+                        dataset_id=str(row[30]) if row[30] else None,
                     )
                 )
 
@@ -407,7 +409,7 @@ async def get_training_job(job_id: UUID):
                        best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
                        mlflow_run_id, error_message, dataset_size, train_samples,
                        val_samples, model_architecture, celery_task_id,
-                       current_progress, total_progress, progress_message
+                       current_progress, total_progress, progress_message, dataset_id
                 FROM heimdall.training_jobs
                 WHERE id = :job_id
             """)
@@ -461,6 +463,7 @@ async def get_training_job(job_id: UUID):
                 current=result[27],
                 total=result[28],
                 message=result[29],
+                dataset_id=str(result[30]) if result[30] else None,
             )
 
             # Get recent metrics (last 10 epochs)
@@ -1513,7 +1516,9 @@ async def list_synthetic_datasets(
     
     try:
         with db_manager.get_session() as session:
-            # Get datasets with REAL-TIME sample counts from measurement_features
+            # Get datasets with REAL-TIME sample counts from correct table based on dataset_type
+            # iq_raw datasets → count from synthetic_iq_samples
+            # feature_based datasets → count from measurement_features
             query = text("""
                 SELECT
                     sd.id,
@@ -1528,9 +1533,6 @@ async def list_synthetic_datasets(
                     sd.created_at,
                     sd.created_by_job_id
                 FROM heimdall.synthetic_datasets sd
-                LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
-                GROUP BY sd.id, sd.name, sd.description, sd.dataset_type, sd.config, sd.quality_metrics,
-                         sd.storage_table, sd.storage_size_bytes, sd.created_at, sd.created_by_job_id
                 ORDER BY sd.created_at DESC
                 LIMIT :limit OFFSET :offset
             """)

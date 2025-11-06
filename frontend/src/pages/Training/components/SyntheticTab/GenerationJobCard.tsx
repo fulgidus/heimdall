@@ -179,6 +179,38 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
                 </span>
               </div>
             )}
+
+            {/* Rejection Statistics (if available) */}
+            {job.total_attempted !== undefined && job.total_attempted > 0 && (
+              <div className="mt-2 small">
+                <div className="text-muted mb-1">
+                  <i className="ph ph-funnel me-1"></i>
+                  Validation: {currentSamples}/{job.total_attempted} accepted ({((currentSamples / job.total_attempted) * 100).toFixed(1)}% success)
+                </div>
+                {job.total_rejections !== undefined && job.total_rejections > 0 && (
+                  <div className="d-flex gap-2 flex-wrap">
+                    {job.rejected_min_receivers !== undefined && job.rejected_min_receivers > 0 && (
+                      <span className="badge bg-light-warning">
+                        <i className="ph ph-users me-1"></i>
+                        {job.rejected_min_receivers} receivers
+                      </span>
+                    )}
+                    {job.rejected_min_snr !== undefined && job.rejected_min_snr > 0 && (
+                      <span className="badge bg-light-warning">
+                        <i className="ph ph-broadcast me-1"></i>
+                        {job.rejected_min_snr} SNR
+                      </span>
+                    )}
+                    {job.rejected_gdop !== undefined && job.rejected_gdop > 0 && (
+                      <span className="badge bg-light-warning">
+                        <i className="ph ph-crosshair me-1"></i>
+                        {job.rejected_gdop} GDOP
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

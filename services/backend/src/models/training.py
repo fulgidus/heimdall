@@ -171,6 +171,7 @@ class TrainingJobResponse(BaseModel):
     model_architecture: Optional[str] = None
 
     celery_task_id: Optional[str] = None
+    dataset_id: Optional[str] = None  # UUID of synthetic dataset created by this job
 
     class Config:
         from_attributes = True

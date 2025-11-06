@@ -1512,6 +1512,9 @@ def generate_synthetic_data_task(self, job_id: str):
         # Run async generation
         stats = asyncio.run(run_generation())
 
+        logger.info(f"[GENERATION COMPLETE DEBUG] Generation stats: {stats}")
+        logger.info(f"[GENERATION COMPLETE DEBUG] total_generated={stats['total_generated']}, reached_target={stats.get('reached_target')}, stopped_reason={stats.get('stopped_reason')}")
+
         logger.info(f"Generation complete: {stats['total_generated']} samples, "
                     f"{stats['iq_samples_saved']} IQ samples saved to MinIO")
 
@@ -1520,6 +1523,9 @@ def generate_synthetic_data_task(self, job_id: str):
         with db_manager.get_session() as session:
             # Get dataset_type to determine which table to query
             dataset_type = config.get('dataset_type', 'feature_based')
+            
+            logger.info(f"[FINAL COUNT DEBUG] Querying final sample count for dataset_id={dataset_id}, dataset_type={dataset_type}")
+            logger.info(f"[FINAL COUNT DEBUG] samples_offset={samples_offset}, stats_generated={stats['total_generated']}")
             
             # Count actual samples from the correct table
             if dataset_type == 'iq_raw':
@@ -1534,6 +1540,8 @@ def generate_synthetic_data_task(self, job_id: str):
                 """)
             
             actual_count = session.execute(count_query, {"dataset_id": str(dataset_id)}).scalar() or 0
+            
+            logger.info(f"[FINAL COUNT DEBUG] Query returned actual_count={actual_count} from database")
 
             # Update dataset metadata
             update_query = text("""
@@ -1636,10 +1644,11 @@ def generate_synthetic_data_task(self, job_id: str):
         with db_manager.get_session() as session:
             complete_query = text("""
                 UPDATE heimdall.training_jobs
-                SET status = 'completed', completed_at = NOW(), progress_percent = 100.0
+                SET status = 'completed', completed_at = NOW(), progress_percent = 100.0,
+                    dataset_id = :dataset_id
                 WHERE id = :job_id
             """)
-            session.execute(complete_query, {"job_id": job_id})
+            session.execute(complete_query, {"job_id": job_id, "dataset_id": str(dataset_id)})
             session.commit()
 
         # Publish job completion event with complete data

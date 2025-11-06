@@ -1408,22 +1408,7 @@ async def generate_synthetic_data_with_iq(
             logger.warning(f"IQ-raw with random receivers: relaxing max_gdop from {max_gdop} to 200 for better success rate")
             max_gdop = 200.0
 
-    # Use GPU batch processing instead of thread pool
-    # Batch size: Process all samples in one batch to amortize GPU initialization overhead
-    # For small datasets (<100 samples), use single batch
-    # For larger datasets, use mini-batches optimized for GPU memory:
-    # - Fixed receivers (7): batch_size=800 → ~5,600 IQ samples (13.9% GPU mem)
-    # - Random receivers (7-10 avg): batch_size=200 → ~1,600 IQ samples (safe for 24GB GPU)
-    if use_random_receivers:
-        # Random receivers: variable count per sample, use smaller batch
-        batch_size = min(200, num_samples) if num_samples > 10 else num_samples
-        logger.info(f"Random receivers mode: using batch_size={batch_size} (GPU memory conservative)")
-    else:
-        # Fixed receivers: consistent count per sample, use larger batch
-        batch_size = min(800, num_samples) if num_samples > 10 else num_samples
-        logger.info(f"Fixed receivers mode: using batch_size={batch_size} (GPU memory optimized)")
-    
-    # Determine GPU usage based on user selection
+    # Determine GPU usage based on user selection FIRST (needed to decide batch size)
     if use_gpu is None:
         # Auto-detect GPU availability
         try:
@@ -1451,6 +1436,32 @@ async def generate_synthetic_data_with_iq(
     else:
         # User requested CPU
         logger.info("CPU batch processing FORCED by user (NumPy mode)")
+    
+    # Determine batch size based on GPU mode and receiver configuration
+    # CPU mode (use_gpu=False): Use batch_size=1 for sequential processing with real-time progress
+    # GPU/AUTO mode: Use larger batches to amortize GPU initialization overhead
+    if use_gpu is False:
+        # CPU-only mode: Sequential processing (batch_size=1)
+        # Advantages:
+        # - Real-time progress updates (every ~1 second)
+        # - Full multicore utilization via ThreadPoolExecutor
+        # - No batch overhead, each sample processed independently
+        batch_size = 1
+        logger.info("CPU sequential mode: batch_size=1 (real-time progress, full multicore)")
+    else:
+        # GPU or AUTO mode: Large batch sizes to reduce GPU initialization overhead
+        # For small datasets (<100 samples), use single batch
+        # For larger datasets, use mini-batches optimized for GPU memory:
+        # - Fixed receivers (7): batch_size=800 → ~5,600 IQ samples (13.9% GPU mem)
+        # - Random receivers (7-10 avg): batch_size=200 → ~1,600 IQ samples (safe for 24GB GPU)
+        if use_random_receivers:
+            # Random receivers: variable count per sample, use smaller batch
+            batch_size = min(200, num_samples) if num_samples > 10 else num_samples
+            logger.info(f"Random receivers mode: using batch_size={batch_size} (GPU memory conservative)")
+        else:
+            # Fixed receivers: consistent count per sample, use larger batch
+            batch_size = min(800, num_samples) if num_samples > 10 else num_samples
+            logger.info(f"Fixed receivers mode: using batch_size={batch_size} (GPU memory optimized)")
     
     logger.info(f"Using batch size: {batch_size} samples per batch (REAL batching enabled)")
 
@@ -1526,10 +1537,16 @@ async def generate_synthetic_data_with_iq(
     max_consecutive_failures = 5  # Stop if 5 consecutive batches have 0 valid samples
     consecutive_failures = 0
     
+    # Track rejection reasons for debugging and user feedback
+    rejected_min_receivers = 0
+    rejected_min_snr = 0
+    rejected_gdop = 0
+    
     batch_number = 0
     
     # Process batches until we have enough VALID samples
-    logger.info(f"Target: {target_valid_samples} valid samples, max attempts: {max_attempts}")
+    logger.info(f"[GENERATION DEBUG] Target: {target_valid_samples} valid samples, max attempts: {max_attempts}")
+    logger.info(f"[GENERATION DEBUG] batch_size: {batch_size}, use_gpu: {use_gpu}, dataset_type: {dataset_type}")
     
     while valid_samples_collected < target_valid_samples and total_attempted < max_attempts:
         batch_number += 1
@@ -1553,6 +1570,22 @@ async def generate_synthetic_data_with_iq(
             for future in as_completed(futures):
                 sample_idx = futures[future]
                 total_attempted += 1
+
+                # Time-based progress updates (every ~1 second) for CPU sequential mode
+                # This provides real-time feedback to WebSocket clients
+                import time
+                current_time = time.time()
+                if progress_callback and (current_time - last_progress_time) >= 1.0:
+                    # Report current progress
+                    try:
+                        await progress_callback(
+                            valid_samples_collected,
+                            target_valid_samples,
+                            attempted=total_attempted
+                        )
+                        last_progress_time = current_time
+                    except Exception as e:
+                        logger.error(f"Progress callback failed: {e}", exc_info=True)
 
                 # Check for cancellation
                 if job_id and total_attempted % 10 == 0:
@@ -1697,12 +1730,33 @@ async def generate_synthetic_data_with_iq(
                 'gdop': gdop
             }
             
-            # Validation
+            # Validation with detailed rejection logging
             if quality_metrics['num_receivers_detected'] < min_receivers:
+                rejected_min_receivers += 1
+                logger.debug(
+                    f"[REJECTION] Sample {sample_idx}: insufficient receivers",
+                    actual=quality_metrics['num_receivers_detected'],
+                    required=min_receivers,
+                    reason="min_receivers"
+                )
                 continue
             if quality_metrics['mean_snr_db'] < min_snr_db:
+                rejected_min_snr += 1
+                logger.debug(
+                    f"[REJECTION] Sample {sample_idx}: low SNR",
+                    actual_snr=f"{quality_metrics['mean_snr_db']:.1f}dB",
+                    required_snr=f"{min_snr_db:.1f}dB",
+                    reason="min_snr"
+                )
                 continue
             if quality_metrics['gdop'] > max_gdop:
+                rejected_gdop += 1
+                logger.debug(
+                    f"[REJECTION] Sample {sample_idx}: high GDOP",
+                    actual_gdop=f"{quality_metrics['gdop']:.1f}",
+                    max_gdop=f"{max_gdop:.1f}",
+                    reason="max_gdop"
+                )
                 continue
             
             # Store valid sample
@@ -1723,6 +1777,8 @@ async def generate_synthetic_data_with_iq(
         valid_samples_collected += valid_in_batch
         generated_samples.extend(batch_results)
         
+        logger.info(f"[BATCH DEBUG] Batch {batch_number} results: valid_in_batch={valid_in_batch}, valid_samples_collected={valid_samples_collected}, target={target_valid_samples}")
+        
         # Track consecutive failures for safety
         if valid_in_batch == 0:
             consecutive_failures += 1
@@ -1741,8 +1797,9 @@ async def generate_synthetic_data_with_iq(
             try:
                 if dataset_type == 'feature_based':
                     # For feature_based: save extracted features to measurement_features
+                    logger.info(f"[DB SAVE DEBUG] About to save {len(batch_results)} feature samples to dataset_id={dataset_id}")
                     await save_features_to_db(dataset_id, batch_results, conn)
-                    logger.info(f"Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
+                    logger.info(f"[DB SAVE DEBUG] Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
                 
                 elif dataset_type == 'iq_raw':
                     # For iq_raw: save IQ data to MinIO and metadata to synthetic_iq_samples
@@ -1765,7 +1822,8 @@ async def generate_synthetic_data_with_iq(
                 # OPTION A: Update num_samples after each batch (incremental checkpoint)
                 # This ensures partial progress is preserved even if job is killed
                 actual_count = await update_dataset_sample_count(dataset_id, conn)
-                logger.info(f"Dataset sample count updated: {actual_count} samples (type: {dataset_type})")
+                logger.info(f"[DB COUNT DEBUG] Dataset sample count updated: {actual_count} samples (type: {dataset_type}, batch: {batch_number})")
+                logger.info(f"[DB COUNT DEBUG] Expected cumulative: {valid_samples_collected}, Actual in DB: {actual_count}")
                 
                 # Commit batch changes immediately (incremental checkpoint)
                 await conn.commit()
@@ -1818,6 +1876,36 @@ async def generate_synthetic_data_with_iq(
     else:
         logger.warning(f"✗ Generation stopped early: {valid_samples_collected}/{target_valid_samples} valid samples ({total_attempted} attempted)")
 
+    # Log rejection statistics for debugging and user feedback
+    total_rejections = rejected_min_receivers + rejected_min_snr + rejected_gdop
+    if total_rejections > 0:
+        rejection_rate_receivers = (rejected_min_receivers / total_attempted * 100) if total_attempted > 0 else 0
+        rejection_rate_snr = (rejected_min_snr / total_attempted * 100) if total_attempted > 0 else 0
+        rejection_rate_gdop = (rejected_gdop / total_attempted * 100) if total_attempted > 0 else 0
+        
+        logger.info(
+            "[REJECTION STATS] Sample rejection breakdown",
+            total_rejections=total_rejections,
+            rejected_min_receivers=rejected_min_receivers,
+            rejected_min_snr=rejected_min_snr,
+            rejected_gdop=rejected_gdop,
+            rejection_rate_receivers=f"{rejection_rate_receivers:.1f}%",
+            rejection_rate_snr=f"{rejection_rate_snr:.1f}%",
+            rejection_rate_gdop=f"{rejection_rate_gdop:.1f}%",
+            current_params=f"min_receivers={min_receivers}, min_snr={min_snr_db}dB, max_gdop={max_gdop}"
+        )
+        
+        # Provide helpful suggestions if rejection rate is high
+        if rejection_rate_receivers > 50:
+            logger.warning(f"⚠️  High receiver rejection rate ({rejection_rate_receivers:.1f}%). Consider lowering min_receivers (current: {min_receivers})")
+        if rejection_rate_snr > 50:
+            logger.warning(f"⚠️  High SNR rejection rate ({rejection_rate_snr:.1f}%). Consider lowering min_snr_db (current: {min_snr_db}dB)")
+        if rejection_rate_gdop > 50:
+            logger.warning(f"⚠️  High GDOP rejection rate ({rejection_rate_gdop:.1f}%). Consider increasing max_gdop (current: {max_gdop})")
+    else:
+        logger.info("[REJECTION STATS] No samples rejected - all validation criteria met")
+
+
     # For feature_based datasets: save first 100 IQ samples to MinIO as reference
     # (iq_raw datasets already saved IQ samples during batch processing)
     if dataset_type == 'feature_based' and iq_samples_to_save:
@@ -1832,7 +1920,11 @@ async def generate_synthetic_data_with_iq(
         'reached_target': reached_target,
         'iq_samples_saved': len(iq_samples_to_save),
         'dataset_type': dataset_type,
-        'stopped_reason': 'target_reached' if reached_target else ('max_attempts' if total_attempted >= max_attempts else ('consecutive_failures' if consecutive_failures >= max_consecutive_failures else 'unknown'))
+        'stopped_reason': 'target_reached' if reached_target else ('max_attempts' if total_attempted >= max_attempts else ('consecutive_failures' if consecutive_failures >= max_consecutive_failures else 'unknown')),
+        'rejected_min_receivers': rejected_min_receivers,
+        'rejected_min_snr': rejected_min_snr,
+        'rejected_gdop': rejected_gdop,
+        'total_rejections': rejected_min_receivers + rejected_min_snr + rejected_gdop
     }
 
 

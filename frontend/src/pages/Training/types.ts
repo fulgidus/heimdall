@@ -323,6 +323,12 @@ export interface SyntheticGenerationJob {
   estimated_completion?: string;
   error_message?: string;
   dataset_id?: string;
+  // Rejection statistics (added for debugging low success rates)
+  total_attempted?: number;
+  rejected_min_receivers?: number;
+  rejected_min_snr?: number;
+  rejected_gdop?: number;
+  total_rejections?: number;
 }
 
 export interface ExpandDatasetRequest {
