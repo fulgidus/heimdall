@@ -78,7 +78,7 @@ class SyntheticIQGenerator:
         duration_ms: float = 1000.0,
         seed: Optional[int] = None,
         use_gpu: bool = True,
-        use_audio_library: bool = False,
+        use_audio_library: bool = True,
         audio_library_fallback: bool = True
     ):
         """
@@ -89,7 +89,7 @@ class SyntheticIQGenerator:
             duration_ms: Signal duration in milliseconds
             seed: Random seed for reproducibility
             use_gpu: Use GPU acceleration if available (default: True)
-            use_audio_library: Use audio library for voice samples (default: False)
+            use_audio_library: Use audio library for voice samples (default: True)
             audio_library_fallback: Fallback to formant synthesis if library fails (default: True)
         """
         self.sample_rate_hz = sample_rate_hz

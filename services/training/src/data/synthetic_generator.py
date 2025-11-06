@@ -262,7 +262,7 @@ def _generate_single_sample_no_features(args):
         use_gpu = bool(use_gpu_config)
     
     # Get audio library configuration from config
-    use_audio_library = config.get('use_audio_library', False)
+    use_audio_library = config.get('use_audio_library', True)
     audio_library_fallback = config.get('audio_library_fallback', True)
     
     # Check if we need to recreate the IQ generator (device changed)
@@ -584,7 +584,7 @@ def _generate_single_sample(args):
         use_gpu = bool(use_gpu_config)
     
     # Get audio library configuration from config
-    use_audio_library = config.get('use_audio_library', False)
+    use_audio_library = config.get('use_audio_library', True)
     audio_library_fallback = config.get('audio_library_fallback', True)
     
     # Check if we need to recreate generators (device changed)
