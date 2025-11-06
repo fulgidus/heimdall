@@ -1,6 +1,8 @@
 """
 API endpoints for synthetic data management.
 """
+import sys
+import os
 import uuid
 from typing import List, Optional, Union
 from datetime import datetime
@@ -11,6 +13,14 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
+
+# Import MinIOClient - add backend src to path
+sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+try:
+    from storage.minio_client import MinIOClient
+except ImportError:
+    # Fallback for development/testing environments
+    MinIOClient = None
 
 router = APIRouter(prefix="/api/v1/jobs/synthetic", tags=["synthetic-datasets"])
 
@@ -26,6 +36,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_minio_client():
+    """
+    Initialize and return MinIO client for synthetic IQ data.
+    
+    Returns:
+        MinIOClient instance or None if not available
+    """
+    if MinIOClient is None:
+        return None
+    
+    return MinIOClient(
+        endpoint_url=settings.minio_url,
+        access_key=settings.minio_access_key,
+        secret_key=settings.minio_secret_key,
+        bucket_name=settings.minio_synthetic_iq_bucket
+    )
 
 
 # ============================================================================
@@ -524,20 +552,27 @@ async def cancel_synthetic_job(
 @router.delete("/{job_id}")
 async def delete_synthetic_job(
     job_id: str,
+    delete_dataset: bool = Query(
+        default=True,
+        description="If true, also delete datasets created by this job"
+    ),
     db: Session = Depends(get_db)
 ):
     """
     Delete a synthetic data generation job.
     
-    This endpoint deletes the job record and associated data. If the job is
-    currently running, it will be cancelled first.
+    This endpoint deletes the job record and optionally the associated dataset.
+    If the job is currently running, it will be cancelled first.
+    If delete_dataset=true, any dataset created by this job will also be deleted
+    along with its IQ data files in MinIO.
     
     Args:
         job_id: UUID of the synthetic generation job
+        delete_dataset: Whether to delete datasets created by this job (default: True)
         db: Database session
     
     Returns:
-        Deletion confirmation
+        Deletion confirmation with details
     """
     from celery import current_app
     import structlog
@@ -575,6 +610,71 @@ async def delete_synthetic_job(
                 current_app.control.revoke(celery_task_id, terminate=True, signal='SIGTERM')
                 logger.info("cancelled_running_job_before_delete", job_id=job_id, celery_task_id=celery_task_id)
         
+        datasets_deleted = 0
+        minio_files_deleted = 0
+        
+        # Check if this job created any datasets
+        if delete_dataset:
+            dataset_query = text("""
+                SELECT id, name, dataset_type FROM heimdall.synthetic_datasets
+                WHERE created_by_job_id = :job_id
+            """)
+            datasets = db.execute(dataset_query, {"job_id": str(job_uuid)}).fetchall()
+            
+            if datasets:
+                logger.info(
+                    "job_created_datasets",
+                    job_id=job_id,
+                    dataset_count=len(datasets)
+                )
+                
+                # Initialize MinIO client once for all deletions
+                minio_client = get_minio_client()
+                
+                # Delete each dataset (with MinIO cleanup)
+                for dataset_row in datasets:
+                    dataset_id = str(dataset_row[0])
+                    dataset_name = dataset_row[1]
+                    dataset_type = dataset_row[2]
+                    
+                    # Clean up MinIO data if iq_raw dataset
+                    if dataset_type == "iq_raw" and minio_client:
+                        try:
+                            # Delete IQ files
+                            successful, failed = minio_client.delete_dataset_iq_data(dataset_id)
+                            minio_files_deleted += successful
+                            
+                            if failed > 0:
+                                logger.warning(
+                                    "dataset_minio_cleanup_partial",
+                                    dataset_id=dataset_id,
+                                    successful=successful,
+                                    failed=failed
+                                )
+                        
+                        except Exception as e:
+                            logger.error(
+                                "dataset_minio_cleanup_failed",
+                                dataset_id=dataset_id,
+                                error=str(e)
+                            )
+                    
+                    # Delete dataset record (CASCADE deletes samples)
+                    delete_dataset_query = text("""
+                        DELETE FROM heimdall.synthetic_datasets
+                        WHERE id = :dataset_id
+                    """)
+                    db.execute(delete_dataset_query, {"dataset_id": dataset_id})
+                    db.commit()  # Commit after each dataset to preserve partial progress
+                    datasets_deleted += 1
+                    
+                    logger.info(
+                        "dataset_deleted_with_job",
+                        job_id=job_id,
+                        dataset_id=dataset_id,
+                        dataset_name=dataset_name
+                    )
+        
         # Delete the job record
         delete_query = text("""
             DELETE FROM heimdall.training_jobs
@@ -583,11 +683,18 @@ async def delete_synthetic_job(
         db.execute(delete_query, {"job_id": str(job_uuid)})
         db.commit()
         
-        logger.info("synthetic_job_deleted", job_id=job_id)
+        logger.info(
+            "synthetic_job_deleted",
+            job_id=job_id,
+            datasets_deleted=datasets_deleted,
+            minio_files_deleted=minio_files_deleted
+        )
         
         return {
             "message": f"Synthetic generation job {job_id} deleted successfully",
-            "job_id": job_id
+            "job_id": job_id,
+            "datasets_deleted": datasets_deleted,
+            "minio_files_deleted": minio_files_deleted
         }
         
     except HTTPException:
@@ -606,7 +713,8 @@ async def delete_synthetic_dataset(
     """
     Delete a synthetic dataset and all its samples.
     
-    This endpoint deletes the dataset record and all associated samples.
+    This endpoint deletes the dataset record, all associated samples,
+    and cleans up IQ data files from MinIO storage.
     If the dataset was created by a job, the job record remains intact.
     
     Args:
@@ -626,9 +734,9 @@ async def delete_synthetic_dataset(
         raise HTTPException(status_code=400, detail="Invalid dataset_id format")
     
     try:
-        # Check if dataset exists
+        # Check if dataset exists and get its type
         check_query = text("""
-            SELECT id, name FROM heimdall.synthetic_datasets
+            SELECT id, name, dataset_type FROM heimdall.synthetic_datasets
             WHERE id = :dataset_id
         """)
         result = db.execute(check_query, {"dataset_id": str(dataset_uuid)}).fetchone()
@@ -637,8 +745,46 @@ async def delete_synthetic_dataset(
             raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset_id}")
         
         dataset_name = result[1]
+        dataset_type = result[2]
         
-        # Delete dataset (CASCADE will delete associated samples)
+        # Clean up MinIO data if this is an iq_raw dataset
+        minio_cleanup_success = True
+        minio_files_deleted = 0
+        
+        if dataset_type == "iq_raw":
+            minio_client = get_minio_client()
+            if minio_client:
+                try:
+                    # Delete all IQ files for this dataset
+                    successful, failed = minio_client.delete_dataset_iq_data(str(dataset_uuid))
+                    minio_files_deleted = successful
+                    
+                    if failed > 0:
+                        logger.warning(
+                            "minio_cleanup_partial_failure",
+                            dataset_id=dataset_id,
+                            successful=successful,
+                            failed=failed
+                        )
+                        minio_cleanup_success = False
+                    elif successful > 0:
+                        logger.info(
+                            "minio_cleanup_complete",
+                            dataset_id=dataset_id,
+                            files_deleted=successful
+                        )
+                    
+                except Exception as e:
+                    # Log error but don't fail the deletion
+                    logger.error(
+                        "minio_cleanup_failed",
+                        dataset_id=dataset_id,
+                        error=str(e),
+                        error_type=type(e).__name__
+                    )
+                    minio_cleanup_success = False
+        
+        # Delete dataset from database (CASCADE will delete associated samples)
         delete_query = text("""
             DELETE FROM heimdall.synthetic_datasets
             WHERE id = :dataset_id
@@ -646,7 +792,14 @@ async def delete_synthetic_dataset(
         db.execute(delete_query, {"dataset_id": str(dataset_uuid)})
         db.commit()
         
-        logger.info("synthetic_dataset_deleted", dataset_id=dataset_id, dataset_name=dataset_name)
+        logger.info(
+            "synthetic_dataset_deleted",
+            dataset_id=dataset_id,
+            dataset_name=dataset_name,
+            dataset_type=dataset_type,
+            minio_cleanup_success=minio_cleanup_success,
+            minio_files_deleted=minio_files_deleted
+        )
         
         # Return 204 No Content (no body)
         return None

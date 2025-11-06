@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     minio_url: str = "http://minio:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
+    minio_synthetic_iq_bucket: str = "heimdall-synthetic-iq"
 
     # Backend service URL for terrain downloads
     backend_url: str = os.getenv("BACKEND_URL", "http://backend:8000")

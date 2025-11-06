@@ -308,6 +308,88 @@ class MinIOClient:
             logger.exception("Unexpected error deleting session data for %s: %s", session_id, e)
             return successful, failed
 
+    def delete_dataset_iq_data(self, dataset_id: str, prefix_pattern: str = "synthetic") -> tuple[int, int]:
+        """Delete all IQ data files for a synthetic dataset.
+        
+        Args:
+            dataset_id: UUID of the dataset
+            prefix_pattern: Prefix pattern to search for (default: 'synthetic')
+        
+        Returns:
+            tuple[int, int]: (successful_deletes, failed_deletes)
+        """
+        successful = 0
+        failed = 0
+
+        try:
+            # Build prefix pattern for dataset files
+            # Pattern: synthetic/{dataset_id}/ or synthetic/dataset-{dataset_id}/
+            prefixes = [
+                f"{prefix_pattern}/{dataset_id}/",
+                f"{prefix_pattern}/dataset-{dataset_id}/",
+            ]
+
+            for prefix in prefixes:
+                # List all objects with this prefix
+                paginator = self.s3_client.get_paginator("list_objects_v2")
+                pages = paginator.paginate(Bucket=self.bucket_name, Prefix=prefix)
+
+                objects_to_delete = []
+                total_size = 0
+                for page in pages:
+                    if "Contents" not in page:
+                        continue
+
+                    for obj in page["Contents"]:
+                        objects_to_delete.append({"Key": obj["Key"]})
+                        total_size += obj.get("Size", 0)
+
+                if not objects_to_delete:
+                    continue
+
+                logger.info(
+                    "Found %d objects for dataset %s (prefix: %s, total size: %.2f MB)",
+                    len(objects_to_delete),
+                    dataset_id,
+                    prefix,
+                    total_size / (1024 * 1024)
+                )
+
+                # Delete objects in batches (max 1000 per request)
+                batch_size = 1000
+                for i in range(0, len(objects_to_delete), batch_size):
+                    batch = objects_to_delete[i : i + batch_size]
+
+                    response = self.s3_client.delete_objects(
+                        Bucket=self.bucket_name, Delete={"Objects": batch}
+                    )
+
+                    if "Deleted" in response:
+                        successful += len(response["Deleted"])
+
+                    if "Errors" in response:
+                        failed += len(response["Errors"])
+                        for error in response["Errors"]:
+                            logger.error(
+                                "Failed to delete %s: %s", error["Key"], error["Message"]
+                            )
+
+            logger.info(
+                "Deleted dataset %s data: %d successful, %d failed",
+                dataset_id,
+                successful,
+                failed,
+            )
+
+            return successful, failed
+
+        except ClientError as e:
+            logger.error("Failed to delete dataset data for %s: %s", dataset_id, e)
+            return successful, failed
+        except Exception as e:
+            logger.exception("Unexpected error deleting dataset data for %s: %s", dataset_id, e)
+            return successful, failed
+
     def health_check(self) -> dict[str, bool]:
         """Check MinIO connectivity and bucket access."""
         try:
