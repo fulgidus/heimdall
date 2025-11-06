@@ -11,21 +11,16 @@ Tests cover:
 
 import pytest
 import torch
-import sys
-import os
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-# Import directly to avoid dependency issues
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    "heimdall_net",
-    os.path.join(os.path.dirname(__file__), '..', 'src', 'models', 'heimdall_net.py')
+from src.models.heimdall_net import (
+    HeimdallNet,
+    create_heimdall_net,
+    count_parameters,
+    EfficientNetB2_1D,
+    PerReceiverEncoder,
+    SetAttentionAggregator,
+    GeometryEncoder,
 )
-heimdall_net = importlib.util.module_from_spec(spec)
-sys.modules["heimdall_net"] = heimdall_net
-spec.loader.exec_module(heimdall_net)
 
 
 class TestHeimdallNetInstantiation:
@@ -33,25 +28,25 @@ class TestHeimdallNetInstantiation:
     
     def test_create_default(self):
         """Test creating HeimdallNet with default parameters."""
-        model = heimdall_net.create_heimdall_net()
+        model = create_heimdall_net()
         assert model is not None
-        assert isinstance(model, heimdall_net.HeimdallNet)
+        assert isinstance(model, HeimdallNet)
         
     def test_create_custom_receivers(self):
         """Test creating HeimdallNet with custom max_receivers."""
         for max_receivers in [5, 7, 10]:
-            model = heimdall_net.create_heimdall_net(max_receivers=max_receivers)
+            model = create_heimdall_net(max_receivers=max_receivers)
             assert model.max_receivers == max_receivers
             
     def test_create_without_calibration(self):
         """Test creating HeimdallNet without per-receiver calibration."""
-        model = heimdall_net.create_heimdall_net(use_calibration=False)
+        model = create_heimdall_net(use_calibration=False)
         assert not model.receiver_encoder.use_calibration
         
     def test_parameter_count(self):
         """Test parameter counting matches expected ~2.2M."""
-        model = heimdall_net.create_heimdall_net()
-        params = heimdall_net.count_parameters(model)
+        model = create_heimdall_net()
+        params = count_parameters(model)
         
         # Should be around 2.2M parameters
         assert 2.0 <= params['total_millions'] <= 2.5
@@ -72,7 +67,7 @@ class TestHeimdallNetForwardPass:
     @pytest.fixture
     def model(self):
         """Create a test model."""
-        model = heimdall_net.create_heimdall_net(max_receivers=10)
+        model = create_heimdall_net(max_receivers=10)
         model.eval()  # Set to eval mode
         return model
     
@@ -155,7 +150,7 @@ class TestHeimdallNetComponents:
     
     def test_efficientnet_encoder(self):
         """Test EfficientNet-B2 1D encoder."""
-        encoder = heimdall_net.EfficientNetB2_1D(in_channels=2, out_dim=256)
+        encoder = EfficientNetB2_1D(in_channels=2, out_dim=256)
         
         # Test forward pass
         x = torch.randn(4, 2, 1024)  # (batch, [I,Q], seq_len)
@@ -166,7 +161,7 @@ class TestHeimdallNetComponents:
         
     def test_per_receiver_encoder(self):
         """Test per-receiver encoder with identity embeddings."""
-        encoder = heimdall_net.PerReceiverEncoder(
+        encoder = PerReceiverEncoder(
             max_receivers=10,
             iq_dim=256,
             feature_dim=128,
@@ -186,7 +181,7 @@ class TestHeimdallNetComponents:
         
     def test_set_attention_aggregator(self):
         """Test set attention aggregation."""
-        aggregator = heimdall_net.SetAttentionAggregator(dim=256, num_heads=8)
+        aggregator = SetAttentionAggregator(dim=256, num_heads=8)
         
         batch_size = 4
         num_receivers = 3
@@ -200,7 +195,7 @@ class TestHeimdallNetComponents:
         
     def test_geometry_encoder(self):
         """Test geometry encoder."""
-        encoder = heimdall_net.GeometryEncoder(dim=256)
+        encoder = GeometryEncoder(dim=256)
         
         batch_size = 4
         num_receivers = 3
@@ -219,7 +214,7 @@ class TestHeimdallNetPermutationInvariance:
     @pytest.fixture
     def model(self):
         """Create a test model."""
-        model = heimdall_net.create_heimdall_net(max_receivers=10)
+        model = create_heimdall_net(max_receivers=10)
         model.eval()
         return model
     
