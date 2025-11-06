@@ -11,6 +11,7 @@ import {
   formatFileSize,
   formatDuration,
   downloadFile,
+  getProcessingStatusBadge,
   type AudioSample,
   type AudioLibraryStats,
   type AudioCategory,
@@ -46,6 +47,10 @@ const AudioLibrary: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<AudioCategory | ''>('');
   const [filterEnabled, setFilterEnabled] = useState<'all' | 'enabled' | 'disabled'>('all');
 
+  // Polling state for monitoring preprocessing
+  const [pollingIds, setPollingIds] = useState<Set<string>>(new Set());
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Load data
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -65,6 +70,15 @@ const AudioLibrary: React.FC = () => {
       setSamples(samplesData);
       setStats(statsData);
       setWeights(weightsData);
+
+      // Auto-start polling for any files in PENDING or PROCESSING status
+      const processingIds = samplesData
+        .filter(s => s.processing_status === 'PENDING' || s.processing_status === 'PROCESSING')
+        .map(s => s.id);
+      
+      if (processingIds.length > 0) {
+        setPollingIds(new Set(processingIds));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load audio library');
       console.error('Failed to load audio library:', err);
@@ -76,6 +90,59 @@ const AudioLibrary: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Poll for preprocessing status updates
+  useEffect(() => {
+    if (pollingIds.size === 0) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
+
+    // Poll every 2 seconds
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const samplesData = await listAudioSamples({});
+        setSamples(samplesData);
+
+        // Check if any polled items are now ready or failed
+        const updatedPollingIds = new Set(pollingIds);
+        let hasStatusChange = false;
+
+        samplesData.forEach(sample => {
+          if (pollingIds.has(sample.id)) {
+            if (sample.processing_status === 'READY') {
+              updatedPollingIds.delete(sample.id);
+              hasStatusChange = true;
+              setSuccessMessage(`${sample.filename} is ready for training!`);
+              setTimeout(() => setSuccessMessage(null), 3000);
+            } else if (sample.processing_status === 'FAILED') {
+              updatedPollingIds.delete(sample.id);
+              hasStatusChange = true;
+              setError(`${sample.filename} preprocessing failed`);
+            }
+          }
+        });
+
+        if (hasStatusChange) {
+          setPollingIds(updatedPollingIds);
+          // Reload stats when status changes
+          const statsData = await getAudioLibraryStats();
+          setStats(statsData);
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 2000);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [pollingIds]);
 
   // File selection handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,14 +195,14 @@ const AudioLibrary: React.FC = () => {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
-      await uploadAudioSample({
+      const uploadedSample = await uploadAudioSample({
         file: selectedFile,
         category: uploadCategory,
         description: uploadDescription || undefined,
         tags: tags.length > 0 ? tags : undefined,
       });
 
-      setSuccessMessage(`Successfully uploaded ${selectedFile.name}`);
+      setSuccessMessage(`Successfully uploaded ${selectedFile.name}. Preprocessing chunks...`);
       
       // Reset form
       setSelectedFile(null);
@@ -147,6 +214,11 @@ const AudioLibrary: React.FC = () => {
 
       // Reload data
       await loadData();
+
+      // Start polling if status is PENDING or PROCESSING
+      if (uploadedSample.processing_status === 'PENDING' || uploadedSample.processing_status === 'PROCESSING') {
+        setPollingIds(prev => new Set(prev).add(uploadedSample.id));
+      }
 
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -309,8 +381,10 @@ const AudioLibrary: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex-grow-1 ms-3">
-                      <h6 className="mb-0">Enabled</h6>
-                      <p className="text-muted mb-0">{stats.enabled_files}</p>
+                      <h6 className="mb-0">Ready</h6>
+                      <p className="text-muted mb-0">
+                        {samples.filter(s => s.processing_status === 'READY').length} / {stats.total_files}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -351,6 +425,35 @@ const AudioLibrary: React.FC = () => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Processing Status Alert */}
+        {pollingIds.size > 0 && (
+          <div className="col-12">
+            <div className="alert alert-info alert-dismissible fade show" role="alert">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <div>
+                  <i className="ph ph-hourglass me-2"></i>
+                  <strong>Processing {pollingIds.size} file{pollingIds.size > 1 ? 's' : ''}...</strong>
+                  {' '}Audio chunks are being generated. This usually takes a few seconds.
+                </div>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setPollingIds(new Set())}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="progress" style={{ height: '6px' }}>
+                <div 
+                  className="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                  role="progressbar" 
+                  style={{ width: '100%' }}
+                  aria-label="Processing files"
+                />
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Upload Section */}
@@ -465,6 +568,30 @@ const AudioLibrary: React.FC = () => {
                     </div>
 
                     <div className="col-md-12">
+                      {/* Upload Progress Bar */}
+                      {isUploading && (
+                        <div className="mb-3">
+                          <div className="d-flex align-items-center justify-content-between mb-2">
+                            <small className="text-muted">
+                              <i className="ph ph-upload-simple me-1"></i>
+                              Uploading and processing audio file...
+                            </small>
+                            <small className="text-muted">
+                              <i className="ph ph-spinner me-1"></i>
+                              This may take a few seconds
+                            </small>
+                          </div>
+                          <div className="progress" style={{ height: '8px' }}>
+                            <div 
+                              className="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                              role="progressbar" 
+                              style={{ width: '100%' }}
+                              aria-label="Uploading audio file"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
                       <button
                         className="btn btn-primary me-2"
                         onClick={handleUpload}
@@ -647,7 +774,8 @@ const AudioLibrary: React.FC = () => {
                         <th>Duration</th>
                         <th>Size</th>
                         <th>Tags</th>
-                        <th>Status</th>
+                        <th>Processing</th>
+                        <th>Enabled</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -691,12 +819,85 @@ const AudioLibrary: React.FC = () => {
                             )}
                           </td>
                           <td>
+                            {(() => {
+                              const statusBadge = getProcessingStatusBadge(sample.processing_status);
+                              const isProcessing = sample.processing_status === 'PENDING' || sample.processing_status === 'PROCESSING';
+                              
+                              // Calculate progress percentage for PROCESSING state
+                              // Expected chunks = floor(duration_seconds) since each chunk is 1 second
+                              const expectedChunks = Math.floor(sample.duration_seconds);
+                              const currentChunks = sample.total_chunks || 0;
+                              const progressPercent = expectedChunks > 0 
+                                ? Math.min(100, Math.round((currentChunks / expectedChunks) * 100))
+                                : 0;
+                              
+                              return (
+                                <div style={{ minWidth: '180px' }}>
+                                  <div className="d-flex align-items-center gap-2 mb-1">
+                                    <span className={`badge ${statusBadge.colorClass}`}>
+                                      <i className={`ph ${statusBadge.icon} me-1`}></i>
+                                      {statusBadge.text}
+                                    </span>
+                                    {sample.processing_status === 'READY' && sample.total_chunks !== null && (
+                                      <small className="text-muted">
+                                        {sample.total_chunks} chunks
+                                      </small>
+                                    )}
+                                    {/* Show progress info for PROCESSING state */}
+                                    {sample.processing_status === 'PROCESSING' && currentChunks > 0 && (
+                                      <small className="text-muted">
+                                        {currentChunks}/{expectedChunks} ({progressPercent}%)
+                                      </small>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Progress bar for PENDING/PROCESSING states */}
+                                  {isProcessing && (
+                                    <div className="progress" style={{ height: '4px' }}>
+                                      <div 
+                                        className="progress-bar progress-bar-striped progress-bar-animated bg-warning" 
+                                        role="progressbar" 
+                                        style={{ width: sample.processing_status === 'PROCESSING' && progressPercent > 0 ? `${progressPercent}%` : '100%' }}
+                                        aria-label={sample.processing_status === 'PROCESSING' ? `Processing: ${progressPercent}%` : "Processing audio file"}
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {/* Success progress bar for READY state */}
+                                  {sample.processing_status === 'READY' && (
+                                    <div className="progress" style={{ height: '4px' }}>
+                                      <div 
+                                        className="progress-bar bg-success" 
+                                        role="progressbar" 
+                                        style={{ width: '100%' }}
+                                        aria-label="Processing complete"
+                                      />
+                                    </div>
+                                  )}
+                                  
+                                  {/* Error progress bar for FAILED state */}
+                                  {sample.processing_status === 'FAILED' && (
+                                    <div className="progress" style={{ height: '4px' }}>
+                                      <div 
+                                        className="progress-bar bg-danger" 
+                                        role="progressbar" 
+                                        style={{ width: '100%' }}
+                                        aria-label="Processing failed"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td>
                             <div className="form-check form-switch">
                               <input
                                 className="form-check-input"
                                 type="checkbox"
                                 checked={sample.enabled}
                                 onChange={() => handleToggleEnabled(sample.id, sample.enabled)}
+                                disabled={sample.processing_status !== 'READY'}
                               />
                             </div>
                           </td>

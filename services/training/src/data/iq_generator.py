@@ -22,6 +22,7 @@ Spatial Coherence for ML Training:
   once, then applying per-receiver effects
 """
 
+import os
 import numpy as np
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -140,6 +141,8 @@ class SyntheticIQGenerator:
             # Create audio loader with seeded RNG for reproducibility
             # Use CPU RNG even in GPU mode (audio loading happens on CPU)
             audio_rng = np.random.default_rng(seed) if seed is not None else None
+            # Audio chunks are pre-processed and stored in MinIO at 200kHz
+            # No disk cache or resampling needed - instant loading!
             self.audio_loader = get_audio_loader(
                 target_sample_rate=int(self.sample_rate_hz),
                 rng=audio_rng,
@@ -149,6 +152,7 @@ class SyntheticIQGenerator:
                 "audio_loader_initialized",
                 use_library=True,
                 rng_seeded=seed is not None,
+                note="Loading preprocessed chunks from database (instant, no resampling)",
             )
 
     def generate_iq_sample(
@@ -464,10 +468,11 @@ class SyntheticIQGenerator:
             freq_deviation_hz = 15000.0  # Wide FM
         
         # Generate audio content based on signal type distribution
+        # 90% voice, 5% single tone, 5% dual-tone (DTMF)
         signal_type = self.rng_uniform(0, 1)
         
-        if signal_type < 0.75:
-            # 75% - Voice modulation
+        if signal_type < 0.90:
+            # 90% - Voice modulation
             audio = self._generate_voice_audio()
             
             # Apply pre-emphasis filter (6 dB/octave) for voice
@@ -478,20 +483,17 @@ class SyntheticIQGenerator:
             pre_emphasized[1:] = audio[1:] - 0.95 * audio[:-1]
             audio = pre_emphasized
             
-        elif signal_type < 0.85:
-            # 10% - Single tone (e.g., test tone, beacon)
+        elif signal_type < 0.95:
+            # 5% - Single tone (e.g., test tone, beacon)
             tone_freq = self.rng_uniform(800, 1200)  # Voice range single tone
             audio = self.xp.sin(2 * self.xp.pi * tone_freq * self.time_axis)
             
-        elif signal_type < 0.95:
-            # 10% - Dual-tone (DTMF-like)
+        else:
+            # 5% - Dual-tone (DTMF-like)
             tone1_freq = self.rng_uniform(697, 941)   # Low DTMF group
             tone2_freq = self.rng_uniform(1209, 1633) # High DTMF group
             audio = 0.5 * self.xp.sin(2 * self.xp.pi * tone1_freq * self.time_axis) + \
                     0.5 * self.xp.sin(2 * self.xp.pi * tone2_freq * self.time_axis)
-        else:
-            # 5% - Unmodulated carrier (CW-like)
-            audio = self.xp.zeros(self.num_samples)
         
         # FM modulation: phase(t) = 2π * fc * t + 2π * Δf * ∫audio(t)dt
         # Discrete integration: cumulative sum with time step
@@ -733,6 +735,7 @@ class SyntheticIQGenerator:
         
         # Determine signal type ONCE for the entire batch (all receivers get same signal type)
         # This ensures spatial coherence - all receivers "hear" the same content
+        # Distribution: 90% voice, 5% single tone, 5% dual-tone
         signal_type = self.rng_uniform(0, 1)
         
         logger.info(
@@ -741,8 +744,8 @@ class SyntheticIQGenerator:
             batch_size=batch_size,
         )
         
-        if signal_type < 0.75:
-            # 75% - Voice modulation
+        if signal_type < 0.90:
+            # 90% - Voice modulation
             # Generate audio ONCE and broadcast to all receivers
             logger.info("generating_voice_audio_for_batch", batch_size=batch_size)
             audio = self._generate_voice_audio()
@@ -756,16 +759,16 @@ class SyntheticIQGenerator:
             for i in range(batch_size):
                 audio_batch[i] = pre_emphasized
                 
-        elif signal_type < 0.85:
-            # 10% - Single tone
+        elif signal_type < 0.95:
+            # 5% - Single tone
             # Generate ONCE and broadcast to all receivers
             tone_freq = self.rng_uniform(800, 1200)
             audio = self.xp.sin(2 * self.xp.pi * tone_freq * self.time_axis)
             for i in range(batch_size):
                 audio_batch[i] = audio
                 
-        elif signal_type < 0.95:
-            # 10% - Dual-tone (DTMF-like)
+        else:
+            # 5% - Dual-tone (DTMF-like)
             # Generate ONCE and broadcast to all receivers
             tone1_freq = self.rng_uniform(697, 941)
             tone2_freq = self.rng_uniform(1209, 1633)
@@ -773,7 +776,6 @@ class SyntheticIQGenerator:
                     0.5 * self.xp.sin(2 * self.xp.pi * tone2_freq * self.time_axis)
             for i in range(batch_size):
                 audio_batch[i] = audio
-        # else: 5% - Carrier (audio_batch remains zeros for all receivers)
         
         # FM modulation for entire batch
         # Discrete integration: cumulative sum along time axis

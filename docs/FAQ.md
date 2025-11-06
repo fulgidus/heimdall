@@ -173,6 +173,25 @@ For development/testing, yes - use mock data. For production localization, you n
 
 Accumulate many samples to train accurate models.
 
+### Why does training data include pure tones?
+
+Training data includes 10% synthetic signals (5% single-tone beacons, 5% dual-tone DTMF) alongside 90% voice signals to ensure the model generalizes well and doesn't overfit to voice-only patterns.
+
+**Rationale:**
+- **90% voice**: Primary use case for amateur radio localization
+- **5% single tones**: Test beacons and calibration signals
+- **5% dual-tone (DTMF)**: DTMF signaling and edge case handling
+- **0% CW**: Removed as not representative of typical traffic
+
+**To adjust the distribution:**
+Edit `services/training/src/data/iq_generator.py` lines 470-498 (single sample) and 734-778 (batch generation).
+
+**Impact on model performance:**
+- Higher voice % → Better voice localization, potential overfitting
+- Higher synthetic % → Better generalization, may reduce voice accuracy
+
+See [Training Documentation](TRAINING.md#signal-type-distribution) for details.
+
 ## Troubleshooting
 
 ### Services won't start

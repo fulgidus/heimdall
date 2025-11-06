@@ -32,6 +32,8 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
   const [isLoading, setIsLoading] = useState(false);
   const [samplesPerSecond, setSamplesPerSecond] = useState<number | null>(null);
   const [timeToCompletion, setTimeToCompletion] = useState<number | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteDatasetToo, setDeleteDatasetToo] = useState(false);
   
   // Track progress history for rate calculation (keep last 5 snapshots)
   const progressHistory = useRef<ProgressSnapshot[]>([]);
@@ -51,12 +53,18 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
   const handleDelete = async () => {
     setIsLoading(true);
     try {
-      await deleteGenerationJob(job.id);
+      await deleteGenerationJob(job.id, deleteDatasetToo);
+      setShowDeleteDialog(false);
     } catch (error) {
       console.error('Failed to delete generation job:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const openDeleteDialog = () => {
+    setDeleteDatasetToo(false); // Reset checkbox
+    setShowDeleteDialog(true);
   };
 
   const progressPercent = job.progress_percent || 0;
@@ -257,16 +265,101 @@ export const GenerationJobCard: React.FC<GenerationJobCardProps> = ({ job }) => 
           {/* Delete button for completed/failed/cancelled jobs */}
           {(job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') && (
             <button
-              onClick={handleDelete}
+              onClick={openDeleteDialog}
               disabled={isLoading}
               className="btn btn-sm btn-outline-danger w-100"
             >
               <i className="ph ph-trash me-1"></i>
-              {isLoading ? 'Deleting...' : 'Delete Job'}
+              Delete Job
             </button>
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteDialog && (
+        <div 
+          className="modal show d-block" 
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowDeleteDialog(false)}
+        >
+          <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="ph ph-warning-circle text-warning me-2"></i>
+                  Delete Generation Job
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isLoading}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p className="mb-3">
+                  Are you sure you want to delete job <code>{job.id.slice(0, 8)}</code>?
+                </p>
+                
+                {job.dataset_id && (
+                  <div className="alert alert-info py-2 small mb-3">
+                    <i className="ph ph-info me-2"></i>
+                    This job created a dataset. You can optionally delete it too.
+                  </div>
+                )}
+
+                {/* Checkbox to delete dataset */}
+                {job.dataset_id && (
+                  <div className="form-check mb-3">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="deleteDatasetCheckbox"
+                      checked={deleteDatasetToo}
+                      onChange={(e) => setDeleteDatasetToo(e.target.checked)}
+                      disabled={isLoading}
+                    />
+                    <label className="form-check-label" htmlFor="deleteDatasetCheckbox">
+                      <strong className="text-danger">Also delete the dataset</strong>
+                      <div className="small text-muted mt-1">
+                        Warning: This will permanently delete all generated samples and associated data from MinIO.
+                        This action cannot be undone!
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {!job.dataset_id && (
+                  <div className="alert alert-secondary py-2 small">
+                    <i className="ph ph-info me-2"></i>
+                    This job did not create any dataset.
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-danger" 
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                >
+                  <i className="ph ph-trash me-1"></i>
+                  {isLoading ? 'Deleting...' : (deleteDatasetToo ? 'Delete Job & Dataset' : 'Delete Job Only')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

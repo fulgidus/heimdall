@@ -90,14 +90,15 @@ class TestDatasetDeletion:
         test_job_id,
         test_dataset_id
     ):
-        """Test that deleting a job also deletes its associated datasets."""
+        """Test that deleting a job with delete_dataset=True deletes associated datasets."""
         mock_minio_class.return_value = mock_minio_client
         
-        # When delete_dataset=True (default):
+        # When delete_dataset=True:
         # 1. Find all datasets created by this job
-        # 2. Delete IQ files from MinIO for each dataset
-        # 3. Delete dataset records from database
-        # 4. Delete job record
+        # 2. Check if datasets are used by active models
+        # 3. Delete IQ files from MinIO for each dataset
+        # 4. Delete dataset records from database
+        # 5. Delete job record
         
         # Verify mock is configured
         assert mock_minio_client.delete_dataset_iq_data is not None
@@ -106,11 +107,39 @@ class TestDatasetDeletion:
         self,
         test_job_id
     ):
-        """Test that job deletion can skip dataset deletion if requested."""
-        # When delete_dataset=False:
+        """Test that job deletion with delete_dataset=False preserves datasets (NEW DEFAULT)."""
+        # When delete_dataset=False (NEW DEFAULT for data safety):
         # 1. Job record is deleted
         # 2. Datasets remain (with created_by_job_id set to NULL via ON DELETE SET NULL)
         # 3. No MinIO cleanup occurs
+        # 4. Data is PRESERVED to prevent accidental loss
+        pass
+    
+    def test_delete_dataset_blocked_by_active_models(
+        self,
+        test_dataset_id
+    ):
+        """Test that deleting a dataset used by active models raises 409 Conflict."""
+        # When trying to delete a dataset that is referenced by active models:
+        # 1. Check models table for synthetic_dataset_id match
+        # 2. If any model has is_active=True, raise HTTPException 409
+        # 3. Include model names in error message
+        # 4. User must deactivate/delete models first
+        pass
+    
+    def test_delete_job_with_dataset_blocked_by_active_models(
+        self,
+        test_job_id,
+        test_dataset_id
+    ):
+        """Test that job deletion with delete_dataset=True is blocked if datasets are in use."""
+        # When delete_dataset=True but dataset is used by active models:
+        # 1. Find datasets created by this job
+        # 2. For each dataset, check if it's used by active models
+        # 3. If any active model found, raise HTTPException 409
+        # 4. Suggest user either:
+        #    a) Deactivate/delete the models first, or
+        #    b) Use delete_dataset=False to preserve dataset
         pass
 
 

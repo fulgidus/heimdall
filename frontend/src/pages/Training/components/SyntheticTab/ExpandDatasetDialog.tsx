@@ -23,7 +23,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
 }) => {
   const { expandDataset } = useTrainingStore();
   const [numSamples, setNumSamples] = useState(10000);
-  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('auto');
+  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('cpu');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -48,7 +48,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
       // Success - close dialog
       onClose();
       setNumSamples(10000); // Reset
-      setAccelerationMode('auto'); // Reset to auto
+      setAccelerationMode('cpu'); // Reset to cpu
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to expand dataset');
     } finally {

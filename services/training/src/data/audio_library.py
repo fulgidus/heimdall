@@ -1,51 +1,154 @@
 """
 Audio Library Loader for Training Service.
 
-Provides cached access to audio samples from the MinIO audio library
-for use in synthetic IQ generation. Implements LRU caching to minimize
-network overhead and improve training performance.
+Loads preprocessed audio chunks from the database and MinIO.
+All audio is pre-chunked and pre-resampled to 200kHz during upload preprocessing.
+No disk cache or runtime resampling needed - instant loading!
 """
 
 import io
 import json
 import os
-import random
-from pathlib import Path
+from enum import Enum
 from typing import Dict, List, Optional, Tuple
-import warnings
 
 import numpy as np
-import requests
+import redis
 import structlog
-import soundfile as sf
-from scipy import signal as scipy_signal
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+
+# Import MinIO client from backend
+import sys
+sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+try:
+    from storage.minio_client import MinIOClient
+except ImportError:
+    MinIOClient = None
+
+from ..config import settings
 
 logger = structlog.get_logger(__name__)
 
 
+class AudioCategory(str, Enum):
+    """Audio sample categories for organization."""
+    
+    VOICE = "voice"
+    MUSIC = "music"
+    DOCUMENTARY = "documentary"
+    CONFERENCE = "conference"
+    CUSTOM = "custom"
+
+
+class CategoryWeights(BaseModel):
+    """
+    Category weights for proportional sampling during training.
+    
+    Each weight is a float between 0.0 and 1.0 representing the probability
+    of selecting that category when generating training samples.
+    """
+    
+    voice: float = Field(default=0.4, ge=0.0, le=1.0, description="Weight for voice samples")
+    music: float = Field(default=0.3, ge=0.0, le=1.0, description="Weight for music samples")
+    documentary: float = Field(default=0.2, ge=0.0, le=1.0, description="Weight for documentary samples")
+    conference: float = Field(default=0.1, ge=0.0, le=1.0, description="Weight for conference samples")
+    custom: float = Field(default=0.0, ge=0.0, le=1.0, description="Weight for custom samples")
+    
+    @field_validator('voice', 'music', 'documentary', 'conference', 'custom')
+    @classmethod
+    def validate_weight(cls, v: float) -> float:
+        """Ensure weight is between 0.0 and 1.0."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Weight must be between 0.0 and 1.0")
+        return v
+    
+    def normalize(self) -> "CategoryWeights":
+        """
+        Normalize weights to sum to 1.0 (probability distribution).
+        
+        Returns a new CategoryWeights instance with normalized values.
+        If all weights are 0, returns uniform distribution.
+        """
+        total = self.voice + self.music + self.documentary + self.conference + self.custom
+        
+        if total == 0.0:
+            # Uniform distribution
+            return CategoryWeights(
+                voice=0.2,
+                music=0.2,
+                documentary=0.2,
+                conference=0.2,
+                custom=0.2
+            )
+        
+        return CategoryWeights(
+            voice=self.voice / total,
+            music=self.music / total,
+            documentary=self.documentary / total,
+            conference=self.conference / total,
+            custom=self.custom / total
+        )
+    
+    def to_dict(self) -> Dict[str, float]:
+        """Convert to dictionary mapping category string to weight."""
+        return {
+            "voice": self.voice,
+            "music": self.music,
+            "documentary": self.documentary,
+            "conference": self.conference,
+            "custom": self.custom
+        }
+    
+    def to_lists(self) -> Tuple[List[str], List[float]]:
+        """
+        Convert to parallel lists of categories and weights.
+        Only includes categories with weight > 0.
+        
+        Returns:
+            Tuple of (category_names, weights)
+        """
+        categories = []
+        weights = []
+        
+        for cat, weight in self.to_dict().items():
+            if weight > 0:
+                categories.append(cat)
+                weights.append(weight)
+        
+        return categories, weights
+
+
 class AudioLibraryEmptyError(Exception):
     """Raised when audio library has no enabled samples."""
-
     pass
 
 
 class AudioLibraryLoader:
     """
-    Loads audio samples from the audio library API with LRU caching.
-
-    Features:
-    - LRU cache for downloaded audio files (reduces network calls)
-    - Category-based filtering
-    - Random sampling of enabled files
-    - Graceful error handling with informative logging
-    - Automatic resampling to target sample rate
+    Loads preprocessed audio chunks from database and MinIO.
+    
+    Architecture:
+    1. Load category weights from Redis (configured by user in frontend)
+    2. Select category using weighted random selection
+    3. Query database for random chunk from selected category (enabled=TRUE, status=READY)
+    4. Download .npy chunk from MinIO (heimdall-audio-chunks bucket)
+    5. Load and return (already at 200kHz, no resampling needed)
+    
+    Benefits:
+    - Instant loading (no resampling, no disk cache needed)
+    - All chunks are 1 second at 200kHz (consistent)
+    - Respects user-configured category weights for realistic training data distribution
+    - Random chunk selection per call (great for training diversity)
     """
+    
+    REDIS_WEIGHTS_KEY = "audio:category:weights"
 
     def __init__(
         self,
         backend_url: Optional[str] = None,
-        cache_size: int = 100,
-        target_sample_rate: int = 48000,
+        target_sample_rate: int = 200000,
         rng: Optional[np.random.Generator] = None,
     ):
         """
@@ -53,30 +156,137 @@ class AudioLibraryLoader:
 
         Args:
             backend_url: Backend API base URL (defaults to env var BACKEND_URL)
-            cache_size: Maximum number of audio files to cache in memory
-            target_sample_rate: Target sample rate for resampling (Hz)
+            target_sample_rate: Expected sample rate (should be 200000 Hz for preprocessed chunks)
             rng: NumPy random generator for reproducible sampling (if None, uses default)
         """
         self.backend_url = backend_url if backend_url is not None else os.getenv(
             "BACKEND_URL", "http://backend:8001"
         )
-        self.cache_size = cache_size
         self.target_sample_rate = target_sample_rate
         self.rng = rng if rng is not None else np.random.default_rng()
+        
+        # Database connection
+        self.engine = create_engine(settings.database_url)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        
+        # Redis connection for category weights
+        self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+        
+        # MinIO client for chunk downloads
+        if MinIOClient is None:
+            logger.warning(
+                "minio_client_unavailable",
+                note="MinIOClient not available - audio loading will fail"
+            )
+            self.minio_client = None
+        else:
+            self.minio_client = MinIOClient(
+                endpoint_url=settings.minio_url,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                bucket_name="heimdall-audio-chunks"
+            )
 
-        # Manual cache instead of lru_cache (incompatible with librosa in Celery)
-        self._audio_cache: Dict[str, Tuple[np.ndarray, int]] = {}
-        self._cache_order: List[str] = []
-        self._cache_hits: int = 0
-        self._cache_misses: int = 0
+        # Statistics tracking
+        self._chunks_loaded: int = 0
+        self._category_stats: Dict[str, int] = {}  # Track chunks loaded per category
 
         logger.info(
             "audio_library_loader_initialized",
             backend_url=self.backend_url,
-            cache_size=cache_size,
             target_sample_rate=target_sample_rate,
             rng_seeded=rng is not None,
+            database_url_host=settings.postgres_host,
+            redis_url=settings.redis_url,
         )
+
+    def _get_category_weights(self) -> CategoryWeights:
+        """
+        Load category weights from Redis.
+        
+        Returns:
+            CategoryWeights with current values (defaults if not set)
+        """
+        try:
+            weights_json = self.redis_client.get(self.REDIS_WEIGHTS_KEY)
+            
+            if weights_json:
+                weights_dict = json.loads(weights_json)
+                weights = CategoryWeights(**weights_dict)
+                logger.debug("Loaded category weights from Redis", weights=weights_dict)
+            else:
+                # Return defaults if not set
+                weights = CategoryWeights()
+                logger.debug("Using default category weights")
+            
+            return weights.normalize()  # Ensure normalized
+        
+        except Exception as e:
+            logger.error("Failed to get category weights, using defaults", error=str(e))
+            # Return defaults on error
+            return CategoryWeights().normalize()
+    
+    def _select_category_weighted(self) -> str:
+        """
+        Select a category using weighted random selection based on user preferences.
+        
+        Returns:
+            Selected category name (e.g., "voice", "music")
+            
+        Raises:
+            AudioLibraryEmptyError: If no categories have available chunks
+        """
+        weights = self._get_category_weights()
+        categories, category_weights = weights.to_lists()
+        
+        if not categories:
+            # All weights are 0, use uniform distribution
+            categories = ["voice", "music", "documentary", "conference", "custom"]
+            category_weights = [0.2, 0.2, 0.2, 0.2, 0.2]
+        
+        # Verify that selected categories have available chunks
+        db = self.SessionLocal()
+        try:
+            available_categories = []
+            available_weights = []
+            
+            for cat, weight in zip(categories, category_weights):
+                # Check if this category has any READY chunks
+                query = """
+                    SELECT COUNT(*) as count
+                    FROM heimdall.audio_chunks ac
+                    JOIN heimdall.audio_library al ON ac.audio_id = al.id
+                    WHERE al.enabled = TRUE 
+                      AND al.processing_status = 'READY'
+                      AND al.category = :category
+                """
+                result = db.execute(text(query), {"category": cat}).fetchone()
+                
+                if result and result[0] > 0:
+                    available_categories.append(cat)
+                    available_weights.append(weight)
+            
+            if not available_categories:
+                raise AudioLibraryEmptyError("No READY audio chunks available in any category")
+            
+            # Normalize weights for available categories only
+            total_weight = sum(available_weights)
+            normalized_weights = [w / total_weight for w in available_weights]
+            
+            # Use NumPy RNG for weighted selection
+            selected_category = self.rng.choice(available_categories, p=normalized_weights)
+            
+            logger.debug(
+                "category_selected_weighted",
+                selected=selected_category,
+                available_categories=available_categories,
+                weights=dict(zip(available_categories, normalized_weights))
+            )
+            
+            return selected_category
+        
+        finally:
+            db.close()
 
     def get_random_sample(
         self,
@@ -84,285 +294,164 @@ class AudioLibraryLoader:
         duration_ms: Optional[float] = None,
     ) -> Tuple[np.ndarray, int]:
         """
-        Get a random audio sample from the library.
+        Get a random preprocessed audio chunk from the library.
+        
+        Uses weighted random selection based on category weights configured by user.
+        If category is explicitly specified, weights are ignored.
 
         Args:
-            category: Filter by category (voice, music, documentary, conference, custom)
-            duration_ms: Desired duration in milliseconds (will trim or loop if needed)
+            category: Filter by specific category (overrides weighted selection)
+            duration_ms: Ignored (all chunks are 1 second at 200kHz)
 
         Returns:
             Tuple of (audio_samples, sample_rate)
-            - audio_samples: 1D numpy array of float32 samples [-1.0, 1.0]
-            - sample_rate: Sample rate in Hz
+            - audio_samples: 1D numpy array of float32 samples (200,000 samples = 1 second at 200kHz)
+            - sample_rate: Always 200000 Hz
 
         Raises:
-            AudioLibraryEmptyError: If no enabled samples available
-            requests.RequestException: If API call fails
+            AudioLibraryEmptyError: If no enabled samples with READY status available
         """
-        # Get ALL samples from API first, then select one using our RNG
-        params = {}
-        params["enabled"] = "true"  # Only get enabled samples (string for query param)
-        if category:
-            params["category"] = category
-
-        # Get list of all enabled samples
-        url = f"{self.backend_url}/api/v1/audio-library/list"
+        if duration_ms is not None:
+            logger.warning(
+                "duration_ms_ignored",
+                duration_ms=duration_ms,
+                note="All preprocessed chunks are 1 second at 200kHz"
+            )
+        
+        # Select category using weighted random selection (unless explicitly specified)
+        if category is None:
+            category = self._select_category_weighted()
+        
+        # Query database for random chunk from selected category
+        db = self.SessionLocal()
         try:
-            response = requests.get(url, params=params, timeout=5)
-            response.raise_for_status()
-            list_response = response.json()
-            enabled_samples = list_response.get("files", [])
-        except requests.RequestException as e:
+            # Build SQL query with category filter
+            query = """
+                SELECT ac.id, ac.minio_bucket, ac.minio_path, ac.sample_rate, ac.num_samples,
+                       al.category, al.filename
+                FROM heimdall.audio_chunks ac
+                JOIN heimdall.audio_library al ON ac.audio_id = al.id
+                WHERE al.enabled = TRUE 
+                  AND al.processing_status = 'READY'
+                  AND al.category = :category
+                ORDER BY RANDOM() 
+                LIMIT 1
+            """
+            
+            result = db.execute(text(query), {"category": category}).fetchone()
+            
+            if not result:
+                raise AudioLibraryEmptyError(
+                    f"No READY audio chunks available (category={category})"
+                )
+            
+            chunk_id, minio_bucket, minio_path, sample_rate, num_samples, chunk_category, filename = result
+            
+            logger.debug(
+                "chunk_selected_from_db",
+                chunk_id=str(chunk_id),
+                category=chunk_category,
+                filename=filename,
+                minio_path=minio_path,
+                sample_rate=sample_rate,
+                num_samples=num_samples
+            )
+        
+        finally:
+            db.close()
+        
+        # Download chunk from MinIO
+        if self.minio_client is None:
+            raise RuntimeError("MinIO client not available")
+        
+        try:
+            chunk_bytes = self.minio_client.s3_client.get_object(
+                Bucket=minio_bucket,
+                Key=minio_path
+            )['Body'].read()
+            
+            # Load numpy array from bytes
+            audio_samples = np.load(io.BytesIO(chunk_bytes))
+            
+            logger.debug(
+                "chunk_loaded_from_minio",
+                chunk_id=str(chunk_id),
+                minio_path=minio_path,
+                size_bytes=len(chunk_bytes),
+                num_samples=len(audio_samples),
+                sample_rate=sample_rate
+            )
+        
+        except Exception as e:
             logger.error(
-                "audio_library_api_error",
-                url=url,
+                "chunk_download_failed",
+                chunk_id=str(chunk_id),
+                minio_path=minio_path,
                 error=str(e),
-                exc_info=True,
+                exc_info=True
             )
             raise
-        
-        # Check if library is empty
-        if not enabled_samples:
-            logger.warning(
-                "audio_library_empty",
-                category=category,
-            )
-            raise AudioLibraryEmptyError(
-                f"No enabled audio samples available (category={category})"
-            )
-
-        # Use our seeded RNG to select a sample (reproducible)
-        sample_idx = self.rng.integers(0, len(enabled_samples))
-        sample_info = enabled_samples[sample_idx]
-
-        # Load audio from cache or download
-        audio_id = sample_info["id"]
-        audio_samples, sample_rate = self._load_audio_cached(audio_id)
-
-        # Adjust duration if requested (pass RNG for reproducible trimming)
-        if duration_ms is not None:
-            target_samples = int(sample_rate * duration_ms / 1000)
-            audio_samples = self._adjust_duration(audio_samples, target_samples, use_rng=True)
 
         # Normalize audio RMS to match formant synthesis power
-        # This ensures audio library samples have similar signal strength to synthetic audio,
-        # preventing noise from dominating correlation metrics during testing/training
+        # This ensures audio library samples have similar signal strength to synthetic audio
         current_rms = np.sqrt(np.mean(audio_samples ** 2))
         if current_rms > 1e-6:  # Avoid division by zero
-            # Use aggressive normalization to match formant synthesis
-            # Target RMS=1.5 ensures >0.95 correlation at SNR=50 dB
             target_rms = 1.5
             audio_samples = audio_samples * (target_rms / current_rms)
             logger.debug(
                 "audio_rms_normalized",
-                audio_id=audio_id,
+                chunk_id=str(chunk_id),
                 original_rms=float(current_rms),
                 target_rms=target_rms,
                 scaling_factor=float(target_rms / current_rms),
             )
 
+        self._chunks_loaded += 1
+        
+        # Update category statistics
+        if chunk_category not in self._category_stats:
+            self._category_stats[chunk_category] = 0
+        self._category_stats[chunk_category] += 1
+        
         logger.debug(
-            "audio_sample_loaded",
-            audio_id=audio_id,
-            category=sample_info.get("category"),
-            duration_s=len(audio_samples) / sample_rate,
+            "audio_chunk_loaded",
+            chunk_id=str(chunk_id),
+            category=chunk_category,
+            duration_s=1.0,
             sample_rate=sample_rate,
+            chunks_loaded_total=self._chunks_loaded,
+            category_stats=self._category_stats
         )
 
         return audio_samples, sample_rate
 
-    def _load_audio(self, audio_id: str) -> Tuple[np.ndarray, int]:
+    def get_stats(self) -> Dict:
         """
-        Load audio file from API (cache-miss function).
-
-        Args:
-            audio_id: Audio file UUID
+        Get loader statistics.
 
         Returns:
-            Tuple of (audio_samples, sample_rate)
-
-        Raises:
-            requests.RequestException: If download fails
+            Dictionary with statistics (chunks loaded, category distribution, etc.)
         """
-        url = f"{self.backend_url}/api/v1/audio-library/{audio_id}/download"
-
-        try:
-            response = requests.get(url, timeout=10, stream=True)
-            response.raise_for_status()
-
-            # Load audio with soundfile (bypasses librosa/numba caching issues)
-            audio_bytes = io.BytesIO(response.content)
-            
-            # Load audio with soundfile (handles MP3/WAV/FLAC/OGG)
-            # Returns float64 [-1.0, 1.0] and original sample rate
-            samples, original_sr = sf.read(audio_bytes, dtype='float32')
-            
-            # Convert stereo to mono if needed
-            if samples.ndim > 1:
-                samples = samples.mean(axis=1)
-            
-            logger.debug(
-                "audio_loaded_original",
-                audio_id=audio_id,
-                original_sample_rate=original_sr,
-                original_duration_s=len(samples) / original_sr,
-                original_samples=len(samples)
-            )
-
-            # Resample to target sample rate using scipy (high-quality polyphase filtering)
-            # This avoids all librosa/numba caching issues while maintaining quality
-            if original_sr != self.target_sample_rate:
-                logger.debug(
-                    "audio_resampling",
-                    audio_id=audio_id,
-                    from_sr=original_sr,
-                    to_sr=self.target_sample_rate,
-                    method="scipy_resample_poly"
-                )
-                # Use resample_poly which is much faster than resample for large files
-                # Calculate greatest common divisor for optimal performance
-                from math import gcd
-                up = self.target_sample_rate // gcd(self.target_sample_rate, original_sr)
-                down = original_sr // gcd(self.target_sample_rate, original_sr)
-                
-                # If ratio is too large, process in chunks to avoid memory issues
-                if up * down > 1000:
-                    logger.warning(
-                        "large_resampling_ratio",
-                        audio_id=audio_id,
-                        up=up,
-                        down=down,
-                        ratio=up/down
-                    )
-                
-                samples = scipy_signal.resample_poly(samples, up, down)
-
-            logger.info(
-                "audio_file_loaded",
-                audio_id=audio_id,
-                duration_s=len(samples) / self.target_sample_rate,
-                sample_rate=self.target_sample_rate,
-                original_sample_rate=original_sr,
-                resampled=original_sr != self.target_sample_rate
-            )
-
-            return samples.astype(np.float32), self.target_sample_rate
-
-        except requests.RequestException as e:
-            logger.error(
-                "audio_download_error",
-                audio_id=audio_id,
-                url=url,
-                error=str(e),
-                exc_info=True,
-            )
-            raise
-
-    def _load_audio_cached(self, audio_id: str) -> Tuple[np.ndarray, int]:
-        """
-        Load audio with manual LRU cache.
+        # Calculate category distribution percentages
+        category_distribution = {}
+        if self._chunks_loaded > 0:
+            for cat, count in self._category_stats.items():
+                category_distribution[cat] = {
+                    "count": count,
+                    "percentage": round((count / self._chunks_loaded) * 100, 2)
+                }
         
-        Args:
-            audio_id: Audio file UUID
-            
-        Returns:
-            Tuple of (audio_samples, sample_rate)
-        """
-        # Check cache
-        if audio_id in self._audio_cache:
-            self._cache_hits += 1
-            logger.debug(
-                "audio_cache_hit",
-                audio_id=audio_id,
-                cache_size=len(self._audio_cache),
-            )
-            return self._audio_cache[audio_id]
-        
-        # Cache miss - load audio
-        self._cache_misses += 1
-        logger.debug(
-            "audio_cache_miss",
-            audio_id=audio_id,
-            cache_size=len(self._audio_cache),
-        )
-        
-        audio_data = self._load_audio(audio_id)
-        
-        # Add to cache
-        self._audio_cache[audio_id] = audio_data
-        self._cache_order.append(audio_id)
-        
-        # Evict oldest if over limit (LRU)
-        if len(self._audio_cache) > self.cache_size:
-            oldest_id = self._cache_order.pop(0)
-            del self._audio_cache[oldest_id]
-            logger.debug(
-                "audio_cache_eviction",
-                evicted_id=oldest_id,
-                cache_size=len(self._audio_cache),
-            )
-        
-        return audio_data
-
-    def _adjust_duration(
-        self, audio_samples: np.ndarray, target_samples: int, use_rng: bool = False
-    ) -> np.ndarray:
-        """
-        Adjust audio duration by trimming or looping.
-
-        Args:
-            audio_samples: Input audio samples
-            target_samples: Desired number of samples
-            use_rng: If True, use the instance's RNG for reproducible offset selection
-
-        Returns:
-            Audio samples with adjusted length
-        """
-        current_samples = len(audio_samples)
-
-        if current_samples == target_samples:
-            return audio_samples
-        elif current_samples > target_samples:
-            # Trim: random offset for variety (with optional RNG for reproducibility)
-            max_offset = current_samples - target_samples
-            if use_rng:
-                offset = self.rng.integers(0, max_offset + 1)
-            else:
-                offset = random.randint(0, max_offset)
-            return audio_samples[offset : offset + target_samples]
-        else:
-            # Loop: repeat audio until target length
-            num_repeats = (target_samples // current_samples) + 1
-            repeated = np.tile(audio_samples, num_repeats)
-            return repeated[:target_samples]
-
-    def get_cache_info(self) -> Dict:
-        """
-        Get LRU cache statistics.
-
-        Returns:
-            Dictionary with cache hits, misses, size, and max size
-        """
-        total = self._cache_hits + self._cache_misses
         return {
-            "hits": self._cache_hits,
-            "misses": self._cache_misses,
-            "current_size": len(self._audio_cache),
-            "max_size": self.cache_size,
-            "hit_rate": (
-                self._cache_hits / total
-                if total > 0
-                else 0.0
-            ),
+            "chunks_loaded": self._chunks_loaded,
+            "target_sample_rate": self.target_sample_rate,
+            "category_distribution": category_distribution,
         }
 
-    def clear_cache(self):
-        """Clear the LRU cache (useful for testing)."""
-        self._audio_cache.clear()
-        self._cache_order.clear()
-        self._cache_hits = 0
-        self._cache_misses = 0
-        logger.info("audio_library_cache_cleared")
+    def clear_stats(self):
+        """Clear statistics (useful for testing)."""
+        self._chunks_loaded = 0
+        self._category_stats = {}
+        logger.info("audio_library_stats_cleared")
 
 
 # Global instance for easy access (lazy-initialized)
@@ -371,8 +460,7 @@ _loader_instance: Optional[AudioLibraryLoader] = None
 
 def get_audio_loader(
     backend_url: Optional[str] = None,
-    cache_size: int = 100,
-    target_sample_rate: int = 48000,
+    target_sample_rate: int = 200000,
     rng: Optional[np.random.Generator] = None,
     force_new: bool = False,
 ) -> AudioLibraryLoader:
@@ -381,7 +469,6 @@ def get_audio_loader(
 
     Args:
         backend_url: Backend API base URL (only used on first call)
-        cache_size: LRU cache size (only used on first call)
         target_sample_rate: Target sample rate in Hz (only used on first call)
         rng: NumPy random generator for reproducible sampling (only used on first call)
         force_new: If True, create a new instance instead of using singleton
@@ -395,7 +482,6 @@ def get_audio_loader(
     if force_new:
         return AudioLibraryLoader(
             backend_url=backend_url,
-            cache_size=cache_size,
             target_sample_rate=target_sample_rate,
             rng=rng,
         )
@@ -404,7 +490,6 @@ def get_audio_loader(
     if _loader_instance is None:
         _loader_instance = AudioLibraryLoader(
             backend_url=backend_url,
-            cache_size=cache_size,
             target_sample_rate=target_sample_rate,
             rng=rng,
         )

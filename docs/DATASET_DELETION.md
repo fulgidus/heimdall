@@ -41,8 +41,18 @@ When a job is deleted via `DELETE /api/v1/jobs/synthetic/{job_id}`:
 5. **Return statistics**: Report datasets and files deleted
 
 The job deletion endpoint accepts an optional `delete_dataset` parameter:
-- `delete_dataset=true` (default): Delete job and all associated datasets
-- `delete_dataset=false`: Delete only job record, keep datasets (sets `created_by_job_id = NULL`)
+- `delete_dataset=false` (default): Delete only job record, keep datasets (sets `created_by_job_id = NULL`) ⚡ **SAFE DEFAULT**
+- `delete_dataset=true`: Delete job and all associated datasets (explicit opt-in required)
+
+### Dataset Deletion Safety Features
+
+To prevent accidental data loss, the system includes several safety mechanisms:
+
+1. **Safe Defaults**: Datasets are preserved by default unless explicitly requested
+2. **Active Model Protection**: Datasets used by active models cannot be deleted (returns 409 Conflict)
+3. **Frontend Confirmation**: UI requires explicit checkbox to enable dataset deletion
+4. **Clear Warnings**: API and UI display prominent warnings about permanent data loss
+5. **Error Messages**: When deletion is blocked, error messages include which models are using the dataset
 
 ## API Reference
 
@@ -57,8 +67,13 @@ DELETE /api/v1/jobs/synthetic/datasets/{dataset_id}
 **Behavior**:
 - Deletes dataset record from database (CASCADE to samples)
 - If `iq_raw` dataset: Deletes all IQ files from MinIO bucket `heimdall-synthetic-iq`
+- **Blocked if dataset is used by active models** (returns 409 Conflict instead of 204)
 - Logs cleanup statistics and any errors
 - Returns success even if MinIO cleanup fails (best effort)
+
+**Safety Checks**:
+- Before deletion, checks if any active model (is_active=TRUE) references this dataset
+- If blocked, returns HTTP 409 with model names
 
 **Example**:
 ```bash
@@ -72,7 +87,9 @@ DELETE /api/v1/jobs/synthetic/{job_id}?delete_dataset={true|false}
 ```
 
 **Parameters**:
-- `delete_dataset` (optional, default: `true`): Whether to cascade delete to datasets
+- `delete_dataset` (optional, default: `false`): Whether to cascade delete to datasets
+  - ⚡ **Default behavior**: Job deleted, datasets preserved (safe)
+  - `true`: Job and datasets deleted (requires explicit opt-in)
 
 **Response**: 200 OK
 ```json
@@ -86,17 +103,29 @@ DELETE /api/v1/jobs/synthetic/{job_id}?delete_dataset={true|false}
 
 **Behavior**:
 - Cancels job if still running
+- By default (`delete_dataset=false`): Preserves datasets, only deletes job record
 - If `delete_dataset=true`: Finds and deletes all associated datasets with MinIO cleanup
+  - **Blocked if datasets are used by active models** (returns 409 Conflict)
+  - Error message includes which models are blocking deletion
 - Deletes job record from database
 - Returns statistics of deleted resources
 
+**Safety Checks**:
+- Before deleting datasets, checks if any active model references them
+- If blocked, returns HTTP 409 with model names: `"Cannot delete dataset 'my_dataset': it is currently used by 2 active model(s): localization_v1, localization_v2. Please deactivate or delete these models first, or uncheck 'delete_dataset'."`
+
 **Examples**:
 ```bash
-# Delete job and all datasets it created (default)
+# Delete job but keep datasets (DEFAULT - safe behavior)
 curl -X DELETE http://localhost:8002/api/v1/jobs/synthetic/550e8400-e29b-41d4-a716-446655440000
 
-# Delete job but keep datasets
-curl -X DELETE "http://localhost:8002/api/v1/jobs/synthetic/550e8400-e29b-41d4-a716-446655440000?delete_dataset=false"
+# Explicitly delete job and all datasets it created (opt-in)
+curl -X DELETE "http://localhost:8002/api/v1/jobs/synthetic/550e8400-e29b-41d4-a716-446655440000?delete_dataset=true"
+
+# If datasets are used by active models, returns 409 Conflict:
+# {
+#   "detail": "Cannot delete dataset 'synthetic_v1': it is currently used by 1 active model(s): localization_v2. ..."
+# }
 ```
 
 ## Storage Patterns
@@ -138,6 +167,15 @@ If database deletion fails:
 - Transaction is rolled back
 - MinIO files remain (can be deleted in retry)
 - Error response returned to client
+
+### Active Model Protection (409 Conflict)
+If attempting to delete a dataset used by active models:
+- Deletion is blocked
+- HTTP 409 Conflict returned
+- Error message includes model names
+- User must either:
+  - Deactivate or delete the blocking models first
+  - Choose not to delete the dataset (for job deletion, uncheck `delete_dataset`)
 
 ## Logging
 
@@ -271,6 +309,22 @@ Potential improvements to the deletion system:
 3. **Retention Policies**: Automatic cleanup of old datasets based on age/usage
 4. **Storage Quota**: Enforce per-user or per-project storage limits
 5. **Cleanup Dashboard**: UI to track storage usage and cleanup operations
+6. **Audit Logging**: Track who deleted what and when for compliance
+
+## Changelog
+
+### 2025-11-06: Safety Improvements
+- Changed default `delete_dataset` from `true` to `false` (BREAKING CHANGE for safety)
+- Added active model protection (409 Conflict when datasets used by active models)
+- Enhanced frontend with confirmation dialog and explicit checkbox
+- Added comprehensive error messages with model names
+- Created test suite for safety features
+
+### 2025-11-06: Initial Implementation
+- Added MinIO cleanup on dataset deletion
+- Added cascade deletion for jobs
+- Implemented batch deletion (1000 objects per request)
+- Added structured logging
 
 ## Related Documentation
 

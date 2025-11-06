@@ -52,6 +52,7 @@ async def upload_audio_file(
     Supports: WAV, MP3, FLAC, OGG formats
     
     Automatically extracts metadata (duration, sample rate, channels)
+    and triggers preprocessing task to generate 1-second chunks at 200kHz.
     """
     try:
         # Validate file extension
@@ -77,17 +78,22 @@ async def upload_audio_file(
             tags=tags_list
         )
         
+        # Trigger preprocessing task (async, non-blocking)
+        from ..tasks.audio_preprocessing import preprocess_audio_file
+        task = preprocess_audio_file.apply_async(args=[metadata.id])
+        
         logger.info(
-            "Audio file uploaded via API",
+            "Audio file uploaded via API, preprocessing task submitted",
             audio_id=metadata.id,
             filename=file.filename,
             category=category.value,
-            size_mb=metadata.file_size_bytes / 1024 / 1024
+            size_mb=metadata.file_size_bytes / 1024 / 1024,
+            task_id=task.id
         )
         
         return AudioUploadResponse(
             metadata=metadata,
-            message="Audio file uploaded successfully"
+            message="Audio file uploaded successfully. Preprocessing in progress."
         )
     
     except HTTPException:
@@ -345,6 +351,62 @@ async def update_audio_metadata_endpoint(
     except Exception as e:
         logger.error("Failed to update audio metadata", audio_id=audio_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Update failed: {str(e)}")
+
+
+@router.post("/{audio_id}/reprocess", response_model=AudioMetadata)
+async def reprocess_audio_file(
+    audio_id: str,
+    storage: AudioLibraryStorage = Depends(get_audio_storage)
+):
+    """
+    Retry preprocessing for a PROCESSING or FAILED audio file.
+    
+    Resets total_chunks to 0 and triggers a new preprocessing task.
+    """
+    try:
+        from ..tasks.audio_preprocessing import preprocess_audio_file
+        from ..db import get_pool
+        
+        # Get current metadata
+        metadata = await storage.get_audio_metadata(audio_id)
+        if not metadata:
+            raise HTTPException(status_code=404, detail=f"Audio file not found: {audio_id}")
+        
+        # Only allow reprocessing if PROCESSING or FAILED
+        if metadata.processing_status not in ['PROCESSING', 'FAILED']:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Cannot reprocess file with status {metadata.processing_status}. Only PROCESSING or FAILED files can be reprocessed."
+            )
+        
+        # Reset status to PENDING with total_chunks=0
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE audio_library 
+                SET processing_status = 'PENDING', 
+                    total_chunks = 0,
+                    updated_at = NOW()
+                WHERE id = $1
+                """,
+                audio_id
+            )
+        
+        # Trigger new preprocessing task
+        preprocess_audio_file.delay(audio_id)
+        
+        # Get updated metadata
+        metadata = await storage.get_audio_metadata(audio_id)
+        
+        logger.info("Audio reprocessing triggered via API", audio_id=audio_id)
+        return metadata
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to reprocess audio file", audio_id=audio_id, error=str(e))
+        raise HTTPException(status_code=500, detail=f"Reprocess failed: {str(e)}")
 
 
 @router.delete("/{audio_id}", status_code=204)

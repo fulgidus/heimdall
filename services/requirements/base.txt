@@ -22,3 +22,6 @@ asyncpg==0.29.0
 
 # Cache
 redis==5.0.1
+
+# System monitoring and resource management
+psutil==5.9.6

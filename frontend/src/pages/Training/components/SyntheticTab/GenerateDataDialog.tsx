@@ -31,7 +31,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
   const [powerValueWatt, setPowerValueWatt] = useState(2.0); // Default 2W = ~33dBm
 
   // Acceleration mode (AUTO, CPU, GPU)
-  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('auto');
+  const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('cpu');
 
   // Advanced options toggle
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -116,7 +116,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
       // Reset form to production baseline defaults
       setPowerValueWatt(2.0);
       setPowerUnit('watt');
-      setAccelerationMode('auto');
+      setAccelerationMode('cpu');
       setShowAdvancedOptions(false);
       setFormData({
         name: '',

@@ -47,6 +47,15 @@ class AudioFormat(str, Enum):
         return [fmt.value for fmt in cls]
 
 
+class ProcessingStatus(str, Enum):
+    """Audio file preprocessing status."""
+    
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
 class AudioMetadata(BaseModel):
     """
     Metadata for a single audio file in the library.
@@ -73,6 +82,10 @@ class AudioMetadata(BaseModel):
     # Management
     enabled: bool = Field(default=True, description="Whether file is active (soft delete)")
     tags: List[str] = Field(default_factory=list, description="User-defined tags for filtering")
+    
+    # Preprocessing
+    processing_status: ProcessingStatus = Field(default=ProcessingStatus.PENDING, description="Preprocessing status")
+    total_chunks: Optional[int] = Field(None, description="Number of 1-second chunks (set after preprocessing)")
     
     # Timestamps
     uploaded_at: datetime = Field(default_factory=datetime.utcnow, description="Upload timestamp")
@@ -108,6 +121,8 @@ class AudioMetadata(BaseModel):
                 "minio_key": "voice/550e8400-e29b-41d4-a716-446655440000.wav",
                 "enabled": True,
                 "tags": ["italian", "male", "test"],
+                "processing_status": "READY",
+                "total_chunks": 12,
                 "uploaded_at": "2025-11-05T10:30:00Z",
                 "updated_at": "2025-11-05T10:30:00Z"
             }

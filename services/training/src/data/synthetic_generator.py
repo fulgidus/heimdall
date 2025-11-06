@@ -46,6 +46,80 @@ logger = structlog.get_logger(__name__)
 _thread_local = threading.local()
 
 
+def calculate_optimal_workers(
+    reserved_cores: int = 4,
+    cpu_cap_percent: float = 80.0,
+    min_workers: int = 2
+) -> int:
+    """
+    Calculate optimal number of worker threads based on system resources.
+    
+    Strategy:
+    1. Use physical cores as base (better for CPU-bound tasks)
+    2. Reserve cores for system overhead (default: 4)
+    3. Scale based on current CPU load
+    4. Cap at cpu_cap_percent of total capacity
+    
+    Args:
+        reserved_cores: Cores to leave for system (default: 4)
+        cpu_cap_percent: Maximum CPU utilization target (default: 80%)
+        min_workers: Minimum workers to return (default: 2)
+    
+    Returns:
+        Optimal number of worker threads
+    
+    Example:
+        On 24-core system (12 physical):
+        - Base: 12 physical cores
+        - Reserve 4 → 8 available
+        - If CPU load < 50%: use all 8
+        - If CPU load > 50%: scale down proportionally
+    """
+    try:
+        import psutil
+        
+        # Get core counts
+        physical_cores = psutil.cpu_count(logical=False) or mp.cpu_count() // 2
+        logical_cores = psutil.cpu_count(logical=True) or mp.cpu_count()
+        
+        # Start with physical cores (better for CPU-bound tasks than hyperthreading)
+        base_workers = max(physical_cores - reserved_cores, min_workers)
+        
+        # Check current CPU load (1-second sample)
+        current_load = psutil.cpu_percent(interval=0.5)
+        
+        # Scale down if system is already busy
+        if current_load > 50.0:
+            # Linear scale: 50% load → 100% workers, 100% load → 0% workers
+            load_factor = max(0.2, (100.0 - current_load) / 50.0)
+            base_workers = max(min_workers, int(base_workers * load_factor))
+        
+        # Apply CPU cap (default 80% of logical cores)
+        max_workers_by_cap = int(logical_cores * (cpu_cap_percent / 100.0))
+        optimal_workers = min(base_workers, max_workers_by_cap)
+        
+        logger.info(
+            "CPU worker calculation",
+            physical_cores=physical_cores,
+            logical_cores=logical_cores,
+            current_cpu_load=f"{current_load:.1f}%",
+            base_workers=physical_cores - reserved_cores,
+            optimal_workers=optimal_workers,
+            cpu_cap_percent=cpu_cap_percent
+        )
+        
+        return max(optimal_workers, min_workers)
+        
+    except ImportError:
+        # Fallback if psutil not available
+        logger.warning("psutil not available, using simple worker calculation")
+        fallback = max(min_workers, mp.cpu_count() - reserved_cores)
+        return fallback
+    except Exception as e:
+        logger.error(f"Error calculating optimal workers: {e}", exc_info=True)
+        return min_workers
+
+
 def convert_numpy_types(obj):
     """
     Recursively convert NumPy types to native Python types for JSON serialization.
@@ -1426,7 +1500,17 @@ async def generate_synthetic_data_with_iq(
     # TRUE BATCH PROCESSING: Process samples in batches to amortize GPU initialization overhead
     # Strategy: Generate geometries in parallel, then extract features for entire batch at once
     # This reduces GPU overhead from ~4.5s per sample to ~4.5s per batch_size samples
-    num_workers = min(8, mp.cpu_count())  # More workers for geometry generation (no GPU contention)
+    
+    # ADAPTIVE CPU OPTIMIZATION: Calculate optimal worker count based on system resources
+    # - Uses physical cores as base (better for CPU-bound tasks)
+    # - Reserves cores for system overhead
+    # - Scales down if system is already busy
+    # - Respects CPU cap to prevent oversubscription
+    num_workers = calculate_optimal_workers(
+        reserved_cores=4,  # Leave 4 cores for system + other services
+        cpu_cap_percent=80.0,  # Target max 80% CPU utilization
+        min_workers=2  # Always use at least 2 workers
+    )
     
     logger.info(f"TRUE BATCH MODE: Generating {num_samples} VALID samples in batches of {batch_size}")
     

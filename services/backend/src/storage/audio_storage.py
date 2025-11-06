@@ -257,7 +257,7 @@ class AudioLibraryStorage:
         tags: List[str]
     ) -> AudioMetadata:
         """
-        Upload audio file to MinIO and update metadata catalog.
+        Upload audio file to MinIO, create database record, and trigger preprocessing.
         
         Args:
             file_data: Audio file data
@@ -281,20 +281,30 @@ class AudioLibraryStorage:
                 ContentType=f"audio/{metadata.format.value}"
             )
             
-            # Update metadata catalog
+            # Update metadata catalog (legacy JSON catalog)
             catalog = self._load_metadata_catalog()
             catalog[metadata.id] = metadata
             self._save_metadata_catalog(catalog)
+            
+            # Create database record for preprocessing pipeline
+            await self._create_database_record(metadata, tags)
+            
+            # Fetch enriched metadata from database (includes processing_status, total_chunks)
+            enriched_metadata = await self.get_audio_metadata(metadata.id)
+            if enriched_metadata is None:
+                # Fallback to original metadata if database query fails
+                enriched_metadata = metadata
             
             logger.info(
                 "Audio file uploaded successfully",
                 audio_id=metadata.id,
                 filename=filename,
                 category=category.value,
-                size_mb=metadata.file_size_bytes / 1024 / 1024
+                size_mb=metadata.file_size_bytes / 1024 / 1024,
+                processing_status=enriched_metadata.processing_status.value
             )
             
-            return metadata
+            return enriched_metadata
         
         except Exception as e:
             logger.error("Failed to upload audio file", filename=filename, error=str(e))
@@ -304,6 +314,8 @@ class AudioLibraryStorage:
         """
         Get metadata for a specific audio file.
         
+        Enriches JSON catalog data with database fields (processing_status, total_chunks).
+        
         Args:
             audio_id: Audio file ID
         
@@ -311,8 +323,33 @@ class AudioLibraryStorage:
             AudioMetadata or None if not found
         """
         try:
+            # Load base metadata from JSON catalog
             catalog = self._load_metadata_catalog()
-            return catalog.get(audio_id)
+            metadata = catalog.get(audio_id)
+            
+            if metadata is None:
+                return None
+            
+            # Enrich with database fields (processing_status, total_chunks)
+            from ..db import get_pool
+            
+            pool = get_pool()
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    """
+                    SELECT processing_status, total_chunks 
+                    FROM heimdall.audio_library 
+                    WHERE id = $1
+                    """,
+                    uuid.UUID(audio_id)
+                )
+                
+                if row:
+                    from ..models.audio_library import ProcessingStatus
+                    metadata.processing_status = ProcessingStatus(row['processing_status'])
+                    metadata.total_chunks = row['total_chunks']
+            
+            return metadata
         
         except Exception as e:
             logger.error("Failed to get audio metadata", audio_id=audio_id, error=str(e))
@@ -326,6 +363,8 @@ class AudioLibraryStorage:
     ) -> List[AudioMetadata]:
         """
         List audio files with optional filtering.
+        
+        Enriches JSON catalog data with database fields (processing_status, total_chunks).
         
         Args:
             category: Filter by category (None = all)
@@ -354,6 +393,34 @@ class AudioLibraryStorage:
                         continue
                 
                 results.append(metadata)
+            
+            # Enrich all results with database fields (processing_status, total_chunks)
+            if results:
+                from ..db import get_pool
+                from ..models.audio_library import ProcessingStatus
+                
+                pool = get_pool()
+                async with pool.acquire() as conn:
+                    # Batch query all audio IDs
+                    audio_ids = [uuid.UUID(m.id) for m in results]
+                    rows = await conn.fetch(
+                        """
+                        SELECT id, processing_status, total_chunks 
+                        FROM heimdall.audio_library 
+                        WHERE id = ANY($1)
+                        """,
+                        audio_ids
+                    )
+                    
+                    # Create lookup map for O(1) enrichment
+                    db_data = {str(row['id']): row for row in rows}
+                    
+                    # Enrich metadata objects
+                    for metadata in results:
+                        if metadata.id in db_data:
+                            row = db_data[metadata.id]
+                            metadata.processing_status = ProcessingStatus(row['processing_status'])
+                            metadata.total_chunks = row['total_chunks']
             
             logger.debug(
                 "Listed audio files",
@@ -490,6 +557,12 @@ class AudioLibraryStorage:
         """
         Hard delete audio file from storage and metadata catalog.
         
+        Cleanup operations:
+        1. Delete all chunks from MinIO (heimdall-audio-chunks bucket)
+        2. Delete database record from audio_library (CASCADE deletes audio_chunks)
+        3. Delete original file from MinIO (heimdall-audio-library bucket)
+        4. Remove from JSON catalog (legacy)
+        
         Args:
             audio_id: Audio file ID
         """
@@ -500,17 +573,151 @@ class AudioLibraryStorage:
             if not metadata:
                 raise ValueError(f"Audio file not found: {audio_id}")
             
-            # Delete from MinIO
+            # 1. Delete all chunks from MinIO (heimdall-audio-chunks bucket)
+            await self._delete_audio_chunks_from_minio(audio_id)
+            
+            # 2. Delete from database (CASCADE handles audio_chunks table)
+            await self._delete_database_record(audio_id)
+            
+            # 3. Delete original file from MinIO
             self.minio_client.delete_object(metadata.minio_key)
             
-            # Remove from catalog
+            # 4. Remove from catalog (legacy)
             del catalog[audio_id]
             self._save_metadata_catalog(catalog)
             
-            logger.info("Deleted audio file", audio_id=audio_id, filename=metadata.filename)
+            logger.info(
+                "Deleted audio file completely",
+                audio_id=audio_id,
+                filename=metadata.filename
+            )
         
         except Exception as e:
             logger.error("Failed to delete audio file", audio_id=audio_id, error=str(e))
+            raise
+    
+    async def _delete_audio_chunks_from_minio(self, audio_id: str):
+        """
+        Delete all chunks for an audio file from MinIO.
+        
+        Args:
+            audio_id: Audio file ID (used as prefix in chunks bucket)
+        """
+        try:
+            # Initialize MinIO client for chunks bucket
+            chunks_minio_client = MinIOClient(
+                endpoint_url=settings.minio_url,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                bucket_name="heimdall-audio-chunks"
+            )
+            
+            # List all objects with prefix {audio_id}/
+            prefix = f"{audio_id}/"
+            
+            try:
+                response = chunks_minio_client.s3_client.list_objects_v2(
+                    Bucket="heimdall-audio-chunks",
+                    Prefix=prefix
+                )
+                
+                if 'Contents' not in response:
+                    logger.info(
+                        "No chunks found in MinIO for audio",
+                        audio_id=audio_id
+                    )
+                    return
+                
+                # Collect all object keys
+                chunk_keys = [obj['Key'] for obj in response['Contents']]
+                
+                if not chunk_keys:
+                    logger.info(
+                        "No chunks found in MinIO for audio",
+                        audio_id=audio_id
+                    )
+                    return
+                
+                # Delete objects in batches (S3 allows up to 1000 per batch)
+                for i in range(0, len(chunk_keys), 1000):
+                    batch = chunk_keys[i:i + 1000]
+                    delete_objects = [{'Key': key} for key in batch]
+                    
+                    chunks_minio_client.s3_client.delete_objects(
+                        Bucket="heimdall-audio-chunks",
+                        Delete={'Objects': delete_objects}
+                    )
+                    
+                    logger.debug(
+                        "Deleted chunk batch from MinIO",
+                        audio_id=audio_id,
+                        batch_size=len(batch)
+                    )
+                
+                logger.info(
+                    "Deleted all chunks from MinIO",
+                    audio_id=audio_id,
+                    total_chunks=len(chunk_keys)
+                )
+            
+            except Exception as e:
+                # If bucket doesn't exist or listing fails, log but don't fail
+                # (chunks might not have been created yet)
+                if "NoSuchBucket" in str(e):
+                    logger.info(
+                        "Chunks bucket doesn't exist, skipping chunk deletion",
+                        audio_id=audio_id
+                    )
+                else:
+                    logger.warning(
+                        "Failed to list chunks in MinIO, continuing with deletion",
+                        audio_id=audio_id,
+                        error=str(e)
+                    )
+        
+        except Exception as e:
+            logger.error(
+                "Error deleting chunks from MinIO",
+                audio_id=audio_id,
+                error=str(e)
+            )
+            # Don't raise - continue with rest of deletion
+    
+    async def _delete_database_record(self, audio_id: str):
+        """
+        Delete audio_library record from database.
+        
+        CASCADE DELETE automatically removes audio_chunks records.
+        
+        Args:
+            audio_id: Audio file ID
+        """
+        from ..db import get_pool
+        
+        try:
+            pool = get_pool()
+            
+            async with pool.acquire() as conn:
+                result = await conn.execute(
+                    """
+                    DELETE FROM heimdall.audio_library
+                    WHERE id = $1
+                    """,
+                    uuid.UUID(audio_id)
+                )
+                
+                logger.info(
+                    "Deleted database record for audio",
+                    audio_id=audio_id,
+                    result=result
+                )
+        
+        except Exception as e:
+            logger.error(
+                "Failed to delete database record",
+                audio_id=audio_id,
+                error=str(e)
+            )
             raise
     
     async def get_random_audio_sample(
@@ -702,6 +909,59 @@ class AudioLibraryStorage:
         
         except Exception as e:
             logger.error("Failed to save category weights", error=str(e))
+            raise
+    
+    async def _create_database_record(self, metadata: AudioMetadata, tags: List[str]):
+        """
+        Create database record in audio_library table for preprocessing pipeline.
+        
+        Args:
+            metadata: AudioMetadata object with file information
+            tags: List of user-defined tags
+        """
+        from ..db import get_pool
+        
+        try:
+            pool = get_pool()
+            
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO heimdall.audio_library (
+                        id, filename, category, tags, file_size_bytes,
+                        duration_seconds, sample_rate, channels, audio_format,
+                        minio_bucket, minio_path, processing_status,
+                        enabled, created_at, updated_at
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+                    """,
+                    uuid.UUID(metadata.id),
+                    metadata.filename,
+                    metadata.category.value,
+                    tags,
+                    metadata.file_size_bytes,
+                    metadata.duration_seconds,
+                    metadata.sample_rate,
+                    metadata.channels,
+                    metadata.format.value,
+                    metadata.minio_bucket,
+                    metadata.minio_key,  # Use minio_key as minio_path
+                    "PENDING",  # Initial status
+                    metadata.enabled
+                )
+            
+            logger.info(
+                "Created database record for audio preprocessing",
+                audio_id=metadata.id,
+                filename=metadata.filename
+            )
+        
+        except Exception as e:
+            logger.error(
+                "Failed to create database record for audio",
+                audio_id=metadata.id,
+                error=str(e)
+            )
             raise
 
 

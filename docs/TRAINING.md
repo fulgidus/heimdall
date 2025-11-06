@@ -154,6 +154,28 @@ where:
 - Captures spectral envelope
 - Useful for robust features across WebSDRs
 
+### Signal Type Distribution
+
+Training data includes a mix of signal types to ensure model robustness:
+
+| Signal Type | Percentage | Purpose |
+|-------------|------------|---------|
+| **Voice (FM)** | 90% | Primary target for localization |
+| **Single Tone** | 5% | Test beacons, calibration signals |
+| **Dual-Tone (DTMF)** | 5% | DTMF signaling, edge case handling |
+
+**Rationale:**
+- High voice percentage (90%) ensures model focuses on primary use case
+- Synthetic signals (10%) prevent overfitting to voice-only patterns
+- No CW/unmodulated carriers as they don't represent typical amateur radio traffic
+
+**Configuration:**
+Signal distribution is defined in `services/training/src/data/iq_generator.py`:
+- Lines 470-498: Single sample generation
+- Lines 734-778: Batch generation
+
+To adjust percentages, modify threshold values in these sections.
+
 ---
 
 ## Component Breakdown

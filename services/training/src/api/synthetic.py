@@ -553,8 +553,8 @@ async def cancel_synthetic_job(
 async def delete_synthetic_job(
     job_id: str,
     delete_dataset: bool = Query(
-        default=True,
-        description="If true, also delete datasets created by this job"
+        default=False,
+        description="If true, also delete datasets created by this job (default: False for data safety)"
     ),
     db: Session = Depends(get_db)
 ):
@@ -563,16 +563,21 @@ async def delete_synthetic_job(
     
     This endpoint deletes the job record and optionally the associated dataset.
     If the job is currently running, it will be cancelled first.
-    If delete_dataset=true, any dataset created by this job will also be deleted
-    along with its IQ data files in MinIO.
+    
+    **IMPORTANT**: By default, datasets are PRESERVED to prevent accidental data loss.
+    Set delete_dataset=true to explicitly delete datasets created by this job.
+    This will also delete all associated IQ data files in MinIO.
     
     Args:
         job_id: UUID of the synthetic generation job
-        delete_dataset: Whether to delete datasets created by this job (default: True)
+        delete_dataset: Whether to delete datasets created by this job (default: False for data safety)
         db: Database session
     
     Returns:
-        Deletion confirmation with details
+        Deletion confirmation with details including:
+        - job_id: UUID of deleted job
+        - datasets_deleted: Number of datasets deleted (0 if delete_dataset=false)
+        - minio_files_deleted: Number of MinIO files deleted
     """
     from celery import current_app
     import structlog
@@ -636,6 +641,34 @@ async def delete_synthetic_job(
                     dataset_id = str(dataset_row[0])
                     dataset_name = dataset_row[1]
                     dataset_type = dataset_row[2]
+                    
+                    # Check if dataset is used by any active models (safety check)
+                    models_check = text("""
+                        SELECT COUNT(*), 
+                               STRING_AGG(model_name, ', ') as model_names
+                        FROM heimdall.models
+                        WHERE synthetic_dataset_id = :dataset_id
+                          AND is_active = TRUE
+                    """)
+                    models_result = db.execute(models_check, {"dataset_id": dataset_id}).fetchone()
+                    
+                    if models_result and models_result[0] > 0:
+                        logger.warning(
+                            "dataset_deletion_skipped_active_models",
+                            job_id=job_id,
+                            dataset_id=dataset_id,
+                            dataset_name=dataset_name,
+                            active_models_count=models_result[0],
+                            model_names=models_result[1]
+                        )
+                        raise HTTPException(
+                            status_code=409,
+                            detail=(
+                                f"Cannot delete dataset '{dataset_name}': it is currently used by "
+                                f"{models_result[0]} active model(s): {models_result[1]}. "
+                                f"Please deactivate or delete these models first, or uncheck 'delete_dataset'."
+                            )
+                        )
                     
                     # Clean up MinIO data if iq_raw dataset
                     if dataset_type == "iq_raw" and minio_client:
@@ -713,9 +746,16 @@ async def delete_synthetic_dataset(
     """
     Delete a synthetic dataset and all its samples.
     
-    This endpoint deletes the dataset record, all associated samples,
-    and cleans up IQ data files from MinIO storage.
-    If the dataset was created by a job, the job record remains intact.
+    **WARNING**: This action is DESTRUCTIVE and cannot be undone!
+    
+    This endpoint will:
+    - Delete the dataset record from the database
+    - Delete all associated training samples (CASCADE)
+    - Clean up IQ data files from MinIO storage (if iq_raw dataset)
+    - Preserve the job record that created it (job remains intact)
+    
+    Use this endpoint carefully. Consider checking if the dataset is used
+    by any active models before deletion.
     
     Args:
         dataset_id: UUID of the dataset to delete
@@ -746,6 +786,31 @@ async def delete_synthetic_dataset(
         
         dataset_name = result[1]
         dataset_type = result[2]
+        
+        # Check if dataset is used by any active models (safety check)
+        models_check = text("""
+            SELECT COUNT(*), 
+                   STRING_AGG(model_name, ', ') as model_names
+            FROM heimdall.models
+            WHERE synthetic_dataset_id = :dataset_id
+              AND is_active = TRUE
+        """)
+        models_result = db.execute(models_check, {"dataset_id": str(dataset_uuid)}).fetchone()
+        
+        if models_result and models_result[0] > 0:
+            logger.warning(
+                "dataset_deletion_blocked_by_active_models",
+                dataset_id=dataset_id,
+                active_models_count=models_result[0],
+                model_names=models_result[1]
+            )
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Cannot delete dataset: it is currently used by {models_result[0]} active model(s): "
+                    f"{models_result[1]}. Please deactivate or delete these models first."
+                )
+            )
         
         # Clean up MinIO data if this is an iq_raw dataset
         minio_cleanup_success = True

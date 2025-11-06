@@ -6,6 +6,7 @@ from .acquire_iq import (
     save_measurements_to_minio,
     save_measurements_to_timescaledb,
 )
+from .audio_preprocessing import preprocess_audio_file
 from .batch_feature_extraction import (
     backfill_all_features,
     batch_feature_extraction_task,
@@ -28,4 +29,5 @@ __all__ = [
     "monitor_comprehensive_health",
     "batch_feature_extraction_task",
     "backfill_all_features",
+    "preprocess_audio_file",
 ]

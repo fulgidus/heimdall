@@ -11,6 +11,11 @@ import api from '../../lib/api';
 export type AudioCategory = 'voice' | 'music' | 'documentary' | 'conference' | 'custom';
 
 /**
+ * Audio preprocessing status
+ */
+export type ProcessingStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+
+/**
  * Audio sample metadata
  */
 export interface AudioSample {
@@ -24,6 +29,10 @@ export interface AudioSample {
   file_size_bytes: number;
   uploaded_at: string;
   enabled: boolean;
+  processing_status: ProcessingStatus;
+  total_chunks: number | null;
+  format?: string;
+  channels?: number;
 }
 
 /**
@@ -206,4 +215,22 @@ export const downloadFile = (blob: Blob, filename: string): void => {
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
+};
+
+/**
+ * Helper: Format processing status with icon and color
+ */
+export const getProcessingStatusBadge = (status: ProcessingStatus): { icon: string; colorClass: string; text: string } => {
+  switch (status) {
+    case 'PENDING':
+      return { icon: 'ph-clock', colorClass: 'bg-light-secondary', text: 'Pending' };
+    case 'PROCESSING':
+      return { icon: 'ph-spinner', colorClass: 'bg-light-warning', text: 'Processing' };
+    case 'READY':
+      return { icon: 'ph-check-circle', colorClass: 'bg-light-success', text: 'Ready' };
+    case 'FAILED':
+      return { icon: 'ph-x-circle', colorClass: 'bg-light-danger', text: 'Failed' };
+    default:
+      return { icon: 'ph-question', colorClass: 'bg-light-secondary', text: 'Unknown' };
+  }
 };

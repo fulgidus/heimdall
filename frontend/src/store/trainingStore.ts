@@ -67,7 +67,7 @@ interface TrainingStore {
     pauseGenerationJob: (jobId: string) => Promise<void>;
     resumeGenerationJob: (jobId: string) => Promise<void>;
     cancelGenerationJob: (jobId: string) => Promise<void>;
-    deleteGenerationJob: (jobId: string) => Promise<void>;
+    deleteGenerationJob: (jobId: string, deleteDataset?: boolean) => Promise<void>;
 
     // WebSocket handlers
     handleJobUpdate: (job: Partial<TrainingJob> & { id: string }) => void;
@@ -797,10 +797,18 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     },
 
     // Delete a completed/failed/cancelled generation job
-    deleteGenerationJob: async (jobId: string) => {
+    deleteGenerationJob: async (jobId: string, deleteDataset: boolean = false) => {
         set({ error: null });
         try {
-            await api.delete(`/v1/jobs/synthetic/${jobId}`);
+            // Add query parameter for dataset deletion
+            const params = new URLSearchParams();
+            if (deleteDataset) {
+                params.append('delete_dataset', 'true');
+            }
+            const queryString = params.toString();
+            const url = `/v1/jobs/synthetic/${jobId}${queryString ? '?' + queryString : ''}`;
+            
+            await api.delete(url);
 
             // Remove job from list
             set(state => ({
