@@ -67,8 +67,8 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     enable_knife_edge: true,
     enable_polarization: true,
     enable_antenna_patterns: true,
-    // Audio library (OFF by default - user must enable explicitly)
-    use_audio_library: false,
+    // Audio library (ON by default - use real audio samples from media library)
+    use_audio_library: true,
     audio_library_fallback: true,  // If audio library fails, fallback to formant synthesis
   });
 
@@ -138,7 +138,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         enable_knife_edge: true,
         enable_polarization: true,
         enable_antenna_patterns: true,
-        use_audio_library: false,
+        use_audio_library: true,
         audio_library_fallback: true,
       });
       

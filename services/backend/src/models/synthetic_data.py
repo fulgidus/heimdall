@@ -92,7 +92,7 @@ class SyntheticDataGenerationRequest(BaseModel):
     
     # Audio library configuration
     use_audio_library: bool = Field(
-        default=False,
+        default=True,
         description="Use real audio from library instead of synthetic formant tones"
     )
     audio_library_fallback: bool = Field(

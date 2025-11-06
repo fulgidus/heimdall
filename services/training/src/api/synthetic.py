@@ -342,7 +342,7 @@ class GenerateDatasetRequest(BaseModel):
     enable_knife_edge: bool = True  # Terrain diffraction effects
     enable_polarization: bool = True  # Polarization mismatch loss
     enable_antenna_patterns: bool = True  # Realistic antenna radiation patterns
-    use_audio_library: bool = False  # Use real audio from library instead of formant synthesis
+    use_audio_library: bool = True  # Use real audio from library instead of formant synthesis
     audio_library_fallback: bool = True  # Fallback to formant synthesis if audio library fails
 
 
