@@ -1,6 +1,8 @@
 """
 API endpoints for synthetic data management.
 """
+import sys
+import os
 import uuid
 from typing import List, Optional, Union
 from datetime import datetime
@@ -11,6 +13,14 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import settings
+
+# Import MinIOClient - add backend src to path
+sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
+try:
+    from storage.minio_client import MinIOClient
+except ImportError:
+    # Fallback for development/testing environments
+    MinIOClient = None
 
 router = APIRouter(prefix="/api/v1/jobs/synthetic", tags=["synthetic-datasets"])
 
@@ -26,6 +36,24 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_minio_client():
+    """
+    Initialize and return MinIO client for synthetic IQ data.
+    
+    Returns:
+        MinIOClient instance or None if not available
+    """
+    if MinIOClient is None:
+        return None
+    
+    return MinIOClient(
+        endpoint_url=settings.minio_url,
+        access_key=settings.minio_access_key,
+        secret_key=settings.minio_secret_key,
+        bucket_name=settings.minio_synthetic_iq_bucket
+    )
 
 
 # ============================================================================
@@ -547,8 +575,6 @@ async def delete_synthetic_job(
         Deletion confirmation with details
     """
     from celery import current_app
-    import sys
-    import os
     import structlog
     
     logger = structlog.get_logger(__name__)
@@ -602,6 +628,9 @@ async def delete_synthetic_job(
                     dataset_count=len(datasets)
                 )
                 
+                # Initialize MinIO client once for all deletions
+                minio_client = get_minio_client()
+                
                 # Delete each dataset (with MinIO cleanup)
                 for dataset_row in datasets:
                     dataset_id = str(dataset_row[0])
@@ -609,23 +638,8 @@ async def delete_synthetic_job(
                     dataset_type = dataset_row[2]
                     
                     # Clean up MinIO data if iq_raw dataset
-                    if dataset_type == "iq_raw":
+                    if dataset_type == "iq_raw" and minio_client:
                         try:
-                            # Import MinIOClient from backend service
-                            sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
-                            from storage.minio_client import MinIOClient
-                            
-                            # Import training service settings
-                            from ..config import settings
-                            
-                            # Initialize MinIO client
-                            minio_client = MinIOClient(
-                                endpoint_url=settings.minio_url,
-                                access_key=settings.minio_access_key,
-                                secret_key=settings.minio_secret_key,
-                                bucket_name="heimdall-synthetic-iq"
-                            )
-                            
                             # Delete IQ files
                             successful, failed = minio_client.delete_dataset_iq_data(dataset_id)
                             minio_files_deleted += successful
@@ -651,6 +665,7 @@ async def delete_synthetic_job(
                         WHERE id = :dataset_id
                     """)
                     db.execute(delete_dataset_query, {"dataset_id": dataset_id})
+                    db.commit()  # Commit after each dataset to preserve partial progress
                     datasets_deleted += 1
                     
                     logger.info(
@@ -709,8 +724,6 @@ async def delete_synthetic_dataset(
     Returns:
         204 No Content on success
     """
-    import sys
-    import os
     import structlog
     
     logger = structlog.get_logger(__name__)
@@ -739,50 +752,37 @@ async def delete_synthetic_dataset(
         minio_files_deleted = 0
         
         if dataset_type == "iq_raw":
-            try:
-                # Import MinIOClient from backend service
-                sys.path.insert(0, os.environ.get('BACKEND_SRC_PATH', '/app/backend/src'))
-                from storage.minio_client import MinIOClient
-                
-                # Import training service settings
-                from ..config import settings
-                
-                # Initialize MinIO client for synthetic-iq bucket
-                minio_client = MinIOClient(
-                    endpoint_url=settings.minio_url,
-                    access_key=settings.minio_access_key,
-                    secret_key=settings.minio_secret_key,
-                    bucket_name="heimdall-synthetic-iq"
-                )
-                
-                # Delete all IQ files for this dataset
-                successful, failed = minio_client.delete_dataset_iq_data(str(dataset_uuid))
-                minio_files_deleted = successful
-                
-                if failed > 0:
-                    logger.warning(
-                        "minio_cleanup_partial_failure",
+            minio_client = get_minio_client()
+            if minio_client:
+                try:
+                    # Delete all IQ files for this dataset
+                    successful, failed = minio_client.delete_dataset_iq_data(str(dataset_uuid))
+                    minio_files_deleted = successful
+                    
+                    if failed > 0:
+                        logger.warning(
+                            "minio_cleanup_partial_failure",
+                            dataset_id=dataset_id,
+                            successful=successful,
+                            failed=failed
+                        )
+                        minio_cleanup_success = False
+                    elif successful > 0:
+                        logger.info(
+                            "minio_cleanup_complete",
+                            dataset_id=dataset_id,
+                            files_deleted=successful
+                        )
+                    
+                except Exception as e:
+                    # Log error but don't fail the deletion
+                    logger.error(
+                        "minio_cleanup_failed",
                         dataset_id=dataset_id,
-                        successful=successful,
-                        failed=failed
+                        error=str(e),
+                        error_type=type(e).__name__
                     )
                     minio_cleanup_success = False
-                elif successful > 0:
-                    logger.info(
-                        "minio_cleanup_complete",
-                        dataset_id=dataset_id,
-                        files_deleted=successful
-                    )
-                
-            except Exception as e:
-                # Log error but don't fail the deletion
-                logger.error(
-                    "minio_cleanup_failed",
-                    dataset_id=dataset_id,
-                    error=str(e),
-                    error_type=type(e).__name__
-                )
-                minio_cleanup_success = False
         
         # Delete dataset from database (CASCADE will delete associated samples)
         delete_query = text("""

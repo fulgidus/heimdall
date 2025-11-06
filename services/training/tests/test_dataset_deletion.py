@@ -7,9 +7,7 @@ IQ data files in MinIO storage are also properly cleaned up.
 
 import pytest
 import uuid
-from unittest.mock import Mock, patch, MagicMock
-from sqlalchemy import text
-from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch
 
 
 @pytest.fixture
@@ -178,14 +176,24 @@ class TestDatasetDeletionIntegration:
 
 def test_minio_client_delete_dataset_method_exists():
     """Verify MinIOClient has the delete_dataset_iq_data method."""
-    # This is a smoke test to ensure the method was added
-    from services.backend.src.storage.minio_client import MinIOClient
+    import sys
+    import os
+    import inspect
+    
+    # Add backend src to path
+    backend_src = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../backend/src")
+    )
+    if backend_src not in sys.path:
+        sys.path.insert(0, backend_src)
+    
+    # Import MinIOClient
+    from storage.minio_client import MinIOClient
     
     # Check method exists
     assert hasattr(MinIOClient, 'delete_dataset_iq_data')
     
     # Check method signature
-    import inspect
     sig = inspect.signature(MinIOClient.delete_dataset_iq_data)
     params = list(sig.parameters.keys())
     

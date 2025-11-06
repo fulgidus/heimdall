@@ -15,18 +15,19 @@ Prerequisites:
 """
 
 import sys
+import os
 import time
 import uuid
 import requests
 import boto3
 from typing import List, Tuple
 
-# Configuration
-TRAINING_API_URL = "http://localhost:8002/api/v1/jobs/synthetic"
-MINIO_ENDPOINT = "http://localhost:9000"
-MINIO_ACCESS_KEY = "minioadmin"
-MINIO_SECRET_KEY = "minioadmin"
-MINIO_BUCKET = "heimdall-synthetic-iq"
+# Configuration - use environment variables with defaults
+TRAINING_API_URL = os.environ.get("TRAINING_API_URL", "http://localhost:8002/api/v1/jobs/synthetic")
+MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
+MINIO_ACCESS_KEY = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
+MINIO_BUCKET = os.environ.get("MINIO_BUCKET", "heimdall-synthetic-iq")
 
 
 class Colors:
@@ -108,6 +109,7 @@ def list_minio_objects(dataset_id: str) -> List[str]:
             if 'Contents' in response:
                 objects.extend([obj['Key'] for obj in response['Contents']])
         except Exception:
+            # Prefix may not exist, continue to next prefix
             pass
     
     return objects

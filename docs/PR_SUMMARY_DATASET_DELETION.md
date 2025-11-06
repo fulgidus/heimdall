@@ -33,13 +33,13 @@ User deletes job → Job record deleted ✓
 
 | File | Lines Changed | Description |
 |------|---------------|-------------|
-| `services/backend/src/storage/minio_client.py` | +78 | New `delete_dataset_iq_data()` method |
+| `services/backend/src/storage/minio_client.py` | +82 | New `delete_dataset_iq_data()` method |
 | `services/training/src/api/synthetic.py` | +131, -38 | Enhanced deletion endpoints |
-| `services/training/tests/test_dataset_deletion.py` | +194 (new) | Unit test suite |
-| `scripts/test_dataset_deletion_manual.py` | +278 (new) | Manual integration test |
-| `docs/DATASET_DELETION.md` | +251 (new) | Comprehensive documentation |
+| `services/training/tests/test_dataset_deletion.py` | +195 (new) | Unit test suite |
+| `scripts/test_dataset_deletion_manual.py` | +340 (new) | Manual integration test |
+| `docs/DATASET_DELETION.md` | +277 (new) | Comprehensive documentation |
 
-**Total**: 932 lines added across 5 files
+**Total**: 1,025 lines added across 5 files
 
 ## 🔧 Implementation Details
 

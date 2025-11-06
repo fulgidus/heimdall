@@ -235,10 +235,12 @@ grep "minio_cleanup_failed" /var/log/heimdall/training.log
 
 If MinIO files become orphaned (e.g., due to service downtime during deletion):
 
-```python
-# List all dataset IDs in database
+```sql
+-- List all dataset IDs in database
 SELECT id FROM heimdall.synthetic_datasets;
+```
 
+```bash
 # Compare with MinIO bucket contents
 aws s3 ls s3://heimdall-synthetic-iq/synthetic/ --recursive --endpoint-url http://minio:9000
 
