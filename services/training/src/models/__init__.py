@@ -10,10 +10,11 @@ Available Models:
 - IQ Transformer: IQTransformer
 - IQ Temporal: IQWaveNet
 - Hybrid: IQHybridNet
+- Multi-Modal: HeimdallNet
 - Feature-based: TriangulationMLP
 
 Registry:
-- MODEL_REGISTRY: Complete registry with all 11 architectures
+- MODEL_REGISTRY: Complete registry with all 13 architectures
 - model_registry utilities for querying and comparison
 """
 
@@ -41,6 +42,9 @@ from .iq_wavenet import IQWaveNet
 
 # Hybrid models
 from .hybrid_models import IQHybridNet
+
+# Multi-modal models
+from .heimdall_net import HeimdallNet, create_heimdall_net
 
 # Model registry
 from .model_registry import (
@@ -75,6 +79,10 @@ __all__ = [
     
     # Hybrid
     "IQHybridNet",
+    
+    # Multi-Modal
+    "HeimdallNet",
+    "create_heimdall_net",
     
     # Registry
     "MODEL_REGISTRY",
