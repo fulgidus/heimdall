@@ -2,11 +2,13 @@
 # Include base dependencies
 -r base.txt
 
-# PyTorch ecosystem with CUDA 12.1 support
+# PyTorch ecosystem with CUDA 12.6 support
+# Migrated from cu121 to cu126 (Nov 2024) - requires PyTorch 2.5+
 # Install from PyTorch index to get GPU-enabled builds
---index-url https://download.pytorch.org/whl/cu121
-torch>=2.2.0
-torchvision>=0.17.0
+# Note: Explicit versions with +cu126 suffix for CUDA-specific builds
+--index-url https://download.pytorch.org/whl/cu126
+torch==2.5.0+cu126
+torchvision==0.20.0+cu126
 --index-url https://pypi.org/simple
 pytorch-lightning>=2.1.0
 

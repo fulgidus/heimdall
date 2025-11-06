@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Nothing yet
+### Changed
+- **Docker Image Migration** (2024-11-04)
+  - Migrated training service from deprecated `nvidia/cuda:12.1.0` to `nvidia/cuda:12.6.0`
+  - Upgraded PyTorch from 2.2.0 (cu121) to 2.5.0 (cu126) for CUDA 12.6 compatibility
+  - Upgraded TorchVision from 0.17.0 to 0.20.0
+  - Updated CuPy to 13.0.0+ for improved GPU acceleration
+  - Added `DOCKER_IMAGE_POLICY.md` documenting maintenance procedures and migration paths
+  - Created alternative Dockerfiles (NGC and fallback options) for flexibility
+  - Expected support through 2026+ preventing service disruption from image deprecation
 
 ### Fixed
-- Nothing yet
+- Avoided potential service disruption from NVIDIA's deprecation of CUDA 12.1.0 images
 
 ---
 

@@ -1,59 +1,45 @@
-# Multi-stage build for training service with GPU support
-# Migrated from deprecated cuda:12.1.0 to cuda:12.6.0 (Nov 2024)
-# CUDA 12.6 is actively maintained and will be supported through 2026+
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04 AS deps-train
+# Multi-stage build for training service using NVIDIA NGC PyTorch container
+# This addresses the deprecation of nvidia/cuda:12.1.0-runtime-ubuntu22.04
+# NGC containers include PyTorch, CUDA, and optimized ML libraries pre-installed
+
+FROM nvcr.io/nvidia/pytorch:25.04-py3 AS deps-train
 WORKDIR /build
 
-# Install Python 3.11 and build dependencies
+# NGC container already includes:
+# - Python 3.12
+# - PyTorch 2.7+ with CUDA 12.6
+# - CUDA runtime libraries
+# - cuDNN, NCCL, and other NVIDIA optimizations
+# - Many common ML libraries
+
+# Install system dependencies not included in NGC base
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
-    python3-pip \
-    gcc \
     postgresql-client \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
-# Create symlinks for python
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # Copy centralized requirements and service-specific requirements
 COPY services/requirements/ ./requirements/
 COPY services/training/requirements.txt .
 
-# Using locked versions for reproducibility
-# Resolve all requirements by combining base + ml + data + service-specific
-# PyTorch 2.5+ is required for CUDA 12.6 support
-RUN pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
+# Install additional dependencies not in NGC container
+# Skip PyTorch (already in NGC), install other requirements
+RUN pip install --upgrade pip && \
     { cat requirements/base.txt requirements/data.txt; \
     grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
-    grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
-    # Install PyTorch 2.5.0 with CUDA 12.6 support (explicit versions for reproducibility)
-    pip install --user --no-cache-dir \
-    torch==2.5.0+cu126 torchvision==0.20.0+cu126 \
-    --trusted-host download.pytorch.org --index-url https://download.pytorch.org/whl/cu126 && \
-    pip install --user --no-cache-dir pytorch-lightning>=2.1.0 \
-    --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
-    # Install other requirements from PyPI
+    grep -v '^-r' | grep -v '^#' | grep -v '^$' | \
+    grep -v '^torch' | grep -v '^--index-url' > /tmp/all_reqs.txt && \
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     -r /tmp/all_reqs.txt
 
-FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04
+FROM nvcr.io/nvidia/pytorch:25.04-py3
 WORKDIR /app
 
-# Install Python 3.11 and runtime dependencies
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
     postgresql-client \
     curl \
-    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
-
-# Create symlinks for python
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser

@@ -1,6 +1,7 @@
 # Multi-stage build for training service with GPU support
-# Migrated from deprecated cuda:12.1.0 to cuda:12.6.0 (Nov 2024)
-# CUDA 12.6 is actively maintained and will be supported through 2026+
+# Updated from deprecated cuda:12.1.0 to cuda:12.6.0 (supported through 2026+)
+# This is a fallback option maintaining the current architecture
+
 FROM nvidia/cuda:12.6.0-runtime-ubuntu22.04 AS deps-train
 WORKDIR /build
 
@@ -22,20 +23,16 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
 COPY services/requirements/ ./requirements/
 COPY services/training/requirements.txt .
 
+# Update PyTorch index URL to cu126 (CUDA 12.6)
 # Using locked versions for reproducibility
-# Resolve all requirements by combining base + ml + data + service-specific
-# PyTorch 2.5+ is required for CUDA 12.6 support
-RUN pip install --upgrade pip --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
+RUN pip install --upgrade pip && \
     { cat requirements/base.txt requirements/data.txt; \
     grep -v '^#' requirements.txt | grep -v '^-r' | grep -v '^$'; } | \
     grep -v '^-r' | grep -v '^#' | grep -v '^$' > /tmp/all_reqs.txt && \
-    # Install PyTorch 2.5.0 with CUDA 12.6 support (explicit versions for reproducibility)
+    # Install PyTorch with CUDA 12.6 support
     pip install --user --no-cache-dir \
-    torch==2.5.0+cu126 torchvision==0.20.0+cu126 \
-    --trusted-host download.pytorch.org --index-url https://download.pytorch.org/whl/cu126 && \
-    pip install --user --no-cache-dir pytorch-lightning>=2.1.0 \
-    --trusted-host pypi.org --trusted-host files.pythonhosted.org && \
-    # Install other requirements from PyPI
+    torch>=2.5.0 torchvision>=0.20.0 --index-url https://download.pytorch.org/whl/cu126 && \
+    # Install other requirements
     pip install --user --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org \
     -r /tmp/all_reqs.txt
 
@@ -48,7 +45,6 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     postgresql-client \
     curl \
-    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symlinks for python
