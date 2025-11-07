@@ -35,6 +35,47 @@ SPECTROGRAM_CONFIG = {
     'onesided': True      # Only positive frequencies for real signals
 }
 
+# Normalization constants for feature scaling (Italy bounds)
+# These prevent numerical instability by normalizing coordinates to [0, 1] range
+NORMALIZATION_PARAMS = {
+    'lat_min': 43.0,       # Southern Italy bound
+    'lat_max': 47.0,       # Northern Italy bound  
+    'lon_min': 6.0,        # Western Italy bound
+    'lon_max': 11.0,       # Eastern Italy bound
+    'snr_min': -20.0,      # Typical SNR lower bound (dB)
+    'snr_max': 60.0,       # Typical SNR upper bound (dB)
+    'psd_min': -100.0,     # Typical PSD lower bound (dBm/Hz)
+    'psd_max': -70.0,      # Typical PSD upper bound (dBm/Hz)
+    'freq_offset_min': -50.0,  # Typical frequency offset lower bound (Hz)
+    'freq_offset_max': 50.0    # Typical frequency offset upper bound (Hz)
+}
+
+
+def normalize_feature(value: float, min_val: float, max_val: float, clip: bool = True) -> float:
+    """
+    Normalize a feature to [0, 1] range.
+    
+    Args:
+        value: Raw feature value
+        min_val: Minimum expected value
+        max_val: Maximum expected value
+        clip: Whether to clip to [0, 1] range
+        
+    Returns:
+        Normalized value in [0, 1]
+    """
+    # Check for invalid values
+    if not np.isfinite(value):
+        logger.warning(f"Non-finite value encountered: {value}, replacing with 0.0")
+        return 0.0
+        
+    normalized = (value - min_val) / (max_val - min_val)
+    
+    if clip:
+        normalized = max(0.0, min(1.0, normalized))
+    
+    return normalized
+
 
 class SyntheticTriangulationDataset(Dataset):
     """Dataset for synthetic triangulation training samples."""
@@ -222,14 +263,27 @@ class SyntheticTriangulationDataset(Dataset):
             
             for rx in receiver_features_jsonb:
                 # Extract mean values from feature distributions
-                snr = rx['snr_db']['mean'] if 'snr_db' in rx and rx['snr_db'] else 0.0
-                psd = rx['psd_dbm_per_hz']['mean'] if 'psd_dbm_per_hz' in rx and rx['psd_dbm_per_hz'] else -100.0
-                freq_offset = rx['frequency_offset_hz']['mean'] if 'frequency_offset_hz' in rx and rx['frequency_offset_hz'] else 0.0
+                snr_raw = rx['snr_db']['mean'] if 'snr_db' in rx and rx['snr_db'] else 0.0
+                psd_raw = rx['psd_dbm_per_hz']['mean'] if 'psd_dbm_per_hz' in rx and rx['psd_dbm_per_hz'] else -100.0
+                freq_offset_raw = rx['frequency_offset_hz']['mean'] if 'frequency_offset_hz' in rx and rx['frequency_offset_hz'] else 0.0
                 rx_lat = rx['rx_lat']
                 rx_lon = rx['rx_lon']
                 signal_present = rx.get('signal_present', True)
                 
+                # Normalize signal quality features to [0, 1] range to prevent numerical instability
+                # BUT: Do NOT normalize coordinates (lat/lon) - model needs real spatial relationships
+                snr = normalize_feature(snr_raw, NORMALIZATION_PARAMS['snr_min'], NORMALIZATION_PARAMS['snr_max'])
+                psd = normalize_feature(psd_raw, NORMALIZATION_PARAMS['psd_min'], NORMALIZATION_PARAMS['psd_max'])
+                freq_offset = normalize_feature(freq_offset_raw, NORMALIZATION_PARAMS['freq_offset_min'], NORMALIZATION_PARAMS['freq_offset_max'])
+                
+                # Validate coordinates for NaN/Inf
+                if not (np.isfinite(rx_lat) and np.isfinite(rx_lon)):
+                    logger.warning(f"Invalid receiver coordinates: lat={rx_lat}, lon={rx_lon}, replacing with defaults")
+                    rx_lat = 45.0  # Default to center of Italy
+                    rx_lon = 9.0
+                
                 # Features: [snr, psd, freq_offset, rx_lat, rx_lon, signal_present]
+                # Signal quality features normalized to [0,1], coordinates in real degrees
                 features = [
                     snr,
                     psd,
@@ -250,6 +304,7 @@ class SyntheticTriangulationDataset(Dataset):
                 signal_mask.extend([True] * (self.max_receivers - num_receivers))  # Mask padded positions
             
             # Convert to tensors
+            # NOTE: Target positions (tx_lat, tx_lon) are NOT normalized - model outputs real coordinates
             receiver_features_tensor = torch.tensor(receiver_features, dtype=torch.float32)
             signal_mask_tensor = torch.tensor(signal_mask, dtype=torch.bool)
             target_position_tensor = torch.tensor([tx_lat, tx_lon], dtype=torch.float32)

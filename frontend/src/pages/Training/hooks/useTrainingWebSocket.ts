@@ -8,8 +8,10 @@ import { useEffect, useRef } from 'react';
 import { useTrainingStore } from '../../../store/trainingStore';
 import type { TrainingWebSocketMessage, TrainingMetric, TrainingJob } from '../types';
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 
-  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8001`;
+// Use same URL as global WebSocket (through Envoy proxy)
+// Don't use port 8001 directly - go through Envoy on port 80 (or 3000 for dev)
+const WS_BASE_URL = import.meta.env.VITE_SOCKET_URL?.replace('/ws', '') || 
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
 
 export const useTrainingWebSocket = (jobId: string | null) => {
   const socketRef = useRef<WebSocket | null>(null);
