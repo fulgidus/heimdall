@@ -84,6 +84,7 @@ class TrainingJobResponse(BaseModel):
     
     id: str
     job_name: str
+    job_type: str
     celery_task_id: Optional[str] = None
     status: str  # pending, running, completed, failed, cancelled, paused
     
@@ -354,7 +355,7 @@ async def list_training_jobs(
                 total_epochs, progress_percent, train_loss, val_loss, train_accuracy,
                 val_accuracy, learning_rate, best_epoch, best_val_loss, checkpoint_path,
                 onnx_model_path, mlflow_run_id, dataset_size, train_samples, val_samples,
-                error_message
+                error_message, job_type
             FROM heimdall.training_jobs
             {where_clause}
             ORDER BY created_at DESC
@@ -398,7 +399,8 @@ async def list_training_jobs(
                 dataset_size=row[23],
                 train_samples=row[24],
                 val_samples=row[25],
-                error_message=row[26]
+                error_message=row[26],
+                job_type=row[27]
             ))
         
         logger.info(

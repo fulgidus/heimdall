@@ -28,7 +28,7 @@ export interface TrainingJob {
   id: string;
   job_name: string;
   name?: string; // Deprecated - use job_name
-  job_type?: 'training' | 'synthetic_generation'; // Job type discriminator
+  job_type: 'training' | 'synthetic_generation'; // Job type discriminator (required)
   status: TrainingJobStatus;
   created_at: string;
   started_at?: string;
