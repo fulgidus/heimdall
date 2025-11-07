@@ -1527,17 +1527,12 @@ def generate_synthetic_data_task(self, job_id: str):
             logger.info(f"[FINAL COUNT DEBUG] Querying final sample count for dataset_id={dataset_id}, dataset_type={dataset_type}")
             logger.info(f"[FINAL COUNT DEBUG] samples_offset={samples_offset}, stats_generated={stats['total_generated']}")
             
-            # Count actual samples from the correct table
-            if dataset_type == 'iq_raw':
-                count_query = text("""
-                    SELECT COUNT(*) FROM heimdall.synthetic_iq_samples
-                    WHERE dataset_id = :dataset_id
-                """)
-            else:  # 'feature_based'
-                count_query = text("""
-                    SELECT COUNT(*) FROM heimdall.measurement_features
-                    WHERE dataset_id = :dataset_id
-                """)
+            # Count actual samples from measurement_features (source of truth for training)
+            # Both 'iq_raw' and 'feature_based' datasets require features for training
+            count_query = text("""
+                SELECT COUNT(*) FROM heimdall.measurement_features
+                WHERE dataset_id = :dataset_id
+            """)
             
             actual_count = session.execute(count_query, {"dataset_id": str(dataset_id)}).scalar() or 0
             
@@ -1560,45 +1555,22 @@ def generate_synthetic_data_task(self, job_id: str):
             logger.info(f"Updated dataset {dataset_id} with {actual_count} samples (generated: {stats['total_generated']}, type: {dataset_type})")
 
         # Calculate and update storage size (PostgreSQL + MinIO)
+        # Strategy: Calculate PostgreSQL size first and commit it immediately
+        # Then attempt MinIO calculation (which may fail), but PostgreSQL size is already saved
+        pg_size = 0
+        minio_size = 0
+        total_size = 0
+        
         try:
+            # Step 1: Calculate and save PostgreSQL storage size (always succeeds)
             with db_manager.get_session() as session:
-                # Calculate PostgreSQL storage size using DB function
+                logger.info(f"Calculating PostgreSQL storage for dataset {dataset_id}...")
                 pg_size_query = text("SELECT heimdall.calculate_dataset_storage_size(:dataset_id)")
                 pg_size = session.execute(pg_size_query, {"dataset_id": str(dataset_id)}).scalar() or 0
                 
-                # Calculate MinIO storage size for IQ samples (if dataset_type='iq_raw')
-                minio_size = 0
-                dataset_type = config.get('dataset_type', 'feature_based')
+                logger.info(f"PostgreSQL storage for dataset {dataset_id}: {pg_size / (1024**2):.2f} MB")
                 
-                if dataset_type == 'iq_raw' and stats.get('iq_samples_saved', 0) > 0:
-                    # Get MinIO client to calculate object sizes
-                    minio_client = MinIOClient(
-                        endpoint_url=backend_settings.minio_url,
-                        access_key=backend_settings.minio_access_key,
-                        secret_key=backend_settings.minio_secret_key,
-                        bucket_name="heimdall-iq-samples"
-                    )
-                    
-                    try:
-                        # List all objects for this dataset in MinIO
-                        prefix = f"synthetic/{dataset_id}/"
-                        objects = minio_client.s3_client.list_objects_v2(
-                            Bucket="heimdall-iq-samples",
-                            Prefix=prefix
-                        )
-                        
-                        # Sum up sizes
-                        for obj in objects.get('Contents', []):
-                            minio_size += obj.get('Size', 0)
-                        
-                        logger.info(f"MinIO storage for dataset {dataset_id}: {minio_size / (1024**2):.2f} MB ({stats['iq_samples_saved']} IQ samples)")
-                    except Exception as e:
-                        logger.warning(f"Failed to calculate MinIO size for dataset {dataset_id}: {e}")
-                
-                # Total storage = PostgreSQL + MinIO
-                total_size = pg_size + minio_size
-                
-                # Update dataset with storage size
+                # Update dataset with PostgreSQL size immediately (commit partial result)
                 update_size_query = text("""
                     UPDATE heimdall.synthetic_datasets
                     SET storage_size_bytes = :size
@@ -1606,16 +1578,65 @@ def generate_synthetic_data_task(self, job_id: str):
                 """)
                 session.execute(update_size_query, {
                     "dataset_id": str(dataset_id),
-                    "size": total_size
+                    "size": pg_size
                 })
                 session.commit()
-                
-                logger.info(f"Storage size calculated for dataset {dataset_id}: "
-                           f"PostgreSQL={pg_size / (1024**2):.2f}MB, "
-                           f"MinIO={minio_size / (1024**2):.2f}MB, "
-                           f"Total={total_size / (1024**2):.2f}MB")
-                
-                # Publish dataset update event to trigger UI refresh
+                logger.info(f"Saved PostgreSQL storage size ({pg_size} bytes) to database")
+            
+            # Step 2: Calculate MinIO storage size (may fail, but PostgreSQL size already saved)
+            dataset_type = config.get('dataset_type', 'feature_based')
+            
+            if dataset_type == 'iq_raw' and stats.get('iq_samples_saved', 0) > 0:
+                try:
+                    logger.info(f"Calculating MinIO storage for dataset {dataset_id}...")
+                    
+                    # Get MinIO client
+                    minio_client = MinIOClient(
+                        endpoint_url=backend_settings.minio_url,
+                        access_key=backend_settings.minio_access_key,
+                        secret_key=backend_settings.minio_secret_key,
+                        bucket_name="heimdall-iq-samples"
+                    )
+                    
+                    # List all objects for this dataset in MinIO
+                    prefix = f"synthetic/{dataset_id}/"
+                    objects = minio_client.s3_client.list_objects_v2(
+                        Bucket="heimdall-iq-samples",
+                        Prefix=prefix
+                    )
+                    
+                    # Sum up sizes
+                    for obj in objects.get('Contents', []):
+                        minio_size += obj.get('Size', 0)
+                    
+                    logger.info(f"MinIO storage for dataset {dataset_id}: {minio_size / (1024**2):.2f} MB ({stats['iq_samples_saved']} IQ samples)")
+                    
+                    # Update with total size (PostgreSQL + MinIO)
+                    total_size = pg_size + minio_size
+                    with db_manager.get_session() as session:
+                        update_size_query = text("""
+                            UPDATE heimdall.synthetic_datasets
+                            SET storage_size_bytes = :size
+                            WHERE id = :dataset_id
+                        """)
+                        session.execute(update_size_query, {
+                            "dataset_id": str(dataset_id),
+                            "size": total_size
+                        })
+                        session.commit()
+                        logger.info(f"Updated total storage size: PostgreSQL={pg_size / (1024**2):.2f}MB + MinIO={minio_size / (1024**2):.2f}MB = {total_size / (1024**2):.2f}MB")
+                    
+                except Exception as minio_error:
+                    logger.warning(f"Failed to calculate MinIO size for dataset {dataset_id}: {minio_error}", exc_info=True)
+                    logger.info(f"Storage size calculation completed with PostgreSQL only: {pg_size / (1024**2):.2f}MB")
+                    total_size = pg_size  # Use PostgreSQL size only
+            else:
+                # Feature-based dataset: only PostgreSQL storage
+                total_size = pg_size
+                logger.info(f"Storage size calculation complete (feature-based dataset): {total_size / (1024**2):.2f}MB")
+            
+            # Publish dataset update event to trigger UI refresh
+            try:
                 event_publisher.publish_dataset_updated(
                     dataset_id=str(dataset_id),
                     num_samples=actual_count,
@@ -1623,12 +1644,15 @@ def generate_synthetic_data_task(self, job_id: str):
                     storage_size_bytes=total_size,
                     dataset_type=config.get('dataset_type', 'feature_based')
                 )
-                logger.info(f"Published dataset update event for dataset {dataset_id} (samples={actual_count})")
+                logger.info(f"Published dataset update event for dataset {dataset_id} (samples={actual_count}, storage={total_size})")
+            except Exception as publish_error:
+                logger.error(f"Failed to publish dataset update event: {publish_error}", exc_info=True)
+                
         except Exception as e:
             logger.error(f"Failed to calculate storage size for dataset {dataset_id}: {e}", exc_info=True)
             # Non-critical error, continue with job completion
             
-            # Still publish dataset update event even if storage calculation failed
+            # Still publish dataset update event even if storage calculation completely failed
             try:
                 event_publisher.publish_dataset_updated(
                     dataset_id=str(dataset_id),
@@ -1640,7 +1664,70 @@ def generate_synthetic_data_task(self, job_id: str):
             except Exception as publish_error:
                 logger.error(f"Failed to publish dataset update event: {publish_error}", exc_info=True)
 
-        # Update job as completed
+        # Check if generation stopped early due to consecutive failures
+        stopped_reason = stats.get('stopped_reason')
+        if stopped_reason == 'consecutive_failures':
+            # Mark job as failed with detailed error message
+            rejection_stats = {
+                'min_receivers': stats.get('rejected_min_receivers', 0),
+                'min_snr': stats.get('rejected_min_snr', 0),
+                'gdop': stats.get('rejected_gdop', 0)
+            }
+            error_message = (
+                f"Job stopped after 50 consecutive batches with 0 valid samples. "
+                f"Generated {stats['total_generated']} samples before stopping. "
+                f"Rejection reasons: min_receivers={rejection_stats['min_receivers']}, "
+                f"min_snr={rejection_stats['min_snr']}, gdop={rejection_stats['gdop']}. "
+                f"Consider relaxing constraints: increase GDOP range, decrease min_snr, or decrease min_receivers."
+            )
+            
+            with db_manager.get_session() as session:
+                fail_query = text("""
+                    UPDATE heimdall.training_jobs
+                    SET status = 'failed', completed_at = NOW(), 
+                        error_message = :error_message,
+                        dataset_id = :dataset_id
+                    WHERE id = :job_id
+                """)
+                session.execute(fail_query, {
+                    "job_id": job_id,
+                    "dataset_id": str(dataset_id),
+                    "error_message": error_message
+                })
+                session.commit()
+
+            # Publish job failure event
+            event_publisher.publish_training_job_update(
+                job_id=job_id,
+                status='failed',
+                action='failed',
+                current_progress=stats['total_generated'],
+                total_progress=config.get('num_samples', stats['total_generated']),
+                progress_percent=0.0,
+                progress_message=error_message,
+                job_name=config.get('job_name', 'Unnamed Job'),
+                job_type='synthetic_generation',
+                dataset_id=str(dataset_id),
+                result={
+                    "dataset_id": str(dataset_id),
+                    "num_samples": stats['total_generated'],
+                    "iq_samples_saved": stats['iq_samples_saved'],
+                    "success_rate": stats['success_rate'],
+                    "stopped_reason": stopped_reason,
+                    "rejection_stats": rejection_stats
+                }
+            )
+            logger.warning(f"Job {job_id} marked as failed due to consecutive failures")
+
+            return {
+                "status": "failed",
+                "job_id": job_id,
+                "dataset_id": str(dataset_id),
+                "num_samples": stats['total_generated'],
+                "error": error_message
+            }
+
+        # Update job as completed (only if not stopped early)
         with db_manager.get_session() as session:
             complete_query = text("""
                 UPDATE heimdall.training_jobs

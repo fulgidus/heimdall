@@ -597,6 +597,7 @@ def _generate_single_sample_no_features(args):
         'tx_power_dbm': tx_power_dbm
     }
 
+    logger.debug(f"[IQ DEBUG] Sample {sample_idx}: Returning {len(iq_samples)} IQ samples (dataset_type={dataset_type})")
     return (sample_idx, iq_samples_for_extraction, receivers_list, distance_kms, 
             signal_presents, tx_position, propagation_metadata, num_receivers_in_sample, iq_samples)
 
@@ -1534,7 +1535,7 @@ async def generate_synthetic_data_with_iq(
     
     # Safety limits to prevent infinite loops with impossible parameters
     max_attempts = num_samples * 20  # Allow down to 5% success rate
-    max_consecutive_failures = 5  # Stop if 5 consecutive batches have 0 valid samples
+    max_consecutive_failures = 50  # Stop if 50 consecutive batches have 0 valid samples (was 5)
     consecutive_failures = 0
     
     # Track rejection reasons for debugging and user feedback
@@ -1608,6 +1609,7 @@ async def generate_synthetic_data_with_iq(
                     sample_idx_ret, iq_samples_for_extraction, receivers_list, distance_kms, signal_presents, tx_position, propagation_metadata, num_receivers_in_sample, iq_samples = result
 
                     # Store raw result for batch feature extraction
+                    logger.debug(f"[IQ DEBUG] Sample {sample_idx_ret}: Received {len(iq_samples)} IQ samples from generator")
                     batch_raw_results.append({
                         'sample_idx': sample_idx_ret,
                         'iq_samples_for_extraction': iq_samples_for_extraction,
@@ -1769,8 +1771,11 @@ async def generate_synthetic_data_with_iq(
             })
             
             # Store IQ samples for MinIO
+            iq_dict = raw_result['iq_samples']
+            logger.debug(f"[IQ DEBUG] Sample {sample_idx}: raw_result has {len(iq_dict)} IQ samples, dataset_type={dataset_type}, condition={bool(iq_dict and (dataset_type == 'iq_raw' or sample_idx < 100))}")
             if raw_result['iq_samples'] and (dataset_type == 'iq_raw' or sample_idx < 100):
                 iq_samples_to_save[sample_idx] = raw_result['iq_samples']
+                logger.debug(f"[IQ DEBUG] Sample {sample_idx}: Stored in iq_samples_to_save (total: {len(iq_samples_to_save)})")
         
         # Batch complete - update counters
         valid_in_batch = len(batch_results)
@@ -1795,14 +1800,13 @@ async def generate_synthetic_data_with_iq(
         # Save batch to database based on dataset_type
         if batch_results:
             try:
-                if dataset_type == 'feature_based':
-                    # For feature_based: save extracted features to measurement_features
-                    logger.info(f"[DB SAVE DEBUG] About to save {len(batch_results)} feature samples to dataset_id={dataset_id}")
-                    await save_features_to_db(dataset_id, batch_results, conn)
-                    logger.info(f"[DB SAVE DEBUG] Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
+                # ALWAYS save features to measurement_features (both dataset types need this)
+                logger.info(f"[DB SAVE DEBUG] About to save {len(batch_results)} feature samples to dataset_id={dataset_id}")
+                await save_features_to_db(dataset_id, batch_results, conn)
+                logger.info(f"[DB SAVE DEBUG] Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
                 
-                elif dataset_type == 'iq_raw':
-                    # For iq_raw: save IQ data to MinIO and metadata to synthetic_iq_samples
+                # For iq_raw: ADDITIONALLY save IQ data to MinIO and metadata to synthetic_iq_samples
+                if dataset_type == 'iq_raw':
                     # Get IQ samples for this batch (matching sample_idx)
                     batch_sample_indices = [s['sample_idx'] for s in batch_results]
                     batch_iq_samples = {idx: iq_samples_to_save[idx] for idx in batch_sample_indices if idx in iq_samples_to_save}
@@ -1961,17 +1965,13 @@ async def update_dataset_sample_count(
         
         dataset_type = row[0]
         
-        # Count actual samples from the correct table
-        if dataset_type == 'iq_raw':
-            count_query = text("""
-                SELECT COUNT(*) FROM heimdall.synthetic_iq_samples
-                WHERE dataset_id = :dataset_id
-            """)
-        else:  # 'feature_based'
-            count_query = text("""
-                SELECT COUNT(*) FROM heimdall.measurement_features
-                WHERE dataset_id = :dataset_id
-            """)
+        # ALWAYS count from measurement_features (source of truth for training)
+        # Both iq_raw and feature_based datasets MUST have features for training
+        # iq_raw datasets additionally have IQ data, but features are what matter
+        count_query = text("""
+            SELECT COUNT(*) FROM heimdall.measurement_features
+            WHERE dataset_id = :dataset_id
+        """)
         
         count_result = await conn.execute(count_query, {"dataset_id": str(dataset_id)})
         actual_count = count_result.scalar()
