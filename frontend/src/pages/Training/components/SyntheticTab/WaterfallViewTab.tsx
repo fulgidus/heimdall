@@ -228,7 +228,6 @@ export const WaterfallViewTab: React.FC<WaterfallViewTabProps> = ({ sample, data
                                 label="Auto-scale dB"
                                 checked={autoScale}
                                 onChange={(e) => setAutoScale(e.target.checked)}
-                                size="sm"
                                 className="text-dark"
                             />
                             <Form.Check
@@ -237,7 +236,6 @@ export const WaterfallViewTab: React.FC<WaterfallViewTabProps> = ({ sample, data
                                 label="Use Web Worker"
                                 checked={useWebWorker}
                                 onChange={(e) => setUseWebWorker(e.target.checked)}
-                                size="sm"
                                 className="text-dark"
                             />
                         </div>

@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import classNames from 'classnames';
+import { usePortal } from '@/hooks/usePortal';
 
 interface ModalProps {
   isOpen: boolean;
@@ -13,6 +15,9 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -61,7 +66,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Don't render if not open or portal not ready
+  if (!isOpen || !portalTarget) return null;
 
   const sizeClasses = {
     sm: 'modal-sm',
@@ -70,7 +76,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
     xl: 'modal-xl',
   };
 
-  return (
+  const modalContent = (
     <>
       {/* Bootstrap Modal Backdrop */}
       <div
@@ -121,6 +127,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
       </div>
     </>
   );
+
+  // Render modal through portal to prevent removeChild errors
+  return createPortal(modalContent, portalTarget);
 };
 
 export default Modal;

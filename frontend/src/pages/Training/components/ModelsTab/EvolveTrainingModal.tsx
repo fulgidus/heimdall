@@ -6,8 +6,10 @@
  */
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { TrainedModel } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { usePortal } from '../../../../hooks/usePortal';
 
 interface EvolveTrainingModalProps {
   model: TrainedModel;
@@ -26,6 +28,9 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [additionalEpochs, setAdditionalEpochs] = useState(50);
   const [earlyStopPatience, setEarlyStopPatience] = useState(20);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   // Smart step calculation for better slider UX
   const getEpochStep = (value: number): number => {
@@ -78,9 +83,10 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  // Don't render if not open or portal not ready
+  if (!isOpen || !portalTarget) return null;
 
-  return (
+  const modalContent = (
     <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1060 }}>
       <div className="modal-dialog modal-lg" style={{ zIndex: 1061 }}>
         <div className="modal-content">
@@ -300,4 +306,7 @@ export const EvolveTrainingModal: React.FC<EvolveTrainingModalProps> = ({
       </div>
     </div>
   );
+
+  // Render modal through portal to prevent removeChild errors
+  return createPortal(modalContent, portalTarget);
 };

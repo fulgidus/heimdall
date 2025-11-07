@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   CheckCircle,
@@ -17,6 +18,7 @@ import {
 import { Button } from './ui/button';
 import { SpectrogramViewer } from './SpectrogramViewer';
 import { useSessions } from '@/hooks/useSessions';
+import { usePortal } from '@/hooks/usePortal';
 import type { RecordingSessionWithDetails } from '@/services/api/session';
 
 interface SessionDetailModalProps {
@@ -45,6 +47,9 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [actionInProgress, setActionInProgress] = useState(false);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   useEffect(() => {
     if (isOpen && sessionId) {
@@ -52,7 +57,8 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     }
   }, [isOpen, sessionId, fetchSession]);
 
-  if (!isOpen) return null;
+  // Don't render if not open or portal not ready
+  if (!isOpen || !portalTarget) return null;
 
   const handleApprove = async () => {
     if (!sessionId) return;
@@ -128,7 +134,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
   };
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
@@ -382,6 +388,9 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       )}
     </>
   );
+
+  // Render modal through portal to prevent removeChild errors
+  return createPortal(modalContent, portalTarget);
 };
 
 export default SessionDetailModal;

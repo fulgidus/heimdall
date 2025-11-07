@@ -72,7 +72,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     audio_library_fallback: true,  // If audio library fails, fallback to formant synthesis
   });
 
-  const handleInputChange = (field: keyof SyntheticDataRequest, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof SyntheticDataRequest, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

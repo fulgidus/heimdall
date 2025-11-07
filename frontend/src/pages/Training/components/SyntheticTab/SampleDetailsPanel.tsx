@@ -9,8 +9,16 @@
  */
 
 import React from 'react';
-import { Card, Table, Badge } from 'react-bootstrap';
+import { Card, Table, Badge, Alert, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import type { SyntheticSample, ReceiverMetadata } from '../../types';
+import {
+    checkMonotonicity,
+    getPhysicsAnomalies,
+    getPhysicsValidationSummary,
+    getAnomalyBadgeColor,
+    type MonotonicityWarning,
+    type PhysicsAnomaly
+} from '../../utils/physicsValidation';
 
 interface SampleDetailsPanelProps {
     sample: SyntheticSample;
@@ -27,6 +35,24 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
 
     // Sort receivers by SNR (descending)
     const sortedReceivers = [...receivers].sort((a, b) => b.snr_db - a.snr_db);
+
+    // Physics validation
+    const validationSummary = getPhysicsValidationSummary(receivers);
+    const monotonicityWarnings = validationSummary.monotonicity_warnings;
+    
+    // Create map of receiver ID to anomalies for quick lookup
+    const receiverAnomalies = new Map<string, PhysicsAnomaly[]>();
+    receivers.forEach(rx => {
+        const anomalies = getPhysicsAnomalies(rx);
+        if (anomalies.length > 0) {
+            receiverAnomalies.set(rx.rx_id, anomalies);
+        }
+    });
+    
+    // Check if a receiver is involved in monotonicity violation
+    const getMonotonicityWarningForReceiver = (rxId: string): MonotonicityWarning | undefined => {
+        return monotonicityWarnings.find(w => w.rx_closer === rxId || w.rx_farther === rxId);
+    };
 
     // Calculate min/max SNR for normalization
     const snrValues = receivers.map(rx => rx.snr_db);
@@ -71,6 +97,61 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
 
     return (
         <div className="sample-details-panel">
+            {/* Physics Validation Alerts */}
+            {monotonicityWarnings.length > 0 && (
+                <Alert variant="warning" className="mb-3">
+                    <Alert.Heading className="h6">
+                        ⚠️ Physics Anomaly Detected
+                    </Alert.Heading>
+                    <p className="mb-2">
+                        The following receivers show unexpected distance-SNR relationships:
+                    </p>
+                    <ul className="mb-0">
+                        {monotonicityWarnings.map((warning, idx) => (
+                            <li key={idx}>
+                                <strong>{warning.rx_closer}</strong> ({warning.distance_closer_km.toFixed(1)} km, {warning.snr_closer_db.toFixed(1)} dB) 
+                                has worse SNR than <strong>{warning.rx_farther}</strong> ({warning.distance_farther_km.toFixed(1)} km, {warning.snr_farther_db.toFixed(1)} dB)
+                                <br />
+                                <small className="text-muted">
+                                    SNR difference: {warning.snr_difference_db.toFixed(1)} dB (exceeds 12 dB tolerance)
+                                </small>
+                            </li>
+                        ))}
+                    </ul>
+                    <hr />
+                    <small className="text-muted">
+                        <strong>Possible causes:</strong> Antenna pattern nulls/lobes, polarization mismatch, 
+                        extreme fading, terrain obstruction, or sporadic-E propagation. Check receiver details below.
+                    </small>
+                </Alert>
+            )}
+
+            {/* Physics Statistics Summary */}
+            {(validationSummary.sporadic_e_count > 0 || validationSummary.cross_pol_count > 0) && (
+                <Alert variant="info" className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>Sample Statistics:</strong>
+                            {validationSummary.sporadic_e_count > 0 && (
+                                <span className="ms-2">
+                                    <Badge bg="info">Sporadic-E: {validationSummary.sporadic_e_count}</Badge>
+                                </span>
+                            )}
+                            {validationSummary.cross_pol_count > 0 && (
+                                <span className="ms-2">
+                                    <Badge bg="warning">Cross-Pol: {validationSummary.cross_pol_count}</Badge>
+                                </span>
+                            )}
+                            {validationSummary.antenna_null_count > 0 && (
+                                <span className="ms-2">
+                                    <Badge bg="secondary">Antenna Nulls: {validationSummary.antenna_null_count}</Badge>
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </Alert>
+            )}
+
             {/* Transmitter Info */}
             <Card className="mb-3">
                 <Card.Header className="bg-danger text-white">
@@ -113,6 +194,7 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                 <th>Signal</th>
                                 {sortedReceivers.some(rx => rx.rx_power_dbm !== undefined) && <th>RX Power</th>}
                                 {sortedReceivers.some(rx => rx.tx_antenna_type || rx.rx_antenna_type) && <th>Antenna</th>}
+                                <th>Anomalies</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -120,6 +202,8 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                             {sortedReceivers.map((rx) => {
                                 const isSelected = selectedRxId === rx.rx_id;
                                 const hasSignal = rx.signal_present !== undefined ? rx.signal_present : (rx.snr_db > -20);
+                                const anomalies = receiverAnomalies.get(rx.rx_id) || [];
+                                const monotonicityWarning = getMonotonicityWarningForReceiver(rx.rx_id);
                                 
                                 return (
                                     <tr
@@ -138,6 +222,19 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                             <span className={rx.snr_db != null && rx.snr_db > 10 ? 'text-success' : rx.snr_db != null && rx.snr_db > 0 ? 'text-warning' : 'text-danger'}>
                                                 {rx.snr_db != null ? rx.snr_db.toFixed(1) : 'N/A'} dB
                                             </span>
+                                            {monotonicityWarning && (
+                                                <OverlayTrigger
+                                                    placement="top"
+                                                    overlay={
+                                                        <Tooltip>
+                                                            Physics anomaly: This receiver has unexpected SNR compared to distance. 
+                                                            Check propagation breakdown for explanation.
+                                                        </Tooltip>
+                                                    }
+                                                >
+                                                    <Badge bg="warning" className="ms-1" style={{ cursor: 'help' }}>⚠️</Badge>
+                                                </OverlayTrigger>
+                                            )}
                                         </td>
                                         <td>
                                             <Badge bg={hasSignal ? 'success' : 'secondary'}>
@@ -154,6 +251,28 @@ export const SampleDetailsPanel: React.FC<SampleDetailsPanelProps> = ({
                                                 </small>
                                             </td>
                                         )}
+                                        <td>
+                                            {anomalies.length > 0 ? (
+                                                <div className="d-flex gap-1">
+                                                    {anomalies.map((anomaly, idx) => (
+                                                        <OverlayTrigger
+                                                            key={idx}
+                                                            placement="top"
+                                                            overlay={<Tooltip>{anomaly.tooltip}</Tooltip>}
+                                                        >
+                                                            <Badge 
+                                                                bg={getAnomalyBadgeColor(anomaly.type)}
+                                                                style={{ cursor: 'help', fontSize: '0.7rem' }}
+                                                            >
+                                                                {anomaly.label}
+                                                            </Badge>
+                                                        </OverlayTrigger>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="text-muted">-</span>
+                                            )}
+                                        </td>
                                         <td>
                                             <button
                                                 className="btn btn-sm btn-outline-primary"

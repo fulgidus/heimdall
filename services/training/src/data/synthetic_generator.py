@@ -453,6 +453,11 @@ def _generate_single_sample_no_features(args):
     enable_meteorological = config.get('enable_meteorological', True)
     meteo_params = MeteorologicalParameters.random(seed=sample_seed) if enable_meteorological else None
     
+    # PHYSICS FIX #1: Check transmission state ONCE per sample (not per receiver)
+    # The transmitter is either ON or OFF for this sample - it cannot be ON for one receiver and OFF for another
+    transmission_duty_cycle = rng.uniform(0.8, 1.0)  # Most transmissions are near-continuous
+    is_transmitting = propagation.check_intermittent_transmission(transmission_duty_cycle)
+    
     # Step 2: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
     rx_powers_dbm = []
@@ -487,7 +492,7 @@ def _generate_single_sample_no_features(args):
             rx_antenna=rx_antenna,
             meteo_params=meteo_params,
             transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality (0.3=poor, 0.95=excellent)
-            transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
+            is_transmitting=is_transmitting,  # PHYSICS FIX #1: Global transmission state per sample
             enable_sporadic_e=enable_sporadic_e,
             enable_knife_edge=enable_knife_edge,
             enable_polarization_effects=enable_polarization
@@ -788,7 +793,11 @@ def _generate_single_sample(args):
     enable_meteorological = config.get('enable_meteorological', True)
     meteo_params = MeteorologicalParameters.random(seed=sample_seed) if enable_meteorological else None
     
-    # Step 2: Calculate propagation for all receivers (vectorizable in future)
+    # Step 2: Check transmission state ONCE for this sample (global, not per-receiver)
+    transmission_duty_cycle = rng.uniform(0.8, 1.0)  # Most transmissions are near-continuous
+    is_transmitting = propagation.check_intermittent_transmission(transmission_duty_cycle)
+    
+    # Step 3: Calculate propagation for all receivers (vectorizable in future)
     num_receivers = len(receivers_list)
     rx_powers_dbm = []
     snr_dbs = []
@@ -822,7 +831,7 @@ def _generate_single_sample(args):
             rx_antenna=rx_antenna,
             meteo_params=meteo_params,
             transmitter_quality=rng.uniform(0.3, 0.95),  # Vary TX quality
-            transmission_duty_cycle=rng.uniform(0.8, 1.0),  # Most transmissions are near-continuous
+            is_transmitting=is_transmitting,  # Global transmission state (checked once per sample)
             enable_sporadic_e=enable_sporadic_e,
             enable_knife_edge=enable_knife_edge,
             enable_polarization_effects=enable_polarization
@@ -1013,6 +1022,7 @@ class SyntheticDataGenerator:
         """
         self.config = training_config
         self.propagation = propagation_model or RFPropagationModel()
+        self.rng = np.random.default_rng()  # Initialize random number generator
         
         # Initialize terrain lookup
         if terrain_lookup is not None:
@@ -1146,6 +1156,10 @@ class SyntheticDataGenerator:
             # Select TX antenna (once per sample)
             tx_antenna = _select_tx_antenna(self.rng, tx_antenna_dist)
             
+            # Check transmission state ONCE for this sample (global, not per-receiver)
+            transmission_duty_cycle = self.rng.uniform(0.8, 1.0)
+            is_transmitting = self.propagation.check_intermittent_transmission(transmission_duty_cycle)
+            
             # Generate receiver measurements
             receiver_measurements = []
             receivers_with_signal = 0
@@ -1169,7 +1183,7 @@ class SyntheticDataGenerator:
                     tx_antenna=tx_antenna,
                     rx_antenna=rx_antenna,
                     transmitter_quality=self.rng.uniform(0.3, 0.95),
-                    transmission_duty_cycle=self.rng.uniform(0.8, 1.0),
+                    is_transmitting=is_transmitting,  # Global transmission state (checked once per sample)
                     enable_sporadic_e=True,
                     enable_knife_edge=True
                 )
@@ -1192,7 +1206,8 @@ class SyntheticDataGenerator:
                     "psd": psd,
                     "freq_offset": freq_offset,
                     "signal_present": 1 if signal_present else 0,
-                    "distance_km": details['distance_km']
+                    "distance_km": details['distance_km'],
+                    "details": details  # Include full physics details for validation/debugging
                 })
             
             # Quality check: minimum receivers

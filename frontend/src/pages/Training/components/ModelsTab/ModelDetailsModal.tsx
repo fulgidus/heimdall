@@ -11,10 +11,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { TrainedModel } from '../../types';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { EvolveTrainingModal } from './EvolveTrainingModal';
 import { InlineEditText } from '../../../../components/InlineEditText';
+import { usePortal } from '../../../../hooks/usePortal';
 
 interface ModelDetailsModalProps {
   model: TrainedModel;
@@ -35,6 +37,9 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
   const [activeSection, setActiveSection] = useState<string>('overview');
   const [fileInfo, setFileInfo] = useState<{ onnx?: FileInfo; pytorch?: FileInfo }>({});
   const [showEvolveModal, setShowEvolveModal] = useState(false);
+  
+  // Use bulletproof portal hook (prevents removeChild errors)
+  const portalTarget = usePortal(isOpen);
 
   useEffect(() => {
     if (isOpen) {
@@ -555,9 +560,10 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
     </div>
   );
 
-  if (!isOpen) return null;
+  // Don't render if not open or portal not ready
+  if (!isOpen || !portalTarget) return null;
 
-  return (
+  const modalContent = (
     <>
       {/* Evolve Training Modal */}
       <EvolveTrainingModal
@@ -680,4 +686,7 @@ export const ModelDetailsModal: React.FC<ModelDetailsModalProps> = ({ model, isO
     </div>
     </>
   );
+
+  // Render modal through portal to prevent removeChild errors
+  return createPortal(modalContent, portalTarget);
 };
