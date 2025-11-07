@@ -81,8 +81,27 @@ const WebSDRMarkers: React.FC<WebSDRMarkersProps> = ({ map, websdrs, healthStatu
   const markersRef = useRef<mapboxgl.Marker[]>([]);
 
   useEffect(() => {
-    // Add markers for each WebSDR
-    websdrs.forEach(websdr => {
+    // Defensive: ensure websdrs is a valid array
+    const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
+
+    // Add markers for each WebSDR with valid coordinates
+    safeWebsdrs.forEach(websdr => {
+      // Validate coordinates before creating marker
+      if (
+        websdr.longitude == null ||
+        websdr.latitude == null ||
+        isNaN(websdr.longitude) ||
+        isNaN(websdr.latitude)
+      ) {
+        console.warn('[WebSDRMarkers] Skipping websdr with invalid coordinates:', {
+          id: websdr.id,
+          name: websdr.name,
+          longitude: websdr.longitude,
+          latitude: websdr.latitude,
+        });
+        return;
+      }
+
       const health = healthStatus[websdr.id];
       const color = getStatusColor(health?.status);
 

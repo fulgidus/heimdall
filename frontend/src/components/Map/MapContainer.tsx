@@ -53,15 +53,46 @@ const MapContainer: React.FC<MapContainerProps> = ({
 
   // Auto-fit bounds to show all SDR receivers on initial load
   React.useEffect(() => {
-    if (!map || !isLoaded || !fitBoundsOnLoad || hasFitBounds.current || websdrs.length === 0) {
+    if (!map || !isLoaded || !fitBoundsOnLoad || hasFitBounds.current) {
       return;
     }
 
-    // Calculate bounds from WebSDR coordinates
+    // Defensive: ensure websdrs is a valid array
+    const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
+    if (safeWebsdrs.length === 0) {
+      console.warn('[MapContainer] No websdrs available, skipping bounds fit');
+      return;
+    }
+
+    // Calculate bounds from WebSDR coordinates with validation
     const bounds = new mapboxgl.LngLatBounds();
-    websdrs.forEach(websdr => {
-      bounds.extend([websdr.longitude, websdr.latitude]);
+    let validCoordinatesCount = 0;
+
+    safeWebsdrs.forEach(websdr => {
+      // Validate coordinates before extending bounds
+      if (
+        websdr.longitude != null &&
+        websdr.latitude != null &&
+        !isNaN(websdr.longitude) &&
+        !isNaN(websdr.latitude)
+      ) {
+        bounds.extend([websdr.longitude, websdr.latitude]);
+        validCoordinatesCount++;
+      } else {
+        console.warn('[MapContainer] Invalid coordinates for websdr:', {
+          id: websdr.id,
+          name: websdr.name,
+          longitude: websdr.longitude,
+          latitude: websdr.latitude,
+        });
+      }
     });
+
+    // Only fit bounds if we have at least one valid coordinate
+    if (validCoordinatesCount === 0) {
+      console.warn('[MapContainer] No valid coordinates found, skipping bounds fit');
+      return;
+    }
 
     // Fit map to bounds with padding
     map.fitBounds(bounds, {

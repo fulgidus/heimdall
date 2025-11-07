@@ -183,8 +183,12 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         clearTimeout(cleanupTimerRef.current);
       }
 
-      // Use a delay to handle React StrictMode double-mounting
-      // Increased to 1000ms to handle strict mode in production builds
+      // Immediately clear all callback references to prevent race conditions
+      // This prevents WebSocket updates from triggering React state updates after unmount
+      callbackMapRef.current.clear();
+
+      // Use a shorter delay to handle React StrictMode double-mounting
+      // Reduced from 1000ms to 100ms to minimize race condition window
       cleanupTimerRef.current = setTimeout(() => {
         if (managerRef.current && !isMountedRef.current) {
           console.log('[WebSocketContext] Component unmounted, disconnecting WebSocket');
@@ -192,7 +196,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           managerRef.current = null;
         }
         cleanupTimerRef.current = null;
-      }, 1000);
+      }, 100);
     };
   }, [autoConnect]); // Removed 'connect' dependency to avoid unnecessary reconnections
 

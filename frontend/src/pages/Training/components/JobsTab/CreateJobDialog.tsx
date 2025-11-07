@@ -52,6 +52,12 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
         dataset_id: trainingConfig.dataset_ids[0] || null,  // Backend expects single dataset_id, not array
         config: {
           dataset_ids: trainingConfig.dataset_ids,  // Keep full array in additional config
+          epochs: trainingConfig.epochs,  // Required by CreateJobRequest type
+          batch_size: trainingConfig.batch_size,  // Required by CreateJobRequest type
+          learning_rate: trainingConfig.learning_rate,  // Required by CreateJobRequest type
+          model_architecture: architecture.id,  // Optional but included for completeness
+          validation_split: trainingConfig.val_ratio,  // Optional
+          early_stop_patience: trainingConfig.early_stopping_patience,  // Optional
         }
       };
 

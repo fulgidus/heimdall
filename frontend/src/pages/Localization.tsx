@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useDashboardStore, useWebSDRStore, useLocalizationStore } from '../store';
-import { MapContainer } from '../components/Map';
+import { MapContainer, MapErrorBoundary } from '../components/Map';
 
 const Localization: React.FC = () => {
   const { data, fetchDashboardData } = useDashboardStore();
-  const { websdrs, healthStatus } = useWebSDRStore();
+  const { websdrs, healthStatus, isLoading: isLoadingWebSDRs } = useWebSDRStore();
   const { recentLocalizations, fetchRecentLocalizations } = useLocalizationStore();
   const [selectedResult, setSelectedResultState] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -174,16 +174,47 @@ const Localization: React.FC = () => {
               </div>
             </div>
             <div className="card-body p-0">
-              {/* Mapbox GL JS Map */}
-              <MapContainer
-                websdrs={websdrs}
-                healthStatus={healthStatus}
-                localizations={recentLocalizations}
-                onLocalizationClick={loc => setSelectedResultState(loc.id)}
-                style={{ height: '500px' }}
-                mapStyle="mapbox://styles/mapbox/dark-v11"
-                fitBoundsOnLoad={true}
-              />
+              {/* Mapbox GL JS Map with defensive loading states */}
+              {isLoadingWebSDRs ? (
+                <div
+                  className="d-flex align-items-center justify-content-center bg-body-secondary"
+                  style={{ height: '500px' }}
+                >
+                  <div className="text-center">
+                    <div className="spinner-border text-primary mb-3" role="status">
+                      <span className="visually-hidden">Loading WebSDRs...</span>
+                    </div>
+                    <p className="text-muted mb-0">Loading receiver data...</p>
+                  </div>
+                </div>
+              ) : websdrs.length === 0 ? (
+                <div
+                  className="d-flex align-items-center justify-content-center bg-body-secondary"
+                  style={{ height: '500px' }}
+                >
+                  <div className="alert alert-warning mb-0 m-3">
+                    <i className="ph ph-warning me-2"></i>
+                    <strong>No WebSDR Receivers:</strong> Please configure receivers before using
+                    localization.
+                    <br />
+                    <small className="text-muted">
+                      Visit the WebSDR Management page to add receivers.
+                    </small>
+                  </div>
+                </div>
+              ) : (
+                <MapErrorBoundary>
+                  <MapContainer
+                    websdrs={websdrs}
+                    healthStatus={healthStatus}
+                    localizations={recentLocalizations}
+                    onLocalizationClick={loc => setSelectedResultState(loc.id)}
+                    style={{ height: '500px' }}
+                    mapStyle="mapbox://styles/mapbox/dark-v11"
+                    fitBoundsOnLoad={true}
+                  />
+                </MapErrorBoundary>
+              )}
             </div>
           </div>
         </div>
