@@ -1370,7 +1370,8 @@ async def generate_synthetic_data_with_iq(
     seed: Optional[int] = None,
     job_id: Optional[str] = None,
     dataset_type: str = 'feature_based',
-    use_gpu: Optional[bool] = None
+    use_gpu: Optional[bool] = None,
+    shutdown_requested: Optional[dict] = None
 ) -> dict:
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -1387,6 +1388,7 @@ async def generate_synthetic_data_with_iq(
         job_id: Optional job ID for cancellation detection
         dataset_type: Dataset type ('feature_based' or 'iq_raw')
         use_gpu: GPU acceleration: None=auto-detect, True=force GPU, False=force CPU
+        shutdown_requested: Optional dict with 'value' key set by signal handler for fast cancellation
 
     Returns:
         dict with generation statistics
@@ -1588,14 +1590,22 @@ async def generate_synthetic_data_with_iq(
                     except Exception as e:
                         logger.error(f"Progress callback failed: {e}", exc_info=True)
 
-                # Check for cancellation
+                # Check for cancellation (HYBRID APPROACH)
+                # 1. Check signal handler flag EVERY iteration (fast, no DB overhead)
+                if shutdown_requested and shutdown_requested.get('value', False):
+                    logger.warning(f"Job cancelled via signal handler at {valid_samples_collected} valid samples ({total_attempted} attempted)")
+                    for f in futures:
+                        f.cancel()
+                    break
+                
+                # 2. DB polling every 10 samples as fallback (in case signal not received)
                 if job_id and total_attempted % 10 == 0:
                     from sqlalchemy import text
                     check_query = text("SELECT status FROM heimdall.training_jobs WHERE id = :job_id")
                     result_check = await conn.execute(check_query, {"job_id": job_id})
                     row = result_check.fetchone()
                     if row and row[0] == 'cancelled':
-                        logger.warning(f"Job cancelled at {valid_samples_collected} valid samples ({total_attempted} attempted)")
+                        logger.warning(f"Job cancelled via DB check at {valid_samples_collected} valid samples ({total_attempted} attempted)")
                         for f in futures:
                             f.cancel()
                         break

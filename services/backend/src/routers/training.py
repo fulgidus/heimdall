@@ -1401,11 +1401,6 @@ async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
                     logger.warning(f"Parameter {param} not found in original dataset config, using request value: {request_dict.get(param)}")
             
             logger.info(f"Dataset expansion: inherited {inherited_count}/{len(params_to_inherit)} parameters from original dataset")
-            
-            # Set expand_dataset_id as single source of truth (no fragile flags)
-            # The task will detect expansion by checking if expand_dataset_id exists
-            request_dict['expand_dataset_id'] = str(request.expand_dataset_id)
-            
             logger.info(f"Expanding dataset {request.expand_dataset_id}: adding {request.num_samples} samples (current: {existing_samples})")
         
         # Create job record

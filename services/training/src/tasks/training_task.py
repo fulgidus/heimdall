@@ -1499,7 +1499,8 @@ def generate_synthetic_data_task(self, job_id: str):
                         seed=config.get('seed'),
                         job_id=job_id,  # Pass job_id for cancellation detection
                         dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
-                        use_gpu=config.get('use_gpu', False)  # DEFAULT: CPU-only (False). Set use_gpu=True in config to enable GPU
+                        use_gpu=config.get('use_gpu', False),  # DEFAULT: CPU-only (False). Set use_gpu=True in config to enable GPU
+                        shutdown_requested=shutdown_requested  # Pass signal handler flag for fast cancellation
                     )
                     # Final commit after all batches
                     await conn.commit()
