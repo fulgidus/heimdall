@@ -26,6 +26,7 @@ from .routers.admin import router as admin_router
 from .routers.audio_library import router as audio_library_router
 from .routers.health import router as health_router
 from .routers.import_export import router as import_export_router
+from .routers.metrics import router as metrics_router
 from .routers.sessions import router as sessions_router
 from .routers.settings import router as settings_router
 from .routers.terrain import router as terrain_router
@@ -95,6 +96,17 @@ celery_app.conf.beat_schedule = {
             "max_batches": 5  # Max 250 recordings per run
         }
     },
+    "minio-lifecycle-cleanup": {
+        "task": "tasks.minio_lifecycle.cleanup_orphan_files",
+        "schedule": 86400.0,  # Every 24 hours (daily at 3 AM UTC)
+        "kwargs": {
+            "dry_run": False  # Set to True to test without actual deletion
+        }
+    },
+    "minio-storage-stats": {
+        "task": "tasks.minio_lifecycle.get_storage_stats",
+        "schedule": 3600.0,  # Every hour for monitoring
+    },
 }
 
 
@@ -131,6 +143,15 @@ async def startup_event():
         logger.info("RabbitMQ events consumer thread started")
     except Exception as e:
         logger.error(f"Failed to start RabbitMQ events consumer: {e}", exc_info=True)
+    
+    # Initialize Prometheus storage metrics
+    try:
+        logger.info("Initializing Prometheus storage metrics...")
+        from .monitoring.storage_metrics import init_storage_metrics
+        init_storage_metrics()
+        logger.info("Prometheus storage metrics initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize storage metrics: {e}", exc_info=True)
 
 
 def rabbitmq_progress_listener():
@@ -220,6 +241,8 @@ app.include_router(acquisition_router)
 app.include_router(admin_router)
 app.include_router(audio_library_router)
 app.include_router(health_router)
+app.include_router(import_export_router)
+app.include_router(metrics_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
 app.include_router(terrain_router)
@@ -228,7 +251,6 @@ app.include_router(models_router)
 app.include_router(jobs_router)
 app.include_router(users_router)
 app.include_router(websocket_router)
-app.include_router(import_export_router)
 
 # Initialize health checker
 health_checker = HealthChecker(SERVICE_NAME, SERVICE_VERSION)

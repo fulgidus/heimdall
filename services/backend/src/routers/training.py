@@ -1789,10 +1789,23 @@ async def delete_synthetic_dataset(dataset_id: UUID):
     """
     Delete synthetic dataset and all its samples.
     
+    This endpoint performs a complete cleanup:
+    1. Deletes all IQ data files from MinIO (heimdall-synthetic-iq bucket)
+    2. Deletes database records (cascade deletes samples from synthetic_training_samples)
+    
     Args:
         dataset_id: Dataset UUID
     """
     db_manager = get_db_manager()
+    
+    # Initialize MinIO client for synthetic IQ data
+    minio_client = MinIOClient(
+        endpoint_url=settings.MINIO_ENDPOINT,
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        bucket_name="heimdall-synthetic-iq",
+        region_name=settings.MINIO_REGION,
+    )
     
     try:
         with db_manager.get_session() as session:
@@ -1803,12 +1816,31 @@ async def delete_synthetic_dataset(dataset_id: UUID):
             if not result:
                 raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
             
-            # Delete dataset (cascade will delete samples)
+            # CRITICAL FIX: Delete MinIO files BEFORE database records
+            # This prevents orphaned files in object storage
+            logger.info(f"Deleting MinIO files for dataset {dataset_id}...")
+            successful, failed = minio_client.delete_dataset_iq_data(
+                dataset_id=str(dataset_id),
+                prefix_pattern="synthetic"
+            )
+            
+            if failed > 0:
+                logger.warning(
+                    f"Some MinIO files failed to delete for dataset {dataset_id}: "
+                    f"{successful} successful, {failed} failed"
+                )
+            else:
+                logger.info(f"Successfully deleted {successful} MinIO files for dataset {dataset_id}")
+            
+            # Delete dataset (cascade will delete samples from synthetic_training_samples)
             delete_query = text("DELETE FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
             session.execute(delete_query, {"dataset_id": str(dataset_id)})
             session.commit()
             
-            logger.info(f"Deleted synthetic dataset {dataset_id}")
+            logger.info(
+                f"Deleted synthetic dataset {dataset_id} "
+                f"(DB records + {successful} MinIO files, {failed} failures)"
+            )
     
     except HTTPException:
         raise

@@ -39,6 +39,7 @@ interface TrainingStore {
     pauseJob: (jobId: string) => Promise<void>;
     resumeJob: (jobId: string) => Promise<void>;
     deleteJob: (jobId: string) => Promise<void>;
+    deleteAllJobs: () => Promise<void>;
 
     // Actions - Metrics
     fetchMetrics: (jobId: string) => Promise<void>;
@@ -216,6 +217,62 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
             console.error('Training job deletion error:', error);
             throw error;
         }
+    },
+
+    // Delete all training jobs
+    deleteAllJobs: async () => {
+        console.log('[trainingStore] deleteAllJobs called');
+        set({ error: null });
+        
+        const jobs = get().jobs;
+        const trainingJobs = jobs.filter(job => job.job_type === 'training');
+        
+        if (trainingJobs.length === 0) {
+            console.log('[trainingStore] No training jobs to delete');
+            return;
+        }
+        
+        console.log(`[trainingStore] Deleting ${trainingJobs.length} training jobs...`);
+        
+        const deletePromises = trainingJobs.map(async (job) => {
+            try {
+                // First cancel if running or paused
+                if (job.status === 'running' || job.status === 'paused') {
+                    console.log(`[trainingStore] Cancelling job ${job.id.slice(0, 8)} before deletion`);
+                    await api.post(`/v1/training/jobs/${job.id}/cancel`);
+                    // Wait a bit for the job to be cancelled
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Then delete
+                console.log(`[trainingStore] Deleting job ${job.id.slice(0, 8)}`);
+                await api.delete(`/v1/training/jobs/${job.id}`);
+                return { success: true, jobId: job.id };
+            } catch (error: any) {
+                // If job not found (404), consider it a success
+                if (error?.status === 404 || error?.response?.status === 404) {
+                    console.warn(`[trainingStore] Job ${job.id} not found on server`);
+                    return { success: true, jobId: job.id };
+                }
+                console.error(`[trainingStore] Failed to delete job ${job.id}:`, error);
+                return { success: false, jobId: job.id, error };
+            }
+        });
+        
+        const results = await Promise.allSettled(deletePromises);
+        
+        // Remove all jobs from local state (regardless of API success)
+        set(state => ({
+            jobs: state.jobs.filter(job => job.job_type !== 'training'),
+        }));
+        
+        const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+        if (failed.length > 0) {
+            console.error(`[trainingStore] Failed to delete ${failed.length} jobs`);
+            throw new Error(`Failed to delete ${failed.length} out of ${trainingJobs.length} jobs`);
+        }
+        
+        console.log(`[trainingStore] Successfully deleted ${trainingJobs.length} training jobs`);
     },
 
     // Fetch metrics for a specific job

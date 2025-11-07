@@ -41,6 +41,8 @@ export interface TrainingJob {
   error_message?: string;
   checkpoint_path?: string; // Path to model checkpoint in MinIO
   pause_checkpoint_path?: string; // Path to pause checkpoint (if paused)
+  train_loss?: number; // Current training loss (updated in real-time)
+  val_loss?: number; // Current validation loss (updated in real-time)
 }
 
 export interface TrainingMetric {

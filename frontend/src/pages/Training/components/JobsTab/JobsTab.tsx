@@ -16,10 +16,11 @@ interface JobsTabProps {
 }
 
 export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
-  const { jobs, fetchJobs, handleJobUpdate, isLoading, error, createJob } = useTrainingStore();
+  const { jobs, fetchJobs, handleJobUpdate, isLoading, error, createJob, deleteAllJobs } = useTrainingStore();
   const { subscribe } = useWebSocket();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingBulkJobs, setIsCreatingBulkJobs] = useState(false);
+  const [isDeletingAllJobs, setIsDeletingAllJobs] = useState(false);
 
   // Fetch jobs on mount and subscribe to real-time WebSocket updates
   useEffect(() => {
@@ -162,6 +163,46 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
     }
   };
 
+  // Handler for deleting all training jobs
+  const handleDeleteAllJobs = async () => {
+    const trainingJobs = jobs.filter(job => job.job_type === 'training');
+    
+    if (trainingJobs.length === 0) {
+      alert('No training jobs to delete.');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ALL ${trainingJobs.length} training jobs?\n\n` +
+      `This will:\n` +
+      `- Cancel all running/paused jobs\n` +
+      `- Delete all job records\n` +
+      `- This action cannot be undone!\n\n` +
+      `Click OK to proceed or Cancel to abort.`
+    );
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    setIsDeletingAllJobs(true);
+    try {
+      console.log(`[JobsTab] Deleting all ${trainingJobs.length} training jobs...`);
+      await deleteAllJobs();
+      
+      // Refresh jobs list
+      await fetchJobs();
+      
+      console.log('[JobsTab] Successfully deleted all training jobs!');
+      alert(`Successfully deleted all ${trainingJobs.length} training jobs!`);
+    } catch (error) {
+      console.error('[JobsTab] Error deleting all jobs:', error);
+      alert('Failed to delete some training jobs. Check console for details.\n\nRemaining jobs have been removed from the UI.');
+    } finally {
+      setIsDeletingAllJobs(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -173,6 +214,24 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
           </p>
         </div>
         <div className="d-flex gap-2">
+          <button
+            onClick={handleDeleteAllJobs}
+            disabled={isDeletingAllJobs || isLoading || trainingJobs.length === 0}
+            className="btn btn-danger d-flex align-items-center gap-2"
+            title="Delete all training jobs (running jobs will be cancelled first)"
+          >
+            {isDeletingAllJobs ? (
+              <>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Deleting...
+              </>
+            ) : (
+              <>
+                <i className="ph ph-trash"></i>
+                Delete All Jobs
+              </>
+            )}
+          </button>
           <button
             onClick={handleTrainAllArchitectures}
             disabled={isCreatingBulkJobs || isLoading}

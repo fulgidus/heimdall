@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { useTrainingWebSocket } from '../../hooks/useTrainingWebSocket';
 import type { TrainingJob } from '../../types';
@@ -23,12 +24,37 @@ const statusBadges: Record<string, string> = {
   cancelled: 'bg-light-secondary',
 };
 
+// Interface for sparkline data points
+interface MetricPoint {
+  epoch: number;
+  loss: number;
+  distance?: number;
+}
+
 export const JobCard: React.FC<JobCardProps> = ({ job }) => {
-  const { pauseJob, resumeJob, cancelJob, deleteJob } = useTrainingStore();
+  const { pauseJob, resumeJob, cancelJob, deleteJob, metrics } = useTrainingStore();
   const [isLoading, setIsLoading] = React.useState(false);
 
   // Connect to WebSocket for real-time updates if job is running
   useTrainingWebSocket(job.status === 'running' ? job.id : null);
+  
+  // Get metrics history from store for sparklines
+  const jobMetrics = metrics.get(job.id) || [];
+  
+  // Prepare sparkline data from metrics (last 100 points)
+  const lossHistory = React.useMemo(() => {
+    return jobMetrics
+      .filter(m => m.val_loss !== undefined && !isNaN(m.val_loss) && m.val_loss < 999999)
+      .map(m => ({ epoch: m.epoch, loss: m.val_loss }))
+      .slice(-100);
+  }, [jobMetrics]);
+  
+  const distanceHistory = React.useMemo(() => {
+    return jobMetrics
+      .filter(m => m.val_distance_p68_m !== undefined && !isNaN(m.val_distance_p68_m))
+      .map(m => ({ epoch: m.epoch, distance: m.val_distance_p68_m! }))
+      .slice(-100);
+  }, [jobMetrics]);
   
   // Log when job updates
   React.useEffect(() => {
@@ -142,6 +168,24 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
                 aria-valuemax={100}
               />
             </div>
+            
+            {/* Real-time Loss Display */}
+            {(job.train_loss !== undefined || job.val_loss !== undefined) && (
+              <div className="d-flex justify-content-between small mt-2">
+                {job.train_loss !== undefined && (
+                  <span className={job.train_loss > 100 ? 'text-danger fw-medium' : 'text-muted'}>
+                    <i className="ph ph-chart-line me-1"></i>
+                    Train Loss: {job.train_loss.toFixed(4)}
+                  </span>
+                )}
+                {job.val_loss !== undefined && (
+                  <span className={job.val_loss > 100 ? 'text-danger fw-medium' : 'text-muted'}>
+                    <i className="ph ph-chart-line-up me-1"></i>
+                    Val Loss: {job.val_loss.toFixed(4)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -164,6 +208,58 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
               <span className="text-muted">Epochs:</span>
               <div className="fw-medium">{totalEpochs}</div>
             </div>
+          </div>
+        )}
+        
+        {/* Sparkline Charts */}
+        {job.status === 'running' && lossHistory.length > 2 && (
+          <div className="mb-3">
+            <div className="small text-muted mb-1">
+              <i className="ph ph-chart-line me-1"></i>
+              Validation Loss History (Log Scale)
+            </div>
+            <ResponsiveContainer width="100%" height={80}>
+              <LineChart data={lossHistory} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                <YAxis 
+                  hide 
+                  domain={['auto', 'auto']} 
+                  scale="log"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="loss" 
+                  stroke="#0d6efd" 
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        
+        {job.status === 'running' && distanceHistory.length > 2 && (
+          <div className="mb-3">
+            <div className="small text-muted mb-1">
+              <i className="ph ph-map-pin me-1"></i>
+              Localization Error P68 (meters)
+            </div>
+            <ResponsiveContainer width="100%" height={80}>
+              <LineChart data={distanceHistory} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                <YAxis 
+                  hide 
+                  domain={[0, 'auto']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="distance" 
+                  stroke="#198754" 
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         )}
 

@@ -12,6 +12,7 @@ from .batch_feature_extraction import (
     batch_feature_extraction_task,
 )
 from .comprehensive_health_monitor import monitor_comprehensive_health
+from .minio_lifecycle import cleanup_orphan_files, get_storage_stats
 from .services_health_monitor import monitor_services_health
 from .uptime_monitor import (
     calculate_uptime_percentage,
@@ -30,4 +31,6 @@ __all__ = [
     "batch_feature_extraction_task",
     "backfill_all_features",
     "preprocess_audio_file",
+    "cleanup_orphan_files",
+    "get_storage_stats",
 ]

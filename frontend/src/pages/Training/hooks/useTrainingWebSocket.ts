@@ -78,6 +78,15 @@ export const useTrainingWebSocket = (jobId: string | null) => {
                     ...(data.metrics || {}), // Spread all metrics (train_loss, val_loss, etc.)
                   };
                   storeRef.current.handleMetricUpdate(flattenedMetric);
+                  
+                  // Also update the job with current loss values and progress
+                  storeRef.current.handleJobUpdate({
+                    id: message.job_id,
+                    current_epoch: data.epoch,
+                    progress_percent: data.progress_percent,
+                    train_loss: data.metrics?.train_loss,
+                    val_loss: data.metrics?.val_loss,
+                  });
                 } else {
                   // It's a job update
                   storeRef.current.handleJobUpdate({

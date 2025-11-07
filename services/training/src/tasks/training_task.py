@@ -489,6 +489,20 @@ def start_training_job(self, job_id: str):
 
                 # Calculate loss
                 loss = gaussian_nll_loss(position, log_variance, target_position)
+                
+                # Check for loss explosion (NaN, Inf, or extremely high values)
+                loss_value = loss.item()
+                if math.isnan(loss_value) or math.isinf(loss_value) or loss_value > 100000:
+                    error_msg = (
+                        f"Training failed: Loss explosion detected at epoch {epoch}, batch {batch_idx}. "
+                        f"Loss value: {loss_value}. This typically indicates:\n"
+                        f"1. Feature normalization issues (check SNR, PSD, freq_offset scaling)\n"
+                        f"2. Learning rate too high (current: {optimizer.param_groups[0]['lr']})\n"
+                        f"3. Gradient explosion (consider lowering learning rate or checking data quality)\n"
+                        f"4. Invalid input data (check for NaN/Inf in dataset)"
+                    )
+                    logger.error(error_msg)
+                    raise RuntimeError(error_msg)
 
                 # Backward pass
                 loss.backward()
@@ -559,6 +573,17 @@ def start_training_job(self, job_id: str):
 
                     position, log_variance = model(receiver_features, signal_mask)
                     loss = gaussian_nll_loss(position, log_variance, target_position)
+                    
+                    # Check for validation loss explosion
+                    loss_value = loss.item()
+                    if math.isnan(loss_value) or math.isinf(loss_value) or loss_value > 100000:
+                        error_msg = (
+                            f"Training failed: Validation loss explosion detected at epoch {epoch}. "
+                            f"Loss value: {loss_value}. This indicates severe model instability. "
+                            f"Consider: lowering learning rate, checking dataset quality, or restarting training."
+                        )
+                        logger.error(error_msg)
+                        raise RuntimeError(error_msg)
 
                     distances = haversine_distance_torch(
                         position[:, 0], position[:, 1],
