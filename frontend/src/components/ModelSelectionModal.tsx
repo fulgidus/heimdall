@@ -23,6 +23,7 @@ interface ModelSelectionModalProps {
 }
 
 interface TrainingConfig {
+  job_name: string;  // Training job name
   epochs: number;
   batch_size: number;
   learning_rate: number;
@@ -34,6 +35,7 @@ interface TrainingConfig {
 }
 
 const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
+  job_name: '',  // Will be generated if empty
   epochs: 100,
   batch_size: 32,
   learning_rate: 0.001,
@@ -401,6 +403,25 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
 
   const trainingConfigTab = (
     <div>
+      {/* Job Name */}
+      <div className="mb-3">
+        <label className="form-label">
+          Job Name
+          <span className="text-danger ms-1">*</span>
+        </label>
+        <input
+          type="text"
+          value={trainingConfig.job_name}
+          onChange={(e) => setTrainingConfig({ ...trainingConfig, job_name: e.target.value })}
+          placeholder={selectedArchitecture ? `${selectedArchitecture.display_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}` : 'my-training-job'}
+          className="form-control"
+          required
+        />
+        <small className="text-muted">
+          A unique name to identify this training job. Leave empty to auto-generate.
+        </small>
+      </div>
+
       {/* Dataset Selection */}
       <div className="mb-3">
         <label className="form-label">
