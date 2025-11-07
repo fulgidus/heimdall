@@ -109,7 +109,7 @@ export interface SyntheticDataRequest {
 // ============================================================================
 
 export async function createTrainingJob(config: Record<string, any>): Promise<AnyTrainingJob> {
-    const response = await api.post('/v1/jobs/training', config);
+    const response = await api.post('/v1/training/jobs', config);
     return response.data;
 }
 
@@ -127,27 +127,27 @@ export async function listTrainingJobs(
         params.status = status;
     }
 
-    const response = await api.get('/v1/jobs/training', { params });
+    const response = await api.get('/v1/training/jobs', { params });
     return response.data;
 }
 
 export async function getTrainingJob(jobId: string): Promise<AnyTrainingJob> {
-    const response = await api.get(`/v1/jobs/training/${jobId}`);
+    const response = await api.get(`/v1/training/jobs/${jobId}`);
     return response.data;
 }
 
 export async function cancelTrainingJob(jobId: string): Promise<{ status: string; job_id: string }> {
-    const response = await api.post(`/v1/jobs/training/${jobId}/cancel`);
+    const response = await api.post(`/v1/training/jobs/${jobId}/cancel`);
     return response.data;
 }
 
 export async function pauseTrainingJob(jobId: string): Promise<{ status: string; job_id: string; message: string }> {
-    const response = await api.post(`/v1/jobs/training/${jobId}/pause`);
+    const response = await api.post(`/v1/training/jobs/${jobId}/pause`);
     return response.data;
 }
 
 export async function resumeTrainingJob(jobId: string): Promise<{ status: string; job_id: string; celery_task_id: string; message: string }> {
-    const response = await api.post(`/v1/jobs/training/${jobId}/resume`);
+    const response = await api.post(`/v1/training/jobs/${jobId}/resume`);
     return response.data;
 }
 

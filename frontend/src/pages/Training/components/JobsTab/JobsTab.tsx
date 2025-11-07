@@ -132,22 +132,14 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
       const jobPromises = architectures.map(async (arch) => {
         const jobConfig = {
           job_name: `bulk-${arch.id}-${Date.now()}`,
-          model_architecture: arch.id,
-          batch_size: 32,
-          learning_rate: 0.001,
-          total_epochs: 500,
-          early_stopping_patience: 0, // No patience - train all 500 epochs
-          train_split: 0.7,
-          val_split: 0.15,
-          dataset_id: datasetIds[0], // Backend expects single dataset_id
           config: {
-            dataset_ids: datasetIds, // Full array in config for all datasets
-            epochs: 500,
+            dataset_ids: datasetIds, // Required array of dataset UUIDs
+            model_architecture: arch.id,
             batch_size: 32,
             learning_rate: 0.001,
-            model_architecture: arch.id,
+            epochs: 500, // Note: 'epochs', not 'total_epochs'
             validation_split: 0.15,
-            early_stop_patience: 0,
+            early_stop_patience: 0, // No patience - train all 500 epochs
           }
         };
         

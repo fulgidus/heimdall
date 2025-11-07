@@ -39,25 +39,17 @@ export const CreateJobDialog: React.FC<CreateJobDialogProps> = ({ isOpen, onClos
       const jobName = trainingConfig.job_name.trim() || 
         `${architecture.display_name.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
-      // Build job request matching the backend CreateTrainingJobRequest schema
+      // Build job request matching the backend TrainingJobRequest schema
       const jobRequest = {
         job_name: jobName,
-        model_architecture: architecture.id,  // Required top-level field
-        batch_size: trainingConfig.batch_size,
-        learning_rate: trainingConfig.learning_rate,
-        total_epochs: trainingConfig.epochs,  // Backend expects 'total_epochs' not 'epochs'
-        early_stopping_patience: trainingConfig.early_stopping_patience,
-        train_split: trainingConfig.train_ratio,
-        val_split: trainingConfig.val_ratio,
-        dataset_id: trainingConfig.dataset_ids[0] || null,  // Backend expects single dataset_id, not array
         config: {
-          dataset_ids: trainingConfig.dataset_ids,  // Keep full array in additional config
-          epochs: trainingConfig.epochs,  // Required by CreateJobRequest type
-          batch_size: trainingConfig.batch_size,  // Required by CreateJobRequest type
-          learning_rate: trainingConfig.learning_rate,  // Required by CreateJobRequest type
-          model_architecture: architecture.id,  // Optional but included for completeness
-          validation_split: trainingConfig.val_ratio,  // Optional
-          early_stop_patience: trainingConfig.early_stopping_patience,  // Optional
+          dataset_ids: trainingConfig.dataset_ids,  // Required array of dataset UUIDs
+          model_architecture: architecture.id,
+          batch_size: trainingConfig.batch_size,
+          learning_rate: trainingConfig.learning_rate,
+          epochs: trainingConfig.epochs,  // Note: 'epochs', not 'total_epochs'
+          validation_split: trainingConfig.val_ratio,
+          early_stop_patience: trainingConfig.early_stopping_patience,
         }
       };
 

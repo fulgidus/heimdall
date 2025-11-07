@@ -94,7 +94,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     fetchJobs: async () => {
         set({ isLoading: true, error: null });
         try {
-            const response = await api.get('/v1/jobs/training');
+            const response = await api.get('/v1/training/jobs');
             set({ jobs: response.data.jobs || response.data, isLoading: false });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch training jobs';
@@ -107,7 +107,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     createJob: async (jobConfig: CreateJobRequest) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await api.post<CreateJobResponse>('/v1/jobs/training', jobConfig);
+            const response = await api.post<CreateJobResponse>('/v1/training/jobs', jobConfig);
             set({ isLoading: false });
 
             // Refresh jobs list
@@ -127,7 +127,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
         console.log('[trainingStore] cancelJob called:', { jobId: jobId.slice(0, 8) });
         set({ error: null });
         try {
-            const endpoint = `/v1/jobs/training/${jobId}/cancel`;
+            const endpoint = `/v1/training/jobs/${jobId}/cancel`;
             console.log('[trainingStore] Calling POST', endpoint);
             await api.post(endpoint);
             console.log('[trainingStore] Cancel API call successful');
@@ -151,7 +151,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     pauseJob: async (jobId: string) => {
         set({ error: null });
         try {
-            await api.post(`/v1/jobs/training/${jobId}/pause`);
+            await api.post(`/v1/training/jobs/${jobId}/pause`);
 
             // Update job status locally
             set(state => ({
@@ -171,7 +171,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     resumeJob: async (jobId: string) => {
         set({ error: null });
         try {
-            await api.post(`/v1/jobs/training/${jobId}/resume`);
+            await api.post(`/v1/training/jobs/${jobId}/resume`);
 
             // Update job status locally
             set(state => ({
@@ -192,7 +192,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
         console.log('[trainingStore] deleteJob called:', { jobId: jobId.slice(0, 8) });
         set({ error: null });
         try {
-            const endpoint = `/v1/jobs/training/${jobId}`;
+            const endpoint = `/v1/training/jobs/${jobId}`;
             console.log('[trainingStore] Calling DELETE', endpoint);
             await api.delete(endpoint);
             console.log('[trainingStore] Delete API call successful');
