@@ -23,6 +23,7 @@ export interface SectionSizes {
   sessions: number;
   sample_sets: number;
   models: number;
+  audio_library: number;
 }
 
 export interface ExportMetadata {
@@ -118,6 +119,7 @@ export interface ExportSections {
   sessions?: ExportedSession[];
   sample_sets?: ExportedSampleSet[];
   models?: ExportedModel[];
+  audio_library?: ExportedAudioLibrary[];
 }
 
 export interface HeimdallFile {
@@ -132,8 +134,9 @@ export interface ExportRequest {
   include_sources?: boolean;
   include_websdrs?: boolean;
   include_sessions?: boolean;
-  sample_set_ids?: string[] | null;
+  sample_set_configs?: SampleSetExportConfig[] | null;
   model_ids?: string[] | null;
+  audio_library_ids?: string[] | null;
 }
 
 export interface ExportResponse {
@@ -149,6 +152,7 @@ export interface ImportRequest {
   import_sessions?: boolean;
   import_sample_sets?: boolean;
   import_models?: boolean;
+  import_audio_library?: boolean;
   overwrite_existing?: boolean;
 }
 
@@ -164,6 +168,14 @@ export interface AvailableSampleSet {
   name: string;
   num_samples: number;
   created_at: string;
+  estimated_size_bytes: number;
+  estimated_size_per_sample: number;
+}
+
+export interface SampleSetExportConfig {
+  dataset_id: string;
+  sample_offset: number;
+  sample_limit: number | null;
 }
 
 export interface AvailableModel {
@@ -174,12 +186,54 @@ export interface AvailableModel {
   has_onnx: boolean;
 }
 
+export interface ExportedAudioChunk {
+  id: string;
+  chunk_index: number;
+  duration_seconds: number;
+  sample_rate: number;
+  num_samples: number;
+  file_size_bytes: number;
+  original_offset_seconds: number;
+  rms_amplitude?: number;
+  created_at: string;
+  audio_data_base64?: string;
+}
+
+export interface ExportedAudioLibrary {
+  id: string;
+  filename: string;
+  category: string;
+  tags?: string[];
+  file_size_bytes: number;
+  duration_seconds: number;
+  sample_rate: number;
+  channels: number;
+  audio_format: string;
+  processing_status: string;
+  total_chunks: number;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  chunks?: ExportedAudioChunk[];
+}
+
+export interface AvailableAudioLibrary {
+  id: string;
+  filename: string;
+  category: string;
+  duration_seconds: number;
+  total_chunks: number;
+  file_size_bytes: number;
+  created_at: string;
+}
+
 export interface MetadataResponse {
   sources_count: number;
   websdrs_count: number;
   sessions_count: number;
   sample_sets: AvailableSampleSet[];
   models: AvailableModel[];
+  audio_library: AvailableAudioLibrary[];
   estimated_sizes: SectionSizes;
 }
 
@@ -221,17 +275,18 @@ export function downloadHeimdallFile(file: HeimdallFile, filename?: string): voi
   document.body.appendChild(a);
   a.click();
   
-  // Defensive cleanup: check parent before removing
-  try {
-    if (a.parentNode === document.body) {
-      document.body.removeChild(a);
+  // Cleanup after a short delay to ensure download starts
+  setTimeout(() => {
+    try {
+      if (a.parentNode === document.body) {
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      // Silent fail - element already removed or not in body
+      console.debug('Download link cleanup: already removed');
     }
-  } catch (error) {
-    // Silent fail - element already removed or not in body
-    console.debug('Download link cleanup: already removed');
-  }
-  
-  URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
 
 /**
@@ -243,7 +298,10 @@ export function loadHeimdallFile(): Promise<HeimdallFile> {
     input.type = 'file';
     input.accept = '.heimdall,.json';
 
+    let fileSelected = false;
+
     input.onchange = (e: Event) => {
+      fileSelected = true;
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
 
@@ -270,6 +328,18 @@ export function loadHeimdallFile(): Promise<HeimdallFile> {
 
       reader.readAsText(file);
     };
+
+    // Handle cancel - user closed dialog without selecting a file
+    input.oncancel = () => {
+      reject(new Error('File selection cancelled'));
+    };
+
+    // Fallback for browsers that don't support oncancel
+    setTimeout(() => {
+      if (!fileSelected && !input.files?.length) {
+        reject(new Error('File selection cancelled'));
+      }
+    }, 100);
 
     input.click();
   });

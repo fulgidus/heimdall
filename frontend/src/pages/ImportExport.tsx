@@ -18,8 +18,10 @@ import {
   type ImportRequest,
   type HeimdallFile,
   type ImportResponse,
+  type SampleSetExportConfig,
 } from '@/services/api/import-export';
 import { useAuthStore } from '@/store/authStore';
+import SampleSetRangeSelector from '@/components/SampleSetRangeSelector';
 
 export default function ImportExport() {
   // Get authenticated user info
@@ -45,9 +47,14 @@ export default function ImportExport() {
     include_sessions: true,
   });
 
-  // State for selected sample sets and models
-  const [selectedSampleSets, setSelectedSampleSets] = useState<Set<string>>(new Set());
+  // State for sample set ranges (dataset_id -> {enabled, offset, limit})
+  const [sampleSetRanges, setSampleSetRanges] = useState<
+    Map<string, { enabled: boolean; offset: number; limit: number | null }>
+  >(new Map());
+  
+  // State for selected models and audio library
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
+  const [selectedAudioLibrary, setSelectedAudioLibrary] = useState<Set<string>>(new Set());
 
   // State for import
   const [importLoading, setImportLoading] = useState(false);
@@ -63,6 +70,7 @@ export default function ImportExport() {
     import_sessions: true,
     import_sample_sets: true,
     import_models: true,
+    import_audio_library: true,
     overwrite_existing: false,
   });
 
@@ -70,6 +78,28 @@ export default function ImportExport() {
   useEffect(() => {
     loadMetadata();
   }, []);
+
+  // Auto-select all sample sets (with full range), models, and audio library when metadata loads
+  useEffect(() => {
+    if (metadata) {
+      // Initialize sample set ranges - all enabled with full range by default
+      if (metadata.sample_sets && metadata.sample_sets.length > 0) {
+        const newRanges = new Map<string, { enabled: boolean; offset: number; limit: number | null }>();
+        metadata.sample_sets.forEach(s => {
+          newRanges.set(s.id, { enabled: true, offset: 0, limit: null });
+        });
+        setSampleSetRanges(newRanges);
+      }
+      // Select all models that have ONNX by default
+      if (metadata.models && metadata.models.length > 0) {
+        setSelectedModels(new Set(metadata.models.filter(m => m.has_onnx).map(m => m.id)));
+      }
+      // Select all audio library items by default
+      if (metadata.audio_library && metadata.audio_library.length > 0) {
+        setSelectedAudioLibrary(new Set(metadata.audio_library.map(a => a.id)));
+      }
+    }
+  }, [metadata]);
 
   // Auto-populate username and name from authenticated user
   useEffect(() => {
@@ -105,6 +135,18 @@ export default function ImportExport() {
       setExportError(null);
       setExportSuccess(false);
 
+      // Build sample_set_configs from enabled ranges
+      const sampleSetConfigs: SampleSetExportConfig[] = [];
+      sampleSetRanges.forEach((range, datasetId) => {
+        if (range.enabled) {
+          sampleSetConfigs.push({
+            dataset_id: datasetId,
+            sample_offset: range.offset,
+            sample_limit: range.limit,
+          });
+        }
+      });
+
       const request: ExportRequest = {
         creator: {
           username: user.email,
@@ -115,8 +157,9 @@ export default function ImportExport() {
         include_sources: exportForm.include_sources,
         include_websdrs: exportForm.include_websdrs,
         include_sessions: exportForm.include_sessions,
-        sample_set_ids: selectedSampleSets.size > 0 ? Array.from(selectedSampleSets) : null,
+        sample_set_configs: sampleSetConfigs.length > 0 ? sampleSetConfigs : null,
         model_ids: selectedModels.size > 0 ? Array.from(selectedModels) : null,
+        audio_library_ids: selectedAudioLibrary.size > 0 ? Array.from(selectedAudioLibrary) : null,
       };
 
       const response = await exportData(request);
@@ -140,9 +183,14 @@ export default function ImportExport() {
       const file = await loadHeimdallFile();
       setImportFile(file);
       setImportError(null);
+      setImportSuccess(null); // Clear previous import success message
     } catch (error) {
       console.error('Error loading file:', error);
-      setImportError(error instanceof Error ? error.message : 'Failed to load file');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load file';
+      // Don't show error for cancellation
+      if (!errorMessage.includes('cancelled')) {
+        setImportError(errorMessage);
+      }
     }
   };
 
@@ -165,6 +213,7 @@ export default function ImportExport() {
         import_sessions: importForm.import_sessions,
         import_sample_sets: importForm.import_sample_sets,
         import_models: importForm.import_models,
+        import_audio_library: importForm.import_audio_library,
         overwrite_existing: importForm.overwrite_existing,
       };
 
@@ -232,6 +281,10 @@ export default function ImportExport() {
                           <strong>{metadata.models.length}</strong>
                         </div>
                         <div className="col-md-2">
+                          <small className="d-block text-muted">Audio Files</small>
+                          <strong>{metadata.audio_library.length}</strong>
+                        </div>
+                        <div className="col-md-2">
                           <small className="d-block text-muted">Est. Size</small>
                           <strong>
                             {formatBytes(
@@ -240,7 +293,8 @@ export default function ImportExport() {
                                 metadata.estimated_sizes.sessions +
                                 metadata.estimated_sizes.settings +
                                 metadata.estimated_sizes.sample_sets +
-                                metadata.estimated_sizes.models
+                                metadata.estimated_sizes.models +
+                                metadata.estimated_sizes.audio_library
                             )}
                           </strong>
                         </div>
@@ -362,7 +416,7 @@ export default function ImportExport() {
                       </label>
                     </div>
 
-                    {/* Sample Sets Selection */}
+                    {/* Sample Sets Selection with Range Support */}
                     {metadata && metadata.sample_sets && metadata.sample_sets.length > 0 && (
                       <div className="mt-3">
                         <label className="form-label d-block">
@@ -370,41 +424,42 @@ export default function ImportExport() {
                         </label>
                         <div
                           style={{
-                            maxHeight: '200px',
+                            maxHeight: '400px',
                             overflowY: 'auto',
                             border: '1px solid #dee2e6',
                             borderRadius: '4px',
                             padding: '8px',
                           }}
                         >
-                          {metadata.sample_sets.map(sampleSet => (
-                            <div key={sampleSet.id} className="form-check">
-                              <input
-                                className="form-check-input"
-                                type="checkbox"
-                                id={`sample-set-${sampleSet.id}`}
-                                checked={selectedSampleSets.has(sampleSet.id)}
-                                onChange={e => {
-                                  const newSet = new Set(selectedSampleSets);
-                                  if (e.target.checked) {
-                                    newSet.add(sampleSet.id);
-                                  } else {
-                                    newSet.delete(sampleSet.id);
-                                  }
-                                  setSelectedSampleSets(newSet);
+                          {metadata.sample_sets.map(sampleSet => {
+                            const range = sampleSetRanges.get(sampleSet.id) || {
+                              enabled: false,
+                              offset: 0,
+                              limit: null,
+                            };
+                            return (
+                              <SampleSetRangeSelector
+                                key={sampleSet.id}
+                                sampleSet={sampleSet}
+                                enabled={range.enabled}
+                                range={{ offset: range.offset, limit: range.limit }}
+                                onEnabledChange={enabled => {
+                                  const newRanges = new Map(sampleSetRanges);
+                                  newRanges.set(sampleSet.id, { ...range, enabled });
+                                  setSampleSetRanges(newRanges);
+                                }}
+                                onRangeChange={(offset, limit) => {
+                                  const newRanges = new Map(sampleSetRanges);
+                                  newRanges.set(sampleSet.id, { enabled: range.enabled, offset, limit });
+                                  setSampleSetRanges(newRanges);
                                 }}
                               />
-                              <label
-                                className="form-check-label"
-                                htmlFor={`sample-set-${sampleSet.id}`}
-                              >
-                                {sampleSet.name} ({sampleSet.num_samples} samples)
-                              </label>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <small className="form-text text-muted">
-                          {selectedSampleSets.size} of {metadata.sample_sets.length} selected
+                          {Array.from(sampleSetRanges.values()).filter(r => r.enabled).length} of{' '}
+                          {metadata.sample_sets.length} selected
                         </small>
                       </div>
                     )}
@@ -451,6 +506,51 @@ export default function ImportExport() {
                         </div>
                         <small className="form-text text-muted">
                           {selectedModels.size} of {metadata.models.length} selected
+                        </small>
+                      </div>
+                    )}
+
+                    {/* Audio Library Selection */}
+                    {metadata && metadata.audio_library && metadata.audio_library.length > 0 && (
+                      <div className="mt-3">
+                        <label className="form-label d-block">
+                          <strong>Audio Library ({metadata.audio_library.length})</strong>
+                        </label>
+                        <div
+                          style={{
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            border: '1px solid #dee2e6',
+                            borderRadius: '4px',
+                            padding: '8px',
+                          }}
+                        >
+                          {metadata.audio_library.map(audio => (
+                            <div key={audio.id} className="form-check">
+                              <input
+                                className="form-check-input"
+                                type="checkbox"
+                                id={`audio-${audio.id}`}
+                                checked={selectedAudioLibrary.has(audio.id)}
+                                onChange={e => {
+                                  const newSet = new Set(selectedAudioLibrary);
+                                  if (e.target.checked) {
+                                    newSet.add(audio.id);
+                                  } else {
+                                    newSet.delete(audio.id);
+                                  }
+                                  setSelectedAudioLibrary(newSet);
+                                }}
+                              />
+                              <label className="form-check-label" htmlFor={`audio-${audio.id}`}>
+                                {audio.filename} ({audio.total_chunks} chunks,{' '}
+                                {formatBytes(audio.file_size_bytes)})
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                        <small className="form-text text-muted">
+                          {selectedAudioLibrary.size} of {metadata.audio_library.length} selected
                         </small>
                       </div>
                     )}
@@ -622,6 +722,22 @@ export default function ImportExport() {
                             </label>
                           </div>
                         )}
+                        {importFile.sections.audio_library && (
+                          <div className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id="import-audio-library"
+                              checked={importForm.import_audio_library}
+                              onChange={e =>
+                                setImportForm({ ...importForm, import_audio_library: e.target.checked })
+                              }
+                            />
+                            <label className="form-check-label" htmlFor="import-audio-library">
+                              Audio Library ({importFile.sections.audio_library.length})
+                            </label>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mb-3">
@@ -674,6 +790,9 @@ export default function ImportExport() {
                         </small>
                         <small className="d-block">
                           Models: {importSuccess.imported_counts.models || 0}
+                        </small>
+                        <small className="d-block">
+                          Audio Library: {importSuccess.imported_counts.audio_library || 0}
                         </small>
                       </div>
                       {importSuccess.errors.length > 0 && (

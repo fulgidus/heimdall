@@ -223,13 +223,17 @@ def start_training_job(self, job_id: str):
                     preload_to_gpu=True
                 )
             
+            # Import collate function for GPU-cached datasets
+            from ..data.gpu_cached_dataset import collate_gpu_cached
+            
             # Create DataLoaders (num_workers MUST be 0 for GPU-cached datasets)
             train_loader = DataLoader(
                 train_dataset,
                 batch_size=batch_size,
                 shuffle=True,
                 num_workers=0,  # Data already on GPU, no I/O needed
-                pin_memory=False  # Data already on GPU
+                pin_memory=False,  # Data already on GPU
+                collate_fn=collate_gpu_cached  # Custom collate with centroid support
             )
             
             val_loader = DataLoader(
@@ -237,7 +241,8 @@ def start_training_job(self, job_id: str):
                 batch_size=batch_size,
                 shuffle=False,
                 num_workers=0,
-                pin_memory=False
+                pin_memory=False,
+                collate_fn=collate_gpu_cached  # Custom collate with centroid support
             )
             
             logger.info(f"✅ GPU-CACHED READY: {len(train_dataset)} train + {len(val_dataset)} val samples in VRAM")
@@ -522,10 +527,18 @@ def start_training_job(self, job_id: str):
                 optimizer.step()
 
                 # Calculate distance error for monitoring
+                # IMPORTANT: Model predicts DELTA coordinates (relative to centroid)
+                # Must reconstruct absolute coordinates before Haversine distance calculation
                 with torch.no_grad():
+                    centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
+                    
+                    # Reconstruct absolute coordinates: absolute = delta + centroid
+                    position_absolute = position + centroids  # [batch, 2]
+                    target_absolute = target_position + centroids  # [batch, 2]
+                    
                     distances = haversine_distance_torch(
-                        position[:, 0], position[:, 1],
-                        target_position[:, 0], target_position[:, 1]
+                        position_absolute[:, 0], position_absolute[:, 1],
+                        target_absolute[:, 0], target_absolute[:, 1]
                     )
                     train_distance_sum += distances.mean().item()
 
@@ -585,9 +598,15 @@ def start_training_job(self, job_id: str):
                         logger.error(error_msg)
                         raise RuntimeError(error_msg)
 
+                    # Reconstruct absolute coordinates for distance calculation
+                    # Model predicts DELTA coordinates (relative to centroid)
+                    centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
+                    position_absolute = position + centroids  # [batch, 2]
+                    target_absolute = target_position + centroids  # [batch, 2]
+                    
                     distances = haversine_distance_torch(
-                        position[:, 0], position[:, 1],
-                        target_position[:, 0], target_position[:, 1]
+                        position_absolute[:, 0], position_absolute[:, 1],
+                        target_absolute[:, 0], target_absolute[:, 1]
                     )
                     
                     # Calculate predicted uncertainty (standard deviation from log_variance)

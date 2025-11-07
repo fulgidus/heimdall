@@ -225,6 +225,46 @@ class MinIOClient:
             logger.exception("Unexpected error listing measurements: %s", e)
             return {}
 
+    def upload_bytes(self, data: bytes, s3_path: str, content_type: str = "application/octet-stream") -> tuple[bool, str]:
+        """Upload raw bytes to MinIO.
+        
+        Args:
+            data: Raw bytes to upload
+            s3_path: S3 path (without s3:// prefix)
+            content_type: MIME type for the object
+            
+        Returns:
+            tuple[bool, str]: (success, message/path)
+        """
+        try:
+            if not self.ensure_bucket_exists():
+                return False, f"Failed to access bucket {self.bucket_name}"
+
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=s3_path,
+                Body=data,
+                ContentType=content_type,
+            )
+
+            logger.info(
+                "Uploaded bytes to s3://%s/%s (%.2f MB)",
+                self.bucket_name,
+                s3_path,
+                len(data) / (1024 * 1024),
+            )
+
+            return True, f"s3://{self.bucket_name}/{s3_path}"
+
+        except ClientError as e:
+            error_msg = f"Failed to upload bytes: {e}"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error uploading bytes: {str(e)}"
+            logger.exception(error_msg)
+            return False, error_msg
+
     def delete_object(self, s3_path: str) -> tuple[bool, str]:
         """Delete a single object from MinIO."""
         try:

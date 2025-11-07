@@ -24,6 +24,7 @@ class SectionSizes(BaseModel):
     sessions: int = 0
     sample_sets: int = 0
     models: int = 0
+    audio_library: int = 0
 
 
 class ExportMetadata(BaseModel):
@@ -116,8 +117,59 @@ class UserSettings(BaseModel):
     # Add more settings as needed
 
 
+class IQData(BaseModel):
+    """IQ data for a single receiver."""
+    
+    receiver_id: str  # e.g., "RX_000"
+    iq_data_base64: str  # numpy array encoded as base64
+    
+
+class ExportedIQSample(BaseModel):
+    """Complete IQ sample data from synthetic_iq_samples table."""
+    
+    id: str
+    sample_idx: int
+    timestamp: str
+    tx_lat: float
+    tx_lon: float
+    tx_alt: float
+    tx_power_dbm: float
+    frequency_hz: int
+    num_receivers: int
+    gdop: float | None = None
+    mean_snr_db: float | None = None
+    overall_confidence: float | None = None
+    receivers_metadata: list[dict]  # JSONB array of receiver configs
+    iq_metadata: dict  # JSONB (duration_ms, sample_rate_hz, center_frequency_hz)
+    iq_storage_paths: dict  # JSONB (mapping receiver_id -> S3 path)
+    iq_data: list[IQData]  # Actual IQ binary data in base64
+    created_at: str
+
+
+class ExportedFeature(BaseModel):
+    """Complete feature data from measurement_features table."""
+    
+    recording_session_id: str
+    timestamp: str
+    receiver_features: list[dict]  # JSONB array
+    tx_latitude: float | None = None
+    tx_longitude: float | None = None
+    tx_altitude_m: float | None = None
+    tx_power_dbm: float | None = None
+    tx_known: bool = False
+    extraction_metadata: dict  # JSONB
+    overall_confidence: float
+    mean_snr_db: float | None = None
+    num_receivers_detected: int | None = None
+    gdop: float | None = None
+    extraction_failed: bool = False
+    error_message: str | None = None
+    created_at: str
+    num_receivers_in_sample: int | None = None
+
+
 class ExportedSampleSet(BaseModel):
-    """Synthetic dataset (sample set) for export."""
+    """Synthetic dataset (sample set) for export with complete data."""
 
     id: str
     name: str
@@ -126,8 +178,51 @@ class ExportedSampleSet(BaseModel):
     config: dict | None = None
     quality_metrics: dict | None = None
     created_at: str
-    # Sample data is stored separately due to size
-    samples: list[dict] | None = None
+    # Complete feature data from measurement_features
+    features: list[ExportedFeature] | None = None
+    # Complete IQ data from synthetic_iq_samples
+    iq_samples: list[ExportedIQSample] | None = None
+    # Range information for partial exports
+    num_exported_features: int | None = None
+    num_exported_iq_samples: int | None = None
+    export_range: dict | None = None  # {"offset": int, "limit": int}
+
+
+class ExportedAudioChunk(BaseModel):
+    """Audio chunk for export (1-second preprocessed audio)."""
+
+    id: str
+    chunk_index: int
+    duration_seconds: float
+    sample_rate: int
+    num_samples: int
+    file_size_bytes: int
+    original_offset_seconds: float
+    rms_amplitude: float | None = None
+    created_at: str
+    # Audio data encoded as base64
+    audio_data_base64: str | None = None
+
+
+class ExportedAudioLibrary(BaseModel):
+    """Audio library entry for export."""
+
+    id: str
+    filename: str
+    category: str
+    tags: list[str] | None = None
+    file_size_bytes: int
+    duration_seconds: float
+    sample_rate: int
+    channels: int
+    audio_format: str
+    processing_status: str
+    total_chunks: int
+    enabled: bool
+    created_at: str
+    updated_at: str
+    # Associated audio chunks
+    chunks: list[ExportedAudioChunk] | None = None
 
 
 class ExportSections(BaseModel):
@@ -139,6 +234,7 @@ class ExportSections(BaseModel):
     sessions: list[ExportedSession] | None = None
     sample_sets: list[ExportedSampleSet] | None = None
     models: list[ExportedModel] | None = None
+    audio_library: list[ExportedAudioLibrary] | None = None
 
 
 class HeimdallFile(BaseModel):
@@ -146,6 +242,19 @@ class HeimdallFile(BaseModel):
 
     metadata: ExportMetadata
     sections: ExportSections
+
+
+class SampleSetExportConfig(BaseModel):
+    """Configuration for exporting a sample set with range selection."""
+
+    dataset_id: str
+    sample_offset: int = Field(default=0, ge=0, description="Starting offset for samples")
+    sample_limit: int | None = Field(
+        default=None, ge=1, description="Number of samples to export (None = all)"
+    )
+    include_iq_data: bool = Field(
+        default=True, description="Include binary IQ data (can be very large, ~16MB per sample)"
+    )
 
 
 class ExportRequest(BaseModel):
@@ -157,10 +266,12 @@ class ExportRequest(BaseModel):
     include_sources: bool = True
     include_websdrs: bool = True
     include_sessions: bool = False
-    # Sample sets (synthetic datasets) - list of IDs or None for none
-    sample_set_ids: list[str] | None = None
+    # Sample sets (synthetic datasets) - now with range support
+    sample_set_configs: list[SampleSetExportConfig] | None = None
     # Models - list of IDs or None for none
     model_ids: list[str] | None = None
+    # Audio library - list of IDs or None for none
+    audio_library_ids: list[str] | None = None
 
 
 class ImportRequest(BaseModel):
@@ -173,6 +284,7 @@ class ImportRequest(BaseModel):
     import_sessions: bool = False
     import_sample_sets: bool = False
     import_models: bool = False
+    import_audio_library: bool = False
     overwrite_existing: bool = False
 
 
@@ -199,6 +311,12 @@ class AvailableSampleSet(BaseModel):
     name: str
     num_samples: int
     created_at: str
+    estimated_size_bytes: int = Field(
+        default=0, description="Estimated size of full dataset in bytes"
+    )
+    estimated_size_per_sample: int = Field(
+        default=5600, description="Estimated size per sample in bytes"
+    )
 
 
 class AvailableModel(BaseModel):
@@ -211,6 +329,18 @@ class AvailableModel(BaseModel):
     has_onnx: bool
 
 
+class AvailableAudioLibrary(BaseModel):
+    """Available audio library entry for export."""
+
+    id: str
+    filename: str
+    category: str
+    duration_seconds: float
+    total_chunks: int
+    file_size_bytes: int
+    created_at: str
+
+
 class MetadataResponse(BaseModel):
     """Response with available data for export."""
 
@@ -219,4 +349,5 @@ class MetadataResponse(BaseModel):
     sessions_count: int = 0
     sample_sets: list[AvailableSampleSet] = Field(default_factory=list)
     models: list[AvailableModel] = Field(default_factory=list)
+    audio_library: list[AvailableAudioLibrary] = Field(default_factory=list)
     estimated_sizes: SectionSizes = Field(default_factory=SectionSizes)

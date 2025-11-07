@@ -157,6 +157,9 @@ services:
       /usr/bin/mc mb heimdall/heimdall-mlflow || true;
       /usr/bin/mc mb heimdall/heimdall-datasets || true;
       /usr/bin/mc mb heimdall/heimdall-audio-library || true;
+      /usr/bin/mc mb heimdall/heimdall-exports || true;
+      /usr/bin/mc ilm add heimdall/heimdall-exports --expiry-days 1 || true;
+      echo 'MinIO buckets created and lifecycle policy set for exports';
       exit 0;
       "
     networks:

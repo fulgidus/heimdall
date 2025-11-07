@@ -537,6 +537,76 @@ class EventPublisher:
         self._publish(f'training.job.{job_id}.update', event)
         logger.info(f"Published training job update: job {job_id}, status={status}, action={action}")
 
+    def publish_export_progress(
+        self,
+        task_id: str,
+        stage: str,
+        current: int,
+        total: int,
+        message: str,
+        **kwargs
+    ) -> None:
+        """
+        Publish export progress update.
+
+        Args:
+            task_id: Export task ID (Celery task ID)
+            stage: Current stage (sources/websdrs/sessions/sample_sets/models/audio_library/finalizing)
+            current: Current progress within stage
+            total: Total items in stage
+            message: Human-readable progress message
+            **kwargs: Additional data (bytes_processed, estimated_size_bytes, etc.)
+        """
+        event = {
+            'event': 'export:progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'stage': stage,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'message': message,
+                **kwargs
+            }
+        }
+
+        self._publish(f'export.progress.{task_id}', event)
+        logger.info(f"Published export progress: task {task_id}, stage={stage}, {current}/{total}")
+
+    def publish_export_completed(
+        self,
+        task_id: str,
+        status: str,
+        download_url: Optional[str] = None,
+        file_size_bytes: Optional[int] = None,
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        Publish export completed event.
+
+        Args:
+            task_id: Export task ID
+            status: Final status (completed, failed, cancelled)
+            download_url: URL to download the .heimdall file
+            file_size_bytes: Final file size
+            error_message: Error message if failed
+        """
+        event = {
+            'event': 'export:completed',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'status': status,
+                'download_url': download_url,
+                'file_size_bytes': file_size_bytes,
+                'error_message': error_message
+            }
+        }
+
+        self._publish(f'export.completed.{task_id}', event)
+        logger.info(f"Published export completed: task {task_id}, status={status}")
+
 
 # Singleton instance for convenience
 _publisher = None

@@ -7,10 +7,14 @@ import base64
 import json
 import logging
 
+import asyncpg
 from fastapi import APIRouter, HTTPException
 
 from ..db import get_pool
 from ..models.import_export import (
+    AvailableAudioLibrary,
+    ExportedAudioChunk,
+    ExportedAudioLibrary,
     ExportedModel,
     ExportedSampleSet,
     ExportedSession,
@@ -24,6 +28,7 @@ from ..models.import_export import (
     ImportRequest,
     ImportResponse,
     MetadataResponse,
+    SampleSetExportConfig,
     SectionSizes,
     UserSettings,
 )
@@ -54,14 +59,34 @@ async def get_export_metadata():
         # Count sessions
         sessions_count = await conn.fetchval("SELECT COUNT(*) FROM heimdall.recording_sessions")
 
-        # Get available sample sets
+        # Get available sample sets with accurate size calculations
         sample_sets_rows = await conn.fetch(
             """
             SELECT 
                 sd.id, 
                 sd.name, 
                 COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
-                sd.created_at
+                sd.created_at,
+                -- Calculate average row size using pg_column_size for all exported columns
+                -- Multiply by 1.25 for JSON overhead (keys, quotes, commas, etc.)
+                CASE 
+                    WHEN COUNT(mf.recording_session_id) > 0 THEN
+                        CEIL(
+                            AVG(
+                                pg_column_size(mf.recording_session_id) +
+                                pg_column_size(mf.dataset_id) +
+                                pg_column_size(mf.tx_latitude) +
+                                pg_column_size(mf.tx_longitude) +
+                                pg_column_size(mf.tx_power_dbm) +
+                                pg_column_size(mf.extraction_metadata) +
+                                pg_column_size(mf.mean_snr_db) +
+                                pg_column_size(mf.overall_confidence) +
+                                pg_column_size(mf.gdop) +
+                                pg_column_size(mf.created_at)
+                            ) * 1.25
+                        )::bigint
+                    ELSE 5600
+                END as estimated_size_per_sample
             FROM heimdall.synthetic_datasets sd
             LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
             GROUP BY sd.id, sd.name, sd.created_at
@@ -75,6 +100,8 @@ async def get_export_metadata():
                 "name": row["name"],
                 "num_samples": row["num_samples"],
                 "created_at": row["created_at"].isoformat(),
+                "estimated_size_per_sample": row["estimated_size_per_sample"],
+                "estimated_size_bytes": row["num_samples"] * row["estimated_size_per_sample"],
             }
             for row in sample_sets_rows
         ]
@@ -104,18 +131,50 @@ async def get_export_metadata():
             for row in models_rows
         ]
 
-        # Estimate section sizes (rough estimates)
+        # Get available audio library entries
+        audio_library_rows = await conn.fetch(
+            """
+            SELECT 
+                al.id, 
+                al.filename, 
+                al.category,
+                al.file_size_bytes,
+                al.duration_seconds,
+                al.total_chunks,
+                al.created_at
+            FROM heimdall.audio_library al
+            WHERE al.processing_status = 'completed'
+            ORDER BY al.created_at DESC
+        """
+        )
+        
+        audio_library = [
+            {
+                "id": str(row["id"]),
+                "filename": row["filename"],
+                "category": row["category"],
+                "duration_seconds": float(row["duration_seconds"]),
+                "total_chunks": row["total_chunks"],
+                "file_size_bytes": row["file_size_bytes"],
+                "created_at": row["created_at"].isoformat(),
+            }
+            for row in audio_library_rows
+        ]
+
+        # Estimate section sizes
         settings_size = 256
         sources_size = sources_count * 500 if sources_count else 0
         websdrs_size = websdrs_count * 400 if websdrs_count else 0
         sessions_size = sessions_count * 600 if sessions_count else 0
-        # Sample size calculation:
-        # - 7 receivers × 593 bytes (17 features × 4 stats each × 8 bytes + metadata)
-        # - Ground truth + sample metadata: ~136 bytes
-        # - JSONB overhead (PostgreSQL): ~1.3x
-        # Total: ~5600 bytes per sample
-        sample_sets_size = sum(s["num_samples"] * 5600 for s in sample_sets)
+        # Sample sets: Use accurate calculation from database query
+        sample_sets_size = sum(s["estimated_size_bytes"] for s in sample_sets)
         models_size = len(models) * 50000000  # ~50MB per model (rough estimate)
+        # Audio library: Each chunk is ~200KB (1 second @ 200kHz sample rate)
+        # Plus base64 encoding overhead (~1.33x) and JSON metadata (~500 bytes per chunk)
+        audio_library_size = sum(
+            (al["total_chunks"] * 200000 * 1.33) + (al["total_chunks"] * 500) 
+            for al in audio_library
+        )
 
         return MetadataResponse(
             sources_count=sources_count or 0,
@@ -123,6 +182,7 @@ async def get_export_metadata():
             sessions_count=sessions_count or 0,
             sample_sets=sample_sets,
             models=models,
+            audio_library=audio_library,
             estimated_sizes=SectionSizes(
                 settings=settings_size,
                 sources=sources_size,
@@ -130,6 +190,7 @@ async def get_export_metadata():
                 sessions=sessions_size,
                 sample_sets=sample_sets_size,
                 models=models_size,
+                audio_library=int(audio_library_size),
             ),
         )
 
@@ -141,8 +202,12 @@ async def export_data(request: ExportRequest):
 
     Allows selective export of sources, WebSDRs, sessions, and models.
     """
-    pool = get_pool()
-    sections = ExportSections()
+    try:
+        pool = get_pool()
+        sections = ExportSections()
+    except Exception as e:
+        logger.error(f"Failed to initialize export: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Export initialization failed: {str(e)}")
 
     async with pool.acquire() as conn:
         # Export settings if requested
@@ -264,67 +329,254 @@ async def export_data(request: ExportRequest):
             sections.sessions = sessions
 
         # Export sample sets if requested
-        if request.sample_set_ids:
+        if request.sample_set_configs:
             sample_sets = []
-            for dataset_id in request.sample_set_ids:
-                # Get dataset metadata
-                dataset_row = await conn.fetchrow(
-                    """
-                    SELECT 
-                        sd.id, sd.name, sd.description, sd.config, 
-                        sd.quality_metrics, sd.created_at,
-                        COALESCE(COUNT(mf.recording_session_id), 0) as num_samples
-                    FROM heimdall.synthetic_datasets sd
-                    LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
-                    WHERE sd.id = $1
-                    GROUP BY sd.id, sd.name, sd.description, sd.config, 
-                             sd.quality_metrics, sd.created_at
-                    """,
-                    dataset_id,
-                )
-                
-                if not dataset_row:
-                    logger.warning(f"Sample set {dataset_id} not found, skipping")
-                    continue
-
-                # Get sample data (limit to reasonable size for export)
-                samples_rows = await conn.fetch(
-                    """
-                    SELECT 
-                        tx_lat, tx_lon, tx_power_dbm, frequency_hz,
-                        extraction_metadata, mean_snr_db, overall_confidence, gdop
-                    FROM heimdall.measurement_features
-                    WHERE dataset_id = $1
-                    LIMIT 10000
-                    """,
-                    dataset_id,
-                )
-                
-                samples = []
-                for sample_row in samples_rows:
-                    samples.append({
-                        "tx_lat": float(sample_row["tx_lat"]),
-                        "tx_lon": float(sample_row["tx_lon"]),
-                        "tx_power_dbm": float(sample_row["tx_power_dbm"]) if sample_row["tx_power_dbm"] else None,
-                        "frequency_hz": float(sample_row["frequency_hz"]) if sample_row["frequency_hz"] else None,
-                        "mean_snr_db": float(sample_row["mean_snr_db"]) if sample_row["mean_snr_db"] else None,
-                        "overall_confidence": float(sample_row["overall_confidence"]) if sample_row["overall_confidence"] else None,
-                        "gdop": float(sample_row["gdop"]) if sample_row["gdop"] else None,
-                        "extraction_metadata": sample_row["extraction_metadata"],
-                    })
-
-                sample_sets.append(
-                    ExportedSampleSet(
-                        id=str(dataset_row["id"]),
-                        name=dataset_row["name"],
-                        description=dataset_row["description"],
-                        num_samples=dataset_row["num_samples"],
-                        config=dataset_row["config"],
-                        quality_metrics=dataset_row["quality_metrics"],
-                        created_at=dataset_row["created_at"].isoformat(),
-                        samples=samples[:10000],  # Limit to 10k samples max
+            for config_raw in request.sample_set_configs:
+                try:
+                    # Ensure config is a Pydantic model instance
+                    # FastAPI should do this automatically, but being defensive for robustness
+                    config: SampleSetExportConfig
+                    if isinstance(config_raw, dict):
+                        config = SampleSetExportConfig.model_validate(config_raw)
+                    else:
+                        config = config_raw
+                    
+                    # Get dataset metadata
+                    dataset_row = await conn.fetchrow(
+                        """
+                        SELECT 
+                            sd.id, sd.name, sd.description, sd.config, 
+                            sd.quality_metrics, sd.created_at,
+                            COALESCE(COUNT(mf.recording_session_id), 0) as num_samples
+                        FROM heimdall.synthetic_datasets sd
+                        LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
+                        WHERE sd.id = $1
+                        GROUP BY sd.id, sd.name, sd.description, sd.config, 
+                                 sd.quality_metrics, sd.created_at
+                        """,
+                        config.dataset_id,
                     )
-                )
+                    
+                    if not dataset_row:
+                        logger.warning(f"Sample set {config.dataset_id} not found, skipping")
+                        continue
+
+                    # Determine actual export range
+                    total_samples = dataset_row["num_samples"]
+                    offset = config.sample_offset
+                    limit = config.sample_limit if config.sample_limit else (total_samples - offset)
+                    
+                    # Validate range
+                    if offset >= total_samples:
+                        logger.warning(
+                            f"Sample set {config.dataset_id}: offset {offset} >= total {total_samples}, skipping"
+                        )
+                        continue
+                    
+                    # Adjust limit if it exceeds available samples
+                    actual_limit = min(limit, total_samples - offset)
+
+                    # Get COMPLETE feature data from measurement_features
+                    features_rows = await conn.fetch(
+                        """
+                        SELECT 
+                            recording_session_id, timestamp, receiver_features,
+                            tx_latitude, tx_longitude, tx_altitude_m, tx_power_dbm, tx_known,
+                            extraction_metadata, overall_confidence, mean_snr_db,
+                            num_receivers_detected, gdop, extraction_failed, error_message,
+                            created_at, num_receivers_in_sample
+                        FROM heimdall.measurement_features
+                        WHERE dataset_id = $1
+                        ORDER BY created_at ASC
+                        OFFSET $2
+                        LIMIT $3
+                        """,
+                        config.dataset_id,
+                        offset,
+                        actual_limit,
+                    )
+                    
+                    features = []
+                    for feat_row in features_rows:
+                        # Parse JSON fields
+                        receiver_features = feat_row["receiver_features"]
+                        if isinstance(receiver_features, str):
+                            receiver_features = json.loads(receiver_features)
+                        # receiver_features is a JSONB array, each element might be a JSON string
+                        if receiver_features and isinstance(receiver_features, list):
+                            receiver_features = [
+                                json.loads(rf) if isinstance(rf, str) else rf
+                                for rf in receiver_features
+                            ]
+                        
+                        extraction_metadata = feat_row["extraction_metadata"]
+                        if isinstance(extraction_metadata, str):
+                            extraction_metadata = json.loads(extraction_metadata)
+                        
+                        features.append({
+                            "recording_session_id": str(feat_row["recording_session_id"]),
+                            "timestamp": feat_row["timestamp"].isoformat(),
+                            "receiver_features": receiver_features,
+                            "tx_latitude": float(feat_row["tx_latitude"]) if feat_row["tx_latitude"] else None,
+                            "tx_longitude": float(feat_row["tx_longitude"]) if feat_row["tx_longitude"] else None,
+                            "tx_altitude_m": float(feat_row["tx_altitude_m"]) if feat_row["tx_altitude_m"] else None,
+                            "tx_power_dbm": float(feat_row["tx_power_dbm"]) if feat_row["tx_power_dbm"] else None,
+                            "tx_known": feat_row["tx_known"],
+                            "extraction_metadata": extraction_metadata,
+                            "overall_confidence": float(feat_row["overall_confidence"]),
+                            "mean_snr_db": float(feat_row["mean_snr_db"]) if feat_row["mean_snr_db"] else None,
+                            "num_receivers_detected": feat_row["num_receivers_detected"],
+                            "gdop": float(feat_row["gdop"]) if feat_row["gdop"] else None,
+                            "extraction_failed": feat_row["extraction_failed"],
+                            "error_message": feat_row["error_message"],
+                            "created_at": feat_row["created_at"].isoformat(),
+                            "num_receivers_in_sample": feat_row["num_receivers_in_sample"],
+                        })
+                    
+                    # Get COMPLETE IQ data from synthetic_iq_samples
+                    iq_samples = []
+                    if config.include_iq_data:
+                        logger.info(f"Fetching IQ samples for dataset {config.dataset_id}")
+                        iq_rows = await conn.fetch(
+                            """
+                            SELECT 
+                                id, dataset_id, sample_idx, timestamp,
+                                tx_lat, tx_lon, tx_alt, tx_power_dbm, frequency_hz,
+                                receivers_metadata, num_receivers, gdop, mean_snr_db, overall_confidence,
+                                iq_metadata, iq_storage_paths, created_at
+                            FROM heimdall.synthetic_iq_samples
+                            WHERE dataset_id = $1
+                            ORDER BY sample_idx ASC
+                            OFFSET $2
+                            LIMIT $3
+                            """,
+                            config.dataset_id,
+                            offset,
+                            actual_limit,
+                        )
+                        
+                        # Initialize MinIO client for IQ data download
+                        minio_client = MinIOClient(
+                            endpoint_url=settings.MINIO_ENDPOINT,
+                            access_key=settings.MINIO_ACCESS_KEY,
+                            secret_key=settings.MINIO_SECRET_KEY,
+                            bucket_name="rf-signals",
+                        )
+                        
+                        for iq_row in iq_rows:
+                            # Parse JSON fields
+                            receivers_metadata = iq_row["receivers_metadata"]
+                            if isinstance(receivers_metadata, str):
+                                receivers_metadata = json.loads(receivers_metadata)
+                            
+                            iq_metadata = iq_row["iq_metadata"]
+                            if isinstance(iq_metadata, str):
+                                iq_metadata = json.loads(iq_metadata)
+                            
+                            iq_storage_paths = iq_row["iq_storage_paths"]
+                            if isinstance(iq_storage_paths, str):
+                                iq_storage_paths = json.loads(iq_storage_paths)
+                            
+                            # Download IQ binary data from MinIO and encode to base64
+                            iq_data_list = []
+                            for receiver_id, s3_path in iq_storage_paths.items():
+                                try:
+                                    # Parse s3://bucket/key format or assume rf-signals bucket
+                                    if s3_path.startswith("s3://"):
+                                        s3_path = s3_path[5:]
+                                        parts = s3_path.split("/", 1)
+                                        bucket = parts[0]
+                                        key = parts[1] if len(parts) > 1 else ""
+                                    else:
+                                        # Assume default bucket
+                                        bucket = "rf-signals"
+                                        key = s3_path
+                                    
+                                    # Download IQ data
+                                    response = minio_client.s3_client.get_object(Bucket=bucket, Key=key)
+                                    iq_bytes = response["Body"].read()
+                                    iq_base64 = base64.b64encode(iq_bytes).decode("utf-8")
+                                    
+                                    iq_data_list.append({
+                                        "receiver_id": receiver_id,
+                                        "iq_data_base64": iq_base64,
+                                    })
+                                    logger.debug(f"Downloaded IQ data for {receiver_id}: {len(iq_bytes)} bytes")
+                                except Exception as e:
+                                    logger.error(f"Failed to download IQ data for {receiver_id} at {s3_path}: {e}")
+                                    # Continue with other receivers even if one fails
+                            
+                            iq_samples.append({
+                                "id": str(iq_row["id"]),
+                                "sample_idx": iq_row["sample_idx"],
+                                "timestamp": iq_row["timestamp"].isoformat(),
+                                "tx_lat": float(iq_row["tx_lat"]),
+                                "tx_lon": float(iq_row["tx_lon"]),
+                                "tx_alt": float(iq_row["tx_alt"]),
+                                "tx_power_dbm": float(iq_row["tx_power_dbm"]),
+                                "frequency_hz": iq_row["frequency_hz"],
+                                "num_receivers": iq_row["num_receivers"],
+                                "gdop": float(iq_row["gdop"]) if iq_row["gdop"] else None,
+                                "mean_snr_db": float(iq_row["mean_snr_db"]) if iq_row["mean_snr_db"] else None,
+                                "overall_confidence": float(iq_row["overall_confidence"]) if iq_row["overall_confidence"] else None,
+                                "receivers_metadata": receivers_metadata,
+                                "iq_metadata": iq_metadata,
+                                "iq_storage_paths": iq_storage_paths,
+                                "iq_data": iq_data_list,
+                                "created_at": iq_row["created_at"].isoformat(),
+                            })
+                    else:
+                        logger.info(f"Skipping IQ data download (include_iq_data=False)")
+
+                    # Parse JSON fields if they're strings (asyncpg sometimes returns jsonb as strings)
+                    dataset_config = dataset_row["config"]
+                    if isinstance(dataset_config, str):
+                        dataset_config = json.loads(dataset_config)
+                    
+                    quality_metrics = dataset_row["quality_metrics"]
+                    if isinstance(quality_metrics, str):
+                        quality_metrics = json.loads(quality_metrics)
+                    
+                    sample_sets.append(
+                        ExportedSampleSet(
+                            id=str(dataset_row["id"]),
+                            name=dataset_row["name"],
+                            description=dataset_row["description"],
+                            num_samples=dataset_row["num_samples"],
+                            config=dataset_config,
+                            quality_metrics=quality_metrics,
+                            created_at=dataset_row["created_at"].isoformat(),
+                            features=features,
+                            iq_samples=iq_samples if config.include_iq_data else None,
+                            num_exported_features=len(features),
+                            num_exported_iq_samples=len(iq_samples) if config.include_iq_data else 0,
+                            export_range={"offset": offset, "limit": actual_limit},
+                        )
+                    )
+                except asyncpg.QueryCanceledError as e:
+                    logger.error(f"Query timeout for sample set {config.dataset_id}: {e}")
+                    raise HTTPException(
+                        status_code=504,
+                        detail=f"Export timed out for sample set {config.dataset_id}. Try reducing sample range.",
+                    )
+                except MemoryError as e:
+                    logger.error(f"Memory exhausted for sample set {config.dataset_id}: {e}")
+                    raise HTTPException(
+                        status_code=507,
+                        detail=f"Insufficient memory to export sample set {config.dataset_id}. Try reducing sample range.",
+                    )
+                except asyncpg.PostgresError as e:
+                    logger.error(f"Database error for sample set {config.dataset_id}: {e}", exc_info=True)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Database error exporting sample set {config.dataset_id}: {str(e)}",
+                    )
+                except Exception as e:
+                    logger.error(f"Unexpected error for sample set {config.dataset_id}: {e}", exc_info=True)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to export sample set {config.dataset_id}: {str(e)}",
+                    )
             
             sections.sample_sets = sample_sets if sample_sets else None
 
@@ -377,6 +629,15 @@ async def export_data(request: ExportRequest):
                     except Exception as e:
                         logger.error(f"Failed to download ONNX model for {model_id}: {e}")
 
+                # Parse JSON fields if they're strings (PostgreSQL JSONB returns as strings)
+                hyperparameters = model_row["hyperparameters"]
+                if isinstance(hyperparameters, str):
+                    hyperparameters = json.loads(hyperparameters)
+                
+                training_metrics = model_row["training_metrics"]
+                if isinstance(training_metrics, str):
+                    training_metrics = json.loads(training_metrics)
+                
                 models.append(
                     ExportedModel(
                         id=str(model_row["id"]),
@@ -386,15 +647,122 @@ async def export_data(request: ExportRequest):
                         created_at=model_row["created_at"].isoformat(),
                         onnx_model_base64=onnx_base64,
                         accuracy_meters=model_row["accuracy_meters"],
-                        hyperparameters=model_row["hyperparameters"],
-                        training_metrics=model_row["training_metrics"],
+                        hyperparameters=hyperparameters,
+                        training_metrics=training_metrics,
                     )
                 )
             
             sections.models = models if models else None
 
-    # Calculate section sizes
+        # Export audio library if requested
+        if request.audio_library_ids:
+            minio_audio_client = MinIOClient(
+                endpoint_url=settings.minio_url,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                bucket_name="heimdall-audio-chunks",
+            )
+            
+            audio_libraries = []
+            for audio_id in request.audio_library_ids:
+                # Get audio library metadata
+                audio_row = await conn.fetchrow(
+                    """
+                    SELECT 
+                        id, filename, category, tags, file_size_bytes,
+                        duration_seconds, sample_rate, channels, audio_format,
+                        processing_status, total_chunks, enabled,
+                        created_at, updated_at
+                    FROM heimdall.audio_library
+                    WHERE id = $1
+                    """,
+                    audio_id,
+                )
+                
+                if not audio_row:
+                    logger.warning(f"Audio library entry {audio_id} not found, skipping")
+                    continue
+                
+                # Get audio chunks for this audio file
+                chunks_rows = await conn.fetch(
+                    """
+                    SELECT 
+                        id, chunk_index, duration_seconds, sample_rate,
+                        num_samples, file_size_bytes, original_offset_seconds,
+                        rms_amplitude, minio_path, created_at
+                    FROM heimdall.audio_chunks
+                    WHERE audio_id = $1
+                    ORDER BY chunk_index ASC
+                    """,
+                    audio_id,
+                )
+                
+                chunks = []
+                for chunk_row in chunks_rows:
+                    # Download chunk data from MinIO
+                    audio_data_base64 = None
+                    minio_path = chunk_row["minio_path"]
+                    
+                    if minio_path:
+                        try:
+                            # Parse s3://bucket/key format
+                            if minio_path.startswith("s3://"):
+                                minio_path = minio_path[5:]
+                            
+                            parts = minio_path.split("/", 1)
+                            bucket = parts[0]
+                            key = parts[1] if len(parts) > 1 else ""
+                            
+                            # Download from MinIO
+                            response = minio_audio_client.s3_client.get_object(Bucket=bucket, Key=key)
+                            audio_bytes = response["Body"].read()
+                            audio_data_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+                            logger.info(f"Downloaded audio chunk from {minio_path} ({len(audio_bytes)} bytes)")
+                        except Exception as e:
+                            logger.error(f"Failed to download audio chunk {chunk_row['id']}: {e}")
+                            # Continue with other chunks even if one fails
+                    
+                    chunks.append(
+                        ExportedAudioChunk(
+                            id=str(chunk_row["id"]),
+                            chunk_index=chunk_row["chunk_index"],
+                            duration_seconds=float(chunk_row["duration_seconds"]),
+                            sample_rate=chunk_row["sample_rate"],
+                            num_samples=chunk_row["num_samples"],
+                            file_size_bytes=chunk_row["file_size_bytes"],
+                            original_offset_seconds=float(chunk_row["original_offset_seconds"]),
+                            rms_amplitude=float(chunk_row["rms_amplitude"]) if chunk_row["rms_amplitude"] else None,
+                            created_at=chunk_row["created_at"].isoformat(),
+                            audio_data_base64=audio_data_base64,
+                        )
+                    )
+                
+                audio_libraries.append(
+                    ExportedAudioLibrary(
+                        id=str(audio_row["id"]),
+                        filename=audio_row["filename"],
+                        category=audio_row["category"],
+                        tags=audio_row["tags"] if audio_row["tags"] else None,
+                        file_size_bytes=audio_row["file_size_bytes"],
+                        duration_seconds=float(audio_row["duration_seconds"]),
+                        sample_rate=audio_row["sample_rate"],
+                        channels=audio_row["channels"],
+                        audio_format=audio_row["audio_format"],
+                        processing_status=audio_row["processing_status"],
+                        total_chunks=audio_row["total_chunks"],
+                        enabled=audio_row["enabled"],
+                        created_at=audio_row["created_at"].isoformat(),
+                        updated_at=audio_row["updated_at"].isoformat(),
+                        chunks=chunks if chunks else None,
+                    )
+                )
+            
+            sections.audio_library = audio_libraries if audio_libraries else None
+
+    # Calculate section sizes efficiently (without full serialization)
     section_sizes = SectionSizes()
+    
+    # Small sections: use actual serialization (minimal memory impact)
     if sections.settings:
         section_sizes.settings = len(json.dumps(sections.settings.model_dump()))
     if sections.sources:
@@ -403,10 +771,43 @@ async def export_data(request: ExportRequest):
         section_sizes.websdrs = len(json.dumps([w.model_dump() for w in sections.websdrs]))
     if sections.sessions:
         section_sizes.sessions = len(json.dumps([s.model_dump() for s in sections.sessions]))
+    
+    # Large sections: estimate based on sample + count
     if sections.sample_sets:
-        section_sizes.sample_sets = len(json.dumps([s.model_dump() for s in sections.sample_sets]))
+        # Estimate: serialize first sample set, multiply by count with overhead factor
+        if len(sections.sample_sets) > 0:
+            first_sample_size = len(json.dumps(sections.sample_sets[0].model_dump()))
+            section_sizes.sample_sets = first_sample_size * len(sections.sample_sets)
+        else:
+            section_sizes.sample_sets = 0
+    
     if sections.models:
-        section_sizes.models = len(json.dumps([m.model_dump() for m in sections.models]))
+        # Models with ONNX can be huge - estimate per model
+        total_model_size = 0
+        for model in sections.models:
+            # Base metadata: ~500 bytes
+            base_size = 500
+            # ONNX model if present
+            if model.onnx_model_base64:
+                base_size += len(model.onnx_model_base64)
+            total_model_size += base_size
+        section_sizes.models = total_model_size
+    
+    if sections.audio_library:
+        # Audio chunks can be huge - estimate per audio library item
+        total_audio_size = 0
+        for audio in sections.audio_library:
+            # Base metadata: ~500 bytes
+            base_size = 500
+            # Chunks if present
+            if audio.chunks:
+                for chunk in audio.chunks:
+                    chunk_size = 500  # metadata
+                    if chunk.audio_data_base64:
+                        chunk_size += len(chunk.audio_data_base64)
+                    base_size += chunk_size
+            total_audio_size += base_size
+        section_sizes.audio_library = total_audio_size
 
     # Create metadata
     metadata = ExportMetadata(
@@ -446,6 +847,7 @@ async def import_data(request: ImportRequest):
         "sessions": 0,
         "sample_sets": 0,
         "models": 0,
+        "audio_library": 0,
     }
     errors = []
 
@@ -823,6 +1225,169 @@ async def import_data(request: ImportRequest):
                         except Exception as e:
                             errors.append(f"Error importing model {model.model_name}: {str(e)}")
 
+                # Import audio library
+                if request.import_audio_library and request.heimdall_file.sections.audio_library:
+                    minio_audio_client = MinIOClient(
+                        endpoint_url=settings.minio_url,
+                        access_key=settings.minio_access_key,
+                        secret_key=settings.minio_secret_key,
+                        bucket_name="heimdall-audio-chunks",
+                    )
+                    
+                    for audio_lib in request.heimdall_file.sections.audio_library:
+                        try:
+                            # Insert or update audio library metadata
+                            if request.overwrite_existing:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.audio_library
+                                    (id, filename, category, tags, file_size_bytes,
+                                     duration_seconds, sample_rate, channels, audio_format,
+                                     processing_status, total_chunks, enabled,
+                                     created_at, updated_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                    ON CONFLICT (id) DO UPDATE SET
+                                        filename = EXCLUDED.filename,
+                                        category = EXCLUDED.category,
+                                        tags = EXCLUDED.tags,
+                                        file_size_bytes = EXCLUDED.file_size_bytes,
+                                        duration_seconds = EXCLUDED.duration_seconds,
+                                        sample_rate = EXCLUDED.sample_rate,
+                                        channels = EXCLUDED.channels,
+                                        audio_format = EXCLUDED.audio_format,
+                                        processing_status = EXCLUDED.processing_status,
+                                        total_chunks = EXCLUDED.total_chunks,
+                                        enabled = EXCLUDED.enabled,
+                                        updated_at = NOW()
+                                    """,
+                                    audio_lib.id,
+                                    audio_lib.filename,
+                                    audio_lib.category,
+                                    audio_lib.tags,
+                                    audio_lib.file_size_bytes,
+                                    audio_lib.duration_seconds,
+                                    audio_lib.sample_rate,
+                                    audio_lib.channels,
+                                    audio_lib.audio_format,
+                                    audio_lib.processing_status,
+                                    audio_lib.total_chunks,
+                                    audio_lib.enabled,
+                                    audio_lib.created_at,
+                                    audio_lib.updated_at,
+                                )
+                            else:
+                                await conn.execute(
+                                    """
+                                    INSERT INTO heimdall.audio_library
+                                    (id, filename, category, tags, file_size_bytes,
+                                     duration_seconds, sample_rate, channels, audio_format,
+                                     processing_status, total_chunks, enabled,
+                                     created_at, updated_at)
+                                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                    ON CONFLICT (id) DO NOTHING
+                                    """,
+                                    audio_lib.id,
+                                    audio_lib.filename,
+                                    audio_lib.category,
+                                    audio_lib.tags,
+                                    audio_lib.file_size_bytes,
+                                    audio_lib.duration_seconds,
+                                    audio_lib.sample_rate,
+                                    audio_lib.channels,
+                                    audio_lib.audio_format,
+                                    audio_lib.processing_status,
+                                    audio_lib.total_chunks,
+                                    audio_lib.enabled,
+                                    audio_lib.created_at,
+                                    audio_lib.updated_at,
+                                )
+                            
+                            # Import audio chunks if present
+                            if audio_lib.chunks:
+                                for chunk in audio_lib.chunks:
+                                    try:
+                                        # Upload chunk to MinIO if audio data is present
+                                        minio_path = None
+                                        if chunk.audio_data_base64:
+                                            try:
+                                                import io
+                                                audio_bytes = base64.b64decode(chunk.audio_data_base64)
+                                                chunk_key = f"imported/{audio_lib.id}/{chunk.chunk_index:04d}.npy"
+                                                
+                                                minio_audio_client.s3_client.put_object(
+                                                    Bucket="heimdall-audio-chunks",
+                                                    Key=chunk_key,
+                                                    Body=io.BytesIO(audio_bytes),
+                                                    ContentLength=len(audio_bytes),
+                                                )
+                                                
+                                                minio_path = f"s3://heimdall-audio-chunks/{chunk_key}"
+                                                logger.info(f"Uploaded audio chunk to {minio_path}")
+                                            except Exception as e:
+                                                logger.error(f"Failed to upload audio chunk: {e}")
+                                                errors.append(f"Failed to upload audio chunk for {audio_lib.filename}: {str(e)}")
+                                        
+                                        # Insert chunk metadata
+                                        if request.overwrite_existing:
+                                            await conn.execute(
+                                                """
+                                                INSERT INTO heimdall.audio_chunks
+                                                (id, audio_id, chunk_index, duration_seconds, sample_rate,
+                                                 num_samples, file_size_bytes, original_offset_seconds,
+                                                 rms_amplitude, minio_path, created_at)
+                                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                                ON CONFLICT (id) DO UPDATE SET
+                                                    chunk_index = EXCLUDED.chunk_index,
+                                                    duration_seconds = EXCLUDED.duration_seconds,
+                                                    sample_rate = EXCLUDED.sample_rate,
+                                                    num_samples = EXCLUDED.num_samples,
+                                                    file_size_bytes = EXCLUDED.file_size_bytes,
+                                                    original_offset_seconds = EXCLUDED.original_offset_seconds,
+                                                    rms_amplitude = EXCLUDED.rms_amplitude,
+                                                    minio_path = EXCLUDED.minio_path
+                                                """,
+                                                chunk.id,
+                                                audio_lib.id,
+                                                chunk.chunk_index,
+                                                chunk.duration_seconds,
+                                                chunk.sample_rate,
+                                                chunk.num_samples,
+                                                chunk.file_size_bytes,
+                                                chunk.original_offset_seconds,
+                                                chunk.rms_amplitude,
+                                                minio_path,
+                                                chunk.created_at,
+                                            )
+                                        else:
+                                            await conn.execute(
+                                                """
+                                                INSERT INTO heimdall.audio_chunks
+                                                (id, audio_id, chunk_index, duration_seconds, sample_rate,
+                                                 num_samples, file_size_bytes, original_offset_seconds,
+                                                 rms_amplitude, minio_path, created_at)
+                                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                                ON CONFLICT (id) DO NOTHING
+                                                """,
+                                                chunk.id,
+                                                audio_lib.id,
+                                                chunk.chunk_index,
+                                                chunk.duration_seconds,
+                                                chunk.sample_rate,
+                                                chunk.num_samples,
+                                                chunk.file_size_bytes,
+                                                chunk.original_offset_seconds,
+                                                chunk.rms_amplitude,
+                                                minio_path,
+                                                chunk.created_at,
+                                            )
+                                    except Exception as e:
+                                        logger.warning(f"Error importing audio chunk {chunk.chunk_index}: {e}")
+                                        # Continue with other chunks even if one fails
+                            
+                            imported_counts["audio_library"] += 1
+                        except Exception as e:
+                            errors.append(f"Error importing audio library {audio_lib.filename}: {str(e)}")
+
             except Exception as e:
                 logger.error(f"Import failed: {e}")
                 errors.append(f"Transaction failed: {str(e)}")
@@ -837,3 +1402,77 @@ async def import_data(request: ImportRequest):
         imported_counts=imported_counts,
         errors=errors,
     )
+
+
+@router.post("/export/async")
+async def export_data_async(request: ExportRequest):
+    """
+    Initiate asynchronous export with progress tracking.
+    
+    Returns immediately with a task_id. Client should listen to WebSocket
+    for progress updates and completion notification with download URL.
+    """
+    from ..tasks.export_task import export_async
+    
+    # Submit Celery task
+    task = export_async.delay(request.dict())
+    
+    return {
+        "status": "processing",
+        "task_id": task.id,
+        "message": "Export started. Listen to WebSocket for progress updates."
+    }
+
+
+@router.get("/download/{task_id}")
+async def download_export(task_id: str):
+    """
+    Download exported .heimdall file and auto-delete after successful download.
+    """
+    from fastapi.responses import StreamingResponse
+    
+    minio_client = MinIOClient(
+        endpoint_url=settings.MINIO_ENDPOINT,
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        bucket_name="heimdall-exports"
+    )
+    
+    filename = f"export-{task_id}.heimdall"
+    s3_path = f"exports/{filename}"
+    
+    try:
+        # Stream file from MinIO
+        response = minio_client.s3_client.get_object(
+            Bucket="heimdall-exports",
+            Key=s3_path
+        )
+        
+        file_content = response["Body"].read()
+        file_size = len(file_content)
+        
+        logger.info(f"Serving export file {filename} ({file_size} bytes)")
+        
+        # Delete file after successful download
+        try:
+            minio_client.delete_object(s3_path)
+            logger.info(f"Deleted export file after download: {s3_path}")
+        except Exception as e:
+            logger.error(f"Failed to delete export file {s3_path}: {e}")
+        
+        # Return file as streaming response
+        return StreamingResponse(
+            iter([file_content]),
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(file_size)
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to download export {task_id}: {e}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Export file not found or has expired: {task_id}"
+        )

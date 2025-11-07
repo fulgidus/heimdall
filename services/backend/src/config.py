@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
     minio_bucket_raw_iq: str = "heimdall-raw-iq"
+    
+    # Uppercase aliases for MinIO (for compatibility)
+    MINIO_ENDPOINT: str = "http://minio:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_REGION: str = "us-east-1"
 
     # WebSDR configuration
     websdr_timeout_seconds: int = 30

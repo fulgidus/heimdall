@@ -10,18 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Nothing yet
-
-### Fixed
-- Nothing yet
-
----
-
-
-## [Unreleased]
-
-### Added
-- Nothing yet
+- **Audio Library Import/Export Support** (2025-11-07)
+  - Extended `.heimdall` file format to include audio library entries with chunks
+  - Backend: Added audio library export/import logic in `import_export.py`
+    - Queries `heimdall.audio_library` and `heimdall.audio_chunks` tables
+    - Downloads/uploads `.npy` chunk files from/to MinIO bucket `heimdall-audio-chunks`
+    - Base64-encodes audio data for JSON transport
+    - Supports selective export via `audio_library_ids` parameter
+    - Import creates new paths: `imported/{audio_id}/{chunk_index:04d}.npy`
+  - Frontend: Added audio library selection UI in Import/Export page
+    - Displays scrollable list of audio files with chunk count and size
+    - Auto-selects all audio library items by default
+    - Shows audio library count in import success message
+  - TypeScript: Added `ExportedAudioChunk`, `ExportedAudioLibrary`, `AvailableAudioLibrary` types
+  - Documentation: Created `docs/AUDIO_LIBRARY_IMPORT_EXPORT.md` with full implementation details
+  - Performance: ~200KB per 1-second chunk, base64 overhead ~33%
 
 ### Fixed
 - Nothing yet

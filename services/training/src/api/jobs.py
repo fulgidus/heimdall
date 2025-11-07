@@ -295,6 +295,7 @@ async def create_training_job(
         return TrainingJobResponse(
             id=str(row[0]),
             job_name=row[1],
+            job_type="training",
             status=row[2],
             created_at=row[3],
             total_epochs=row[4],
@@ -474,6 +475,7 @@ async def get_training_job(
         return TrainingJobResponse(
             id=str(result[0]),
             job_name=result[1],
+            job_type="training",
             celery_task_id=result[2],
             status=result[3],
             created_at=result[4],

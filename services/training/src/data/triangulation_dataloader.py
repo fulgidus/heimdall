@@ -295,6 +295,35 @@ class SyntheticTriangulationDataset(Dataset):
                 receiver_features.append(features)
                 signal_mask.append(not signal_present)  # True if no signal
             
+            # Calculate centroid from VALID receivers (exclude masked/padded)
+            # This creates a local reference frame for each sample
+            valid_positions = []
+            for i in range(len(receiver_features)):
+                # receiver_features[i] = [snr, psd, freq_offset, rx_lat, rx_lon, signal_present]
+                if not signal_mask[i]:  # signal_present == True (not masked)
+                    rx_lat_abs = receiver_features[i][3]
+                    rx_lon_abs = receiver_features[i][4]
+                    valid_positions.append([rx_lat_abs, rx_lon_abs])
+            
+            if len(valid_positions) > 0:
+                # Use mean of valid receiver positions as centroid
+                centroid_lat = np.mean([pos[0] for pos in valid_positions])
+                centroid_lon = np.mean([pos[1] for pos in valid_positions])
+            else:
+                # Fallback: use all receivers (shouldn't happen in normal training)
+                logger.warning(f"Sample {sample_id}: No valid receivers for centroid, using all positions")
+                centroid_lat = np.mean([receiver_features[i][3] for i in range(len(receiver_features))])
+                centroid_lon = np.mean([receiver_features[i][4] for i in range(len(receiver_features))])
+            
+            centroid = np.array([centroid_lat, centroid_lon])
+            
+            # Transform coordinates to DELTAS relative to centroid
+            # This puts all coordinates in a local reference frame with scale [-2, +2] degrees
+            # instead of absolute [43-47, 6-11] which causes gradient instability
+            for i in range(len(receiver_features)):
+                receiver_features[i][3] -= centroid_lat  # delta_lat = rx_lat - centroid_lat
+                receiver_features[i][4] -= centroid_lon  # delta_lon = rx_lon - centroid_lon
+            
             # Pad to max_receivers if needed
             num_receivers = len(receiver_features)
             if num_receivers < self.max_receivers:
@@ -303,11 +332,15 @@ class SyntheticTriangulationDataset(Dataset):
                 receiver_features.extend(padding)
                 signal_mask.extend([True] * (self.max_receivers - num_receivers))  # Mask padded positions
             
+            # Transform target to DELTA coordinates (relative to centroid)
+            target_delta_lat = tx_lat - centroid_lat
+            target_delta_lon = tx_lon - centroid_lon
+            
             # Convert to tensors
-            # NOTE: Target positions (tx_lat, tx_lon) are NOT normalized - model outputs real coordinates
+            # NOTE: Target positions are now DELTA coordinates (model predicts offsets from centroid)
             receiver_features_tensor = torch.tensor(receiver_features, dtype=torch.float32)
             signal_mask_tensor = torch.tensor(signal_mask, dtype=torch.bool)
-            target_position_tensor = torch.tensor([tx_lat, tx_lon], dtype=torch.float32)
+            target_position_tensor = torch.tensor([target_delta_lat, target_delta_lon], dtype=torch.float32)
             
             sample_data = {
                 "receiver_features": receiver_features_tensor,
@@ -316,7 +349,8 @@ class SyntheticTriangulationDataset(Dataset):
                 "metadata": {
                     "sample_id": sample_id,
                     "gdop": gdop if gdop else 50.0,  # Default GDOP if missing
-                    "num_receivers": num_receivers
+                    "num_receivers": num_receivers,
+                    "centroid": centroid.tolist()  # Store for reconstruction in training/inference
                 }
             }
             
@@ -349,11 +383,13 @@ def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     signal_mask = torch.stack([sample["signal_mask"] for sample in batch])
     target_position = torch.stack([sample["target_position"] for sample in batch])
     
-    # Collect metadata
+    # Collect metadata including centroids for coordinate reconstruction
+    # Centroids are needed to convert predicted DELTA coordinates back to absolute lat/lon
     metadata = {
         "sample_ids": [sample["metadata"]["sample_id"] for sample in batch],
         "gdop": torch.tensor([sample["metadata"]["gdop"] for sample in batch], dtype=torch.float32),
-        "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long)
+        "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long),
+        "centroids": torch.tensor([sample["metadata"]["centroid"] for sample in batch], dtype=torch.float32)  # [batch, 2] (lat, lon)
     }
     
     return {
