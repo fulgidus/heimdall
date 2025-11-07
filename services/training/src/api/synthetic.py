@@ -1139,14 +1139,18 @@ async def generate_dataset(
         tx_power_dbm = request.tx_power_dbm if request.tx_power_dbm is not None else parent_config.get("tx_power_dbm")
         min_snr_db = request.min_snr_db if request.min_snr_db is not None else parent_config.get("min_snr_db")
         min_receivers = request.min_receivers if request.min_receivers is not None else parent_config.get("min_receivers")
+        # CRITICAL: Inherit dataset_type from parent (iq_raw vs feature_based)
+        # Without this, expansions default to feature_based and lose IQ sample generation
+        dataset_type = parent_config.get("dataset_type", "feature_based")
         
-        logger.info("inherited_parameters", freq=frequency_mhz, power=tx_power_dbm, snr=min_snr_db, min_rx=min_receivers)
+        logger.info("inherited_parameters", freq=frequency_mhz, power=tx_power_dbm, snr=min_snr_db, min_rx=min_receivers, dataset_type=dataset_type)
     else:
         # For new datasets, use provided values (which are now required to be set by frontend or will be None)
         frequency_mhz = request.frequency_mhz
         tx_power_dbm = request.tx_power_dbm
         min_snr_db = request.min_snr_db
         min_receivers = request.min_receivers
+        dataset_type = request.dataset_type
     
     config = {
         "name": request.name,
@@ -1157,7 +1161,7 @@ async def generate_dataset(
         "min_snr_db": min_snr_db,
         "min_receivers": min_receivers,
         "max_gdop": request.max_gdop,
-        "dataset_type": request.dataset_type,
+        "dataset_type": dataset_type,  # Use inherited value for expansions
         "use_random_receivers": request.use_random_receivers,
         "use_srtm_terrain": request.use_srtm_terrain,
         "use_gpu": request.use_gpu,
