@@ -9,15 +9,17 @@ import { useTrainingStore } from '../../../../store/trainingStore';
 import { useWebSocket } from '../../../../contexts/WebSocketContext';
 import { JobCard } from './JobCard';
 import { CreateJobDialog } from './CreateJobDialog';
+import { listModelArchitectures, listSyntheticDatasets } from '../../../../services/api/training';
 
 interface JobsTabProps {
   onJobCreated?: () => void;  // Optional callback when job is created
 }
 
 export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
-  const { jobs, fetchJobs, handleJobUpdate, isLoading, error } = useTrainingStore();
+  const { jobs, fetchJobs, handleJobUpdate, isLoading, error, createJob } = useTrainingStore();
   const { subscribe } = useWebSocket();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreatingBulkJobs, setIsCreatingBulkJobs] = useState(false);
 
   // Fetch jobs on mount and subscribe to real-time WebSocket updates
   useEffect(() => {
@@ -101,6 +103,73 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
     return job.job_type === 'training';
   });
 
+  // Handler for creating training jobs for all architectures
+  const handleTrainAllArchitectures = async () => {
+    setIsCreatingBulkJobs(true);
+    try {
+      // Fetch all architectures
+      console.log('[JobsTab] Fetching all model architectures...');
+      const architecturesResponse = await listModelArchitectures();
+      const architectures = architecturesResponse.architectures;
+      console.log(`[JobsTab] Found ${architectures.length} architectures`);
+      
+      // Fetch all datasets
+      console.log('[JobsTab] Fetching all synthetic datasets...');
+      const datasetsResponse = await listSyntheticDatasets();
+      const datasets = datasetsResponse.datasets;
+      console.log(`[JobsTab] Found ${datasets.length} datasets`);
+      
+      if (datasets.length === 0) {
+        alert('No synthetic datasets available. Please create a dataset first.');
+        setIsCreatingBulkJobs(false);
+        return;
+      }
+      
+      const datasetIds = datasets.map(d => d.id);
+      
+      // Create a job for each architecture
+      console.log(`[JobsTab] Creating ${architectures.length} training jobs...`);
+      const jobPromises = architectures.map(async (arch) => {
+        const jobConfig = {
+          job_name: `bulk-${arch.id}-${Date.now()}`,
+          model_architecture: arch.id,
+          batch_size: 32,
+          learning_rate: 0.001,
+          total_epochs: 500,
+          early_stopping_patience: 0, // No patience - train all 500 epochs
+          train_split: 0.7,
+          val_split: 0.15,
+          dataset_id: datasetIds[0], // Backend expects single dataset_id
+          config: {
+            dataset_ids: datasetIds, // Full array in config for all datasets
+            epochs: 500,
+            batch_size: 32,
+            learning_rate: 0.001,
+            model_architecture: arch.id,
+            validation_split: 0.15,
+            early_stop_patience: 0,
+          }
+        };
+        
+        console.log(`[JobsTab] Creating job for ${arch.display_name} (${arch.id})`);
+        return createJob(jobConfig);
+      });
+      
+      await Promise.all(jobPromises);
+      
+      // Refresh jobs list
+      await fetchJobs();
+      
+      console.log(`[JobsTab] Successfully created ${architectures.length} training jobs!`);
+      alert(`Successfully created ${architectures.length} training jobs!\n\nEach job will train for 500 epochs using all available datasets with no early stopping.`);
+    } catch (error) {
+      console.error('[JobsTab] Error creating bulk jobs:', error);
+      alert('Failed to create some training jobs. Check console for details.');
+    } finally {
+      setIsCreatingBulkJobs(false);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
@@ -111,13 +180,33 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
             Manage and monitor training jobs
           </p>
         </div>
-        <button
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="btn btn-primary d-flex align-items-center gap-2"
-        >
-          <i className="ph ph-plus"></i>
-          New Training Job
-        </button>
+        <div className="d-flex gap-2">
+          <button
+            onClick={handleTrainAllArchitectures}
+            disabled={isCreatingBulkJobs || isLoading}
+            className="btn btn-success d-flex align-items-center gap-2"
+            title="Create training jobs for all architectures using all datasets (500 epochs, no early stopping)"
+          >
+            {isCreatingBulkJobs ? (
+              <>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                Creating Jobs...
+              </>
+            ) : (
+              <>
+                <i className="ph ph-lightning"></i>
+                Train All Architectures
+              </>
+            )}
+          </button>
+          <button
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="btn btn-primary d-flex align-items-center gap-2"
+          >
+            <i className="ph ph-plus"></i>
+            New Training Job
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
