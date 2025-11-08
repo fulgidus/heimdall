@@ -402,7 +402,7 @@ def collate_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
 
 def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     """
-    Collate function for batching IQ samples with spectrograms.
+    Collate function for batching IQ samples (raw time-series).
     
     Args:
         batch: List of sample dicts from TriangulationIQDataset
@@ -411,7 +411,7 @@ def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
         Batched dict with stacked tensors
     """
     # Stack all tensors
-    iq_spectrograms = torch.stack([sample["iq_spectrograms"] for sample in batch])
+    iq_samples = torch.stack([sample["iq_samples"] for sample in batch])
     receiver_positions = torch.stack([sample["receiver_positions"] for sample in batch])
     signal_mask = torch.stack([sample["signal_mask"] for sample in batch])
     target_position = torch.stack([sample["target_position"] for sample in batch])
@@ -426,7 +426,7 @@ def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     }
     
     return {
-        "iq_spectrograms": iq_spectrograms,
+        "iq_samples": iq_samples,  # Changed key from iq_spectrograms to iq_samples
         "receiver_positions": receiver_positions,
         "signal_mask": signal_mask,
         "target_position": target_position,
@@ -696,7 +696,7 @@ class TriangulationIQDataset(Dataset):
         
         Returns:
             Dict with:
-            - iq_spectrograms: (num_receivers, 2, freq_bins, time_bins) - [real, imag]
+            - iq_samples: (num_receivers, 2, seq_len) - [I, Q] raw IQ time-series
             - receiver_positions: (num_receivers, 2) - [lat, lon]
             - signal_mask: (num_receivers,) - Boolean mask (True = no signal/padding)
             - target_position: (2,) - [lat, lon]
@@ -736,8 +736,8 @@ class TriangulationIQDataset(Dataset):
             
             tx_lat, tx_lon, receivers_metadata, num_receivers, iq_storage_paths, gdop = result
             
-            # Load IQ data from MinIO and compute spectrograms
-            spectrograms = []
+            # Load RAW IQ data from MinIO (no spectrogram computation!)
+            iq_samples_list = []
             receiver_positions = []
             signal_mask = []
             
@@ -751,7 +751,7 @@ class TriangulationIQDataset(Dataset):
                 minio_path = iq_storage_paths.get(rx_id)
                 
                 if minio_path and signal_present:
-                    # Load IQ data from MinIO
+                    # Load RAW IQ data from MinIO
                     try:
                         response = self.minio_client.s3_client.get_object(
                             Bucket="heimdall-synthetic-iq",
@@ -759,36 +759,40 @@ class TriangulationIQDataset(Dataset):
                         )
                         iq_bytes = response['Body'].read()
                         
-                        # Load numpy array
+                        # Load numpy array (complex IQ samples)
                         iq_data = np.load(io.BytesIO(iq_bytes))
                         
-                        # Compute spectrogram
-                        spectrogram = self._compute_spectrogram(iq_data)
-                        spectrograms.append(spectrogram)
+                        # Convert complex array to [I, Q] channels: (2, seq_len)
+                        # I = real part, Q = imaginary part
+                        iq_tensor = torch.tensor(np.stack([iq_data.real, iq_data.imag]), dtype=torch.float32)
+                        iq_samples_list.append(iq_tensor)
                         
                     except Exception as e:
                         logger.warning(f"Failed to load IQ for {rx_id}: {e}, using zeros")
-                        # Use zero spectrogram if loading fails
-                        spectrogram = torch.zeros(2, 129, 1560)  # Approximate size
-                        spectrograms.append(spectrogram)
+                        # Use zero IQ if loading fails (1024 samples default)
+                        iq_tensor = torch.zeros(2, 1024, dtype=torch.float32)
+                        iq_samples_list.append(iq_tensor)
                         signal_present = False
                 else:
                     # No signal or missing path
-                    spectrogram = torch.zeros(2, 129, 1560)
-                    spectrograms.append(spectrogram)
+                    iq_tensor = torch.zeros(2, 1024, dtype=torch.float32)
+                    iq_samples_list.append(iq_tensor)
                     signal_present = False
                 
                 receiver_positions.append([rx_lat, rx_lon])
                 signal_mask.append(not signal_present)
             
+            # Determine actual sequence length from first valid sample
+            seq_len = iq_samples_list[0].shape[1] if len(iq_samples_list) > 0 else 1024
+            
             # Pad to max_receivers if needed
-            current_receivers = len(spectrograms)
+            current_receivers = len(iq_samples_list)
             if current_receivers < self.max_receivers:
                 padding_count = self.max_receivers - current_receivers
                 
-                # Add zero spectrograms
+                # Add zero IQ samples
                 for _ in range(padding_count):
-                    spectrograms.append(torch.zeros_like(spectrograms[0]))
+                    iq_samples_list.append(torch.zeros(2, seq_len, dtype=torch.float32))
                     receiver_positions.append([0.0, 0.0])
                     signal_mask.append(True)  # Mask padded positions
             
@@ -824,13 +828,13 @@ class TriangulationIQDataset(Dataset):
             target_delta_lon = tx_lon - centroid_lon
             
             # Stack into tensors
-            iq_spectrograms = torch.stack(spectrograms)  # (num_receivers, 2, freq, time)
+            iq_samples = torch.stack(iq_samples_list)  # (num_receivers, 2, seq_len) - RAW IQ!
             receiver_positions = torch.tensor(receiver_positions_delta, dtype=torch.float32)  # (num_receivers, 2) DELTA coordinates
             signal_mask = torch.tensor(signal_mask, dtype=torch.bool)  # (num_receivers,)
             target_position = torch.tensor([target_delta_lat, target_delta_lon], dtype=torch.float32)  # (2,) DELTA coordinates
             
             sample_data = {
-                "iq_spectrograms": iq_spectrograms,
+                "iq_samples": iq_samples,  # Changed key from iq_spectrograms to iq_samples
                 "receiver_positions": receiver_positions,
                 "signal_mask": signal_mask,
                 "target_position": target_position,

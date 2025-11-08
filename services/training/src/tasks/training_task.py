@@ -573,8 +573,8 @@ def start_training_job(self, job_id: str):
                 
                 # Handle both IQ and feature-based batch structures
                 if use_iq_dataloader:
-                    # IQ models: use iq_spectrograms as input
-                    model_input = batch["iq_spectrograms"].to(device)
+                    # IQ models: use iq_samples as input (raw IQ time-series)
+                    model_input = batch["iq_samples"].to(device)
                 else:
                     # Feature-based models: use receiver_features as input
                     model_input = batch["receiver_features"].to(device)
@@ -676,8 +676,8 @@ def start_training_job(self, job_id: str):
                 for batch in val_loader:
                     # Handle both IQ and feature-based batch structures
                     if use_iq_dataloader:
-                        # IQ models: use iq_spectrograms as input
-                        model_input = batch["iq_spectrograms"].to(device)
+                        # IQ models: use iq_samples as input (raw IQ time-series)
+                        model_input = batch["iq_samples"].to(device)
                     else:
                         # Feature-based models: use receiver_features as input
                         model_input = batch["receiver_features"].to(device)
