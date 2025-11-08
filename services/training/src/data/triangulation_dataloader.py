@@ -724,7 +724,8 @@ class TriangulationIQDataset(Dataset):
                     receivers_metadata, 
                     num_receivers,
                     iq_storage_paths,
-                    gdop
+                    gdop,
+                    iq_metadata
                 FROM heimdall.synthetic_iq_samples
                 WHERE id = :sample_id
             """)
@@ -734,7 +735,13 @@ class TriangulationIQDataset(Dataset):
             if result is None:
                 raise ValueError(f"IQ sample {sample_id} not found")
             
-            tx_lat, tx_lon, receivers_metadata, num_receivers, iq_storage_paths, gdop = result
+            tx_lat, tx_lon, receivers_metadata, num_receivers, iq_storage_paths, gdop, iq_metadata = result
+            
+            # Determine expected sequence length from IQ metadata BEFORE loading samples
+            # This ensures all fallback/padding tensors match the real data length
+            sample_rate_hz = iq_metadata.get('sample_rate_hz', 200000)  # Default: 200kHz
+            duration_ms = iq_metadata.get('duration_ms', 1000.0)  # Default: 1 second
+            expected_seq_len = int(sample_rate_hz * duration_ms / 1000.0)  # e.g., 200000 samples for 200kHz @ 1s
             
             # Load RAW IQ data from MinIO (no spectrogram computation!)
             iq_samples_list = []
@@ -768,22 +775,22 @@ class TriangulationIQDataset(Dataset):
                         iq_samples_list.append(iq_tensor)
                         
                     except Exception as e:
-                        logger.warning(f"Failed to load IQ for {rx_id}: {e}, using zeros")
-                        # Use zero IQ if loading fails (1024 samples default)
-                        iq_tensor = torch.zeros(2, 1024, dtype=torch.float32)
+                        logger.warning(f"Failed to load IQ for {rx_id}: {e}, using zeros with length {expected_seq_len}")
+                        # Use zero IQ with CORRECT length (match metadata)
+                        iq_tensor = torch.zeros(2, expected_seq_len, dtype=torch.float32)
                         iq_samples_list.append(iq_tensor)
                         signal_present = False
                 else:
-                    # No signal or missing path
-                    iq_tensor = torch.zeros(2, 1024, dtype=torch.float32)
+                    # No signal or missing path - use zeros with correct length
+                    iq_tensor = torch.zeros(2, expected_seq_len, dtype=torch.float32)
                     iq_samples_list.append(iq_tensor)
                     signal_present = False
                 
                 receiver_positions.append([rx_lat, rx_lon])
                 signal_mask.append(not signal_present)
             
-            # Determine actual sequence length from first valid sample
-            seq_len = iq_samples_list[0].shape[1] if len(iq_samples_list) > 0 else 1024
+            # Use expected sequence length from metadata (already determined above)
+            seq_len = expected_seq_len
             
             # Pad to max_receivers if needed
             current_receivers = len(iq_samples_list)
