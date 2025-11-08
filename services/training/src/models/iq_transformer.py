@@ -190,6 +190,7 @@ class IQTransformerEncoder(nn.Module):
         super().__init__()
         
         self.patch_size = patch_size
+        self.iq_sequence_length = iq_sequence_length
         self.num_patches = iq_sequence_length // patch_size
         self.embed_dim = embed_dim
         
@@ -231,6 +232,19 @@ class IQTransformerEncoder(nn.Module):
         Returns:
             (batch * num_rx, embed_dim) - encoded features
         """
+        batch_rx, channels, seq_len = x.shape
+        
+        # Handle variable sequence length by adaptive pooling/cropping
+        if seq_len != self.iq_sequence_length:
+            if seq_len > self.iq_sequence_length:
+                # Crop center portion
+                start = (seq_len - self.iq_sequence_length) // 2
+                x = x[:, :, start:start + self.iq_sequence_length]
+            else:
+                # Pad with zeros (circular padding could also work)
+                pad_len = self.iq_sequence_length - seq_len
+                x = torch.nn.functional.pad(x, (0, pad_len), mode='constant', value=0)
+        
         # Patch embedding
         x = self.patch_embed(x)  # (batch * num_rx, num_patches, embed_dim)
         

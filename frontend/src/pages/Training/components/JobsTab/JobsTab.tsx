@@ -156,7 +156,6 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
       await fetchJobs();
       
       console.log(`[JobsTab] Successfully created ${architectures.length} training jobs!`);
-      alert(`Successfully created ${architectures.length} training jobs!\n\nEach job will train for 500 epochs using all available datasets with no early stopping.`);
     } catch (error) {
       console.error('[JobsTab] Error creating bulk jobs:', error);
       alert('Failed to create some training jobs. Check console for details.');

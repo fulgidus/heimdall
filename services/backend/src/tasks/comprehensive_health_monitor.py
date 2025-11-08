@@ -19,6 +19,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import aiohttp
+import asyncpg
 import redis
 from celery import Celery, shared_task
 from minio import Minio
@@ -111,19 +112,19 @@ async def check_microservice_health(service_name: str, base_url: str, timeout: i
 async def check_postgresql_health() -> dict:
     """Check PostgreSQL/TimescaleDB health."""
     try:
-        from ..db import get_pool
+        # Create a fresh connection in this event loop instead of reusing the FastAPI pool
+        db_url = urlparse(settings.database_url)
+        
+        conn = await asyncpg.connect(
+            user=db_url.username,
+            password=db_url.password,
+            database=db_url.path.lstrip("/"),
+            host=db_url.hostname,
+            port=db_url.port or 5432,
+            timeout=5,  # 5 second connection timeout
+        )
+        
         try:
-            pool = get_pool()
-        except RuntimeError as re:
-            return {
-                "service": "postgresql",
-                "status": "unhealthy",
-                "message": "Database pool not initialized",
-                "type": "database",
-                "error": str(re),
-                "last_check": datetime.utcnow().isoformat(),
-            }
-        async with pool.acquire() as conn:
             result = await conn.fetchval("SELECT 1")
             if result == 1:
                 return {
@@ -133,11 +134,24 @@ async def check_postgresql_health() -> dict:
                     "type": "database",
                     "last_check": datetime.utcnow().isoformat(),
                 }
+            else:
+                return {
+                    "service": "postgresql",
+                    "status": "unhealthy",
+                    "message": "Database query failed",
+                    "type": "database",
+                    "last_check": datetime.utcnow().isoformat(),
+                }
+        finally:
+            await conn.close()
+            
+    except asyncio.TimeoutError:
         return {
             "service": "postgresql",
             "status": "unhealthy",
-            "message": "Database query failed",
+            "message": "Database connection timeout",
             "type": "database",
+            "error": "Connection timed out after 5 seconds",
             "last_check": datetime.utcnow().isoformat(),
         }
     except Exception as e:

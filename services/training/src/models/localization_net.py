@@ -151,12 +151,13 @@ class LocalizationNet(nn.Module):
             expected_improvement_vs_resnet18="26% higher accuracy, ~2x better localization",
         )
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, signal_mask: torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the network.
 
         Args:
             x (torch.Tensor): Input mel-spectrograms, shape (batch_size, 3, 128, 32)
+            signal_mask (torch.Tensor, optional): Signal mask (unused for spectrogram models, kept for API compatibility)
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]:
@@ -342,12 +343,13 @@ class LocalizationNetViT(nn.Module):
             note="Experimental - self-attention for spectrogram processing",
         )
     
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, signal_mask: torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the network.
         
         Args:
             x (torch.Tensor): Input mel-spectrograms, shape (batch_size, 3, 128, 32)
+            signal_mask (torch.Tensor, optional): Signal mask (unused for spectrogram models, kept for API compatibility)
         
         Returns:
             Tuple[torch.Tensor, torch.Tensor]:
