@@ -390,6 +390,408 @@ Get real-time status of a WebSDR station.
 }
 ```
 
+### Constellations
+
+Constellations are logical groupings of WebSDR stations used for radio source localization. They enable resource organization, access control, and collaboration through sharing.
+
+**Authentication**: All constellation endpoints require JWT authentication.
+
+**Authorization**: See [RBAC documentation](RBAC.md) for detailed permission requirements.
+
+#### GET /api/v1/constellations
+
+Retrieve list of constellations accessible to the authenticated user.
+
+**Parameters:**
+- `skip` (integer, optional, default=0): Pagination offset
+- `limit` (integer, optional, default=100, max=1000): Number of results
+
+**Authorization**:
+- **USER**: Returns only constellations shared with you
+- **OPERATOR**: Returns constellations you own or have been shared with you
+- **ADMIN**: Returns ALL constellations (bypasses ownership)
+
+**Example Request:**
+```http
+GET /api/v1/constellations?skip=0&limit=50
+Authorization: Bearer <jwt_token>
+```
+
+**Response: 200 OK**
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Northern Italy Coverage",
+      "description": "Stations covering northern Italy for VHF monitoring",
+      "owner_id": "user-123",
+      "created_at": "2025-01-15T10:30:00Z",
+      "updated_at": "2025-01-15T10:30:00Z",
+      "member_count": 5,
+      "permission": "edit"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "name": "Team Alpha Network",
+      "description": "Shared constellation for Team Alpha",
+      "owner_id": "user-456",
+      "created_at": "2025-01-10T08:00:00Z",
+      "updated_at": "2025-01-16T12:00:00Z",
+      "member_count": 3,
+      "permission": "read"
+    }
+  ],
+  "pagination": {
+    "skip": 0,
+    "limit": 50,
+    "total": 2
+  }
+}
+```
+
+**Fields**:
+- `permission`: User's permission level
+  - `null`: User is the owner
+  - `"read"`: Shared with read-only access
+  - `"edit"`: Shared with edit access
+
+---
+
+#### POST /api/v1/constellations
+
+Create a new constellation.
+
+**Requirements**: OPERATOR or ADMIN role
+
+**Request Body:**
+```json
+{
+  "name": "Northern Italy Coverage",
+  "description": "Stations covering northern Italy for VHF monitoring"
+}
+```
+
+**Validation**:
+- `name`: Required, 1-255 characters, must be unique per user
+- `description`: Optional, max 2000 characters
+
+**Response: 201 Created**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Northern Italy Coverage",
+  "description": "Stations covering northern Italy for VHF monitoring",
+  "owner_id": "user-123",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z"
+}
+```
+
+**Error Responses**:
+- `401 Unauthorized`: Authentication required
+- `403 Forbidden`: Insufficient role (USER cannot create constellations)
+- `422 Unprocessable Entity`: Validation error
+
+---
+
+#### GET /api/v1/constellations/{constellation_id}
+
+Retrieve detailed information about a specific constellation, including all member WebSDR stations.
+
+**Requirements**: Owner, shared user, or admin
+
+**Response: 200 OK**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Northern Italy Coverage",
+  "description": "Stations covering northern Italy for VHF monitoring",
+  "owner_id": "user-123",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-15T10:30:00Z",
+  "permission": "edit",
+  "members": [
+    {
+      "id": "member-001",
+      "websdr_station_id": "rome-it",
+      "websdr_station": {
+        "id": "rome-it",
+        "name": "Rome WebSDR",
+        "location": "Rome, Italy",
+        "latitude": 41.9028,
+        "longitude": 12.4964,
+        "status": "active"
+      },
+      "added_at": "2025-01-15T10:35:00Z",
+      "added_by": "user-123"
+    },
+    {
+      "id": "member-002",
+      "websdr_station_id": "milan-it",
+      "websdr_station": {
+        "id": "milan-it",
+        "name": "Milan WebSDR",
+        "location": "Milan, Italy",
+        "latitude": 45.4642,
+        "longitude": 9.1900,
+        "status": "active"
+      },
+      "added_at": "2025-01-15T11:00:00Z",
+      "added_by": "user-123"
+    }
+  ]
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: No permission to view this constellation
+- `404 Not Found`: Constellation does not exist
+
+---
+
+#### PUT /api/v1/constellations/{constellation_id}
+
+Update constellation name or description.
+
+**Requirements**: Owner, shared with 'edit' permission, or admin
+
+**Request Body:**
+```json
+{
+  "name": "Updated Northern Italy Coverage",
+  "description": "Updated description with more details"
+}
+```
+
+**Validation**:
+- `name`: Optional, 1-255 characters
+- `description`: Optional, max 2000 characters
+- At least one field must be provided
+
+**Response: 200 OK**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Updated Northern Italy Coverage",
+  "description": "Updated description with more details",
+  "owner_id": "user-123",
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-01-16T14:20:00Z"
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: No edit permission
+- `404 Not Found`: Constellation does not exist
+- `422 Unprocessable Entity`: Validation error
+
+---
+
+#### DELETE /api/v1/constellations/{constellation_id}
+
+Delete a constellation.
+
+**Requirements**: Owner or admin only
+
+**Response: 204 No Content**
+
+**Side Effects**:
+- All constellation members (WebSDR assignments) are removed
+- All shares with other users are removed
+- Associated recording sessions are unlinked (not deleted)
+
+**Error Responses**:
+- `403 Forbidden`: Not owner or admin
+- `404 Not Found`: Constellation does not exist
+
+---
+
+#### POST /api/v1/constellations/{constellation_id}/members
+
+Add a WebSDR station to a constellation.
+
+**Requirements**: Owner, shared with 'edit' permission, or admin
+
+**Request Body:**
+```json
+{
+  "websdr_station_id": "rome-it"
+}
+```
+
+**Response: 201 Created**
+```json
+{
+  "id": "member-003",
+  "constellation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "websdr_station_id": "rome-it",
+  "added_at": "2025-01-16T15:00:00Z",
+  "added_by": "user-123"
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: No edit permission
+- `404 Not Found`: Constellation or WebSDR station does not exist
+- `409 Conflict`: WebSDR station already in this constellation
+
+---
+
+#### DELETE /api/v1/constellations/{constellation_id}/members/{websdr_station_id}
+
+Remove a WebSDR station from a constellation.
+
+**Requirements**: Owner, shared with 'edit' permission, or admin
+
+**Response: 204 No Content**
+
+**Error Responses**:
+- `403 Forbidden`: No edit permission
+- `404 Not Found`: Constellation, WebSDR, or membership does not exist
+
+---
+
+### Constellation Sharing
+
+Owners can share their constellations with other users by assigning read or edit permissions.
+
+#### GET /api/v1/constellations/{constellation_id}/shares
+
+List all users who have been granted access to a constellation.
+
+**Requirements**: Owner or admin only
+
+**Response: 200 OK**
+```json
+{
+  "data": [
+    {
+      "id": "share-001",
+      "constellation_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "user-456",
+      "permission": "edit",
+      "shared_by": "user-123",
+      "shared_at": "2025-01-15T12:00:00Z",
+      "user_info": {
+        "email": "alice@example.com",
+        "username": "alice",
+        "display_name": "Alice Johnson"
+      }
+    },
+    {
+      "id": "share-002",
+      "constellation_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "user-789",
+      "permission": "read",
+      "shared_by": "user-123",
+      "shared_at": "2025-01-15T12:30:00Z",
+      "user_info": {
+        "email": "bob@example.com",
+        "username": "bob",
+        "display_name": "Bob Smith"
+      }
+    }
+  ],
+  "total": 2
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: Not owner or admin
+- `404 Not Found`: Constellation does not exist
+
+---
+
+#### POST /api/v1/constellations/{constellation_id}/shares
+
+Share a constellation with another user.
+
+**Requirements**: Owner or admin only
+
+**Request Body:**
+```json
+{
+  "user_id": "user-456",
+  "permission": "edit"
+}
+```
+
+**Validation**:
+- `user_id`: Required, must be a valid Keycloak user ID
+- `permission`: Required, must be `"read"` or `"edit"`
+
+**Permission Levels**:
+- `read`: User can view the constellation and use it in localization sessions
+- `edit`: User can view, modify (name/description), and manage WebSDR members
+
+**Response: 201 Created**
+```json
+{
+  "id": "share-001",
+  "constellation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "user-456",
+  "permission": "edit",
+  "shared_by": "user-123",
+  "shared_at": "2025-01-15T12:00:00Z"
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: Not owner or admin
+- `404 Not Found`: Constellation or user does not exist
+- `409 Conflict`: Share already exists for this user
+- `422 Unprocessable Entity`: Invalid permission level
+
+---
+
+#### PUT /api/v1/constellations/{constellation_id}/shares/{user_id}
+
+Update the permission level for an existing share.
+
+**Requirements**: Owner or admin only
+
+**Request Body:**
+```json
+{
+  "permission": "read"
+}
+```
+
+**Response: 200 OK**
+```json
+{
+  "id": "share-001",
+  "constellation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "user_id": "user-456",
+  "permission": "read",
+  "shared_by": "user-123",
+  "shared_at": "2025-01-15T12:00:00Z",
+  "updated_at": "2025-01-16T10:00:00Z"
+}
+```
+
+**Error Responses**:
+- `403 Forbidden`: Not owner or admin
+- `404 Not Found`: Constellation or share does not exist
+- `422 Unprocessable Entity`: Invalid permission level
+
+---
+
+#### DELETE /api/v1/constellations/{constellation_id}/shares/{user_id}
+
+Revoke a user's access to a constellation.
+
+**Requirements**: Owner or admin only
+
+**Response: 204 No Content**
+
+**Error Responses**:
+- `403 Forbidden`: Not owner or admin
+- `404 Not Found`: Constellation or share does not exist
+
+---
+
 ### Anomaly Events
 
 #### GET /api/v1/anomalies

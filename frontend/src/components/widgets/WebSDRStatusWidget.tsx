@@ -1,25 +1,54 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDashboardStore } from '@/store';
 import { useWebSDRStore } from '@/store';
+import { getConstellation, type Constellation } from '@/services/api/constellations';
 
 interface WebSDRStatusWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
-export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = () => {
+export const WebSDRStatusWidget: React.FC<WebSDRStatusWidgetProps> = ({ selectedConstellationId }) => {
   const { websdrs, fetchWebSDRs, isLoading } = useWebSDRStore();
   const { data } = useDashboardStore();
   const healthStatus = data.websdrsHealth || {};
+  const [constellationDetails, setConstellationDetails] = useState<Constellation | null>(null);
 
   useEffect(() => {
     // Initial fetch of WebSDR configurations (once)
     fetchWebSDRs();
     // Health status updates come via WebSocket (no polling needed)
   }, [fetchWebSDRs]);
+  
+  // Fetch constellation details when selected
+  useEffect(() => {
+    if (selectedConstellationId) {
+      getConstellation(selectedConstellationId)
+        .then(setConstellationDetails)
+        .catch(err => {
+          console.error('Failed to load constellation details:', err);
+          setConstellationDetails(null);
+        });
+    } else {
+      setConstellationDetails(null);
+    }
+  }, [selectedConstellationId]);
 
   // Defensive: ensure websdrs is an array
-  const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
-  const onlineCount = Object.values(healthStatus).filter(h => h?.status === 'online').length;
+  const allWebsdrs = Array.isArray(websdrs) ? websdrs : [];
+  
+  // Filter websdrs by constellation if selected
+  const safeWebsdrs = selectedConstellationId && constellationDetails
+    ? allWebsdrs.filter(sdr => 
+        constellationDetails.members?.some(m => m.websdr_station_id === sdr.id)
+      )
+    : allWebsdrs;
+  
+  // Calculate counts based on filtered websdrs
+  const filteredWebsdrIds = new Set(safeWebsdrs.map(w => w.id));
+  const onlineCount = Object.entries(healthStatus)
+    .filter(([id, h]) => filteredWebsdrIds.has(id) && h?.status === 'online')
+    .length;
   const totalCount = safeWebsdrs.length;
 
   return (

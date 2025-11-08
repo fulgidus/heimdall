@@ -5,15 +5,20 @@ import { Link } from 'react-router-dom';
 
 interface RecentActivityWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
-export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = () => {
+export const RecentActivityWidget: React.FC<RecentActivityWidgetProps> = ({ selectedConstellationId }) => {
   const { sessions, isLoading, fetchSessions } = useSessionStore();
   const { lastUpdate } = useDashboardStore();
 
   useEffect(() => {
-    fetchSessions({ page: 1, per_page: 5 });
-  }, [fetchSessions, lastUpdate]); // Re-fetch when lastUpdate changes (WebSocket session events)
+    fetchSessions({ 
+      page: 1, 
+      per_page: 5,
+      constellation_id: selectedConstellationId || undefined
+    });
+  }, [fetchSessions, lastUpdate, selectedConstellationId]); // Re-fetch when lastUpdate changes (WebSocket session events) or constellation filter changes
 
   const recentSessions = sessions.slice(0, 5);
 

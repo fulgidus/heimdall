@@ -15,3 +15,5 @@ export * as importExportService from './import-export';
 export * as trainingService from './training';
 export * as settingsService from './settings';
 export * as usersService from './users';
+export { default as constellationsService } from './constellations';
+export * from './constellations'; // Export types

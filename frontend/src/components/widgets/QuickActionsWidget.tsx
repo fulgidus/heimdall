@@ -1,18 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 interface QuickActionsWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = () => {
+  const { isOperator } = useAuth();
+
   return (
     <div className="widget-content">
       <div className="d-grid gap-2">
-        <Link to="/sessions/new" className="btn btn-primary">
-          <i className="ph ph-plus-circle me-2" />
-          New Recording Session
-        </Link>
+        {isOperator && (
+          <Link to="/sessions/new" className="btn btn-primary">
+            <i className="ph ph-plus-circle me-2" />
+            New Recording Session
+          </Link>
+        )}
 
         <Link to="/sessions" className="btn btn-outline-primary">
           <i className="ph ph-folder-open me-2" />

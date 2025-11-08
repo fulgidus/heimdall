@@ -3,11 +3,18 @@ Recording sessions API endpoints
 """
 
 import logging
+import sys
+import os
 from datetime import datetime
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query
+
+# Add parent directory to path for common module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+
+from common.auth import get_current_user, User
 
 from ..db import get_pool
 from ..models.session import (
@@ -39,8 +46,10 @@ async def list_sessions(
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     status: str | None = Query(None, description="Filter by status"),
     approval_status: str | None = Query(None, description="Filter by approval status"),
+    constellation_id: UUID | None = Query(None, description="Filter by constellation"),
+    current_user: User = Depends(get_current_user),
 ):
-    """List all recording sessions with pagination"""
+    """List all recording sessions with pagination and RBAC filtering"""
     pool = get_pool()
 
     offset = (page - 1) * per_page
@@ -51,6 +60,8 @@ async def list_sessions(
         where_clauses.append(f"rs.status = '{status}'")
     if approval_status:
         where_clauses.append(f"rs.approval_status = '{approval_status}'")
+    if constellation_id:
+        where_clauses.append(f"rs.constellation_id = '{constellation_id}'")
 
     where_sql = " AND " + " AND ".join(where_clauses) if where_clauses else ""
 
@@ -360,12 +371,48 @@ async def trigger_rf_acquisition_task(
 async def create_session(
     session: RecordingSessionCreate,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
 ):
-    """Create a new recording session and trigger RF acquisition"""
+    """Create a new recording session and trigger RF acquisition with RBAC"""
     pool = get_pool()
 
-    # Verify known source exists (skip check if source_id is None)
+    # Verify constellation access if constellation_id is provided
     async with pool.acquire() as conn:
+        if session.constellation_id is not None:
+            # Check if constellation exists and user has access
+            constellation_check = await conn.fetchrow(
+                """
+                SELECT id, owner_id 
+                FROM heimdall.constellations 
+                WHERE id = $1
+                """,
+                session.constellation_id,
+            )
+            
+            if not constellation_check:
+                raise HTTPException(status_code=404, detail="Constellation not found")
+            
+            # Check if user is owner or has access via sharing (unless admin)
+            if not current_user.is_admin:
+                owner_id = constellation_check["owner_id"]
+                if owner_id != current_user.id:
+                    # Check if user has at least read access
+                    shared_access = await conn.fetchval(
+                        """
+                        SELECT permission 
+                        FROM heimdall.constellation_shares 
+                        WHERE constellation_id = $1 AND user_id = $2
+                        """,
+                        session.constellation_id,
+                        current_user.id,
+                    )
+                    if not shared_access:
+                        raise HTTPException(
+                            status_code=403, 
+                            detail="You don't have access to this constellation"
+                        )
+        
+        # Verify known source exists (skip check if source_id is None)
         if session.known_source_id is not None:
             source_exists = await conn.fetchval(
                 "SELECT EXISTS(SELECT 1 FROM heimdall.known_sources WHERE id = $1)",
@@ -378,10 +425,10 @@ async def create_session(
         # Insert new session
         query = """
             INSERT INTO heimdall.recording_sessions
-            (known_source_id, session_name, session_start, status, approval_status, notes)
-            VALUES ($1, $2, $3, 'pending', 'pending', $4)
+            (known_source_id, constellation_id, session_name, session_start, status, approval_status, notes)
+            VALUES ($1, $2, $3, $4, 'pending', 'pending', $5)
             RETURNING
-                id, known_source_id, session_name, session_start, session_end,
+                id, known_source_id, constellation_id, session_name, session_start, session_end,
                 duration_seconds, celery_task_id, status, approval_status,
                 notes, created_at, updated_at
         """
@@ -389,6 +436,7 @@ async def create_session(
         row = await conn.fetchrow(
             query,
             session.known_source_id,
+            session.constellation_id,
             session.session_name,
             datetime.utcnow(),
             session.notes,

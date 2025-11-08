@@ -964,6 +964,438 @@ class EncryptionService:
         return json.loads(decrypted_data.decode())
 ```
 
+## RBAC Architecture
+
+Heimdall implements **Role-Based Access Control (RBAC)** with the introduction of **Constellations** - logical groupings of WebSDR stations that can be owned, shared, and managed by users with different permission levels.
+
+### Core Concepts
+
+#### Constellations
+
+A **Constellation** is a logical grouping of WebSDR stations used for localization sessions. Constellations enable:
+
+- **Organization**: Group geographically-related or functionally-related SDR stations
+- **Access Control**: Control who can use which stations for localization
+- **Collaboration**: Share constellations with other users (read or edit permissions)
+- **Isolation**: Separate resources for different teams or projects
+
+**Example Use Cases**:
+- "Northern Italy Coverage" - Stations covering northern Italy
+- "VHF Monitoring Network" - Stations optimized for VHF frequencies
+- "Team Alpha Resources" - Stations assigned to a specific team
+
+#### Ownership Model
+
+Heimdall implements ownership for three types of resources:
+
+1. **Constellations**: Groups of WebSDR stations
+2. **Sources**: Known RF sources (transmitters/beacons)
+3. **Models**: Trained ML models for localization
+
+Each resource has:
+- **Owner**: The user who created the resource (Keycloak user ID)
+- **Sharing**: Optional sharing with other users (read/edit permissions)
+- **Admin Bypass**: Admins can access all resources regardless of ownership
+
+#### Permission Levels
+
+Resources can be shared with two permission levels:
+
+- **Read**: View the resource and its details, use it in sessions (for Constellations)
+- **Edit**: View + modify the resource (name, description, members)
+
+**Owner Privileges** (beyond edit permission):
+- Delete the resource
+- Share the resource with other users
+- Modify sharing permissions
+
+**Note**: WebSDR stations themselves remain **globally visible** to all authenticated users. Only their assignment to Constellations is controlled by RBAC.
+
+### Role Hierarchy
+
+Heimdall uses three roles from Keycloak with hierarchical permissions:
+
+```
+ADMIN
+  ├── Full system access
+  ├── Can view/edit ALL resources (bypasses ownership)
+  ├── Can manage users and assignments
+  └── Can modify system settings
+
+OPERATOR
+  ├── Can create Constellations, Sources, Models
+  ├── Can view/edit owned or shared resources
+  ├── Can share owned resources
+  ├── Can start RF acquisitions and training sessions
+  └── Can generate synthetic samples
+
+USER
+  ├── Can view assigned Constellations
+  ├── Can start localization sessions on assigned Constellations
+  ├── Can set frequency and parameters
+  └── Can view history of assigned Constellations
+```
+
+**Role Detection**:
+```python
+# Backend (Keycloak JWT claims)
+def extract_roles_from_token(token: dict) -> List[str]:
+    """Extract roles from Keycloak token."""
+    # Realm roles
+    realm_roles = token.get("realm_access", {}).get("roles", [])
+    
+    # Client roles (if using client-specific roles)
+    client_roles = token.get("resource_access", {}).get("heimdall", {}).get("roles", [])
+    
+    return realm_roles + client_roles
+
+# Role hierarchy check
+def is_admin(user: User) -> bool:
+    return "admin" in user.roles
+
+def is_operator(user: User) -> bool:
+    return "operator" in user.roles or is_admin(user)
+
+def is_user(user: User) -> bool:
+    return "user" in user.roles or is_operator(user)
+```
+
+### Database Schema
+
+#### New Tables
+
+**constellations**
+```sql
+CREATE TABLE constellations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    owner_id VARCHAR(255) NOT NULL,  -- Keycloak user ID
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_constellations_owner ON constellations(owner_id);
+```
+
+**constellation_members** (Many-to-Many: Constellations ↔ WebSDRs)
+```sql
+CREATE TABLE constellation_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    constellation_id UUID NOT NULL REFERENCES constellations(id) ON DELETE CASCADE,
+    websdr_station_id UUID NOT NULL REFERENCES websdr_stations(id) ON DELETE CASCADE,
+    added_at TIMESTAMPTZ DEFAULT NOW(),
+    added_by VARCHAR(255),
+    UNIQUE(constellation_id, websdr_station_id)
+);
+
+CREATE INDEX idx_constellation_members_constellation ON constellation_members(constellation_id);
+CREATE INDEX idx_constellation_members_websdr ON constellation_members(websdr_station_id);
+```
+
+**constellation_shares** (Constellation Access Control)
+```sql
+CREATE TABLE constellation_shares (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    constellation_id UUID NOT NULL REFERENCES constellations(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL,  -- Keycloak user ID
+    permission VARCHAR(20) NOT NULL CHECK (permission IN ('read', 'edit')),
+    shared_by VARCHAR(255) NOT NULL,
+    shared_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(constellation_id, user_id)
+);
+
+CREATE INDEX idx_constellation_shares_constellation ON constellation_shares(constellation_id);
+CREATE INDEX idx_constellation_shares_user ON constellation_shares(user_id);
+```
+
+**source_shares** and **model_shares** follow the same pattern for Sources and Models.
+
+#### Modified Tables
+
+**known_sources** - Added ownership:
+```sql
+ALTER TABLE known_sources 
+    ADD COLUMN owner_id VARCHAR(255),
+    ADD COLUMN is_public BOOLEAN DEFAULT false;
+```
+
+**models** - Added ownership:
+```sql
+ALTER TABLE models 
+    ADD COLUMN owner_id VARCHAR(255),
+    ADD COLUMN description TEXT;
+```
+
+**recording_sessions** - Linked to Constellations:
+```sql
+ALTER TABLE recording_sessions 
+    ADD COLUMN constellation_id UUID REFERENCES constellations(id);
+```
+
+### RBAC Enforcement
+
+#### Backend Utilities
+
+Centralized RBAC logic in `services/common/auth/rbac.py`:
+
+```python
+async def can_view_constellation(
+    db: asyncpg.Connection,
+    user_id: str,
+    constellation_id: uuid.UUID,
+    is_admin: bool
+) -> bool:
+    """Check if user can view a constellation."""
+    if is_admin:
+        return True
+    
+    # Check ownership
+    query = "SELECT owner_id FROM constellations WHERE id = $1"
+    owner_id = await db.fetchval(query, constellation_id)
+    
+    if owner_id == user_id:
+        return True
+    
+    # Check sharing
+    share_query = """
+        SELECT permission FROM constellation_shares 
+        WHERE constellation_id = $1 AND user_id = $2
+    """
+    permission = await db.fetchval(share_query, constellation_id, user_id)
+    
+    return permission in ('read', 'edit')
+
+
+async def can_edit_constellation(
+    db: asyncpg.Connection,
+    user_id: str,
+    constellation_id: uuid.UUID,
+    is_admin: bool
+) -> bool:
+    """Check if user can edit a constellation."""
+    if is_admin:
+        return True
+    
+    # Check ownership
+    owner_id = await db.fetchval(
+        "SELECT owner_id FROM constellations WHERE id = $1",
+        constellation_id
+    )
+    
+    if owner_id == user_id:
+        return True
+    
+    # Check for 'edit' permission
+    permission = await db.fetchval(
+        "SELECT permission FROM constellation_shares WHERE constellation_id = $1 AND user_id = $2",
+        constellation_id, user_id
+    )
+    
+    return permission == 'edit'
+```
+
+**Similar functions exist for**:
+- `can_delete_constellation()` - Owner or admin only
+- `can_view_source()`, `can_edit_source()` - Source permissions
+- `can_view_model()`, `can_edit_model()` - Model permissions
+- `get_user_constellations()` - Retrieve accessible constellations
+
+#### API Endpoint Protection
+
+```python
+from common.auth import get_current_user, require_operator
+from common.auth.rbac import can_edit_constellation
+
+@router.put("/constellations/{constellation_id}")
+async def update_constellation(
+    constellation_id: uuid.UUID,
+    update_data: ConstellationUpdate,
+    user: User = Depends(get_current_user),
+    db: asyncpg.Connection = Depends(get_pool)
+):
+    """Update constellation (requires edit permission)."""
+    
+    # Check permission
+    can_edit = await can_edit_constellation(
+        db, user.user_id, constellation_id, user.is_admin
+    )
+    
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Perform update
+    query = """
+        UPDATE constellations 
+        SET name = $1, description = $2, updated_at = NOW()
+        WHERE id = $3
+        RETURNING *
+    """
+    
+    result = await db.fetchrow(
+        query, update_data.name, update_data.description, constellation_id
+    )
+    
+    return ConstellationResponse.from_db(result)
+```
+
+**Access Control Patterns**:
+
+1. **Role-Based Route Access**: Some routes require specific roles
+   - `require_operator` dependency → Operators and Admins only
+   - `require_admin` dependency → Admins only
+   - `get_current_user` dependency → Any authenticated user
+
+2. **Resource-Based Access**: Endpoints check ownership/sharing
+   - View operations: Owner, shared users, or admin
+   - Edit operations: Owner, users with 'edit' permission, or admin
+   - Delete operations: Owner or admin only
+   - Share operations: Owner or admin only
+
+3. **Admin Bypass**: Admins can access all resources
+   - All RBAC functions check `is_admin` first
+   - Admins bypass ownership and sharing checks
+
+### Frontend Guards
+
+#### Route Guards
+
+**App.tsx** uses `RequireRole` component to protect routes:
+
+```typescript
+// User+ routes (USER, OPERATOR, ADMIN)
+<Route path="/dashboard" element={
+  <RequireRole role="user">
+    <Dashboard />
+  </RequireRole>
+} />
+
+// Operator+ routes (OPERATOR, ADMIN)
+<Route path="/constellations" element={
+  <RequireRole role="operator">
+    <Constellations />
+  </RequireRole>
+} />
+
+// Admin-only routes
+<Route path="/settings" element={
+  <RequireRole role="admin">
+    <Settings />
+  </RequireRole>
+} />
+```
+
+#### Component-Level Guards
+
+**usePermissions Hook** for conditional UI rendering:
+
+```typescript
+import { usePermissions } from '@/hooks/usePermissions';
+
+function ConstellationCard({ constellation }: Props) {
+  const { canEdit, canDelete, canShare } = usePermissions();
+  
+  const canEditThis = canEdit(constellation.ownerId, constellation.permission);
+  const canDeleteThis = canDelete(constellation.ownerId);
+  const canShareThis = canShare(constellation.ownerId);
+  
+  return (
+    <Card>
+      <h3>{constellation.name}</h3>
+      
+      {canEditThis && (
+        <Button onClick={handleEdit}>Edit</Button>
+      )}
+      
+      {canDeleteThis && (
+        <Button onClick={handleDelete} variant="danger">Delete</Button>
+      )}
+      
+      {canShareThis && (
+        <Button onClick={handleShare}>Share</Button>
+      )}
+    </Card>
+  );
+}
+```
+
+### Permission Matrix
+
+| Resource | USER | OPERATOR | ADMIN |
+|----------|------|----------|-------|
+| **Constellations** | View assigned (read) | CRUD owned/shared (edit) | Full access |
+| **Sources** | View public/shared | CRUD owned/shared | Full access |
+| **Models** | View shared | CRUD owned/shared | Full access |
+| **Sessions** | Start on assigned constellations | Full control on accessible | Full control |
+| **WebSDRs** | View all (global) | View all + assign to constellations | Full access |
+| **System Settings** | ❌ | ❌ | ✅ |
+
+### Data Migration
+
+Existing deployments require data migration:
+
+```sql
+-- Migration: 05-migrate-existing-data.sql
+
+-- 1. Set default owner for existing sources/models
+UPDATE known_sources SET owner_id = 'admin-user-id' WHERE owner_id IS NULL;
+UPDATE models SET owner_id = 'admin-user-id' WHERE owner_id IS NULL;
+
+-- 2. Create default "Global" constellation
+INSERT INTO constellations (id, name, description, owner_id)
+VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    'Global Constellation',
+    'Default constellation containing all WebSDR stations',
+    'admin-user-id'
+);
+
+-- 3. Add all existing WebSDRs to Global constellation
+INSERT INTO constellation_members (constellation_id, websdr_station_id, added_by)
+SELECT 
+    '00000000-0000-0000-0000-000000000001',
+    id,
+    'admin-user-id'
+FROM websdr_stations;
+```
+
+### Security Considerations
+
+1. **JWT Validation**: All API requests validate JWT tokens from Keycloak
+2. **User ID Trust**: User IDs from JWT `sub` claim are trusted after validation
+3. **SQL Injection Prevention**: All queries use parameterized statements
+4. **Permission Leakage**: API responses filter data based on user permissions
+5. **Audit Trail**: `shared_by`, `added_by` fields track who performed actions
+
+### Testing Strategy
+
+**Unit Tests** (`services/common/auth/tests/test_rbac.py`):
+- 67 test cases covering all RBAC utility functions
+- Test ownership checks, sharing checks, admin bypass
+- Test permission inheritance (admin > operator > user)
+
+**Integration Tests** (`services/backend/tests/integration/test_constellations_rbac.py`):
+- 50+ test cases covering API endpoints with permissions
+- Test CRUD operations with different roles
+- Test sharing workflows (create/update/delete shares)
+- Test 403 Forbidden responses for unauthorized access
+- Test 404 responses for non-existent resources
+
+### Performance Considerations
+
+1. **Database Indexes**: All foreign keys and lookup columns indexed
+2. **Permission Caching**: Consider caching permission checks in Redis (future)
+3. **Query Optimization**: RBAC queries use indexed columns (`owner_id`, `user_id`)
+4. **Eager Loading**: Frontend fetches permissions with resource data
+
+### Future Enhancements
+
+- **Resource Groups**: Group multiple resources for bulk sharing
+- **Time-Limited Sharing**: Share resources with expiration dates
+- **Fine-Grained Permissions**: Additional permission levels (e.g., 'execute', 'export')
+- **Audit Logs**: Comprehensive audit trail for all RBAC actions
+- **LDAP/AD Integration**: Support for enterprise directory services
+
 ## Monitoring & Observability
 
 ### Metrics Collection

@@ -58,3 +58,13 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   const response = await api.get<UserProfile>(`/v1/users/${userId}`);
   return response.data;
 };
+
+/**
+ * Search for users by email or username
+ */
+export const searchUsers = async (query: string): Promise<UserProfile[]> => {
+  const response = await api.get<UserProfile[]>('/v1/users/search', {
+    params: { q: query },
+  });
+  return response.data;
+};

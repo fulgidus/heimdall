@@ -3,6 +3,7 @@ import { useDashboardStore } from '../store';
 import { useWidgetStore } from '../store/widgetStore';
 import { ConnectionState } from '../lib/websocket';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { useAuth } from '../hooks/useAuth';
 import {
   WidgetContainer,
   WebSDRStatusWidget,
@@ -13,15 +14,43 @@ import {
   QuickActionsWidget,
 } from '../components/widgets';
 import { WidgetPicker } from '../components/widgets/WidgetPicker';
+import { getConstellations, type Constellation } from '../services/api/constellations';
 import type { WidgetType } from '@/types/widgets';
 
 const Dashboard: React.FC = () => {
-
+  const { user, isOperator } = useAuth();
   const { widgets, resetToDefault } = useWidgetStore();
   const { connectionState, connect, subscribe } = useWebSocket();
   const [showWidgetPicker, setShowWidgetPicker] = useState(false);
   const isMountedRef = useRef(true);
+  
+  // Constellation filtering state
+  const [constellations, setConstellations] = useState<Constellation[]>([]);
+  const [selectedConstellationId, setSelectedConstellationId] = useState<string | null>(null);
+  const [isLoadingConstellations, setIsLoadingConstellations] = useState(false);
 
+
+  // Load constellations on mount
+  useEffect(() => {
+    const loadConstellations = async () => {
+      setIsLoadingConstellations(true);
+      try {
+        const data = await getConstellations();
+        setConstellations(data);
+        
+        // Auto-select first constellation if available
+        if (data.length > 0 && !selectedConstellationId) {
+          setSelectedConstellationId(data[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to load constellations:', error);
+      } finally {
+        setIsLoadingConstellations(false);
+      }
+    };
+
+    loadConstellations();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Subscribe to WebSocket events
   useEffect(() => {
@@ -162,7 +191,10 @@ const Dashboard: React.FC = () => {
 
     return (
       <WidgetContainer key={widgetConfig.id} widget={widgetConfig}>
-        <WidgetComponent widgetId={widgetConfig.id} />
+        <WidgetComponent 
+          widgetId={widgetConfig.id}
+          selectedConstellationId={selectedConstellationId}
+        />
       </WidgetContainer>
     );
   };
@@ -227,6 +259,40 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Constellation Filter Row */}
+            {constellations.length > 0 && (
+              <div className="col-md-12 mt-3">
+                <div className="d-flex align-items-center gap-3">
+                  <label htmlFor="constellation-filter" className="form-label mb-0 fw-semibold">
+                    <i className="ph ph-circles-three me-2"></i>
+                    Filter by Constellation:
+                  </label>
+                  <div className="flex-grow-1" style={{ maxWidth: '400px' }}>
+                    <select
+                      id="constellation-filter"
+                      className="form-select"
+                      value={selectedConstellationId || ''}
+                      onChange={(e) => setSelectedConstellationId(e.target.value || null)}
+                      disabled={isLoadingConstellations}
+                    >
+                      <option value="">All WebSDRs (No Filter)</option>
+                      {constellations.map(constellation => (
+                        <option key={constellation.id} value={constellation.id}>
+                          {constellation.name} ({constellation.member_count} receivers)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {isOperator && (
+                    <a href="/constellations" className="btn btn-sm btn-outline-primary">
+                      <i className="ph ph-gear me-1"></i>
+                      Manage Constellations
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </nav>

@@ -36,6 +36,7 @@ interface SessionStore {
   // Filters
   statusFilter: string | null;
   approvalFilter: string | null;
+  constellationFilter: string | null;
 
   // Actions
   fetchSessions: (params?: {
@@ -43,6 +44,7 @@ interface SessionStore {
     per_page?: number;
     status?: string;
     approval_status?: string;
+    constellation_id?: string;
   }) => Promise<void>;
 
   fetchSession: (sessionId: string) => Promise<void>;
@@ -67,6 +69,7 @@ interface SessionStore {
 
   setStatusFilter: (status: string | null) => void;
   setApprovalFilter: (approval: string | null) => void;
+  setConstellationFilter: (constellationId: string | null) => void;
 
   // WebSocket integration
   updateSessionFromWebSocket: (session: RecordingSessionWithDetails) => void;
@@ -86,6 +89,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   perPage: 20,
   statusFilter: null,
   approvalFilter: null,
+  constellationFilter: null,
 
   fetchSessions: async params => {
     set({ isLoading: true, error: null });
@@ -95,6 +99,7 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         per_page: params?.per_page || get().perPage,
         status: params?.status || get().statusFilter || undefined,
         approval_status: params?.approval_status || get().approvalFilter || undefined,
+        constellation_id: params?.constellation_id || get().constellationFilter || undefined,
       });
 
       set({
@@ -297,6 +302,11 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   setApprovalFilter: (approval: string | null) => {
     set({ approvalFilter: approval, currentPage: 1 });
+    get().fetchSessions();
+  },
+
+  setConstellationFilter: (constellationId: string | null) => {
+    set({ constellationFilter: constellationId, currentPage: 1 });
     get().fetchSessions();
   },
 

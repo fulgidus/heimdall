@@ -5,7 +5,8 @@ interface User {
     id: string;
     email: string;
     name: string;
-    role: 'admin' | 'user' | 'viewer';
+    role: 'admin' | 'operator' | 'user';
+    roles: string[]; // Complete array of roles from Keycloak
     avatar?: string;
 }
 
@@ -28,6 +29,19 @@ interface AuthStore {
 
 // Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';
+
+/**
+ * Extract the highest role from Keycloak realm roles.
+ * Implements role hierarchy: admin > operator > user
+ * 
+ * @param realmRoles - Array of roles from Keycloak JWT (realm_access.roles)
+ * @returns The highest role in the hierarchy
+ */
+function extractUserRole(realmRoles: string[]): 'admin' | 'operator' | 'user' {
+    if (realmRoles.includes('admin')) return 'admin';
+    if (realmRoles.includes('operator')) return 'operator';
+    return 'user';
+}
 
 export const useAuthStore = create<AuthStore>()(
     persist(
@@ -88,11 +102,13 @@ export const useAuthStore = create<AuthStore>()(
                     const payload = JSON.parse(atob(tokenParts[1]));
 
                     // Extract user information from JWT claims
+                    const realmRoles = payload.realm_access?.roles || [];
                     const user: User = {
                         id: payload.sub || '1',
                         email: payload.email || email,
                         name: payload.name || payload.preferred_username || email.split('@')[0],
-                        role: payload.realm_access?.roles?.includes('admin') ? 'admin' : 'user',
+                        role: extractUserRole(realmRoles),
+                        roles: realmRoles,
                         avatar: payload.picture,
                     };
 

@@ -6,11 +6,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { useAuth } from '../../../../hooks/useAuth';
 import { ModelCard } from './ModelCard';
 import { ImportDialog } from './ImportDialog';
 
 export const ModelsTab: React.FC = () => {
   const { models, fetchModels, isLoading, error } = useTrainingStore();
+  const { isOperator } = useAuth();
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -28,13 +30,15 @@ export const ModelsTab: React.FC = () => {
             {models.length} {models.length === 1 ? 'model' : 'models'} available
           </p>
         </div>
-        <button
-          onClick={() => setIsImportDialogOpen(true)}
-          className="btn btn-success d-flex align-items-center gap-2"
-        >
-          <i className="ph ph-upload"></i>
-          Import Model
-        </button>
+        {isOperator && (
+          <button
+            onClick={() => setIsImportDialogOpen(true)}
+            className="btn btn-success d-flex align-items-center gap-2"
+          >
+            <i className="ph ph-upload"></i>
+            Import Model
+          </button>
+        )}
       </div>
 
       {/* Error Message */}
@@ -62,15 +66,20 @@ export const ModelsTab: React.FC = () => {
             <i className="ph ph-cpu text-muted mb-3" style={{ fontSize: '4rem' }}></i>
             <h5 className="mb-2">No models yet</h5>
             <p className="text-muted small mb-4">
-              Train your first model or import an existing one
+              {isOperator 
+                ? 'Train your first model or import an existing one'
+                : 'No trained models available yet'
+              }
             </p>
-            <button
-              onClick={() => setIsImportDialogOpen(true)}
-              className="btn btn-primary d-inline-flex align-items-center gap-2"
-            >
-              <i className="ph ph-upload"></i>
-              Import Model
-            </button>
+            {isOperator && (
+              <button
+                onClick={() => setIsImportDialogOpen(true)}
+                className="btn btn-primary d-inline-flex align-items-center gap-2"
+              >
+                <i className="ph ph-upload"></i>
+                Import Model
+              </button>
+            )}
           </div>
         </div>
       )}

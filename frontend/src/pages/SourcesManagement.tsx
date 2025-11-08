@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { useAuth } from '../hooks/useAuth';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { KnownSource, KnownSourceCreate, KnownSourceUpdate } from '../services/api/session';
@@ -33,6 +34,7 @@ const SourcesManagement: React.FC = () => {
     error: storeError,
     clearError,
   } = useSessionStore();
+  const { isOperator } = useAuth();
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -788,10 +790,12 @@ const SourcesManagement: React.FC = () => {
             <div className="card">
               <div className="card-header d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">Sources List</h5>
-                <button className="btn btn-primary btn-sm" onClick={() => setIsFormVisible(true)}>
-                  <i className="ph ph-plus me-1"></i>
-                  Add Source
-                </button>
+                {isOperator && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setIsFormVisible(true)}>
+                    <i className="ph ph-plus me-1"></i>
+                    Add Source
+                  </button>
+                )}
               </div>
               <div className="card-body" style={{ maxHeight: '600px', overflowY: 'auto' }}>
                 {isLoading && knownSources.length === 0 ? (
@@ -856,26 +860,28 @@ const SourcesManagement: React.FC = () => {
                               <p className="mb-1 f-12 text-muted">{source.description}</p>
                             )}
                           </div>
-                          <div className="btn-group-vertical" role="group">
-                            <button
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleEdit(source);
-                              }}
-                            >
-                              <i className="ph ph-pencil"></i>
-                            </button>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setDeleteConfirm(source.id);
-                              }}
-                            >
-                              <i className="ph ph-trash"></i>
-                            </button>
-                          </div>
+                          {isOperator && (
+                            <div className="btn-group-vertical" role="group">
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleEdit(source);
+                                }}
+                              >
+                                <i className="ph ph-pencil"></i>
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setDeleteConfirm(source.id);
+                                }}
+                              >
+                                <i className="ph ph-trash"></i>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

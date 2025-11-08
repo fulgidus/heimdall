@@ -4,6 +4,7 @@ import type { ModelInfo } from '@/services/api/types';
 
 interface ModelPerformanceWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
 export const ModelPerformanceWidget: React.FC<ModelPerformanceWidgetProps> = () => {

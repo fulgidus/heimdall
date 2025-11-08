@@ -305,6 +305,171 @@ async def get_configuration():
 
 
 # ============================================================================
+# OpenWebRX Acquisition Endpoints
+# ============================================================================
+
+from pydantic import BaseModel, Field
+from ..tasks.acquire_openwebrx import (
+    acquire_openwebrx_single,
+    acquire_openwebrx_all,
+    health_check_openwebrx,
+)
+
+
+class AcquireOpenWebRXRequest(BaseModel):
+    """Request to start OpenWebRX acquisition."""
+    websdr_url: Optional[str] = Field(None, description="Single WebSDR URL (if None, acquires from all 7)")
+    duration_seconds: int = Field(60, ge=10, le=3600, description="Acquisition duration (10-3600 seconds)")
+    save_fft: bool = Field(True, description="Save FFT frames to database")
+    save_audio: bool = Field(False, description="Save audio frames (uses lots of storage!)")
+
+
+class AcquireOpenWebRXResponse(BaseModel):
+    """Response from acquisition trigger."""
+    task_id: str
+    message: str
+    websdr_url: Optional[str] = None
+    duration_seconds: int
+    estimated_completion_time: str
+
+
+@router.post("/openwebrx/acquire", response_model=AcquireOpenWebRXResponse)
+async def trigger_openwebrx_acquisition(request: AcquireOpenWebRXRequest):
+    """
+    Trigger OpenWebRX data acquisition via Celery task.
+    
+    **Single WebSDR mode:**
+    - Set `websdr_url` to specific URL (e.g., "http://sdr1.ik1jns.it:8076")
+    
+    **Multi-WebSDR mode:**
+    - Leave `websdr_url` as null → acquires from all 7 receivers
+    
+    **Returns:**
+    - Celery task ID for status tracking
+    - Estimated completion time
+    """
+    from datetime import datetime, timedelta
+    
+    # Trigger appropriate Celery task
+    if request.websdr_url:
+        # Single WebSDR acquisition
+        task = acquire_openwebrx_single.delay(
+            websdr_url=request.websdr_url,
+            duration_seconds=request.duration_seconds,
+            save_fft=request.save_fft,
+            save_audio=request.save_audio
+        )
+        
+        message = f"OpenWebRX acquisition started for {request.websdr_url}"
+        logger.info(f"📡 {message} - Task ID: {task.id}")
+    
+    else:
+        # Multi-WebSDR acquisition (all 7)
+        task = acquire_openwebrx_all.delay(
+            duration_seconds=request.duration_seconds,
+            save_fft=request.save_fft,
+            save_audio=request.save_audio
+        )
+        
+        message = "OpenWebRX acquisition started for ALL 7 receivers"
+        logger.info(f"📡 {message} - Task ID: {task.id}")
+    
+    # Calculate estimated completion
+    completion_time = datetime.utcnow() + timedelta(seconds=request.duration_seconds + 10)
+    
+    return AcquireOpenWebRXResponse(
+        task_id=task.id,
+        message=message,
+        websdr_url=request.websdr_url,
+        duration_seconds=request.duration_seconds,
+        estimated_completion_time=completion_time.isoformat()
+    )
+
+
+@router.get("/openwebrx/status/{task_id}")
+async def get_openwebrx_task_status(task_id: str):
+    """
+    Get status of OpenWebRX acquisition task.
+    
+    **States:**
+    - PENDING: Task queued but not started
+    - STARTED: Task running
+    - SUCCESS: Task completed successfully
+    - FAILURE: Task failed with error
+    
+    **Returns:**
+    - state: Current task state
+    - result: Task result (if completed)
+    - info: Progress info (if running)
+    """
+    task = AsyncResult(task_id)
+    
+    response = {
+        "task_id": task_id,
+        "state": task.state,
+    }
+    
+    if task.state == "PENDING":
+        response["info"] = "Task is queued and waiting to start"
+    
+    elif task.state == "STARTED":
+        response["info"] = task.info or "Task is running..."
+    
+    elif task.state == "SUCCESS":
+        response["result"] = task.result
+        response["info"] = "Task completed successfully"
+    
+    elif task.state == "FAILURE":
+        response["error"] = str(task.info)
+        response["info"] = "Task failed"
+    
+    else:
+        response["info"] = task.info
+    
+    logger.debug(f"📊 Task {task_id} status: {task.state}")
+    
+    return response
+
+
+@router.post("/openwebrx/health-check")
+async def trigger_openwebrx_health_check():
+    """
+    Trigger health check for all 7 OpenWebRX receivers.
+    
+    This is a SYNCHRONOUS call (not Celery task) because health checks
+    should be fast (~3 seconds total for all 7 receivers).
+    
+    **Returns:**
+    - Dict mapping URL → online status (True/False)
+    - Example: {"http://sdr1.ik1jns.it:8076": True, ...}
+    """
+    logger.info("🏥 OpenWebRX health check triggered")
+    
+    try:
+        # Call Celery task and wait for result (short timeout)
+        task = health_check_openwebrx.apply_async()
+        result = task.get(timeout=15)  # 15 second timeout
+        
+        online_count = sum(1 for status in result.values() if status)
+        logger.info(f"✅ Health check complete: {online_count}/7 receivers online")
+        
+        return {
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat(),
+            "online_count": online_count,
+            "total_count": 7,
+            "receivers": result
+        }
+    
+    except Exception as e:
+        logger.error(f"❌ Health check failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Health check failed: {str(e)}"
+        )
+
+
+# ============================================================================
 # WebSDR CRUD Endpoints
 # ============================================================================
 

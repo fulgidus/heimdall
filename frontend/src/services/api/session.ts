@@ -123,6 +123,7 @@ export async function listSessions(params: {
   per_page?: number;
   status?: string;
   approval_status?: string;
+  constellation_id?: string;
 }): Promise<SessionListResponse> {
   const response = await api.get('/v1/sessions', { params });
 

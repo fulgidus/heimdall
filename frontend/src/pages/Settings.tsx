@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSettingsStore } from '../store/settingsStore';
+import { useAuth } from '../hooks/useAuth';
 import type { UserSettingsUpdate } from '../services/api/settings';
 
 const Settings: React.FC = () => {
@@ -8,6 +9,7 @@ const Settings: React.FC = () => {
   );
   
   const { settings, isLoading, error, isSaving, fetchSettings, updateSettings, resetSettings, clearError } = useSettingsStore();
+  const { isOperator } = useAuth();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Local state for form fields
@@ -208,6 +210,7 @@ const Settings: React.FC = () => {
                       className="form-select"
                       value={formData.theme || 'dark'}
                       onChange={e => setFormData({ ...formData, theme: e.target.value as any })}
+                      disabled={!isOperator}
                     >
                       <option value="dark">Dark</option>
                       <option value="light">Light</option>
@@ -220,6 +223,7 @@ const Settings: React.FC = () => {
                       className="form-select"
                       value={formData.language || 'en'}
                       onChange={e => setFormData({ ...formData, language: e.target.value as any })}
+                      disabled={!isOperator}
                     >
                       <option value="en">English</option>
                       <option value="it">Italiano</option>
@@ -231,6 +235,7 @@ const Settings: React.FC = () => {
                       className="form-select"
                       value={formData.timezone || 'UTC'}
                       onChange={e => setFormData({ ...formData, timezone: e.target.value })}
+                      disabled={!isOperator}
                     >
                       <option value="UTC">UTC</option>
                       <option value="Europe/Rome">Europe/Rome</option>
@@ -248,6 +253,7 @@ const Settings: React.FC = () => {
                       }
                       min="10"
                       max="300"
+                      disabled={!isOperator}
                     />
                   </div>
                   <div className="col-12">
@@ -258,6 +264,7 @@ const Settings: React.FC = () => {
                         id="autoRefresh"
                         checked={formData.auto_refresh ?? true}
                         onChange={e => setFormData({ ...formData, auto_refresh: e.target.checked })}
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="autoRefresh">
                         Enable auto-refresh for dashboard
@@ -281,6 +288,7 @@ const Settings: React.FC = () => {
                       }
                       min="5000"
                       max="60000"
+                      disabled={!isOperator}
                     />
                   </div>
                   <div className="col-md-6">
@@ -294,6 +302,7 @@ const Settings: React.FC = () => {
                       }
                       min="0"
                       max="5"
+                      disabled={!isOperator}
                     />
                   </div>
                   <div className="col-12">
@@ -306,6 +315,7 @@ const Settings: React.FC = () => {
                         onChange={e =>
                           setFormData({ ...formData, enable_caching: e.target.checked })
                         }
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="enableCaching">
                         Enable API response caching
@@ -335,6 +345,7 @@ const Settings: React.FC = () => {
                         onChange={e =>
                           setFormData({ ...formData, email_notifications: e.target.checked })
                         }
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="emailNotifications">
                         Email Notifications
@@ -347,6 +358,7 @@ const Settings: React.FC = () => {
                         id="systemAlerts"
                         checked={formData.system_alerts ?? true}
                         onChange={e => setFormData({ ...formData, system_alerts: e.target.checked })}
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="systemAlerts">
                         System Alerts
@@ -361,6 +373,7 @@ const Settings: React.FC = () => {
                         onChange={e =>
                           setFormData({ ...formData, performance_warnings: e.target.checked })
                         }
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="performanceWarnings">
                         Performance Warnings
@@ -375,6 +388,7 @@ const Settings: React.FC = () => {
                       placeholder="https://your-webhook-url.com"
                       value={formData.webhook_url || ''}
                       onChange={e => setFormData({ ...formData, webhook_url: e.target.value || null })}
+                      disabled={!isOperator}
                     />
                     <small className="text-muted">Receive notifications via webhook</small>
                   </div>
@@ -390,6 +404,7 @@ const Settings: React.FC = () => {
                       className="form-select"
                       value={formData.log_level || 'info'}
                       onChange={e => setFormData({ ...formData, log_level: e.target.value as any })}
+                      disabled={!isOperator}
                     >
                       <option value="error">Error</option>
                       <option value="warn">Warn</option>
@@ -411,6 +426,7 @@ const Settings: React.FC = () => {
                       }
                       min="1"
                       max="10"
+                      disabled={!isOperator}
                     />
                   </div>
                   <div className="col-12">
@@ -421,6 +437,7 @@ const Settings: React.FC = () => {
                         id="debugMode"
                         checked={formData.debug_mode ?? false}
                         onChange={e => setFormData({ ...formData, debug_mode: e.target.checked })}
+                        disabled={!isOperator}
                       />
                       <label className="form-check-label" htmlFor="debugMode">
                         Enable Debug Mode
@@ -439,34 +456,42 @@ const Settings: React.FC = () => {
               )}
 
               {/* Save Button */}
-              <div className="row mt-4">
-                <div className="col-12">
-                  <button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                        ></span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <i className="ph ph-check me-2"></i>
-                        Save Settings
-                      </>
-                    )}
-                  </button>
-                  <button 
-                    className="btn btn-outline-secondary ms-2"
-                    onClick={handleReset}
-                    disabled={isSaving}
-                  >
-                    <i className="ph ph-arrow-counter-clockwise me-2"></i>
-                    Reset to Defaults
-                  </button>
+              {isOperator && (
+                <div className="row mt-4">
+                  <div className="col-12">
+                    <button className="btn btn-primary" onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <span
+                            className="spinner-border spinner-border-sm me-2"
+                            role="status"
+                          ></span>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <i className="ph ph-check me-2"></i>
+                          Save Settings
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      className="btn btn-outline-secondary ms-2"
+                      onClick={handleReset}
+                      disabled={isSaving}
+                    >
+                      <i className="ph ph-arrow-counter-clockwise me-2"></i>
+                      Reset to Defaults
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {!isOperator && (
+                <div className="alert alert-info mt-4" role="alert">
+                  <i className="ph ph-info me-2"></i>
+                  Settings are read-only for your role. Contact an administrator to make changes.
+                </div>
+              )}
             </div>
           </div>
         </div>

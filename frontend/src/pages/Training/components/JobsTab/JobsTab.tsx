@@ -7,6 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { useWebSocket } from '../../../../contexts/WebSocketContext';
+import { useAuth } from '../../../../hooks/useAuth';
 import { JobCard } from './JobCard';
 import { CreateJobDialog } from './CreateJobDialog';
 import { listModelArchitectures, listSyntheticDatasets } from '../../../../services/api/training';
@@ -18,6 +19,7 @@ interface JobsTabProps {
 export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
   const { jobs, fetchJobs, handleJobUpdate, isLoading, error, createJob, deleteAllJobs } = useTrainingStore();
   const { subscribe } = useWebSocket();
+  const { isOperator } = useAuth(); // For permission checks
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreatingBulkJobs, setIsCreatingBulkJobs] = useState(false);
   const [isDeletingAllJobs, setIsDeletingAllJobs] = useState(false);
@@ -213,51 +215,53 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
             Manage and monitor training jobs
           </p>
         </div>
-        <div className="d-flex gap-2">
-          <button
-            onClick={handleDeleteAllJobs}
-            disabled={isDeletingAllJobs || isLoading || trainingJobs.length === 0}
-            className="btn btn-danger d-flex align-items-center gap-2"
-            title="Delete all training jobs (running jobs will be cancelled first)"
-          >
-            {isDeletingAllJobs ? (
-              <>
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Deleting...
-              </>
-            ) : (
-              <>
-                <i className="ph ph-trash"></i>
-                Delete All Jobs
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleTrainAllArchitectures}
-            disabled={isCreatingBulkJobs || isLoading}
-            className="btn btn-success d-flex align-items-center gap-2"
-            title="Create training jobs for all architectures using all datasets (500 epochs, no early stopping)"
-          >
-            {isCreatingBulkJobs ? (
-              <>
-                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                Creating Jobs...
-              </>
-            ) : (
-              <>
-                <i className="ph ph-lightning"></i>
-                Train All Architectures
-              </>
-            )}
-          </button>
-          <button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="btn btn-primary d-flex align-items-center gap-2"
-          >
-            <i className="ph ph-plus"></i>
-            New Training Job
-          </button>
-        </div>
+        {isOperator && (
+          <div className="d-flex gap-2">
+            <button
+              onClick={handleDeleteAllJobs}
+              disabled={isDeletingAllJobs || isLoading || trainingJobs.length === 0}
+              className="btn btn-danger d-flex align-items-center gap-2"
+              title="Delete all training jobs (running jobs will be cancelled first)"
+            >
+              {isDeletingAllJobs ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <i className="ph ph-trash"></i>
+                  Delete All Jobs
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleTrainAllArchitectures}
+              disabled={isCreatingBulkJobs || isLoading}
+              className="btn btn-success d-flex align-items-center gap-2"
+              title="Create training jobs for all architectures using all datasets (500 epochs, no early stopping)"
+            >
+              {isCreatingBulkJobs ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                  Creating Jobs...
+                </>
+              ) : (
+                <>
+                  <i className="ph ph-lightning"></i>
+                  Train All Architectures
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="btn btn-primary d-flex align-items-center gap-2"
+            >
+              <i className="ph ph-plus"></i>
+              New Training Job
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Error Message */}
@@ -286,14 +290,20 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
           <div className="card-body text-center py-5">
             <i className="ph ph-clipboard-text display-4 text-muted mb-3"></i>
             <h5 className="card-title mb-2">No Training Jobs</h5>
-            <p className="text-muted mb-3">Get started by creating your first training job</p>
-            <button
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="btn btn-primary"
-            >
-              <i className="ph ph-plus me-2"></i>
-              Create Training Job
-            </button>
+            <p className="text-muted mb-3">
+              {isOperator 
+                ? 'Get started by creating your first training job'
+                : 'No training jobs have been created yet'}
+            </p>
+            {isOperator && (
+              <button
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="btn btn-primary"
+              >
+                <i className="ph ph-plus me-2"></i>
+                Create Training Job
+              </button>
+            )}
           </div>
         </div>
       )}
