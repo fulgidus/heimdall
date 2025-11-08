@@ -22,10 +22,8 @@ import logging
 import json
 
 from ..db import get_pool
-from common.auth import (
-    get_current_user,
-    require_operator,
-    User,
+from common.auth import get_current_user, require_operator, User
+from common.auth.rbac import (
     can_view_model,
     can_edit_model,
     can_delete_model,

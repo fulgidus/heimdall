@@ -20,10 +20,8 @@ from pydantic import BaseModel, Field
 import logging
 
 from ..db import get_pool
-from common.auth import (
-    get_current_user,
-    require_operator,
-    User,
+from common.auth import get_current_user, require_operator, User
+from common.auth.rbac import (
     can_view_constellation,
     can_edit_constellation,
     can_delete_constellation,

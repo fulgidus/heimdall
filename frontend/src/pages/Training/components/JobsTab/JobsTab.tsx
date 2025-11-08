@@ -167,26 +167,6 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
 
   // Handler for deleting all training jobs
   const handleDeleteAllJobs = async () => {
-    const trainingJobs = jobs.filter(job => job.job_type === 'training');
-    
-    if (trainingJobs.length === 0) {
-      alert('No training jobs to delete.');
-      return;
-    }
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ALL ${trainingJobs.length} training jobs?\n\n` +
-      `This will:\n` +
-      `- Cancel all running/paused jobs\n` +
-      `- Delete all job records\n` +
-      `- This action cannot be undone!\n\n` +
-      `Click OK to proceed or Cancel to abort.`
-    );
-    
-    if (!confirmed) {
-      return;
-    }
-    
     setIsDeletingAllJobs(true);
     try {
       console.log(`[JobsTab] Deleting all ${trainingJobs.length} training jobs...`);
@@ -196,10 +176,8 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
       await fetchJobs();
       
       console.log('[JobsTab] Successfully deleted all training jobs!');
-      alert(`Successfully deleted all ${trainingJobs.length} training jobs!`);
     } catch (error) {
       console.error('[JobsTab] Error deleting all jobs:', error);
-      alert('Failed to delete some training jobs. Check console for details.\n\nRemaining jobs have been removed from the UI.');
     } finally {
       setIsDeletingAllJobs(false);
     }

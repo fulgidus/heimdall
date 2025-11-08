@@ -24,10 +24,8 @@ import logging
 
 from ..db import get_pool
 from ..models.session import KnownSource, KnownSourceCreate, KnownSourceUpdate
-from common.auth import (
-    get_current_user,
-    require_operator,
-    User,
+from common.auth import get_current_user, require_operator, User
+from common.auth.rbac import (
     can_view_source,
     can_edit_source,
     can_delete_source,
