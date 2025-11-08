@@ -136,7 +136,7 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
           config: {
             dataset_ids: datasetIds, // Required array of dataset UUIDs
             model_architecture: arch.id,
-            batch_size: 128, // Big default batch size
+            batch_size: 8, // Small default batch size
             learning_rate: 0.001,
             epochs: 500, // Note: 'epochs', not 'total_epochs'
             validation_split: 0.15,
