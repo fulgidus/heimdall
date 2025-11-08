@@ -6,7 +6,7 @@
   --sea-green: #06a77d;
   --light-green: #8ec63f;
   --french-gray: #c5c6c8;
-  
+
   /* Tailwind-like colors for compatibility */
   --purple-50: #faf5ff;
   --purple-200: #e9d5ff;
@@ -26,7 +26,7 @@
   --red-500: #ef4444;
   --red-600: #dc2626;
   --red-700: #b91c1c;
-  
+
   /* Semantic colors */
   --primary: var(--neon-blue);
   --primary-foreground: #ffffff;
@@ -44,7 +44,7 @@
   --border: var(--neon-blue);
   --input: var(--neon-blue);
   --ring: var(--neon-blue);
-  
+
   /* Spacing */
   --spacing-xs: 0.125rem;
   --spacing-sm: 0.25rem;
@@ -53,15 +53,15 @@
   --spacing-xl: 1.5rem;
   --spacing-2xl: 2rem;
   --spacing-3xl: 3rem;
-  
+
   /* Breakpoints (for reference) */
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
-  
-  font-family: "Inter", system-ui, sans-serif;
+
+  font-family: 'Inter', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: dark;
@@ -132,7 +132,8 @@ textarea:focus-visible {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -161,13 +162,21 @@ textarea:focus-visible {
 }
 
 @keyframes shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
-  10%, 30%, 50%, 70%, 90% {
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-5px);
   }
-  20%, 40%, 60%, 80% {
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(5px);
   }
 }
@@ -225,7 +234,7 @@ textarea:focus-visible {
   .grid-responsive-lg-3 {
     grid-template-columns: repeat(3, 1fr);
   }
-  
+
   .grid-responsive-lg-4 {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -243,19 +252,21 @@ textarea:focus-visible {
   body {
     font-size: 16px; /* Prevents auto-zoom on iOS */
   }
-  
-  input, select, textarea {
+
+  input,
+  select,
+  textarea {
     font-size: 16px; /* Prevents auto-zoom on iOS */
   }
-  
+
   .mobile-text-sm {
     font-size: 14px;
   }
-  
+
   .mobile-text-base {
     font-size: 16px;
   }
-  
+
   .mobile-text-lg {
     font-size: 18px;
   }
@@ -277,15 +288,15 @@ textarea:focus-visible {
   .mobile-p-2 {
     padding: 0.5rem;
   }
-  
+
   .mobile-p-4 {
     padding: 1rem;
   }
-  
+
   .mobile-gap-2 {
     gap: 0.5rem;
   }
-  
+
   .mobile-gap-4 {
     gap: 1rem;
   }
@@ -304,19 +315,19 @@ textarea:focus-visible {
   .mobile-only {
     display: none;
   }
-  
+
   .desktop-only {
     display: block;
   }
-  
+
   .desktop-inline {
     display: inline;
   }
-  
+
   .desktop-flex {
     display: flex;
   }
-  
+
   .desktop-grid {
     display: grid;
   }
@@ -330,7 +341,7 @@ textarea:focus-visible {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   .hide-mobile {
     display: none !important;
   }
@@ -393,16 +404,61 @@ textarea:focus-visible {
     transform: translateY(100%);
     transition: transform 0.3s ease-in-out;
   }
-  
+
   .bottom-sheet.active {
     transform: translateY(0);
   }
-  
+
   .bottom-sheet-handle {
     width: 40px;
     height: 4px;
     background-color: var(--french-gray);
     border-radius: 2px;
     margin: 0.75rem auto;
+  }
+}
+
+/* ===========================
+   WIDGET HEIGHT UTILITIES
+   =========================== */
+
+.widget-height-small .card-body {
+  min-height: 200px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.widget-height-medium .card-body {
+  min-height: 350px;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.widget-height-large .card-body {
+  min-height: 500px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.widget-height-xlarge .card-body {
+  min-height: 700px;
+  max-height: 700px;
+  overflow-y: auto;
+}
+
+/* ===========================
+   MODAL SCROLLING FIX
+   =========================== */
+
+/* Ensure modal body can scroll when content overflows */
+.modal-body {
+  max-height: calc(100vh - 210px); /* viewport height minus header/footer */
+  overflow-y: auto;
+}
+
+/* On mobile, give more space to modal body */
+@media (max-width: 640px) {
+  .modal-body {
+    max-height: calc(100vh - 150px);
   }
 }

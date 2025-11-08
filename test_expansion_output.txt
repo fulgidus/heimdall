@@ -1,0 +1,14 @@
+================================================================================
+DATASET EXPANSION TEST
+================================================================================
+
+1. Checking initial dataset state...
+Traceback (most recent call last):
+  File "/home/fulgidus/Documents/Projects/heimdall/test_dataset_expansion.py", line 150, in <module>
+    test_expansion()
+    ~~~~~~~~~~~~~~^^
+  File "/home/fulgidus/Documents/Projects/heimdall/test_dataset_expansion.py", line 61, in test_expansion
+    initial_count = check_dataset_samples(EXPAND_DATASET_ID)
+  File "/home/fulgidus/Documents/Projects/heimdall/test_dataset_expansion.py", line 14, in check_dataset_samples
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'

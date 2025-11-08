@@ -1,9 +1,0 @@
-# Data Ingestion Web Service Requirements
-# References centralized requirements
--r requirements/base.txt
--r requirements/api.txt
--r requirements/data.txt
-
-# Service-specific dependencies
-asyncpg==0.30.0
-fastapi-sqlalchemy==0.2.1

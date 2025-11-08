@@ -10,6 +10,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Audio Library Import/Export Support** (2025-11-07)
+  - Extended `.heimdall` file format to include audio library entries with chunks
+  - Backend: Added audio library export/import logic in `import_export.py`
+    - Queries `heimdall.audio_library` and `heimdall.audio_chunks` tables
+    - Downloads/uploads `.npy` chunk files from/to MinIO bucket `heimdall-audio-chunks`
+    - Base64-encodes audio data for JSON transport
+    - Supports selective export via `audio_library_ids` parameter
+    - Import creates new paths: `imported/{audio_id}/{chunk_index:04d}.npy`
+  - Frontend: Added audio library selection UI in Import/Export page
+    - Displays scrollable list of audio files with chunk count and size
+    - Auto-selects all audio library items by default
+    - Shows audio library count in import success message
+  - TypeScript: Added `ExportedAudioChunk`, `ExportedAudioLibrary`, `AvailableAudioLibrary` types
+  - Documentation: Created `docs/AUDIO_LIBRARY_IMPORT_EXPORT.md` with full implementation details
+  - Performance: ~200KB per 1-second chunk, base64 overhead ~33%
+
+### Fixed
+- Nothing yet
+
+---
+
+## [0.3.0] - 2025-10-30
+
+### Added
+- **Automated Release Workflow** (2025-10-30)
+  - Created GitHub Actions workflow for automatic release creation and publishing
+  - Triggered by version tags pushed to `develop` (format: `v*`)
+  - Automatically extracts changelog content from CHANGELOG.md
+  - Creates GitHub Release with changelog as description
+  - Merges `develop` into `main` after release is published
+  - Updates version numbers in pyproject.toml and frontend/package.json for next development cycle
+  - Regenerates CHANGELOG.md with new [Unreleased] section
+  - No manual intervention needed: tag → release → merge → version bump
+
+---
+
+## [0.2.0] - 2025-10-30
+
+### Added
 - **Centralized Dependency Management System** (2025-10-25, PR #3)
   - Created `services/requirements/` directory with modular requirement files
   - Added `base.txt`, `dev.txt`, `ml.txt`, `api.txt`, `data.txt` for shared dependencies
@@ -350,7 +389,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dockerfile templates (multi-stage builds with healthchecks)
 - Common requirements.txt for shared dependencies
 - docker compose.services.yml for service orchestration
-- Service containers: rf-acquisition, training, inference, data-ingestion-web, api-gateway
+- Service containers: rf-acquisition, training, inference, api-gateway
 - Structured logging via structlog for all services
 
 ### Changed

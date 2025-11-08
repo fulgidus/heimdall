@@ -1,57 +1,57 @@
 /* Badge Component Styles */
 .badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 9999px;
-    border: 1px solid;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid;
 }
 
 /* Variants */
 .badge-primary {
-    background-color: rgba(58, 134, 255, 0.2);
-    color: var(--neon-blue);
-    border-color: rgba(58, 134, 255, 0.5);
+  background-color: rgba(58, 134, 255, 0.2);
+  color: var(--neon-blue);
+  border-color: rgba(58, 134, 255, 0.5);
 }
 
 .badge-secondary {
-    background-color: rgba(6, 167, 125, 0.2);
-    color: var(--light-green);
-    border-color: rgba(6, 167, 125, 0.5);
+  background-color: rgba(6, 167, 125, 0.2);
+  color: var(--light-green);
+  border-color: rgba(6, 167, 125, 0.5);
 }
 
 .badge-success {
-    background-color: rgba(142, 198, 63, 0.2);
-    color: var(--light-green);
-    border-color: rgba(142, 198, 63, 0.5);
+  background-color: rgba(142, 198, 63, 0.2);
+  color: var(--light-green);
+  border-color: rgba(142, 198, 63, 0.5);
 }
 
 .badge-danger {
-    background-color: rgba(239, 68, 68, 0.2);
-    color: rgb(252, 165, 165);
-    border-color: rgba(239, 68, 68, 0.5);
+  background-color: rgba(239, 68, 68, 0.2);
+  color: rgb(252, 165, 165);
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 .badge-warning {
-    background-color: rgba(234, 179, 8, 0.2);
-    color: rgb(253, 224, 71);
-    border-color: rgba(234, 179, 8, 0.5);
+  background-color: rgba(234, 179, 8, 0.2);
+  color: rgb(253, 224, 71);
+  border-color: rgba(234, 179, 8, 0.5);
 }
 
 /* Sizes */
 .badge-sm {
-    padding: 0.125rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .badge-md {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .badge-lg {
-    padding: 0.375rem 1rem;
-    font-size: 1rem;
-    font-weight: 600;
+  padding: 0.375rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
 }

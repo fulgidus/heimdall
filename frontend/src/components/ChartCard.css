@@ -1,64 +1,64 @@
 .chart-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-card .card-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 300px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
 }
 
 .chart-card-header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
 }
 
 .chart-card-actions {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .chart-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    width: 100%;
-    min-height: 250px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  min-height: 250px;
 }
 
 .chart-loading {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex: 1;
-    min-height: 250px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  min-height: 250px;
 }
 
 /* Ensure charts are responsive */
 .chart-container canvas {
-    max-width: 100%;
-    height: auto !important;
+  max-width: 100%;
+  height: auto !important;
 }
 
 /* Dark theme optimizations */
 .chart-card {
-    background-color: var(--bs-card-bg, #1a1a2e);
-    border-color: rgba(70, 110, 246, 0.2);
+  background-color: var(--bs-card-bg, #1a1a2e);
+  border-color: rgba(70, 110, 246, 0.2);
 }
 
 .chart-card .card-header {
-    background-color: rgba(70, 110, 246, 0.05);
-    border-bottom-color: rgba(70, 110, 246, 0.2);
+  background-color: rgba(70, 110, 246, 0.05);
+  border-bottom-color: rgba(70, 110, 246, 0.2);
 }
 
 .chart-card .card-title {
-    color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.95);
 }

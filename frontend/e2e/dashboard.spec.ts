@@ -47,8 +47,8 @@ test.describe('Dashboard Page - Real Backend Integration', () => {
             console.log('⚠️ No stats API endpoint detected (may not be implemented yet)');
         }
 
-        // Verify dashboard content is visible
-        await expect(page.locator('main')).toBeVisible();
+        // Verify dashboard content is visible (uses .pc-content from DattaLayout)
+        await expect(page.locator('.pc-content')).toBeVisible();
     });
 
     test('should fetch WebSDR status from backend', async ({ page }) => {
@@ -145,12 +145,12 @@ test.describe('Dashboard Page - Real Backend Integration', () => {
     test('should verify dashboard displays data from backend', async ({ page }) => {
         await page.waitForLoadState('networkidle');
 
-        // Verify main content area exists
-        const mainContent = page.locator('main');
+        // Verify main content area exists (uses .pc-content from DattaLayout)
+        const mainContent = page.locator('.pc-content');
         await expect(mainContent).toBeVisible();
 
         // Look for any stats cards or data display
-        const hasContent = await page.locator('main').evaluate((el) => {
+        const hasContent = await page.locator('.pc-content').evaluate((el) => {
             return el.textContent && el.textContent.length > 100;
         });
 

@@ -1,305 +1,562 @@
 import React, { useEffect, useState } from 'react';
-import { useDashboardStore } from '../store';
+import { useSystemStore } from '../store';
+import { useWebSDRStore } from '../store';
+import { inferenceService } from '../services/api';
+import { useSystemWebSocket } from '../hooks/useSystemWebSocket';
 
 const SystemStatus: React.FC = () => {
-    const { data, isLoading, fetchDashboardData } = useDashboardStore();
-    const [isRefreshing, setIsRefreshing] = useState(false);
+  const { servicesHealth, infrastructureHealth, isLoading, checkAllServices, fetchModelPerformance } = useSystemStore();
+  const { websdrs, healthStatus, fetchWebSDRs, checkHealth } = useWebSDRStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [modelInfo, setModelInfo] = useState<any>(null);
+  
+  // Connect to WebSocket for real-time service health updates
+  useSystemWebSocket();
 
-    useEffect(() => {
-        fetchDashboardData();
-        const interval = setInterval(fetchDashboardData, 30000);
-        return () => clearInterval(interval);
-    }, [fetchDashboardData]);
+  useEffect(() => {
+    // Initial fetch - services health will be updated via WebSocket
+    checkAllServices(); // Initial load only, then WebSocket takes over
+    fetchModelPerformance();
+    fetchWebSDRs();
+    checkHealth();
+    loadModelInfo();
 
-    const handleRefresh = async () => {
-        setIsRefreshing(true);
-        await fetchDashboardData();
-        setIsRefreshing(false);
-    };
+    // Refresh model performance and model info every 30 seconds (not service health)
+    const interval = setInterval(() => {
+      fetchModelPerformance();
+      loadModelInfo();
+    }, 30000);
 
-    const services = Object.entries(data.servicesHealth).map(([name, health]) => ({
-        name: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        status: health.status,
-        rawName: name,
-    }));
+    return () => clearInterval(interval);
+  }, [checkAllServices, fetchModelPerformance, fetchWebSDRs, checkHealth]);
 
-    return (
-        <>
-            {/* Breadcrumb */}
-            <div className="page-header">
-                <div className="page-block">
-                    <div className="row align-items-center">
-                        <div className="col-md-12">
-                            <ul className="breadcrumb">
-                                <li className="breadcrumb-item"><a href="/dashboard">Home</a></li>
-                                <li className="breadcrumb-item" aria-current="page">System Status</li>
-                            </ul>
-                        </div>
-                        <div className="col-md-12">
-                            <div className="page-header-title">
-                                <h2 className="mb-0">System Status</h2>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+  const loadModelInfo = async () => {
+    try {
+      const info = await inferenceService.getModelInfo();
+      setModelInfo(info);
+    } catch (error) {
+      console.error('Failed to fetch model info:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      checkAllServices(),
+      fetchModelPerformance(),
+      checkHealth(),
+      loadModelInfo(),
+    ]);
+    setIsRefreshing(false);
+  };
+
+  const services = Object.entries(servicesHealth).map(([name, health]) => ({
+    name: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    status: health.status,
+    rawName: name,
+    health,
+  }));
+
+  const infrastructure = Object.entries(infrastructureHealth).map(([name, health]) => ({
+    name: name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    status: health.status,
+    rawName: name,
+    health,
+  }));
+
+  const safeWebsdrs = Array.isArray(websdrs) ? websdrs : [];
+  const onlineWebSDRCount = Object.values(healthStatus).filter(h => h?.status === 'online').length;
+  const totalWebSDRCount = safeWebsdrs.length;
+
+  // Helper to get icon for component type
+  const getComponentIcon = (type?: string) => {
+    switch (type) {
+      case 'database':
+        return 'ph-database';
+      case 'cache':
+        return 'ph-lightning';
+      case 'queue':
+        return 'ph-queue';
+      case 'storage':
+        return 'ph-package';
+      case 'worker':
+        return 'ph-cpu';
+      case 'receiver':
+        return 'ph-radio-button';
+      default:
+        return 'ph-circle';
+    }
+  };
+
+  return (
+    <>
+      {/* Breadcrumb */}
+      <div className="page-header">
+        <div className="page-block">
+          <div className="row align-items-center">
+            <div className="col-md-12">
+              <ul className="breadcrumb">
+                <li className="breadcrumb-item">
+                  <a href="/dashboard">Home</a>
+                </li>
+                <li className="breadcrumb-item" aria-current="page">
+                  System Status
+                </li>
+              </ul>
             </div>
+            <div className="col-md-12">
+              <div className="page-header-title">
+                <h2 className="mb-0">System Status</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Main Content */}
-            <div className="row">
-                {/* System Overview */}
-                <div className="col-12">
-                    <div className="card">
-                        <div className="card-header d-flex align-items-center justify-content-between">
-                            <h5 className="mb-0">System Overview</h5>
-                            <button
-                                className="btn btn-sm btn-primary"
-                                onClick={handleRefresh}
-                                disabled={isRefreshing}
+      {/* Main Content */}
+      <div className="row">
+        {/* System Overview */}
+        <div className="col-12">
+          <div className="card">
+            <div className="card-header d-flex align-items-center justify-content-between">
+              <h5 className="mb-0">System Overview</h5>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
+                {isRefreshing ? ' Refreshing...' : ' Refresh'}
+              </button>
+            </div>
+            <div className="card-body">
+              <div className="row">
+                <div className="col-md-3">
+                  <div className="d-grid">
+                    <div className="bg-light-primary p-3 rounded text-center">
+                      <i className="ph ph-cpu f-40 text-primary mb-2"></i>
+                      <h6 className="mb-0">Microservices</h6>
+                      <h3 className="mb-0 mt-2">
+                        {services.filter(s => s.status === 'healthy').length}/{services.length}
+                      </h3>
+                      <p className="text-muted f-12 mb-0">Healthy</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="d-grid">
+                    <div className="bg-light-secondary p-3 rounded text-center">
+                      <i className="ph ph-database f-40 text-secondary mb-2"></i>
+                      <h6 className="mb-0">Infrastructure</h6>
+                      <h3 className="mb-0 mt-2">
+                        {infrastructure.filter(c => c.status === 'healthy').length}/{infrastructure.length || '...'}
+                      </h3>
+                      <p className="text-muted f-12 mb-0">Healthy</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="d-grid">
+                    <div className="bg-light-success p-3 rounded text-center">
+                      <i className="ph ph-radio-button f-40 text-success mb-2"></i>
+                      <h6 className="mb-0">WebSDR Receivers</h6>
+                      <h3 className="mb-0 mt-2">
+                        {onlineWebSDRCount}/{totalWebSDRCount}
+                      </h3>
+                      <p className="text-muted f-12 mb-0">Online</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="d-grid">
+                    <div className="bg-light-info p-3 rounded text-center">
+                      <i className="ph ph-activity f-40 text-info mb-2"></i>
+                      <h6 className="mb-0">System Health</h6>
+                      <h3 className="mb-0 mt-2">
+                        {services.length > 0 && 
+                         infrastructure.length > 0 &&
+                         services.filter(s => s.status === 'healthy').length === services.length &&
+                         infrastructure.filter(c => c.status === 'healthy').length === infrastructure.length
+                          ? 'Good'
+                          : infrastructure.length === 0
+                            ? 'Loading...'
+                            : 'Degraded'}
+                      </h3>
+                      <p className="text-muted f-12 mb-0">Overall</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Services Details */}
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Microservices Health</h5>
+            </div>
+            <div className="card-body">
+              {isLoading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  <p className="text-muted mt-2">Checking services...</p>
+                </div>
+              ) : services.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Service</th>
+                        <th>Status</th>
+                        <th>Health</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {services.map(service => (
+                        <tr key={service.rawName}>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="flex-shrink-0">
+                                <div
+                                  className={`avtar avtar-s ${
+                                    service.status === 'healthy'
+                                      ? 'bg-light-success'
+                                      : service.status === 'degraded'
+                                        ? 'bg-light-warning'
+                                        : 'bg-light-danger'
+                                  }`}
+                                >
+                                  <i
+                                    className={`ph ${
+                                      service.status === 'healthy'
+                                        ? 'ph-check-circle'
+                                        : service.status === 'degraded'
+                                          ? 'ph-warning-circle'
+                                          : 'ph-x-circle'
+                                    }`}
+                                  ></i>
+                                </div>
+                              </div>
+                              <div className="flex-grow-1 ms-3">
+                                <h6 className="mb-0">{service.name}</h6>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge ${
+                                service.status === 'healthy'
+                                  ? 'bg-light-success'
+                                  : service.status === 'degraded'
+                                    ? 'bg-light-warning'
+                                    : 'bg-light-danger'
+                              }`}
                             >
-                                <i className={`ph ph-arrows-clockwise ${isRefreshing ? 'spin' : ''}`}></i>
-                                {isRefreshing ? ' Refreshing...' : ' Refresh'}
-                            </button>
-                        </div>
-                        <div className="card-body">
-                            <div className="row">
-                                <div className="col-md-3">
-                                    <div className="d-grid">
-                                        <div className="bg-light-primary p-3 rounded text-center">
-                                            <i className="ph ph-cpu f-40 text-primary mb-2"></i>
-                                            <h6 className="mb-0">Services</h6>
-                                            <h3 className="mb-0 mt-2">
-                                                {services.filter(s => s.status === 'healthy').length}/{services.length}
-                                            </h3>
-                                            <p className="text-muted f-12 mb-0">Healthy</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-md-3">
-                                    <div className="d-grid">
-                                        <div className="bg-light-success p-3 rounded text-center">
-                                            <i className="ph ph-check-circle f-40 text-success mb-2"></i>
-                                            <h6 className="mb-0">API Gateway</h6>
-                                            <h3 className="mb-0 mt-2">
-                                                {data.servicesHealth['api-gateway']?.status === 'healthy' ? 'Online' : 'Offline'}
-                                            </h3>
-                                            <p className="text-muted f-12 mb-0">Status</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-md-3">
-                                    <div className="d-grid">
-                                        <div className="bg-light-warning p-3 rounded text-center">
-                                            <i className="ph ph-database f-40 text-warning mb-2"></i>
-                                            <h6 className="mb-0">RF Acquisition</h6>
-                                            <h3 className="mb-0 mt-2">
-                                                {data.servicesHealth['rf-acquisition']?.status === 'healthy' ? 'Online' : 'Offline'}
-                                            </h3>
-                                            <p className="text-muted f-12 mb-0">Status</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-md-3">
-                                    <div className="d-grid">
-                                        <div className="bg-light-info p-3 rounded text-center">
-                                            <i className="ph ph-brain f-40 text-info mb-2"></i>
-                                            <h6 className="mb-0">Inference</h6>
-                                            <h3 className="mb-0 mt-2">
-                                                {data.servicesHealth['inference']?.status === 'healthy' ? 'Online' : 'Offline'}
-                                            </h3>
-                                            <p className="text-muted f-12 mb-0">Status</p>
-                                        </div>
-                                    </div>
-                                </div>
+                              {service.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="progress" style={{ height: '6px' }}>
+                              <div
+                                className={`progress-bar ${
+                                  service.status === 'healthy'
+                                    ? 'bg-success'
+                                    : service.status === 'degraded'
+                                      ? 'bg-warning'
+                                      : 'bg-danger'
+                                }`}
+                                role="progressbar"
+                                style={{
+                                  width:
+                                    service.status === 'healthy'
+                                      ? '100%'
+                                      : service.status === 'degraded'
+                                        ? '50%'
+                                        : '25%',
+                                }}
+                              ></div>
                             </div>
-                        </div>
-                    </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-
-                {/* Services Details */}
-                <div className="col-lg-6">
-                    <div className="card">
-                        <div className="card-header">
-                            <h5 className="mb-0">Microservices Health</h5>
-                        </div>
-                        <div className="card-body">
-                            {isLoading ? (
-                                <div className="text-center py-5">
-                                    <div className="spinner-border text-primary" role="status">
-                                        <span className="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p className="text-muted mt-2">Checking services...</p>
-                                </div>
-                            ) : services.length > 0 ? (
-                                <div className="table-responsive">
-                                    <table className="table table-hover mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Service</th>
-                                                <th>Status</th>
-                                                <th>Health</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {services.map((service) => (
-                                                <tr key={service.rawName}>
-                                                    <td>
-                                                        <div className="d-flex align-items-center">
-                                                            <div className="flex-shrink-0">
-                                                                <div className={`avtar avtar-s ${
-                                                                    service.status === 'healthy'
-                                                                        ? 'bg-light-success'
-                                                                        : service.status === 'degraded'
-                                                                        ? 'bg-light-warning'
-                                                                        : 'bg-light-danger'
-                                                                }`}>
-                                                                    <i className={`ph ${
-                                                                        service.status === 'healthy'
-                                                                            ? 'ph-check-circle'
-                                                                            : service.status === 'degraded'
-                                                                            ? 'ph-warning-circle'
-                                                                            : 'ph-x-circle'
-                                                                    }`}></i>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex-grow-1 ms-3">
-                                                                <h6 className="mb-0">{service.name}</h6>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <span className={`badge ${
-                                                            service.status === 'healthy'
-                                                                ? 'bg-light-success'
-                                                                : service.status === 'degraded'
-                                                                ? 'bg-light-warning'
-                                                                : 'bg-light-danger'
-                                                        }`}>
-                                                            {service.status}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="progress" style={{ height: '6px' }}>
-                                                            <div
-                                                                className={`progress-bar ${
-                                                                    service.status === 'healthy'
-                                                                        ? 'bg-success'
-                                                                        : service.status === 'degraded'
-                                                                        ? 'bg-warning'
-                                                                        : 'bg-danger'
-                                                                }`}
-                                                                role="progressbar"
-                                                                style={{
-                                                                    width: service.status === 'healthy'
-                                                                        ? '100%'
-                                                                        : service.status === 'degraded'
-                                                                        ? '50%'
-                                                                        : '25%'
-                                                                }}
-                                                            ></div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <div className="text-center py-5">
-                                    <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
-                                    <p className="text-muted mb-0">No service data available</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+              ) : (
+                <div className="text-center py-5">
+                  <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
+                  <p className="text-muted mb-0">No service data available</p>
                 </div>
-
-                {/* ML Model Status */}
-                <div className="col-lg-6">
-                    <div className="card">
-                        <div className="card-header">
-                            <h5 className="mb-0">ML Model Status</h5>
-                        </div>
-                        <div className="card-body">
-                            {data.modelInfo ? (
-                                <>
-                                    <div className="row mb-3">
-                                        <div className="col-6">
-                                            <p className="text-muted mb-1">Version</p>
-                                            <h6 className="mb-0">{data.modelInfo.active_version}</h6>
-                                        </div>
-                                        <div className="col-6">
-                                            <p className="text-muted mb-1">Health Status</p>
-                                            <h6 className="mb-0">
-                                                <span className={`badge ${
-                                                    data.modelInfo.health_status === 'healthy'
-                                                        ? 'bg-light-success'
-                                                        : 'bg-light-warning'
-                                                }`}>
-                                                    {data.modelInfo.health_status}
-                                                </span>
-                                            </h6>
-                                        </div>
-                                    </div>
-                                    <hr />
-                                    <div className="row mb-3">
-                                        <div className="col-6">
-                                            <p className="text-muted mb-1">Accuracy</p>
-                                            <h6 className="mb-0">
-                                                {data.modelInfo.accuracy
-                                                    ? `${(data.modelInfo.accuracy * 100).toFixed(2)}%`
-                                                    : 'N/A'}
-                                            </h6>
-                                        </div>
-                                        <div className="col-6">
-                                            <p className="text-muted mb-1">Loaded At</p>
-                                            <h6 className="mb-0">
-                                                {data.modelInfo.loaded_at
-                                                    ? new Date(data.modelInfo.loaded_at).toLocaleString()
-                                                    : 'N/A'}
-                                            </h6>
-                                        </div>
-                                    </div>
-                                    <hr />
-                                    <div className="row">
-                                        <div className="col-4">
-                                            <p className="text-muted mb-1">Total Predictions</p>
-                                            <h6 className="mb-0">{data.modelInfo.predictions_total}</h6>
-                                        </div>
-                                        <div className="col-4">
-                                            <p className="text-muted mb-1">Successful</p>
-                                            <h6 className="mb-0 text-success">{data.modelInfo.predictions_successful}</h6>
-                                        </div>
-                                        <div className="col-4">
-                                            <p className="text-muted mb-1">Failed</p>
-                                            <h6 className="mb-0 text-danger">
-                                                {data.modelInfo.predictions_total - data.modelInfo.predictions_successful}
-                                            </h6>
-                                        </div>
-                                    </div>
-                                    {data.modelInfo.last_prediction_at && (
-                                        <>
-                                            <hr />
-                                            <div className="row">
-                                                <div className="col-12">
-                                                    <p className="text-muted mb-1">Last Prediction</p>
-                                                    <h6 className="mb-0">{data.modelInfo.last_prediction_at}</h6>
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="text-center py-5">
-                                    <i className="ph ph-brain f-40 text-muted mb-3"></i>
-                                    <p className="text-muted mb-0">Model information not available</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+              )}
             </div>
-        </>
-    );
+          </div>
+        </div>
+
+        {/* WebSDR Status */}
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">WebSDR Receivers</h5>
+            </div>
+            <div className="card-body">
+              {safeWebsdrs.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Response Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {safeWebsdrs.slice(0, 7).map(sdr => {
+                        const health = healthStatus[sdr.id];
+                        const isOnline = health?.status === 'online';
+                        
+                        return (
+                          <tr key={sdr.id}>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                  <div
+                                    className={`avtar avtar-s ${
+                                      isOnline
+                                        ? 'bg-light-success'
+                                        : 'bg-light-danger'
+                                    }`}
+                                  >
+                                    <i
+                                      className={`ph ${
+                                        isOnline
+                                          ? 'ph-radio-button'
+                                          : 'ph-x-circle'
+                                      }`}
+                                    ></i>
+                                  </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                  <h6 className="mb-0">
+                                    {sdr.location_description?.split(',')[0] || sdr.name}
+                                  </h6>
+                                  <small className="text-muted">{sdr.country}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  isOnline
+                                    ? 'bg-light-success'
+                                    : 'bg-light-danger'
+                                }`}
+                              >
+                                {isOnline ? 'Online' : 'Offline'}
+                              </span>
+                            </td>
+                            <td>
+                              {health?.response_time_ms
+                                ? `${health.response_time_ms.toFixed(0)}ms`
+                                : 'N/A'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-5">
+                  <i className="ph ph-radio-button f-40 text-muted mb-3"></i>
+                  <p className="text-muted mb-0">No WebSDR receivers configured</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Infrastructure Components */}
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">Infrastructure Components</h5>
+            </div>
+            <div className="card-body">
+              {infrastructure.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Component</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {infrastructure.map(component => {
+                        const isHealthy = component.status === 'healthy';
+                        const isWarning = component.status === 'warning';
+                        
+                        return (
+                          <tr key={component.rawName}>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="flex-shrink-0">
+                                  <div
+                                    className={`avtar avtar-s ${
+                                      isHealthy
+                                        ? 'bg-light-success'
+                                        : isWarning
+                                          ? 'bg-light-warning'
+                                          : 'bg-light-danger'
+                                    }`}
+                                  >
+                                    <i className={`ph ${getComponentIcon(component.health.type)}`}></i>
+                                  </div>
+                                </div>
+                                <div className="flex-grow-1 ms-3">
+                                  <h6 className="mb-0">{component.name}</h6>
+                                  <small className="text-muted">{component.health.type || 'system'}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span
+                                className={`badge ${
+                                  isHealthy
+                                    ? 'bg-light-success'
+                                    : isWarning
+                                      ? 'bg-light-warning'
+                                      : 'bg-light-danger'
+                                }`}
+                              >
+                                {component.status}
+                              </span>
+                            </td>
+                            <td>
+                              <small className="text-muted">
+                                {component.health.message || 
+                                 (component.health.response_time_ms 
+                                   ? `${component.health.response_time_ms.toFixed(1)}ms` 
+                                   : component.health.error || 'N/A')}
+                              </small>
+                              {component.health.worker_count !== undefined && (
+                                <div><small className="text-muted">Workers: {component.health.worker_count}</small></div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-5">
+                  <i className="ph ph-circle-notch f-40 text-muted mb-3"></i>
+                  <p className="text-muted mb-0">Waiting for infrastructure health data...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ML Model Status */}
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <h5 className="mb-0">ML Model Status</h5>
+            </div>
+            <div className="card-body">
+              {modelInfo ? (
+                <>
+                  <div className="row mb-3">
+                    <div className="col-6">
+                      <p className="text-muted mb-1">Version</p>
+                      <h6 className="mb-0">{modelInfo.active_version || 'N/A'}</h6>
+                    </div>
+                    <div className="col-6">
+                      <p className="text-muted mb-1">Health Status</p>
+                      <h6 className="mb-0">
+                        <span
+                          className={`badge ${
+                            modelInfo.health_status === 'healthy'
+                              ? 'bg-light-success'
+                              : 'bg-light-warning'
+                          }`}
+                        >
+                          {modelInfo.health_status}
+                        </span>
+                      </h6>
+                    </div>
+                  </div>
+                  <hr />
+                  <div className="row mb-3">
+                    <div className="col-6">
+                      <p className="text-muted mb-1">Accuracy</p>
+                      <h6 className="mb-0">
+                        {modelInfo.accuracy
+                          ? `${(modelInfo.accuracy * 100).toFixed(2)}%`
+                          : 'N/A'}
+                      </h6>
+                    </div>
+                    <div className="col-6">
+                      <p className="text-muted mb-1">Loaded At</p>
+                      <h6 className="mb-0">
+                        {modelInfo.loaded_at
+                          ? new Date(modelInfo.loaded_at).toLocaleString()
+                          : 'N/A'}
+                      </h6>
+                    </div>
+                  </div>
+                  <hr />
+                  <div className="row">
+                    <div className="col-4">
+                      <p className="text-muted mb-1">Total Predictions</p>
+                      <h6 className="mb-0">{modelInfo.predictions_total ?? 0}</h6>
+                    </div>
+                    <div className="col-4">
+                      <p className="text-muted mb-1">Successful</p>
+                      <h6 className="mb-0 text-success">
+                        {modelInfo.predictions_successful ?? 0}
+                      </h6>
+                    </div>
+                    <div className="col-4">
+                      <p className="text-muted mb-1">Failed</p>
+                      <h6 className="mb-0 text-danger">
+                        {modelInfo.predictions_failed ?? 0}
+                      </h6>
+                    </div>
+                  </div>
+                  {modelInfo.last_prediction_at && (
+                    <>
+                      <hr />
+                      <div className="row">
+                        <div className="col-12">
+                          <p className="text-muted mb-1">Last Prediction</p>
+                          <h6 className="mb-0">
+                            {new Date(modelInfo.last_prediction_at).toLocaleString()}
+                          </h6>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-5">
+                  <i className="ph ph-brain f-40 text-muted mb-3"></i>
+                  <p className="text-muted mb-0">Model information not available</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default SystemStatus;

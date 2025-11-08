@@ -1,8 +1,9 @@
+<<<<<<< HEAD
 # Inference Service Requirements
 # References centralized requirements
--r requirements/base.txt
--r requirements/api.txt
--r requirements/ml.txt
+-r ../requirements/base.txt
+-r ../requirements/api.txt
+-r ../requirements/ml.txt
 
 # Service-specific dependencies (lightweight for inference)
 onnxruntime>=1.16.3

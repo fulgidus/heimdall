@@ -1,0 +1,46 @@
+
+================================================================================
+BULK TRAINING TEST: All 13 Model Architectures
+================================================================================
+Testing 13 models with dataset 22a722a3-5508-48a9-8657-d75bbe5629bd
+================================================================================
+
+[1/13] Testing: triangulation_model... ✓ SUCCESS (status: pending)
+[2/13] Testing: localization_net_convnext_large... ✓ SUCCESS (status: pending)
+[3/13] Testing: localization_net_vit... ✓ SUCCESS (status: pending)
+[4/13] Testing: iq_resnet18... ✓ SUCCESS (status: pending)
+[5/13] Testing: iq_resnet50... ✓ SUCCESS (status: pending)
+[6/13] Testing: iq_resnet101... ✓ SUCCESS (status: pending)
+[7/13] Testing: iq_vggnet... ✓ SUCCESS (status: pending)
+[8/13] Testing: iq_efficientnet_b4... ✓ SUCCESS (status: pending)
+[9/13] Testing: iq_transformer... ✓ SUCCESS (status: pending)
+[10/13] Testing: iq_wavenet... ✓ SUCCESS (status: pending)
+[11/13] Testing: iq_hybrid... ✓ SUCCESS (status: running)
+[12/13] Testing: heimdall_net... ✗ FAILED (status: failed)
+[13/13] Testing: localization_ensemble_flagship... ✗ FAILED (status: failed)
+
+================================================================================
+SUMMARY
+================================================================================
+Total models: 13
+✓ Success: 11
+✗ Failed: 2
+✗ Errors: 0
+================================================================================
+
+FAILURES:
+
+  Model: heimdall_net
+  Status: FAILED
+  Error: HeimdallNet.forward() missing 2 required positional arguments: 'positions' and 'receiver_ids'
+  Job Status: failed
+
+  Model: localization_ensemble_flagship
+  Status: FAILED
+  Error: Model creation not implemented for: localization_ensemble_flagship
+  Job Status: failed
+
+================================================================================
+RESULT: 11/13 models working
+================================================================================
+

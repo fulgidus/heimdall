@@ -5,15 +5,13 @@ This module provides JWT validation and user authentication using Keycloak
 as the identity provider.
 """
 
-import os
 import logging
-from typing import Optional, List
-from functools import wraps
+import os
 
 import jwt
-from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt import PyJWKClient
 
 from .models import TokenData, User
 
@@ -26,19 +24,19 @@ security = HTTPBearer(auto_error=False)
 class KeycloakAuth:
     """
     Keycloak authentication handler.
-    
+
     Validates JWT tokens issued by Keycloak and extracts user information.
     """
-    
+
     def __init__(
         self,
-        keycloak_url: Optional[str] = None,
-        realm: Optional[str] = None,
-        client_id: Optional[str] = None,
+        keycloak_url: str | None = None,
+        realm: str | None = None,
+        client_id: str | None = None,
     ):
         """
         Initialize Keycloak authentication handler.
-        
+
         Args:
             keycloak_url: Keycloak server URL (default: from env KEYCLOAK_URL)
             realm: Keycloak realm name (default: from env KEYCLOAK_REALM)
@@ -47,32 +45,32 @@ class KeycloakAuth:
         self.keycloak_url = keycloak_url or os.getenv("KEYCLOAK_URL", "http://keycloak:8080")
         self.realm = realm or os.getenv("KEYCLOAK_REALM", "heimdall")
         self.client_id = client_id or os.getenv("KEYCLOAK_CLIENT_ID", "api-gateway")
-        
+
         # Construct JWKS URL for token validation
         self.jwks_url = f"{self.keycloak_url}/realms/{self.realm}/protocol/openid-connect/certs"
-        
+
         # Initialize JWK client for fetching public keys
         self.jwk_client = PyJWKClient(self.jwks_url)
-        
+
         logger.info(f"Initialized KeycloakAuth with realm={self.realm}, jwks_url={self.jwks_url}")
-    
+
     def verify_token(self, token: str) -> TokenData:
         """
         Verify JWT token and extract claims.
-        
+
         Args:
             token: JWT token string
-            
+
         Returns:
             TokenData with extracted claims
-            
+
         Raises:
             HTTPException: If token is invalid or expired
         """
         try:
             # Get signing key from JWKS
             signing_key = self.jwk_client.get_signing_key_from_jwt(token)
-            
+
             # Decode and verify token
             # Note: Public clients don't have aud claim by default
             payload = jwt.decode(
@@ -83,13 +81,13 @@ class KeycloakAuth:
                     "verify_signature": True,
                     "verify_exp": True,
                     "verify_aud": False,  # Public clients may not have aud claim
-                }
+                },
             )
-            
+
             # Extract realm roles from token
             realm_access = payload.get("realm_access", {})
             realm_roles = realm_access.get("roles", [])
-            
+
             # Create TokenData
             token_data = TokenData(
                 sub=payload.get("sub"),
@@ -99,10 +97,10 @@ class KeycloakAuth:
                 exp=payload.get("exp"),
                 iat=payload.get("iat"),
             )
-            
+
             logger.debug(f"Token verified for user: {token_data.preferred_username}")
             return token_data
-            
+
         except jwt.ExpiredSignatureError:
             logger.warning("Token expired")
             raise HTTPException(
@@ -124,20 +122,19 @@ class KeycloakAuth:
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    
+
     async def get_current_user(
-        self,
-        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+        self, credentials: HTTPAuthorizationCredentials | None = Depends(security)
     ) -> User:
         """
         FastAPI dependency to get current authenticated user.
-        
+
         Args:
             credentials: HTTP Bearer credentials from request
-            
+
         Returns:
             User object with user information
-            
+
         Raises:
             HTTPException: If authentication fails
         """
@@ -147,16 +144,16 @@ class KeycloakAuth:
                 detail="Missing authentication token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         token = credentials.credentials
         token_data = self.verify_token(token)
         user = User.from_token_data(token_data)
-        
+
         return user
 
 
 # Global auth instance (initialized on first use)
-_auth_instance: Optional[KeycloakAuth] = None
+_auth_instance: KeycloakAuth | None = None
 
 
 def get_auth() -> KeycloakAuth:
@@ -168,11 +165,11 @@ def get_auth() -> KeycloakAuth:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> User:
     """
     FastAPI dependency to get current authenticated user.
-    
+
     Usage:
         @app.get("/protected")
         async def protected_route(user: User = Depends(get_current_user)):
@@ -182,21 +179,22 @@ async def get_current_user(
     return await auth.get_current_user(credentials)
 
 
-def require_role(required_roles: List[str]):
+def require_role(required_roles: list[str]):
     """
     FastAPI dependency factory to require specific roles.
-    
+
     Usage:
         @app.get("/admin-only")
         async def admin_route(user: User = Depends(require_role(["admin"]))):
             return {"message": "Admin access granted"}
-    
+
     Args:
         required_roles: List of required roles (user must have at least one)
-        
+
     Returns:
         FastAPI dependency function
     """
+
     async def role_checker(user: User = Depends(get_current_user)) -> User:
         # Check if user has any of the required roles
         if not any(role in user.roles for role in required_roles):
@@ -205,14 +203,14 @@ def require_role(required_roles: List[str]):
                 detail=f"Insufficient permissions. Required roles: {required_roles}",
             )
         return user
-    
+
     return role_checker
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:
     """
     FastAPI dependency to require admin role.
-    
+
     Usage:
         @app.delete("/models/{model_id}")
         async def delete_model(model_id: str, user: User = Depends(require_admin)):
@@ -230,7 +228,7 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
 def require_operator(user: User = Depends(get_current_user)) -> User:
     """
     FastAPI dependency to require operator role (or admin).
-    
+
     Usage:
         @app.post("/signals/acquisition")
         async def trigger_acquisition(user: User = Depends(require_operator)):

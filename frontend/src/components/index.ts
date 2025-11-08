@@ -21,9 +21,14 @@ export { default as ChartCard } from './ChartCard';
 export { default as SessionListEnhanced } from './SessionListEnhanced';
 export { default as SessionDetailModal } from './SessionDetailModal';
 export { default as SpectrogramViewer } from './SpectrogramViewer';
+export { default as ModelSelectionModal } from './ModelSelectionModal';
 // Phase 7: Loading & skeleton components
 export { default as Skeleton } from './Skeleton';
-export { default as ServiceHealthSkeleton, WebSDRCardSkeleton, StatCardSkeleton } from './ServiceHealthSkeleton';
+export {
+  default as ServiceHealthSkeleton,
+  WebSDRCardSkeleton,
+  StatCardSkeleton,
+} from './ServiceHealthSkeleton';
 
 export type { TableColumn, TableProps } from './Table';
 export type { SelectOption } from './Select';

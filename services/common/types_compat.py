@@ -1,7 +1,7 @@
 """Type compatibility for common patterns."""
 
-from typing import TypeVar, Protocol, Union, Any
 from pathlib import Path
+from typing import Any, Protocol, TypeVar, Union
 
 T = TypeVar("T")
 U = TypeVar("U")

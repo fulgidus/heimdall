@@ -1,3 +1,3 @@
 """API routers for inference service."""
 
-from . import predict, analytics
+from . import analytics, predict

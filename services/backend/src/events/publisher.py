@@ -1,0 +1,643 @@
+"""
+RabbitMQ Event Publisher
+
+Publishes events from Celery tasks and other backend components to RabbitMQ
+for consumption by WebSocket managers and other services.
+
+Architecture Decision:
+- Use RabbitMQ (not Redis Pub/Sub) for event broadcasting
+- Topic exchange for flexible routing
+- Non-durable messages (ephemeral events)
+- Separate from Celery task queue (different exchange)
+"""
+
+import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, Optional
+
+from kombu import Connection, Exchange, Producer
+
+logger = logging.getLogger(__name__)
+
+# RabbitMQ configuration
+BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672/')
+
+# Events exchange (separate from Celery tasks)
+EVENTS_EXCHANGE = Exchange(
+    'heimdall.events',
+    type='topic',
+    durable=False,  # Ephemeral events, no persistence needed
+    auto_delete=False
+)
+
+
+class EventPublisher:
+    """
+    Publisher for real-time events to RabbitMQ.
+
+    Usage:
+        publisher = EventPublisher()
+        publisher.publish_websdr_health(health_data)
+        publisher.publish_signal_detection(signal_data)
+    """
+
+    def __init__(self, broker_url: Optional[str] = None):
+        """
+        Initialize event publisher.
+
+        Args:
+            broker_url: RabbitMQ connection URL (default: from env)
+        """
+        self.broker_url = broker_url or BROKER_URL
+        self.exchange = EVENTS_EXCHANGE
+
+    def _publish(self, routing_key: str, data: Dict[str, Any]) -> None:
+        """
+        Internal method to publish event to RabbitMQ.
+
+        Args:
+            routing_key: Routing key for topic exchange (e.g., 'websdr.health.update')
+            data: Event payload (must be JSON-serializable)
+        """
+        try:
+            with Connection(self.broker_url) as connection:
+                with connection.Producer() as producer:
+                    producer.publish(
+                        data,
+                        exchange=self.exchange,
+                        routing_key=routing_key,
+                        serializer='json',
+                        declare=[self.exchange],
+                        retry=True,
+                        retry_policy={
+                            'max_retries': 3,
+                            'interval_start': 0,
+                            'interval_step': 0.5,
+                            'interval_max': 2,
+                        }
+                    )
+                    logger.debug(f"Published event: {routing_key}")
+
+        except Exception as e:
+            logger.error(f"Failed to publish event {routing_key}: {e}", exc_info=True)
+            # Don't raise - event publishing failures should not crash the publisher
+
+    def publish_websdr_health(self, health_data: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Publish WebSDR health status update.
+
+        Args:
+            health_data: Dict mapping websdr_id to health status
+                Example: {
+                    "1": {"websdr_id": "1", "name": "Torino", "status": "online", ...},
+                    "2": {"websdr_id": "2", "name": "Milano", "status": "offline", ...}
+                }
+        """
+        event = {
+            'event': 'websdrs:health',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'health_status': health_data
+            }
+        }
+
+        self._publish('websdr.health.update', event)
+        logger.info(f"Published WebSDR health update for {len(health_data)} stations")
+
+    def publish_service_health(self, service_name: str, status: str, **kwargs) -> None:
+        """
+        Publish microservice health status update.
+
+        Args:
+            service_name: Service name (backend, training, inference)
+            status: Health status (healthy, unhealthy, degraded)
+            **kwargs: Additional health data (response_time_ms, error, etc.)
+        """
+        event = {
+            'event': 'service:health',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'service': service_name,
+                'status': status,
+                **kwargs
+            }
+        }
+
+        self._publish(f'service.health.{service_name}', event)
+        logger.debug(f"Published service health: {service_name} = {status}")
+
+    def publish_comprehensive_health(self, health_data: Dict[str, Dict[str, Any]]) -> None:
+        """
+        Publish comprehensive system health status update (all components aggregated).
+
+        Args:
+            health_data: Dict mapping component name to health status
+                Example: {
+                    "backend": {"status": "healthy", "response_time_ms": 23.5, ...},
+                    "postgresql": {"status": "healthy", "message": "Database connection OK", ...},
+                    "redis": {"status": "healthy", "message": "Cache connection OK", ...}
+                }
+        """
+        event = {
+            'event': 'system:comprehensive_health',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'components': health_data
+            }
+        }
+
+        self._publish('system.health.comprehensive', event)
+        logger.info(f"Published comprehensive health update for {len(health_data)} components")
+
+    def publish_signal_detection(
+        self,
+        frequency_hz: float,
+        signal_strength_db: float,
+        station_id: str,
+        **kwargs
+    ) -> None:
+        """
+        Publish signal detection event.
+
+        Args:
+            frequency_hz: Detected frequency
+            signal_strength_db: Signal strength
+            station_id: WebSDR station that detected signal
+            **kwargs: Additional signal data
+        """
+        event = {
+            'event': 'signal:detected',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'frequency_hz': frequency_hz,
+                'signal_strength_db': signal_strength_db,
+                'station_id': station_id,
+                **kwargs
+            }
+        }
+
+        self._publish('signal.detected', event)
+        logger.info(f"Published signal detection: {frequency_hz} Hz @ {station_id}")
+
+    def publish_localization_result(
+        self,
+        latitude: float,
+        longitude: float,
+        accuracy_meters: float,
+        **kwargs
+    ) -> None:
+        """
+        Publish localization result.
+
+        Args:
+            latitude: Estimated TX latitude
+            longitude: Estimated TX longitude
+            accuracy_meters: Estimated accuracy
+            **kwargs: Additional localization data
+        """
+        event = {
+            'event': 'localization:complete',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'latitude': latitude,
+                'longitude': longitude,
+                'accuracy_meters': accuracy_meters,
+                **kwargs
+            }
+        }
+
+        self._publish('localization.complete', event)
+        logger.info(f"Published localization result: ({latitude}, {longitude}) ±{accuracy_meters}m")
+
+    def publish_training_started(
+        self,
+        job_id: str,
+        config: Dict[str, Any],
+        dataset_size: int,
+        train_samples: int,
+        val_samples: int
+    ) -> None:
+        """
+        Publish training job started event.
+
+        Args:
+            job_id: Training job UUID
+            config: Training configuration
+            dataset_size: Total dataset size
+            train_samples: Number of training samples
+            val_samples: Number of validation samples
+        """
+        event = {
+            'event': 'training:started',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'status': 'running',
+                'config': config,
+                'dataset_size': dataset_size,
+                'train_samples': train_samples,
+                'val_samples': val_samples
+            }
+        }
+
+        self._publish(f'training.started.{job_id}', event)
+        logger.info(f"Published training started: job {job_id} ({train_samples} train, {val_samples} val)")
+
+    def publish_training_progress(
+        self,
+        job_id: str,
+        epoch: int,
+        total_epochs: int,
+        metrics: Dict[str, float],
+        is_best: bool = False
+    ) -> None:
+        """
+        Publish training progress update (per epoch).
+
+        Args:
+            job_id: Training job UUID
+            epoch: Current epoch
+            total_epochs: Total epochs
+            metrics: Training metrics (train_loss, val_loss, train_acc, val_acc, lr, etc.)
+            is_best: Whether this is the best epoch so far
+        """
+        event = {
+            'event': 'training:progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'epoch': epoch,
+                'total_epochs': total_epochs,
+                'progress_percent': (epoch / total_epochs * 100) if total_epochs > 0 else 0,
+                'metrics': metrics,
+                'is_best': is_best
+            }
+        }
+
+        self._publish(f'training.progress.{job_id}', event)
+        logger.info(f"Published training progress: job {job_id}, epoch {epoch}/{total_epochs}, metrics={metrics}")
+
+    def publish_training_batch_progress(
+        self,
+        job_id: str,
+        epoch: int,
+        total_epochs: int,
+        batch: int,
+        total_batches: int,
+        current_loss: float,
+        phase: str = 'train'
+    ) -> None:
+        """
+        Publish training batch-level progress update (real-time, every ~1 second).
+
+        Args:
+            job_id: Training job UUID
+            epoch: Current epoch
+            total_epochs: Total epochs
+            batch: Current batch number
+            total_batches: Total batches in epoch
+            current_loss: Current batch loss
+            phase: Training phase ('train' or 'val')
+        """
+        # Calculate overall progress (epoch + batch within epoch)
+        epoch_progress = (epoch - 1) / total_epochs  # Previous epochs
+        batch_progress = (batch / total_batches) / total_epochs  # Current epoch progress
+        overall_progress = (epoch_progress + batch_progress) * 100
+
+        event = {
+            'event': 'training:batch_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'epoch': epoch,
+                'total_epochs': total_epochs,
+                'batch': batch,
+                'total_batches': total_batches,
+                'progress_percent': overall_progress,
+                'current_loss': current_loss,
+                'phase': phase
+            }
+        }
+
+        self._publish(f'training.batch_progress.{job_id}', event)
+        logger.debug(f"Published batch progress: job {job_id}, epoch {epoch}/{total_epochs}, batch {batch}/{total_batches}, loss={current_loss:.4f}")
+
+    def publish_training_completed(
+        self,
+        job_id: str,
+        status: str,
+        best_epoch: Optional[int] = None,
+        best_val_loss: Optional[float] = None,
+        checkpoint_path: Optional[str] = None,
+        onnx_model_path: Optional[str] = None,
+        mlflow_run_id: Optional[str] = None,
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        Publish training job completed event.
+
+        Args:
+            job_id: Training job UUID
+            status: Final status (completed, failed, cancelled)
+            best_epoch: Best epoch number
+            best_val_loss: Best validation loss
+            checkpoint_path: Path to best checkpoint
+            onnx_model_path: Path to ONNX model
+            mlflow_run_id: MLflow run ID
+            error_message: Error message if failed
+        """
+        event = {
+            'event': 'training:completed',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'status': status,
+                'best_epoch': best_epoch,
+                'best_val_loss': best_val_loss,
+                'checkpoint_path': checkpoint_path,
+                'onnx_model_path': onnx_model_path,
+                'mlflow_run_id': mlflow_run_id,
+                'error_message': error_message
+            }
+        }
+
+        self._publish(f'training.completed.{job_id}', event)
+        logger.info(f"Published training completed: job {job_id}, status={status}")
+
+    def publish_dataset_generation_progress(
+        self,
+        job_id: str,
+        current: int,
+        total: int,
+        message: str
+    ) -> None:
+        """
+        Publish synthetic dataset generation progress.
+
+        Args:
+            job_id: Job UUID
+            current: Current progress (samples generated)
+            total: Total samples to generate
+            message: Progress message
+        """
+        event = {
+            'event': 'dataset:generation_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'job_id': job_id,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'message': message
+            }
+        }
+
+        self._publish(f'dataset.generation.{job_id}', event)
+        logger.debug(f"Published dataset generation progress: job {job_id}, {current}/{total}")
+
+    def publish_terrain_tile_progress(
+        self,
+        tile_name: str,
+        status: str,
+        current: int,
+        total: int,
+        error: Optional[str] = None,
+        file_size: Optional[int] = None
+    ) -> None:
+        """
+        Publish terrain tile download progress.
+
+        Args:
+            tile_name: Tile name (e.g., 'N44E007')
+            status: Tile status ('downloading', 'ready', 'failed')
+            current: Current tile number
+            total: Total tiles to download
+            error: Optional error message
+            file_size: Optional file size in bytes
+        """
+        event = {
+            'event': 'terrain:tile_progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'tile_name': tile_name,
+                'status': status,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'error': error,
+                'file_size': file_size
+            }
+        }
+
+        self._publish('terrain.tile.progress', event)
+        logger.debug(f"Published terrain tile progress: {tile_name} - {status} ({current}/{total})")
+
+    def publish_dataset_updated(
+        self,
+        dataset_id: str,
+        num_samples: int,
+        action: str = "updated",
+        **kwargs
+    ) -> None:
+        """
+        Publish dataset metadata update event.
+        
+        Used to notify frontend when dataset metadata changes (sample count, storage size, etc.).
+        This triggers UI refresh of the datasets table.
+        
+        Args:
+            dataset_id: Dataset UUID
+            num_samples: Updated sample count
+            action: Action type (updated/created/deleted/expanded)
+            **kwargs: Additional metadata (storage_size_bytes, dataset_type, etc.)
+        
+        Example:
+            publisher.publish_dataset_updated(
+                dataset_id="uuid-string",
+                num_samples=139,
+                action="expanded",
+                storage_size_bytes=1024000
+            )
+        """
+        event_data = {
+            'dataset_id': dataset_id,
+            'num_samples': num_samples,
+            'action': action,
+        }
+        
+        # Include any additional kwargs
+        for key, value in kwargs.items():
+            event_data[key] = value
+        
+        event = {
+            'event': 'dataset_update',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': event_data
+        }
+
+        self._publish(f'dataset.update.{dataset_id}', event)
+        logger.info(f"Published dataset update: dataset {dataset_id}, samples={num_samples}, action={action}")
+
+    def publish_training_job_update(
+        self,
+        job_id: str,
+        status: str,
+        action: str = "status_changed",
+        **kwargs
+    ) -> None:
+        """
+        Publish training job status update event.
+        
+        Used for real-time job status updates to frontend WebSocket clients.
+        Matches the event format used by backend API endpoints for consistency.
+        
+        Args:
+            job_id: Training job UUID
+            status: Job status (pending/running/completed/failed/cancelled/paused/resumed)
+            action: Action type (status_changed/cancelled/paused/resumed/started/completed/failed)
+            **kwargs: Additional data (current_progress, total_progress, error_message, result, etc.)
+        
+        Example:
+            publisher.publish_training_job_update(
+                job_id="uuid-string",
+                status="running",
+                action="started",
+                current_progress=0,
+                total_progress=1000
+            )
+        """
+        event_data = {
+            'job_id': job_id,
+            'status': status,
+            'action': action,
+        }
+        
+        # Add optional fields if provided
+        if 'current_progress' in kwargs:
+            event_data['current_progress'] = kwargs['current_progress']
+        if 'total_progress' in kwargs:
+            event_data['total_progress'] = kwargs['total_progress']
+        if 'error_message' in kwargs:
+            event_data['error_message'] = kwargs['error_message']
+        if 'result' in kwargs:
+            event_data['result'] = kwargs['result']
+        
+        # Include any other kwargs
+        for key, value in kwargs.items():
+            if key not in ['current_progress', 'total_progress', 'error_message', 'result']:
+                event_data[key] = value
+        
+        event = {
+            'event': 'training_job_update',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': event_data
+        }
+
+        self._publish(f'training.job.{job_id}.update', event)
+        logger.info(f"Published training job update: job {job_id}, status={status}, action={action}")
+
+    def publish_export_progress(
+        self,
+        task_id: str,
+        stage: str,
+        current: int,
+        total: int,
+        message: str,
+        **kwargs
+    ) -> None:
+        """
+        Publish export progress update.
+
+        Args:
+            task_id: Export task ID (Celery task ID)
+            stage: Current stage (sources/websdrs/sessions/sample_sets/models/audio_library/finalizing)
+            current: Current progress within stage
+            total: Total items in stage
+            message: Human-readable progress message
+            **kwargs: Additional data (bytes_processed, estimated_size_bytes, etc.)
+        """
+        event = {
+            'event': 'export:progress',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'stage': stage,
+                'current': current,
+                'total': total,
+                'progress_percent': (current / total * 100) if total > 0 else 0,
+                'message': message,
+                **kwargs
+            }
+        }
+
+        self._publish(f'export.progress.{task_id}', event)
+        logger.info(f"Published export progress: task {task_id}, stage={stage}, {current}/{total}")
+
+    def publish_export_completed(
+        self,
+        task_id: str,
+        status: str,
+        download_url: Optional[str] = None,
+        file_size_bytes: Optional[int] = None,
+        error_message: Optional[str] = None
+    ) -> None:
+        """
+        Publish export completed event.
+
+        Args:
+            task_id: Export task ID
+            status: Final status (completed, failed, cancelled)
+            download_url: URL to download the .heimdall file
+            file_size_bytes: Final file size
+            error_message: Error message if failed
+        """
+        event = {
+            'event': 'export:completed',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'status': status,
+                'download_url': download_url,
+                'file_size_bytes': file_size_bytes,
+                'error_message': error_message
+            }
+        }
+
+        self._publish(f'export.completed.{task_id}', event)
+        logger.info(f"Published export completed: task {task_id}, status={status}")
+
+    def publish_export_cancelled(
+        self,
+        task_id: str,
+        status: str = 'cancelled'
+    ) -> None:
+        """
+        Publish export cancelled event.
+
+        Args:
+            task_id: Export task ID
+            status: Cancellation status (default: 'cancelled')
+        """
+        event = {
+            'event': 'export:cancelled',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'status': status
+            }
+        }
+
+        self._publish(f'export.cancelled.{task_id}', event)
+        logger.info(f"Published export cancelled: task {task_id}")
+
+
+# Singleton instance for convenience
+_publisher = None
+
+def get_event_publisher() -> EventPublisher:
+    """Get singleton EventPublisher instance."""
+    global _publisher
+    if _publisher is None:
+        _publisher = EventPublisher()
+    return _publisher

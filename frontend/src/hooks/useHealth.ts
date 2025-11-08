@@ -1,6 +1,6 @@
 /**
  * React Query Hooks for Health Endpoints
- * 
+ *
  * Provides hooks for checking system and service health
  */
 
@@ -12,13 +12,13 @@ import systemService from '@/services/api/system';
  * Refetches every 30 seconds
  */
 export const useSystemHealth = () => {
-    return useQuery({
-        queryKey: ['health', 'system'],
-        queryFn: () => systemService.checkAllServicesHealth(),
-        refetchInterval: 30000,
-        staleTime: 25000,
-        retry: 2, // Retry health checks more times
-    });
+  return useQuery({
+    queryKey: ['health', 'system'],
+    queryFn: () => systemService.checkAllServicesHealth(),
+    refetchInterval: 30000,
+    staleTime: 25000,
+    retry: 2, // Retry health checks more times
+  });
 };
 
 /**
@@ -26,23 +26,23 @@ export const useSystemHealth = () => {
  * Refetches every 30 seconds
  */
 export const useServiceHealth = (serviceName: string) => {
-    return useQuery({
-        queryKey: ['health', 'service', serviceName],
-        queryFn: () => systemService.checkServiceHealth(serviceName),
-        refetchInterval: 30000,
-        staleTime: 25000,
-        enabled: !!serviceName,
-    });
+  return useQuery({
+    queryKey: ['health', 'service', serviceName],
+    queryFn: () => systemService.checkServiceHealth(serviceName),
+    refetchInterval: 30000,
+    staleTime: 25000,
+    enabled: !!serviceName,
+  });
 };
 
 /**
  * Hook to fetch API Gateway status
  */
 export const useAPIGatewayStatus = () => {
-    return useQuery({
-        queryKey: ['health', 'api-gateway'],
-        queryFn: () => systemService.getAPIGatewayStatus(),
-        refetchInterval: 60000,
-        staleTime: 50000,
-    });
+  return useQuery({
+    queryKey: ['health', 'api-gateway'],
+    queryFn: () => systemService.getAPIGatewayStatus(),
+    refetchInterval: 60000,
+    staleTime: 50000,
+  });
 };

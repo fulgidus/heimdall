@@ -1,9 +1,9 @@
--- Heimdall SDR - PostgreSQL Initialization Script
--- This script initializes the database schema with TimescaleDB extensions
+-- Heimdall SDR - PostgreSQL Initialization Script (CORRECTED)
+-- Quick initialization to create basic tables for tests
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" CASCADE;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS heimdall;
@@ -12,7 +12,7 @@ SET
     search_path TO heimdall,
     public;
 
--- Table: websdr_stations - Configuration of available WebSDR receivers
+-- Table: websdr_stations
 CREATE TABLE IF NOT EXISTS websdr_stations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -24,17 +24,18 @@ CREATE TABLE IF NOT EXISTS websdr_stations (
     frequency_max_hz BIGINT,
     is_active BOOLEAN DEFAULT TRUE,
     api_type VARCHAR(50) DEFAULT 'http',
-    rate_limit_ms INT DEFAULT 1000,
-    timeout_seconds INT DEFAULT 30,
+    rate_limit_ms INTEGER DEFAULT 1000,
+    timeout_seconds INTEGER DEFAULT 30,
+    retry_count INTEGER DEFAULT 3,
+    admin_email VARCHAR(255),
+    location_description TEXT,
+    altitude_asl INTEGER,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT valid_frequencies CHECK (frequency_min_hz <= frequency_max_hz)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_websdr_stations_active ON websdr_stations(is_active);
-
--- Table: known_sources - Radio sources used for training and validation
+-- Table: known_sources
 CREATE TABLE IF NOT EXISTS known_sources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
@@ -45,19 +46,34 @@ CREATE TABLE IF NOT EXISTS known_sources (
     power_dbm FLOAT,
     source_type VARCHAR(100),
     is_validated BOOLEAN DEFAULT FALSE,
+    error_margin_meters FLOAT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_known_sources_frequency ON known_sources(frequency_hz);
+-- Table: recording_sessions (must be created before measurements due to FK)
+CREATE TABLE IF NOT EXISTS recording_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    known_source_id UUID REFERENCES known_sources(id) ON DELETE CASCADE,
+    session_name VARCHAR(255) NOT NULL,
+    session_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    session_end TIMESTAMP WITH TIME ZONE,
+    duration_seconds FLOAT,
+    celery_task_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',
+    approval_status VARCHAR(50) DEFAULT 'pending',
+    uncertainty_meters FLOAT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-CREATE INDEX idx_known_sources_validated ON known_sources(is_validated);
-
--- Table: measurements - Time-series IQ measurements from WebSDR stations
+-- Table: measurements (will become hypertable)
 CREATE TABLE IF NOT EXISTS measurements (
-    websdr_station_id UUID NOT NULL REFERENCES websdr_stations(id) ON DELETE RESTRICT,
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    id UUID DEFAULT uuid_generate_v4(),
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    websdr_station_id UUID REFERENCES websdr_stations(id) ON DELETE CASCADE,
+    recording_session_id UUID REFERENCES recording_sessions(id) ON DELETE CASCADE,
     frequency_hz BIGINT NOT NULL,
     signal_strength_db FLOAT,
     snr_db FLOAT,
@@ -72,7 +88,7 @@ CREATE TABLE IF NOT EXISTS measurements (
     PRIMARY KEY (timestamp, id)
 );
 
--- Convert measurements table to TimescaleDB hypertable
+-- Convert to hypertable
 SELECT
     create_hypertable(
         'measurements',
@@ -80,44 +96,15 @@ SELECT
         if_not_exists => TRUE
     );
 
-CREATE INDEX idx_measurements_websdr_station ON measurements(websdr_station_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_measurements_websdr_station ON measurements(websdr_station_id, timestamp DESC);
 
-CREATE INDEX idx_measurements_frequency ON measurements(frequency_hz, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_measurements_recording_session ON measurements(recording_session_id, timestamp DESC);
 
-CREATE INDEX idx_measurements_time ON measurements(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_measurements_frequency ON measurements(frequency_hz, timestamp DESC);
 
--- Chunk size: 1 day for optimal query performance
-SELECT
-    set_chunk_time_interval('measurements', INTERVAL '1 day');
+CREATE INDEX IF NOT EXISTS idx_measurements_time ON measurements(timestamp DESC);
 
--- Table: recording_sessions - Human-assisted data collection sessions
-CREATE TABLE IF NOT EXISTS recording_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    known_source_id UUID NOT NULL REFERENCES known_sources(id) ON DELETE RESTRICT,
-    session_name VARCHAR(255) NOT NULL,
-    session_start TIMESTAMP WITH TIME ZONE NOT NULL,
-    session_end TIMESTAMP WITH TIME ZONE,
-    duration_seconds FLOAT,
-    celery_task_id VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'pending',
-    approval_status VARCHAR(50) DEFAULT 'pending',
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT valid_status CHECK (
-        status IN ('pending', 'in_progress', 'completed', 'failed')
-    )
-);
-
-CREATE INDEX idx_recording_sessions_source ON recording_sessions(known_source_id);
-
-CREATE INDEX idx_recording_sessions_status ON recording_sessions(status);
-
-CREATE INDEX idx_recording_sessions_approval ON recording_sessions(approval_status);
-
-CREATE INDEX idx_recording_sessions_start_time ON recording_sessions(session_start DESC);
-
--- Table: training_datasets - Collections of approved measurements for model training
+-- Table: training_datasets
 CREATE TABLE IF NOT EXISTS training_datasets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -125,16 +112,12 @@ CREATE TABLE IF NOT EXISTS training_datasets (
     measurement_count INT DEFAULT 0,
     frequency_range_min_hz BIGINT,
     frequency_range_max_hz BIGINT,
-    geographic_region VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_training_datasets_active ON training_datasets(is_active);
-
--- Table: dataset_measurements - Join table for many-to-many relationship
+-- Table: dataset_measurements
 CREATE TABLE IF NOT EXISTS dataset_measurements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dataset_id UUID NOT NULL REFERENCES training_datasets(id) ON DELETE CASCADE,
@@ -143,11 +126,7 @@ CREATE TABLE IF NOT EXISTS dataset_measurements (
     UNIQUE(dataset_id, measurement_id)
 );
 
-CREATE INDEX idx_dataset_measurements_dataset ON dataset_measurements(dataset_id);
-
-CREATE INDEX idx_dataset_measurements_measurement ON dataset_measurements(measurement_id);
-
--- Table: models - Trained ML models metadata
+-- Table: models
 CREATE TABLE IF NOT EXISTS models (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     model_name VARCHAR(255) NOT NULL UNIQUE,
@@ -163,25 +142,17 @@ CREATE TABLE IF NOT EXISTS models (
         accuracy_sigma_meters FLOAT,
         loss_value FLOAT,
         epoch INT,
-        hyperparameters JSONB,
-        performance_metrics JSONB,
         is_active BOOLEAN DEFAULT FALSE,
         is_production BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_models_active ON models(is_active);
-
-CREATE INDEX idx_models_production ON models(is_production);
-
-CREATE INDEX idx_models_mlflow_run ON models(mlflow_run_id);
-
--- Table: inference_requests - Track inference API calls for monitoring
+-- Table: inference_requests
 CREATE TABLE IF NOT EXISTS inference_requests (
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
-    id UUID DEFAULT uuid_generate_v4(),
-    model_id UUID NOT NULL REFERENCES models(id) ON DELETE RESTRICT,
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    model_id UUID NOT NULL REFERENCES models(id) ON DELETE CASCADE,
     frequency_hz BIGINT,
     position_lat FLOAT,
     position_lon FLOAT,
@@ -192,7 +163,7 @@ CREATE TABLE IF NOT EXISTS inference_requests (
     PRIMARY KEY (timestamp, id)
 );
 
--- Convert inference_requests to TimescaleDB hypertable
+-- Convert to hypertable
 SELECT
     create_hypertable(
         'inference_requests',
@@ -200,35 +171,9 @@ SELECT
         if_not_exists => TRUE
     );
 
-CREATE INDEX idx_inference_requests_model ON inference_requests(model_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_inference_requests_model ON inference_requests(model_id, timestamp DESC);
 
-CREATE INDEX idx_inference_requests_time ON inference_requests(timestamp DESC);
-
--- Grants
-GRANT CONNECT ON DATABASE heimdall TO heimdall_user;
-
-GRANT USAGE ON SCHEMA heimdall TO heimdall_user;
-
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA heimdall TO heimdall_user;
-
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA heimdall TO heimdall_user;
-
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA heimdall TO heimdall_user;
-
--- Comments for documentation
-COMMENT ON TABLE websdr_stations IS 'WebSDR receiver stations across Europe';
-
-COMMENT ON TABLE known_sources IS 'Radio sources used for training and localization';
-
-COMMENT ON TABLE measurements IS 'IQ measurements from WebSDR receivers (TimescaleDB hypertable)';
-
-COMMENT ON TABLE recording_sessions IS 'Human-assisted data collection sessions';
-
-COMMENT ON TABLE training_datasets IS 'Collections of measurements for model training';
-
-COMMENT ON TABLE models IS 'Trained ML models metadata and performance';
-
-COMMENT ON TABLE inference_requests IS 'Inference API call tracking (TimescaleDB hypertable)';
+CREATE INDEX IF NOT EXISTS idx_inference_requests_time ON inference_requests(timestamp DESC);
 
 -- Table: websdrs_uptime_history - Track WebSDR online/offline status over time
 CREATE TABLE IF NOT EXISTS websdrs_uptime_history (
@@ -249,8 +194,198 @@ SELECT
         if_not_exists => TRUE
     );
 
-CREATE INDEX idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(websdr_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_websdr_time ON websdrs_uptime_history(websdr_id, timestamp DESC);
 
-CREATE INDEX idx_websdrs_uptime_history_timestamp ON websdrs_uptime_history(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_websdrs_uptime_history_timestamp ON websdrs_uptime_history(timestamp DESC);
 
-COMMENT ON TABLE websdrs_uptime_history IS 'TimescaleDB hypertable for WebSDR uptime history';
+-- Table: training_jobs
+CREATE TABLE IF NOT EXISTS training_jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_name VARCHAR(255) NOT NULL,
+    celery_task_id VARCHAR(255) UNIQUE,
+    status VARCHAR(50) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Training configuration
+    config JSONB NOT NULL,
+    
+    -- Progress tracking
+    current_epoch INTEGER DEFAULT 0,
+    total_epochs INTEGER NOT NULL,
+    progress_percent FLOAT DEFAULT 0.0,
+    
+    -- Metrics
+    train_loss FLOAT,
+    val_loss FLOAT,
+    train_accuracy FLOAT,
+    val_accuracy FLOAT,
+    learning_rate FLOAT,
+    
+    -- Best model info
+    best_epoch INTEGER,
+    best_val_loss FLOAT,
+    
+    -- Artifacts
+    checkpoint_path VARCHAR(512),
+    onnx_model_path VARCHAR(512),
+    mlflow_run_id VARCHAR(255),
+    
+    -- Error handling
+    error_message TEXT,
+    
+    -- Metadata
+    dataset_size INTEGER,
+    train_samples INTEGER,
+    val_samples INTEGER,
+    model_architecture VARCHAR(100),
+    
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_training_jobs_status ON training_jobs(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_training_jobs_celery_task ON training_jobs(celery_task_id);
+CREATE INDEX IF NOT EXISTS idx_training_jobs_created ON training_jobs(created_at DESC);
+
+-- Table: training_metrics (time-series data for detailed tracking)
+CREATE TABLE IF NOT EXISTS training_metrics (
+    timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+    id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    training_job_id UUID REFERENCES training_jobs(id) ON DELETE CASCADE,
+    epoch INTEGER NOT NULL,
+    batch INTEGER,
+    
+    -- Loss values
+    train_loss FLOAT,
+    val_loss FLOAT,
+    
+    -- Accuracy values
+    train_accuracy FLOAT,
+    val_accuracy FLOAT,
+    
+    -- Learning rate
+    learning_rate FLOAT,
+    
+    -- Additional metrics
+    gradient_norm FLOAT,
+    
+    -- Metadata
+    phase VARCHAR(20), -- 'train', 'val', 'test'
+    
+    PRIMARY KEY (timestamp, id)
+);
+
+-- Convert to hypertable for efficient time-series queries
+SELECT
+    create_hypertable(
+        'training_metrics',
+        'timestamp',
+        if_not_exists => TRUE
+    );
+
+CREATE INDEX IF NOT EXISTS idx_training_metrics_job ON training_metrics(training_job_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_training_metrics_epoch ON training_metrics(training_job_id, epoch);
+
+-- Grants
+GRANT CONNECT ON DATABASE heimdall TO heimdall_user;
+
+GRANT USAGE ON SCHEMA heimdall TO heimdall_user;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA heimdall TO heimdall_user;
+
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA heimdall TO heimdall_user;
+
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA heimdall TO heimdall_user;
+
+-- Seed Italian WebSDR stations
+INSERT INTO
+    websdr_stations (
+        name,
+        url,
+        country,
+        latitude,
+        longitude,
+        is_active,
+        timeout_seconds,
+        retry_count,
+        location_description
+    )
+VALUES
+    (
+        'Aquila di Giaveno',
+        'http://sdr1.ik1jns.it:8076',
+        'Italy',
+        45.03,
+        7.27,
+        TRUE,
+        30,
+        3,
+        'Aquila, Giaveno, Turin'
+    ),
+    (
+        'Montanaro',
+        'http://cbfenis.ddns.net:43510',
+        'Italy',
+        45.234,
+        7.857,
+        TRUE,
+        30,
+        3,
+        'Montanaro, Italy'
+    ),
+    (
+        'Torino',
+        'http://vst-aero.it:8073',
+        'Italy',
+        45.044,
+        7.672,
+        TRUE,
+        30,
+        3,
+        'Torino, Italy'
+    ),
+    (
+        'Coazze',
+        'http://94.247.189.130:8076',
+        'Italy',
+        45.03,
+        7.27,
+        TRUE,
+        30,
+        3,
+        'Coazze, Italy'
+    ),
+    (
+        'Passo del Giovi',
+        'http://iz1mlt.ddns.net:8074',
+        'Italy',
+        44.561,
+        8.956,
+        TRUE,
+        30,
+        3,
+        'Passo del Giovi, Italy'
+    ),
+    (
+        'Genova',
+        'http://iq1zw.ddns.net:42154',
+        'Italy',
+        44.395,
+        8.956,
+        TRUE,
+        30,
+        3,
+        'Genova, Italy'
+    ),
+    (
+        'Milano - Baggio',
+        'http://iu2mch.duckdns.org:8073',
+        'Italy',
+        45.478,
+        9.123,
+        TRUE,
+        30,
+        3,
+        'Milano (Baggio), Italy'
+    ) ON CONFLICT (name) DO NOTHING;

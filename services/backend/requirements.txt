@@ -1,0 +1,13 @@
+# RF Acquisition Service Requirements
+# References centralized requirements (Docker build context paths)
+-r requirements/base.txt
+-r requirements/api.txt
+-r requirements/data.txt
+
+# Service-specific dependencies
+websockets==12.0
+numpy==1.24.3
+scipy==1.11.4
+h5py==3.10.0
+boto3>=1.29.0
+pydub==0.25.1

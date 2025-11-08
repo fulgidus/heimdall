@@ -18,17 +18,20 @@ interface AuthStore {
     logout: () => void;
     setUser: (user: User | null) => void;
     setToken: (token: string | null) => void;
+    refreshAccessToken: () => Promise<boolean>;
 }
 
 // API Gateway configuration (reads from .env)
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use the same API URL as other calls (proxied through Nginx)
+// In development: Vite proxy handles /api/*
+// In production: Nginx forwards /api/* to api-gateway
 
 // Keycloak OAuth2/OIDC configuration
 const KEYCLOAK_CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'heimdall-frontend';
 
 export const useAuthStore = create<AuthStore>()(
     persist(
-        (set) => ({
+        set => ({
             user: null,
             token: null,
             refreshToken: null,
@@ -36,15 +39,24 @@ export const useAuthStore = create<AuthStore>()(
 
             login: async (email: string, password: string) => {
                 try {
-                    // Use API Gateway as proxy to Keycloak (CORS-enabled)
-                    // This avoids direct CORS requests to Keycloak
-                    // Endpoint: POST /api/v1/auth/login (proxies to Keycloak internally)
-                    // Base URL comes from VITE_API_URL environment variable
-                    const tokenUrl = `${API_URL}/api/v1/auth/login`;
+                    // Use Envoy proxy for Keycloak auth endpoint
+                    // The frontend is served on port 3000 (internal via docker),
+                    // but Envoy routes traffic on port 80 to all services.
+                    // We need to call Envoy on port 80, not port 3000.
+                    const realm = import.meta.env.VITE_KEYCLOAK_REALM || 'heimdall';
+                    const clientId = KEYCLOAK_CLIENT_ID;
+
+                    // Build the Keycloak token URL:
+                    // - In production/docker: http://localhost/auth/realms/{realm}/protocol/openid-connect/token
+                    // - Use window.location.protocol and hostname, but ensure port is 80 or empty (default)
+                    const protocol = window.location.protocol; // http: or https:
+                    const hostname = window.location.hostname; // localhost
+                    const baseUrl = `${protocol}//${hostname}:80`;
+                    const tokenUrl = `${baseUrl}/auth/realms/${realm}/protocol/openid-connect/token`;
 
                     const params = new URLSearchParams();
                     params.append('grant_type', 'password');
-                    params.append('client_id', KEYCLOAK_CLIENT_ID);
+                    params.append('client_id', clientId);
                     params.append('username', email);
                     params.append('password', password);
 
@@ -54,7 +66,6 @@ export const useAuthStore = create<AuthStore>()(
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
                         credentials: 'omit',
-                        mode: 'cors',
                         cache: 'no-cache',
                         body: params.toString(),
                     });
@@ -112,17 +123,66 @@ export const useAuthStore = create<AuthStore>()(
                 });
             },
 
-            setUser: (user) => {
+            setUser: user => {
                 set({ user, isAuthenticated: !!user });
             },
 
-            setToken: (token) => {
+            setToken: token => {
                 set({ token });
+            },
+
+            refreshAccessToken: async () => {
+                const state = useAuthStore.getState();
+                const currentRefreshToken = state.refreshToken;
+
+                if (!currentRefreshToken) {
+                    console.warn('No refresh token available');
+                    return false;
+                }
+
+                try {
+                    const refreshUrl = '/v1/auth/refresh';
+
+                    const response = await fetch(refreshUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'omit',
+                        mode: 'cors',
+                        cache: 'no-cache',
+                        body: JSON.stringify({
+                            refresh_token: currentRefreshToken,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        console.error('Token refresh failed:', response.status);
+                        // Refresh token is invalid or expired, logout user
+                        useAuthStore.getState().logout();
+                        return false;
+                    }
+
+                    const data = await response.json();
+
+                    // Update tokens in store
+                    set({
+                        token: data.access_token,
+                        refreshToken: data.refresh_token,
+                    });
+
+                    console.log('✅ Token refreshed successfully');
+                    return true;
+                } catch (error) {
+                    console.error('Token refresh error:', error);
+                    useAuthStore.getState().logout();
+                    return false;
+                }
             },
         }),
         {
             name: 'auth-store',
-            partialize: (state) => ({
+            partialize: state => ({
                 user: state.user,
                 token: state.token,
                 refreshToken: state.refreshToken,

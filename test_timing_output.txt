@@ -1,0 +1,23 @@
+
+============================================================
+Testing Conservative GPU Batch Feature Extraction
+============================================================
+
+
+=== Memory Monitor Started ===
+Submitting job for 10 samples...
+✅ Job submitted: 13d313ca-6ecd-43d8-80cb-7bac11f33f73
+
+Waiting for completion...
+Progress: 0% (pending) - NoneMemory: 647.2 MiB (max: 647.2 MiB)Progress: 0% (running) - Starting synthetic data generation...Progress: 0% (running) - Starting synthetic data generation...Memory: 892.8 MiB (max: 892.8 MiB)Progress: 0% (running) - Starting synthetic data generation...Memory: 892.7 MiB (max: 892.8 MiB)Progress: 10% (running) - Processing 1/10 samplesProgress: 10% (running) - Processing 1/10 samplesMemory: 957.9 MiB (max: 957.9 MiB)Progress: 10% (running) - Processing 1/10 samplesProgress: 10% (running) - Processing 1/10 samplesMemory: 1001.0 MiB (max: 1001.0 MiB)Progress: 50% (running) - Processing 5/10 samplesProgress: 50% (running) - Processing 5/10 samplesMemory: 1001.0 MiB (max: 1001.0 MiB)Progress: 50% (running) - Processing 5/10 samplesMemory: 1020.0 MiB (max: 1020.0 MiB)
+
+✅ Generation complete!
+Time: 22.99s
+Throughput: 0.44 samples/sec
+
+Results:
+  Current progress: 9 samples
+  Total progress: 10 samples
+
+=== Memory Monitor Stopped === Max memory: 1020.0 MiB
+

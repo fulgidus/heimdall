@@ -1,29 +1,33 @@
 /**
  * System API Service
- * 
+ *
  * Handles system-level operations:
  * - Service health checks
  * - System metrics
  */
 
 import api from '@/lib/api';
-import type { ServiceHealth } from './types';
+import { ServiceHealthSchema, DetailedHealthResponseSchema } from './schemas';
+import type { ServiceHealth, DetailedHealthResponse } from './schemas';
 
 /**
  * Check health of a specific service
  */
 export async function checkServiceHealth(serviceName: string): Promise<ServiceHealth> {
-    const response = await api.get<ServiceHealth>(`/api/v1/${serviceName}/health`);
-    return response.data;
+    const response = await api.get(`/v1/${serviceName}/health`);
+
+    // Validate response with Zod
+    const validated = ServiceHealthSchema.parse(response.data);
+    return validated;
 }
 
 /**
  * Check health of all services
  */
 export async function checkAllServicesHealth(): Promise<Record<string, ServiceHealth>> {
-    const services = ['api-gateway', 'rf-acquisition', 'training', 'inference', 'data-ingestion-web'];
+    const services = ['backend', 'training', 'inference'];
     const healthChecks = await Promise.allSettled(
-        services.map(async (service) => {
+        services.map(async service => {
             try {
                 const health = await checkServiceHealth(service);
                 return { service, health };
@@ -68,10 +72,22 @@ export async function getAPIGatewayStatus(): Promise<Record<string, unknown>> {
     return response.data;
 }
 
+/**
+ * Get detailed health check with dependency status for backend service
+ */
+export async function getDetailedHealth(): Promise<DetailedHealthResponse> {
+    const response = await api.get('/v1/health/detailed');
+
+    // Validate response with Zod
+    const validated = DetailedHealthResponseSchema.parse(response.data);
+    return validated;
+}
+
 const systemService = {
     checkServiceHealth,
     checkAllServicesHealth,
     getAPIGatewayStatus,
+    getDetailedHealth,
 };
 
 export default systemService;

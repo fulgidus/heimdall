@@ -1,0 +1,68 @@
+================================================================================
+MinIO Orphan File Cleanup Script
+================================================================================
+Mode: DRY RUN (no files will be deleted)
+
+Connecting to database...
+Connecting to MinIO...
+
+================================================================================
+ANALYZING AUDIO CHUNKS
+================================================================================
+Fetching referenced audio chunks from DB...
+✓ Found 13232 referenced chunks in DB
+Listing all files in MinIO bucket 'heimdall-audio-chunks'...
+✓ Found 37576 files in MinIO
+
+🗑️  Found 24344 orphan audio chunks
+📊 Storage: 24344 × ~800KB ≈ 19.02 GB
+
+[DRY RUN] Deleting 24344 files from heimdall-audio-chunks...
+[DRY RUN] Would delete 24344 files
+Sample files to delete:
+  - 28f77900-192a-4e04-b3c9-4ce7908b7681/chunk_5608.npy
+  - 3e0f7ce6-e8a5-4f6f-bbf9-ff72767bc8e6/chunk_4385.npy
+  - 28f77900-192a-4e04-b3c9-4ce7908b7681/chunk_3080.npy
+  - dc4c0823-9e01-4165-bc02-925c40fff5ea/chunk_2735.npy
+  - 3e0f7ce6-e8a5-4f6f-bbf9-ff72767bc8e6/chunk_7760.npy
+  - dc4c0823-9e01-4165-bc02-925c40fff5ea/chunk_8763.npy
+  - dc4c0823-9e01-4165-bc02-925c40fff5ea/chunk_2537.npy
+  - 3e0f7ce6-e8a5-4f6f-bbf9-ff72767bc8e6/chunk_6804.npy
+  - 28f77900-192a-4e04-b3c9-4ce7908b7681/chunk_5903.npy
+  - 3e0f7ce6-e8a5-4f6f-bbf9-ff72767bc8e6/chunk_7926.npy
+  ... and 24334 more
+
+================================================================================
+ANALYZING SYNTHETIC IQ
+================================================================================
+Fetching referenced synthetic IQ paths from DB...
+✓ Found 25657 referenced IQ files in DB
+Listing all files in MinIO bucket 'heimdall-synthetic-iq'...
+✓ Found 179158 files in MinIO
+
+🗑️  Found 153501 orphan synthetic IQ files
+📊 Storage: 153501 × ~1.5MB ≈ 224.85 GB
+
+[DRY RUN] Deleting 153501 files from heimdall-synthetic-iq...
+[DRY RUN] Would delete 153501 files
+Sample files to delete:
+  - synthetic/aff97fd6-e24d-4d73-b6b9-bbe81b2c9580/2143/RX_004.npy
+  - synthetic/aff97fd6-e24d-4d73-b6b9-bbe81b2c9580/2274/RX_004.npy
+  - synthetic/aff97fd6-e24d-4d73-b6b9-bbe81b2c9580/268/RX_008.npy
+  - synthetic/1f7b3745-40ac-4dfd-ae54-34fdfeb78992/5063/RX_000.npy
+  - synthetic/8aac6343-71fd-45bb-9a79-430beff22b85/70/RX_003.npy
+  - synthetic/90a822ea-e9fb-4fa5-9a58-3a06f89f8f68/2634/RX_005.npy
+  - synthetic/1f7b3745-40ac-4dfd-ae54-34fdfeb78992/2092/RX_000.npy
+  - synthetic/228983bb-fb66-4bf5-b3b9-344ad9aa02b6/347/RX_004.npy
+  - synthetic/6218c04b-c5ad-4ccd-a85b-d2d519dc3d12/3141/RX_001.npy
+  - synthetic/e7f7da94-55dd-48d0-bcfb-00f86a891445/651/RX_002.npy
+  ... and 153491 more
+
+================================================================================
+SUMMARY
+================================================================================
+Total orphan files: 177,845
+Total space to reclaim: ~243.87 GB
+
+⚠️  This was a DRY RUN. No files were deleted.
+To actually delete files, run with: python3 cleanup_orphan_minio_files.py --execute

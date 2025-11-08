@@ -93,10 +93,12 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 
 **Deliverables**:
 - Service scaffold generator script
-- 5 microservices (rf-acquisition, training, inference, data-ingestion-web, api-gateway)
+- 4 microservices (backend, training, inference, api-gateway)
 - Health check endpoints (`/health`)
 - Structured logging (structlog with JSON format)
 - Docker multi-stage builds with health checks
+
+**Note**: The `backend` service was originally named `rf-acquisition` but was refactored to be a generalist backend handling CRUD operations, RF acquisition, and state management.
 
 **Checkpoints**:
 - ✅ All service scaffolds created
@@ -167,10 +169,10 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 ---
 
 ### ✅ Phase 5: Training Pipeline
-**Status**: COMPLETE (2025-10-22)  
-**Duration**: 3 days
+**Status**: COMPLETE (2025-11-03)  
+**Duration**: 4 days (extended for export/import)
 
-**Objective**: Implement PyTorch Lightning training pipeline for neural network localization model.
+**Objective**: Implement PyTorch Lightning training pipeline for neural network localization model with export/import capabilities.
 
 **Deliverables**:
 - LocalizationNet architecture (ResNet-18 backbone)
@@ -178,6 +180,8 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - Feature extraction utilities (mel-spectrogram + MFCC)
 - PyTorch Lightning trainer with MLflow tracking
 - ONNX export functionality for production inference
+- Real-time event broadcasting (RabbitMQ pattern)
+- .heimdall bundle export/import system (REST API + CLI)
 
 **Checkpoints**:
 - ✅ Model forward pass works (output shapes verified)
@@ -186,13 +190,20 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - ✅ ONNX export successful and in MinIO bucket
 - ✅ Model registered in MLflow
 - ✅ 50+ test cases, >90% coverage
+- ✅ Real-time training events broadcast via WebSocket
+- ✅ Export/import REST API endpoints functional
+- ✅ CLI tool complete (list, export, import)
+- ✅ Round-trip integrity verified (MD5 hash matching)
 
 **Architecture Decision**:
 - CNN (ResNet-18) chosen over Transformer for faster inference
 - Gaussian NLL loss for uncertainty quantification
 - Mel-spectrogram features (128 bins) for input
+- RabbitMQ event bus for training progress updates
+- JSON bundles with base64-encoded ONNX for portability
 
-→ [Phase 5 Details](docs/agents/20251022_080000_phase5_document_index.md)
+→ [Phase 5 Training Events](docs/agents/20251103_phase5_training_events_integration_complete.md)  
+→ [Phase 5 Export/Import](docs/agents/20251103_phase5_heimdall_export_import_complete.md)
 
 ---
 
@@ -335,6 +346,61 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 - **WebSDR Integration**: API quirks, frequency offsets, retry strategies
 - **ML Architecture**: CNN design, Gaussian NLL loss, mel-spectrogram features
 - **Deployment**: Microservices patterns, caching, monitoring
+- **Real-Time Event Broadcasting**: RabbitMQ pattern for Celery-to-WebSocket communication
+
+#### RabbitMQ Event Broadcasting Pattern
+
+**Problem Solved**: Celery tasks running in worker processes cannot directly call async WebSocket broadcast methods in FastAPI due to different event loops. Direct attempts cause `RuntimeError: This event loop is already running` or fail silently.
+
+**Architectural Decision**: Use RabbitMQ as an event bus between Celery workers and FastAPI WebSocket manager.
+
+**Implementation**:
+```
+Celery Task (worker process)
+    ↓
+EventPublisher.publish_*() → RabbitMQ (heimdall.events exchange)
+    ↓
+RabbitMQEventConsumer (FastAPI background thread)
+    ↓
+asyncio.run_coroutine_threadsafe() → WebSocket Manager
+    ↓
+Connected WebSocket clients receive real-time updates
+```
+
+**Code Location**:
+- Publisher: `services/backend/src/events/publisher.py`
+- Consumer: `services/backend/src/events/consumer.py`
+- Integration: `services/backend/src/main.py` (startup event)
+
+**Usage Pattern**:
+```python
+# In any Celery task
+from ..events.publisher import get_event_publisher
+
+publisher = get_event_publisher()
+publisher.publish_websdr_health(health_data)
+# Event automatically flows to WebSocket clients via RabbitMQ
+```
+
+**When to Use This Pattern**:
+- Any Celery task needing to send real-time updates to frontend
+- Background monitoring tasks (health checks, uptime tracking)
+- Training progress updates
+- Signal detection events
+- Localization results
+
+**Key Benefits**:
+- ✅ Decouples worker processes from FastAPI event loop
+- ✅ Automatic reconnection (ConsumerMixin)
+- ✅ Fire-and-forget publishing (non-blocking)
+- ✅ Scalable to multiple consumers
+- ✅ No silent failures (proper error logging)
+
+**Applied In**:
+- `tasks/uptime_monitor.py`: WebSDR health status
+- `tasks/services_health_monitor.py`: Microservice health
+- `services/training/src/tasks/training_task.py`: Training progress updates
+- Future: Signal detection, localization results
 
 → [Full Knowledge Base](docs/standards/KNOWLEDGE_BASE.md)
 

@@ -1,7 +1,8 @@
 /**
  * WebSDR Store
- * 
+ *
  * Manages WebSDR receivers state and operations
+ * Integrated with WebSocket for real-time updates
  */
 
 import { create } from 'zustand';
@@ -10,23 +11,30 @@ import { webSDRService } from '@/services/api';
 
 interface WebSDRStore {
     websdrs: WebSDRConfig[];
-    healthStatus: Record<string, WebSDRHealthStatus>;  // UUID keys
+    healthStatus: Record<string, WebSDRHealthStatus>; // UUID keys
     isLoading: boolean;
     error: string | null;
     lastHealthCheck: Date | null;
+    isWebSocketConnected: boolean;
 
     fetchWebSDRs: () => Promise<void>;
     checkHealth: () => Promise<void>;
     getActiveWebSDRs: () => WebSDRConfig[];
-    getWebSDRById: (id: string) => WebSDRConfig | undefined;  // UUID parameter
-    isWebSDROnline: (id: string) => boolean;  // UUID parameter
+    getWebSDRById: (id: string) => WebSDRConfig | undefined; // UUID parameter
+    isWebSDROnline: (id: string) => boolean | null; // UUID parameter - null if unknown
 
     // CRUD operations
     createWebSDR: (data: Omit<WebSDRConfig, 'id'>) => Promise<WebSDRConfig>;
-    updateWebSDR: (id: string, data: Partial<WebSDRConfig>) => Promise<WebSDRConfig>;  // UUID parameter
-    deleteWebSDR: (id: string, hardDelete?: boolean) => Promise<void>;  // UUID parameter
+    updateWebSDR: (id: string, data: Partial<WebSDRConfig>) => Promise<WebSDRConfig>; // UUID parameter
+    deleteWebSDR: (id: string, hardDelete?: boolean) => Promise<void>; // UUID parameter
 
     refreshAll: () => Promise<void>;
+
+    // WebSocket integration
+    setWebSocketConnected: (connected: boolean) => void;
+    updateWebSDRFromWebSocket: (websdr: WebSDRConfig) => void;
+    updateHealthFromWebSocket: (healthStatus: Record<string, WebSDRHealthStatus>) => void;
+    setWebSDRsFromWebSocket: (websdrs: WebSDRConfig[]) => void;
 }
 
 export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
@@ -35,6 +43,7 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
     isLoading: false,
     error: null,
     lastHealthCheck: null,
+    isWebSocketConnected: false,
 
     fetchWebSDRs: async () => {
         set({ isLoading: true, error: null });
@@ -72,7 +81,9 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
 
     isWebSDROnline: (id: string) => {
         const health = get().healthStatus[id];
-        return health?.status === 'online';
+        // Return null if no health data available (not yet received from WebSocket)
+        if (!health) return null;
+        return health.status === 'online';
     },
 
     createWebSDR: async (data: Omit<WebSDRConfig, 'id'>) => {
@@ -82,7 +93,7 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
             // Add to local state
             set(state => ({
                 websdrs: [...state.websdrs, newWebSDR],
-                isLoading: false
+                isLoading: false,
             }));
             return newWebSDR;
         } catch (error) {
@@ -99,8 +110,8 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
             const updatedWebSDR = await webSDRService.updateWebSDR(id, data);
             // Update in local state
             set(state => ({
-                websdrs: state.websdrs.map(w => w.id === id ? updatedWebSDR : w),
-                isLoading: false
+                websdrs: state.websdrs.map(w => (w.id === id ? updatedWebSDR : w)),
+                isLoading: false,
             }));
             return updatedWebSDR;
         } catch (error) {
@@ -119,15 +130,13 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
             if (hardDelete) {
                 set(state => ({
                     websdrs: state.websdrs.filter(w => w.id !== id),
-                    isLoading: false
+                    isLoading: false,
                 }));
             } else {
                 // Soft delete: mark as inactive
                 set(state => ({
-                    websdrs: state.websdrs.map(w =>
-                        w.id === id ? { ...w, is_active: false } : w
-                    ),
-                    isLoading: false
+                    websdrs: state.websdrs.map(w => (w.id === id ? { ...w, is_active: false } : w)),
+                    isLoading: false,
                 }));
             }
         } catch (error) {
@@ -139,9 +148,46 @@ export const useWebSDRStore = create<WebSDRStore>((set, get) => ({
     },
 
     refreshAll: async () => {
-        await Promise.all([
-            get().fetchWebSDRs(),
-            get().checkHealth(),
-        ]);
+        await Promise.all([get().fetchWebSDRs(), get().checkHealth()]);
+    },
+
+    // WebSocket integration methods
+    setWebSocketConnected: (connected: boolean) => {
+        const currentState = get();
+        if (currentState.isWebSocketConnected !== connected) {
+            set({ isWebSocketConnected: connected });
+        }
+    },
+
+    updateWebSDRFromWebSocket: (websdr: WebSDRConfig) => {
+        set(state => {
+            const exists = state.websdrs.some(w => w.id === websdr.id);
+            if (exists) {
+                // Update existing
+                return {
+                    websdrs: state.websdrs.map(w => (w.id === websdr.id ? websdr : w)),
+                };
+            } else {
+                // Add new
+                return {
+                    websdrs: [...state.websdrs, websdr],
+                };
+            }
+        });
+    },
+
+    updateHealthFromWebSocket: (healthStatus: Record<string, WebSDRHealthStatus>) => {
+        set({
+            healthStatus,
+            lastHealthCheck: new Date(),
+        });
+    },
+
+    setWebSDRsFromWebSocket: (websdrs: WebSDRConfig[]) => {
+        set({
+            websdrs,
+            isLoading: false,
+            error: null,
+        });
     },
 }));

@@ -1,0 +1,2682 @@
+"""
+Training API router.
+
+Endpoints for managing training jobs:
+- POST /training/jobs - Create new training job
+- GET /training/jobs - List all training jobs
+- GET /training/jobs/{job_id} - Get job details with metrics
+- DELETE /training/jobs/{job_id} - Cancel/delete training job
+- GET /training/jobs/{job_id}/metrics - Get detailed metrics history
+"""
+
+import logging
+import uuid
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi.responses import Response
+from sqlalchemy import text
+
+from ..models.training import (
+    TrainingJobListResponse,
+    TrainingJobRequest,
+    TrainingJobResponse,
+    TrainingJobStatusResponse,
+    TrainingMetrics,
+    TrainingStatus,
+    TrainingConfig,
+    EvolveTrainingRequest,
+)
+from ..models.synthetic_data import SyntheticDataGenerationRequest
+from ..storage.db_manager import get_db_manager
+from ..storage.minio_client import MinIOClient
+from ..export.heimdall_format import HeimdallExporter, HeimdallImporter, HeimdallBundle
+from ..config import settings
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/training", tags=["training"])
+models_router = APIRouter(prefix="/api/v1", tags=["models"])
+
+
+@router.post("/jobs", response_model=TrainingJobResponse, status_code=201)
+async def create_training_job(request: TrainingJobRequest):
+    """
+    Create and start a new training job.
+
+    The job will be queued and executed asynchronously via Celery.
+    Use the WebSocket endpoint /ws/training/{job_id} to monitor progress.
+
+    Args:
+        request: Training job configuration
+
+    Returns:
+        Created training job with ID and WebSocket URL
+    """
+    db_manager = get_db_manager()
+
+    try:
+        # Create training job record in database
+        with db_manager.get_session() as session:
+            job_id = None
+            query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    job_name, job_type, status, config, total_epochs, model_architecture
+                )
+                VALUES (
+                    :job_name, :job_type, :status, CAST(:config AS jsonb), :total_epochs, :model_architecture
+                )
+                RETURNING id, created_at
+            """)
+
+            result = session.execute(
+                query,
+                {
+                    "job_name": request.job_name,
+                    "job_type": "training",
+                    "status": TrainingStatus.PENDING.value,
+                    "config": request.config.model_dump_json(),
+                    "total_epochs": request.config.epochs,
+                    "model_architecture": request.config.model_architecture,
+                },
+            )
+            row = result.fetchone()
+            if row:
+                job_id = row[0]
+                created_at = row[1]
+
+            session.commit()
+
+            if not job_id:
+                raise HTTPException(status_code=500, detail="Failed to create training job")
+
+            logger.info(f"Created training job {job_id}: {request.job_name}")
+
+        # Queue Celery task to training service
+        from ..main import celery_app
+        task = celery_app.send_task(
+            'src.tasks.training_task.start_training_job',
+            args=[str(job_id)],
+            queue='training'
+        )
+
+        # Update job with Celery task ID
+        with db_manager.get_session() as session:
+            session.execute(
+                text("""
+                    UPDATE heimdall.training_jobs
+                    SET celery_task_id = :task_id, status = :status
+                    WHERE id = :job_id
+                """),
+                {
+                    "task_id": task.id,
+                    "status": TrainingStatus.QUEUED.value,
+                    "job_id": str(job_id),
+                },
+            )
+            session.commit()
+
+        logger.info(f"Queued training job {job_id} with Celery task {task.id}")
+
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "training_job_update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "job_id": str(job_id),
+                "status": TrainingStatus.QUEUED.value,
+                "action": "created",
+            }
+        })
+
+        # Return job details
+        return TrainingJobResponse(
+            id=job_id,
+            job_name=request.job_name,
+            job_type="training",
+            status=TrainingStatus.QUEUED,
+            created_at=created_at,
+            config=request.config.model_dump(),
+            total_epochs=request.config.epochs,
+            celery_task_id=task.id,
+            model_architecture=request.config.model_architecture,
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating training job: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create training job: {e!s}")
+
+
+@router.get("/jobs", response_model=TrainingJobListResponse)
+async def list_training_jobs(
+    status: TrainingStatus | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    List all training jobs with optional filtering.
+    
+    This endpoint returns ONLY jobs with job_type='training'.
+    For synthetic data generation jobs, use /jobs/synthetic endpoint.
+
+    Args:
+        status: Filter by job status
+        limit: Maximum number of jobs to return
+        offset: Pagination offset
+
+    Returns:
+        List of training jobs (excluding synthetic generation jobs)
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Build query - ALWAYS filter for training jobs only
+            where_clauses = ["job_type = 'training'"]
+            params: dict[str, Any] = {"limit": limit, "offset": offset}
+
+            if status:
+                where_clauses.append("status = :status")
+                params["status"] = status.value
+
+            where_clause = "WHERE " + " AND ".join(where_clauses)
+
+            # Get jobs
+            query = text(f"""
+                SELECT id, job_name, job_type, status, created_at, started_at, completed_at,
+                       config, current_epoch, total_epochs, progress_percent,
+                       train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                       best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                       mlflow_run_id, error_message, dataset_size, train_samples,
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message, dataset_id
+                FROM heimdall.training_jobs
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+
+            results = session.execute(query, params).fetchall()
+
+            # Get total count
+            count_query = text(f"""
+                SELECT COUNT(*) FROM heimdall.training_jobs
+                {where_clause}
+            """)
+            count_params = {k: v for k, v in params.items() if k not in ["limit", "offset"]}
+            total = session.execute(count_query, count_params).scalar() or 0
+
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
+            # Convert to response models
+            jobs = []
+            for row in results:
+                jobs.append(
+                    TrainingJobResponse(
+                        id=row[0],
+                        job_name=row[1],
+                        job_type=row[2],
+                        status=TrainingStatus(row[3]),
+                        created_at=row[4],
+                        started_at=row[5],
+                        completed_at=row[6],
+                        config=row[7] if row[7] else {},
+                        current_epoch=row[8] or 0,
+                        total_epochs=row[9],
+                        progress_percent=sanitize_float(row[10]) or 0.0,
+                        train_loss=sanitize_float(row[11]),
+                        val_loss=sanitize_float(row[12]),
+                        train_accuracy=sanitize_float(row[13]),
+                        val_accuracy=sanitize_float(row[14]),
+                        learning_rate=sanitize_float(row[15]),
+                        best_epoch=row[16],
+                        best_val_loss=sanitize_float(row[17]),
+                        checkpoint_path=row[18],
+                        onnx_model_path=row[19],
+                        mlflow_run_id=row[20],
+                        error_message=row[21],
+                        dataset_size=row[22],
+                        train_samples=row[23],
+                        val_samples=row[24],
+                        model_architecture=row[25],
+                        celery_task_id=row[26],
+                        current=row[27],
+                        total=row[28],
+                        message=row[29],
+                        dataset_id=str(row[30]) if row[30] else None,
+                    )
+                )
+
+            return TrainingJobListResponse(jobs=jobs, total=total)
+
+    except Exception as e:
+        logger.error(f"Error listing training jobs: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list training jobs: {e!s}")
+
+
+@router.get("/jobs/synthetic", response_model=TrainingJobListResponse)
+async def list_synthetic_jobs(
+    status: TrainingStatus | None = None,
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """
+    List all synthetic data generation jobs.
+    
+    This endpoint returns ONLY jobs with job_type='synthetic_generation'.
+    For training jobs, use /jobs endpoint.
+
+    Args:
+        status: Filter by job status
+        limit: Maximum number of jobs to return
+        offset: Pagination offset
+
+    Returns:
+        List of synthetic data generation jobs (excluding training jobs)
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Build query - ALWAYS filter for synthetic_generation jobs only
+            where_clauses = ["job_type = 'synthetic_generation'"]
+            params: dict[str, Any] = {"limit": limit, "offset": offset}
+
+            if status:
+                where_clauses.append("status = :status")
+                params["status"] = status.value
+
+            where_clause = "WHERE " + " AND ".join(where_clauses)
+
+            # Get jobs
+            query = text(f"""
+                SELECT id, job_name, job_type, status, created_at, started_at, completed_at,
+                       config, current_epoch, total_epochs, progress_percent,
+                       train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                       best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                       mlflow_run_id, error_message, dataset_size, train_samples,
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message, dataset_id
+                FROM heimdall.training_jobs
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+
+            results = session.execute(query, params).fetchall()
+
+            # Get total count
+            count_query = text(f"""
+                SELECT COUNT(*) FROM heimdall.training_jobs
+                {where_clause}
+            """)
+            count_params = {k: v for k, v in params.items() if k not in ["limit", "offset"]}
+            total = session.execute(count_query, count_params).scalar() or 0
+
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
+            # Convert to response models
+            jobs = []
+            for row in results:
+                jobs.append(
+                    TrainingJobResponse(
+                        id=row[0],
+                        job_name=row[1],
+                        job_type=row[2],
+                        status=TrainingStatus(row[3]),
+                        created_at=row[4],
+                        started_at=row[5],
+                        completed_at=row[6],
+                        config=row[7] if row[7] else {},
+                        current_epoch=row[8] or 0,
+                        total_epochs=row[9],
+                        progress_percent=sanitize_float(row[10]) or 0.0,
+                        train_loss=sanitize_float(row[11]),
+                        val_loss=sanitize_float(row[12]),
+                        train_accuracy=sanitize_float(row[13]),
+                        val_accuracy=sanitize_float(row[14]),
+                        learning_rate=sanitize_float(row[15]),
+                        best_epoch=row[16],
+                        best_val_loss=sanitize_float(row[17]),
+                        checkpoint_path=row[18],
+                        onnx_model_path=row[19],
+                        mlflow_run_id=row[20],
+                        error_message=row[21],
+                        dataset_size=row[22],
+                        train_samples=row[23],
+                        val_samples=row[24],
+                        model_architecture=row[25],
+                        celery_task_id=row[26],
+                        current=row[27],
+                        total=row[28],
+                        message=row[29],
+                        dataset_id=str(row[30]) if row[30] else None,
+                    )
+                )
+
+            return TrainingJobListResponse(jobs=jobs, total=total)
+
+    except Exception as e:
+        logger.error(f"Error listing synthetic jobs: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list synthetic jobs: {e!s}")
+
+
+@router.get("/jobs/{job_id}", response_model=TrainingJobStatusResponse)
+async def get_training_job(job_id: UUID):
+    """
+    Get detailed training job status including recent metrics.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Job details with recent metrics and WebSocket URL
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Get job details
+            job_query = text("""
+                SELECT id, job_name, job_type, status, created_at, started_at, completed_at,
+                       config, current_epoch, total_epochs, progress_percent,
+                       train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                       best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                       mlflow_run_id, error_message, dataset_size, train_samples,
+                       val_samples, model_architecture, celery_task_id,
+                       current_progress, total_progress, progress_message, dataset_id
+                FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+
+            result = session.execute(job_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
+            job = TrainingJobResponse(
+                id=result[0],
+                job_name=result[1],
+                job_type=result[2],
+                status=TrainingStatus(result[3]),
+                created_at=result[4],
+                started_at=result[5],
+                completed_at=result[6],
+                config=result[7] if result[7] else {},
+                current_epoch=result[8] or 0,
+                total_epochs=result[9],
+                progress_percent=sanitize_float(result[10]) or 0.0,
+                train_loss=sanitize_float(result[11]),
+                val_loss=sanitize_float(result[12]),
+                train_accuracy=sanitize_float(result[13]),
+                val_accuracy=sanitize_float(result[14]),
+                learning_rate=sanitize_float(result[15]),
+                best_epoch=result[16],
+                best_val_loss=sanitize_float(result[17]),
+                checkpoint_path=result[18],
+                onnx_model_path=result[19],
+                mlflow_run_id=result[20],
+                error_message=result[21],
+                dataset_size=result[22],
+                train_samples=result[23],
+                val_samples=result[24],
+                model_architecture=result[25],
+                celery_task_id=result[26],
+                current=result[27],
+                total=result[28],
+                message=result[29],
+                dataset_id=str(result[30]) if result[30] else None,
+            )
+
+            # Get recent metrics (last 10 epochs)
+            metrics_query = text("""
+                SELECT DISTINCT ON (epoch)
+                    epoch, train_loss, val_loss, train_accuracy, val_accuracy,
+                    learning_rate, gradient_norm,
+                    train_rmse_m, val_rmse_m, val_rmse_good_geom_m,
+                    val_distance_p50_m, val_distance_p68_m, val_distance_p95_m,
+                    mean_predicted_uncertainty_m, uncertainty_calibration_error,
+                    mean_gdop, gdop_below_5_percent, weight_norm
+                FROM heimdall.training_metrics
+                WHERE training_job_id = :job_id
+                ORDER BY epoch DESC, timestamp DESC
+                LIMIT 10
+            """)
+
+            metrics_results = session.execute(
+                metrics_query, {"job_id": str(job_id)}
+            ).fetchall()
+
+            # Helper function already defined above, reusing
+            recent_metrics = [
+                TrainingMetrics(
+                    epoch=row[0],
+                    train_loss=sanitize_float(row[1]),
+                    val_loss=sanitize_float(row[2]),
+                    train_accuracy=sanitize_float(row[3]),
+                    val_accuracy=sanitize_float(row[4]),
+                    learning_rate=sanitize_float(row[5]),
+                    gradient_norm=sanitize_float(row[6]),
+                    train_rmse_m=sanitize_float(row[7]),
+                    val_rmse_m=sanitize_float(row[8]),
+                    val_rmse_good_geom_m=sanitize_float(row[9]),
+                    val_distance_p50_m=sanitize_float(row[10]),
+                    val_distance_p68_m=sanitize_float(row[11]),
+                    val_distance_p95_m=sanitize_float(row[12]),
+                    mean_predicted_uncertainty_m=sanitize_float(row[13]),
+                    uncertainty_calibration_error=sanitize_float(row[14]),
+                    mean_gdop=sanitize_float(row[15]),
+                    gdop_below_5_percent=sanitize_float(row[16]),
+                    weight_norm=sanitize_float(row[17]),
+                )
+                for row in metrics_results
+            ]
+
+            # Construct WebSocket URL
+            websocket_url = f"ws://localhost:8001/ws/training/{job_id}"
+
+            return TrainingJobStatusResponse(
+                job=job, recent_metrics=recent_metrics, websocket_url=websocket_url
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get training job: {e!s}")
+
+
+@router.post("/jobs/{job_id}/cancel", status_code=200)
+async def cancel_training_job(job_id: UUID):
+    """
+    Cancel a running training job without deleting it.
+
+    Sets the job status to 'cancelled' and stops the Celery task.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status
+            check_query = text("""
+                SELECT status, celery_task_id FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, celery_task_id = result
+
+            # Can only cancel pending, queued, or running jobs
+            if status not in ["pending", "queued", "running"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot cancel job in status '{status}'. Only pending, queued, or running jobs can be cancelled."
+                )
+
+            # Cancel Celery task
+            if celery_task_id:
+                try:
+                    from celery.result import AsyncResult
+                    from celery import current_app
+                    from celery.contrib.abortable import AbortableAsyncResult
+
+                    # Use AbortableAsyncResult.abort() for graceful task cancellation
+                    task = AbortableAsyncResult(celery_task_id, app=current_app)
+                    task.abort()
+                    logger.info(f"Aborted Celery task {celery_task_id} for job {job_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to cancel Celery task: {e}")
+
+            # Update job status
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'cancelled', completed_at = NOW()
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"job_id": str(job_id)})
+            session.commit()
+
+            logger.info(f"Cancelled training job {job_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "cancelled",
+                    "action": "cancelled",
+                }
+            })
+
+            return {"status": "cancelled", "job_id": str(job_id)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to cancel training job: {e!s}")
+
+
+@router.post("/jobs/{job_id}/pause", status_code=200)
+async def pause_training_job(job_id: UUID):
+    """
+    Pause a running training job.
+
+    Sets the job status to 'paused' and saves a checkpoint at the end of the current epoch.
+    The training task will detect this status change and gracefully pause after completing
+    the current epoch.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status + checkpoint path
+            check_query = text("""
+                SELECT status, total_epochs, current_epoch, checkpoint_path FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, total_epochs, current_epoch, checkpoint_path = result
+
+            # Can only pause running jobs
+            if status != "running":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot pause job in status '{status}'. Only running jobs can be paused."
+                )
+
+            # Don't allow pausing synthetic data generation jobs (total_epochs = 0)
+            if total_epochs == 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot pause synthetic data generation jobs."
+                )
+
+            # Update job status to paused and save pause checkpoint
+            # Use the current checkpoint_path as the pause checkpoint
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'paused',
+                    pause_checkpoint_path = :checkpoint_path
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {
+                "job_id": str(job_id),
+                "checkpoint_path": checkpoint_path
+            })
+            session.commit()
+
+            logger.info(f"Paused training job {job_id} at epoch {current_epoch}/{total_epochs}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "paused",
+                    "action": "paused",
+                    "current_epoch": current_epoch,
+                }
+            })
+
+            return {
+                "status": "paused",
+                "job_id": str(job_id),
+                "current_epoch": current_epoch,
+                "total_epochs": total_epochs,
+                "message": "Training will pause after completing the current epoch"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error pausing training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to pause training job: {e!s}")
+
+
+@router.post("/jobs/{job_id}/resume", status_code=200)
+async def resume_training_job(job_id: UUID):
+    """
+    Resume a paused training job.
+
+    Restarts the training task from the pause checkpoint. The training will continue
+    from the epoch where it was paused.
+
+    Args:
+        job_id: Training job UUID
+
+    Returns:
+        Updated job status with new Celery task ID
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists and get status + checkpoint paths
+            check_query = text("""
+                SELECT status, pause_checkpoint_path, checkpoint_path, current_epoch, total_epochs
+                FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, pause_checkpoint_path, checkpoint_path, current_epoch, total_epochs = result
+
+            # Can resume paused, cancelled, or failed jobs
+            if status not in ["paused", "cancelled", "failed"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot resume job in status '{status}'. Only paused, cancelled, or failed jobs can be resumed."
+                )
+
+            # Use pause_checkpoint_path if available, otherwise fallback to checkpoint_path
+            # This provides backward compatibility for jobs paused before the fix
+            resume_checkpoint = pause_checkpoint_path or checkpoint_path
+            
+            if not resume_checkpoint:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No checkpoint found. Cannot resume training."
+                )
+            
+            logger.info(f"Resuming job {job_id} from checkpoint: {resume_checkpoint}")
+
+            # Update job status to running and queue the training task
+            from ..main import celery_app
+            
+            task = celery_app.send_task(
+                'src.tasks.training_task.start_training_job',
+                args=[str(job_id)],
+                queue='training'
+            )
+
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET status = 'queued', celery_task_id = :task_id, started_at = NOW()
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"job_id": str(job_id), "task_id": task.id})
+            session.commit()
+
+            logger.info(f"Resumed training job {job_id} from epoch {current_epoch}/{total_epochs} (task: {task.id})")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "job_id": str(job_id),
+                    "status": "queued",
+                    "action": "resumed",
+                    "current_epoch": current_epoch,
+                    "celery_task_id": task.id,
+                }
+            })
+
+            return {
+                "status": "queued",
+                "job_id": str(job_id),
+                "celery_task_id": task.id,
+                "current_epoch": current_epoch,
+                "total_epochs": total_epochs,
+                "message": f"Training resumed from epoch {current_epoch}"
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resuming training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to resume training job: {e!s}")
+
+
+@router.post("/jobs/{job_id}/continue", status_code=202)
+async def continue_synthetic_job(job_id: UUID):
+    """
+    Continue a cancelled synthetic data generation job from where it left off.
+    
+    Creates a new job that:
+    - References the same dataset (reuses existing samples)
+    - Generates only the remaining samples
+    - Links to the original job via parent_job_id
+    
+    Only works for jobs that:
+    - Are cancelled
+    - Have job_type='synthetic_generation'
+    - Have made some progress (current_progress > 0)
+    
+    Args:
+        job_id: UUID of the cancelled job to continue
+        
+    Returns:
+        New job details with continuation info
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Fetch original job details
+            job_query = text("""
+                SELECT 
+                    tj.status, 
+                    tj.job_type, 
+                    tj.job_name,
+                    tj.config, 
+                    tj.current_progress, 
+                    tj.total_progress,
+                    sd.id as dataset_id,
+                    sd.name as dataset_name
+                FROM heimdall.training_jobs tj
+                LEFT JOIN heimdall.synthetic_datasets sd ON sd.job_id = tj.id
+                WHERE tj.id = :job_id
+            """)
+            result = session.execute(job_query, {"job_id": str(job_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+            
+            status, job_type, job_name, config, current_progress, total_progress, dataset_id, dataset_name = result
+            
+            # Validate job can be continued
+            if job_type != 'synthetic_generation':
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Only synthetic_generation jobs can be continued (found: {job_type})"
+                )
+            
+            if status != 'cancelled':
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Only cancelled jobs can be continued (current status: {status})"
+                )
+            
+            if not current_progress or current_progress <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Job has no progress to continue from"
+                )
+            
+            if not dataset_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot find associated dataset for this job"
+                )
+            
+            # Count actual samples in database (may differ from current_progress)
+            count_query = text("""
+                SELECT COUNT(*) 
+                FROM heimdall.measurement_features 
+                WHERE dataset_id = :dataset_id
+            """)
+            actual_samples = session.execute(
+                count_query, 
+                {"dataset_id": str(dataset_id)}
+            ).scalar()
+            
+            # Calculate remaining samples
+            remaining_samples = total_progress - actual_samples
+            
+            if remaining_samples <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Job already complete ({actual_samples}/{total_progress} samples)"
+                )
+            
+            # Parse original config and create continuation config
+            import json
+            original_config = json.loads(config) if isinstance(config, str) else config
+            
+            continuation_config = {
+                **original_config,
+                "expand_dataset_id": str(dataset_id),  # Single source of truth for expansion
+                "num_samples": remaining_samples
+            }
+            
+            # Create new job with parent reference
+            new_job_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    job_name, 
+                    job_type, 
+                    status, 
+                    config, 
+                    total_epochs,
+                    total_progress,
+                    parent_job_id
+                )
+                VALUES (
+                    :job_name, 
+                    'synthetic_generation', 
+                    'pending', 
+                    CAST(:config AS jsonb), 
+                    0,
+                    :total_progress,
+                    :parent_job_id
+                )
+                RETURNING id, created_at
+            """)
+            
+            new_job_result = session.execute(
+                new_job_query,
+                {
+                    "job_name": f"{job_name} (Continued)",
+                    "config": json.dumps(continuation_config),
+                    "total_progress": total_progress,
+                    "parent_job_id": str(job_id)
+                }
+            )
+            
+            new_job_row = new_job_result.fetchone()
+            new_job_id = new_job_row[0]
+            created_at = new_job_row[1]
+            
+            session.commit()
+        
+        logger.info(
+            f"Created continuation job {new_job_id} for cancelled job {job_id}. "
+            f"Resuming from {actual_samples}/{total_progress} samples, "
+            f"generating {remaining_samples} more."
+        )
+        
+        # Queue Celery task
+        from ..main import celery_app
+        celery_app.send_task(
+            'src.tasks.training_task.generate_synthetic_data_task',
+            args=[str(new_job_id)],
+            queue='training'
+        )
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "job_id": str(new_job_id),
+                "parent_job_id": str(job_id),
+                "status": "pending",
+                "action": "continued",
+                "dataset_id": str(dataset_id),
+                "samples_existing": actual_samples,
+                "samples_remaining": remaining_samples
+            }
+        })
+        
+        return {
+            "job_id": str(new_job_id),
+            "parent_job_id": str(job_id),
+            "dataset_id": str(dataset_id),
+            "dataset_name": dataset_name,
+            "status": "pending",
+            "created_at": created_at,
+            "samples_existing": actual_samples,
+            "samples_remaining": remaining_samples,
+            "total_samples": total_progress,
+            "status_url": f"/api/v1/training/jobs/{new_job_id}",
+            "message": f"Continuing from {actual_samples}/{total_progress} samples"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error continuing synthetic job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to continue job: {e!s}")
+
+
+@router.post("/evolve", response_model=TrainingJobResponse, status_code=201)
+async def evolve_model(request: EvolveTrainingRequest):
+    """
+    Evolve an existing model by continuing training with additional epochs.
+    
+    Creates a new training job that:
+    - Loads checkpoint weights from the parent model
+    - Preserves all hyperparameters from parent
+    - Trains for additional epochs
+    - Auto-increments version (v1 → v2 → v3)
+    - Keeps the same model name
+    
+    Args:
+        request: Evolution configuration
+        
+    Returns:
+        New training job details with parent_model_id link
+    """
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Fetch parent model details
+            parent_query = text("""
+                SELECT 
+                    m.model_name,
+                    m.version,
+                    m.pytorch_model_location,
+                    m.hyperparameters,
+                    m.synthetic_dataset_id,
+                    tj.config as job_config
+                FROM heimdall.models m
+                LEFT JOIN heimdall.training_jobs tj ON m.trained_by_job_id = tj.id
+                WHERE m.id = :model_id
+            """)
+            result = session.execute(parent_query, {"model_id": str(request.parent_model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Parent model {request.parent_model_id} not found")
+            
+            model_name, version, pytorch_location, hyperparams, dataset_id, job_config = result
+            
+            if not pytorch_location:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Parent model has no checkpoint (pytorch_model_location is NULL)"
+                )
+            
+            # Parse hyperparameters and job config
+            import json
+            hyperparams_dict = json.loads(hyperparams) if isinstance(hyperparams, str) else hyperparams
+            job_config_dict = json.loads(job_config) if isinstance(job_config, str) else (job_config or {})
+            
+            # Extract dataset_ids from job_config or fallback to hyperparameters
+            dataset_ids = job_config_dict.get("dataset_ids") or hyperparams_dict.get("dataset_ids", [])
+            if not dataset_ids and dataset_id:
+                dataset_ids = [str(dataset_id)]
+            
+            if not dataset_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot determine dataset_ids from parent model"
+                )
+            
+            # Create evolution config by copying parent hyperparameters
+            evolution_config = TrainingConfig(
+                dataset_ids=dataset_ids,
+                parent_model_id=request.parent_model_id,
+                
+                # Copy hyperparameters from parent
+                model_architecture=hyperparams_dict.get("model_architecture", "triangulation"),
+                pretrained=hyperparams_dict.get("pretrained", False),
+                freeze_backbone=hyperparams_dict.get("freeze_backbone", False),
+                batch_size=hyperparams_dict.get("batch_size", 128),
+                num_workers=hyperparams_dict.get("num_workers", 0),
+                validation_split=hyperparams_dict.get("validation_split", 0.2),
+                preload_to_gpu=hyperparams_dict.get("preload_to_gpu", True),
+                n_mels=hyperparams_dict.get("n_mels", 128),
+                n_fft=hyperparams_dict.get("n_fft", 2048),
+                hop_length=hyperparams_dict.get("hop_length", 512),
+                learning_rate=hyperparams_dict.get("learning_rate", 1e-3),
+                weight_decay=hyperparams_dict.get("weight_decay", 1e-4),
+                dropout_rate=hyperparams_dict.get("dropout_rate", 0.2),
+                lr_scheduler=hyperparams_dict.get("lr_scheduler", "cosine"),
+                warmup_epochs=hyperparams_dict.get("warmup_epochs", 5),
+                early_stop_delta=hyperparams_dict.get("early_stop_delta", 0.001),
+                max_grad_norm=hyperparams_dict.get("max_grad_norm", 1.0),
+                accelerator=hyperparams_dict.get("accelerator", "auto"),
+                devices=hyperparams_dict.get("devices", 1),
+                min_snr_db=hyperparams_dict.get("min_snr_db", 10.0),
+                max_gdop=hyperparams_dict.get("max_gdop", 5.0),
+                only_approved=hyperparams_dict.get("only_approved", True),
+                
+                # Override with evolution-specific parameters
+                epochs=request.additional_epochs,
+                early_stop_patience=request.early_stop_patience
+            )
+            
+            # Create new training job (keep same model_name, version will auto-increment in task)
+            job_id = uuid.uuid4()
+            job_name = model_name  # Keep the same name
+            config_dict = evolution_config.model_dump()
+            
+            # Convert UUID to string for JSON serialization
+            if config_dict.get("parent_model_id"):
+                config_dict["parent_model_id"] = str(config_dict["parent_model_id"])
+            
+            insert_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    id, job_name, job_type, status, config, 
+                    total_epochs, created_at
+                )
+                VALUES (
+                    :job_id, :job_name, 'training', 'pending', CAST(:config AS jsonb),
+                    :total_epochs, NOW()
+                )
+            """)
+            
+            session.execute(
+                insert_query,
+                {
+                    "job_id": str(job_id),
+                    "job_name": job_name,
+                    "config": json.dumps(config_dict),
+                    "total_epochs": request.additional_epochs
+                }
+            )
+            session.commit()
+            
+            logger.info(f"Created evolution job {job_id} for model {model_name} v{version}")
+            
+        # Queue Celery task
+        from ..main import celery_app
+        task = celery_app.send_task(
+            'src.tasks.training_task.start_training_job',
+            args=[str(job_id)],
+            queue="training"
+        )
+        
+        # Update job with Celery task ID
+        with db_manager.get_session() as session:
+            session.execute(
+                text("UPDATE heimdall.training_jobs SET celery_task_id = :task_id, status = 'queued' WHERE id = :job_id"),
+                {"task_id": task.id, "job_id": str(job_id)}
+            )
+            session.commit()
+        
+        # Fetch created job for response
+        with db_manager.get_session() as session:
+            job_query = text("""
+                SELECT 
+                    id, job_name, job_type, status, created_at, started_at, completed_at,
+                    config, current_epoch, total_epochs, progress_percent,
+                    current_progress, total_progress, progress_message,
+                    train_loss, val_loss, train_accuracy, val_accuracy, learning_rate,
+                    best_epoch, best_val_loss, checkpoint_path, onnx_model_path,
+                    mlflow_run_id, error_message, celery_task_id
+                FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            job_result = session.execute(job_query, {"job_id": str(job_id)}).fetchone()
+            
+            if not job_result:
+                raise HTTPException(status_code=500, detail="Failed to retrieve created job")
+            
+            job_dict = dict(job_result._mapping)
+            config = json.loads(job_dict["config"]) if isinstance(job_dict["config"], str) else job_dict["config"]
+            
+            return TrainingJobResponse(
+                id=job_dict["id"],
+                job_name=job_dict["job_name"],
+                job_type=job_dict["job_type"],
+                status=job_dict["status"],
+                created_at=job_dict["created_at"],
+                started_at=job_dict["started_at"],
+                completed_at=job_dict["completed_at"],
+                config=config,
+                current_epoch=job_dict["current_epoch"] or 0,
+                total_epochs=job_dict["total_epochs"],
+                progress_percent=job_dict["progress_percent"] or 0.0,
+                current=job_dict["current_progress"],
+                total=job_dict["total_progress"],
+                message=job_dict["progress_message"],
+                train_loss=job_dict["train_loss"],
+                val_loss=job_dict["val_loss"],
+                train_accuracy=job_dict["train_accuracy"],
+                val_accuracy=job_dict["val_accuracy"],
+                learning_rate=job_dict["learning_rate"],
+                best_epoch=job_dict["best_epoch"],
+                best_val_loss=job_dict["best_val_loss"],
+                checkpoint_path=job_dict["checkpoint_path"],
+                onnx_model_path=job_dict["onnx_model_path"],
+                mlflow_run_id=job_dict["mlflow_run_id"],
+                error_message=job_dict["error_message"],
+                celery_task_id=job_dict["celery_task_id"]
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating evolution job: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create evolution job: {e!s}")
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+async def delete_training_job(job_id: UUID):
+    """
+    Delete a training job.
+
+    Can only delete jobs that are not running (completed, failed, or cancelled).
+    For running jobs, cancel them first.
+
+    Args:
+        job_id: Training job UUID
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Check if job exists
+            check_query = text("""
+                SELECT status, celery_task_id FROM heimdall.training_jobs
+                WHERE id = :job_id
+            """)
+            result = session.execute(check_query, {"job_id": str(job_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            status, celery_task_id = result
+
+            # Cannot delete running jobs directly
+            if status in ["pending", "queued", "running"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot delete job in status '{status}'. Cancel the job first."
+                )
+
+            # Delete job (cascade will delete metrics)
+            delete_query = text("""
+                DELETE FROM heimdall.training_jobs WHERE id = :job_id
+            """)
+            session.execute(delete_query, {"job_id": str(job_id)})
+            session.commit()
+
+            logger.info(f"Deleted training job {job_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "training_job_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "job_id": str(job_id),
+                    "action": "deleted",
+                }
+            })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting training job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete training job: {e!s}")
+
+
+@router.get("/jobs/{job_id}/metrics", response_model=list[TrainingMetrics])
+async def get_training_metrics(
+    job_id: UUID,
+    limit: int = Query(default=100, ge=1, le=1000),
+):
+    """
+    Get detailed training metrics history for a job.
+
+    Returns per-epoch metrics for visualization.
+
+    Args:
+        job_id: Training job UUID
+        limit: Maximum number of epochs to return
+
+    Returns:
+        List of epoch metrics
+    """
+    db_manager = get_db_manager()
+
+    try:
+        with db_manager.get_session() as session:
+            # Verify job exists
+            check_query = text("SELECT id FROM heimdall.training_jobs WHERE id = :job_id")
+            if not session.execute(check_query, {"job_id": str(job_id)}).fetchone():
+                raise HTTPException(status_code=404, detail=f"Training job {job_id} not found")
+
+            # Get metrics
+            metrics_query = text("""
+                SELECT DISTINCT ON (epoch)
+                    epoch, train_loss, val_loss, train_accuracy, val_accuracy,
+                    learning_rate, gradient_norm,
+                    train_rmse_m, val_rmse_m, val_rmse_good_geom_m,
+                    val_distance_p50_m, val_distance_p68_m, val_distance_p95_m,
+                    mean_predicted_uncertainty_m, uncertainty_calibration_error,
+                    mean_gdop, gdop_below_5_percent, weight_norm
+                FROM heimdall.training_metrics
+                WHERE training_job_id = :job_id
+                ORDER BY epoch ASC, timestamp DESC
+                LIMIT :limit
+            """)
+
+            results = session.execute(
+                metrics_query, {"job_id": str(job_id), "limit": limit}
+            ).fetchall()
+
+            # Helper function to sanitize float values for JSON serialization
+            def sanitize_float(value):
+                """Convert NaN/Infinity to None for JSON compatibility."""
+                if value is None:
+                    return None
+                try:
+                    import math
+                    if math.isnan(value) or math.isinf(value):
+                        return None
+                    return value
+                except (TypeError, ValueError):
+                    return value
+
+            return [
+                TrainingMetrics(
+                    epoch=row[0],
+                    train_loss=sanitize_float(row[1]),
+                    val_loss=sanitize_float(row[2]),
+                    train_accuracy=sanitize_float(row[3]),
+                    val_accuracy=sanitize_float(row[4]),
+                    learning_rate=sanitize_float(row[5]),
+                    gradient_norm=sanitize_float(row[6]),
+                    train_rmse_m=sanitize_float(row[7]),
+                    val_rmse_m=sanitize_float(row[8]),
+                    val_rmse_good_geom_m=sanitize_float(row[9]),
+                    val_distance_p50_m=sanitize_float(row[10]),
+                    val_distance_p68_m=sanitize_float(row[11]),
+                    val_distance_p95_m=sanitize_float(row[12]),
+                    mean_predicted_uncertainty_m=sanitize_float(row[13]),
+                    uncertainty_calibration_error=sanitize_float(row[14]),
+                    mean_gdop=sanitize_float(row[15]),
+                    gdop_below_5_percent=sanitize_float(row[16]),
+                    weight_norm=sanitize_float(row[17]),
+                )
+                for row in results
+            ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting metrics for job {job_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get training metrics: {e!s}")
+
+
+# ============================================================================
+# SYNTHETIC DATA GENERATION ENDPOINTS
+# ============================================================================
+
+@router.post("/synthetic/generate", status_code=202)
+async def generate_synthetic_data(request: SyntheticDataGenerationRequest):
+    """
+    Generate synthetic training dataset.
+
+    Creates a background job to generate synthetic samples using RF propagation simulation.
+    
+    If expand_dataset_id is provided, adds samples to existing dataset instead of creating new one.
+
+    Args:
+        request: Synthetic data generation configuration
+
+    Returns:
+        Job ID and status URL
+    """
+    # Convert to dict for storage (mode='json' converts UUID to string)
+    # exclude_none=False to ensure all fields are included (even False values)
+    request_dict = request.model_dump(mode='json', exclude_none=False)
+    
+    db_manager = get_db_manager()
+    
+    try:
+        # If expanding existing dataset, set up continuation flags
+        if request.expand_dataset_id:
+            # Verify dataset exists and retrieve original config
+            with db_manager.get_session() as session:
+                check_query = text("""
+                    SELECT id, num_samples, config FROM heimdall.synthetic_datasets
+                    WHERE id = :dataset_id
+                """)
+                result = session.execute(check_query, {"dataset_id": str(request.expand_dataset_id)})
+                row = result.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404, detail=f"Dataset {request.expand_dataset_id} not found")
+                
+                existing_samples = row[1]
+                original_config = row[2] if isinstance(row[2], dict) else {}
+            
+            # ALWAYS inherit critical parameters from original dataset during expansion
+            # These parameters define the dataset's identity and must remain consistent
+            # across all expansions to ensure training data integrity
+            params_to_inherit = [
+                'frequency_mhz', 'tx_power_dbm', 'min_snr_db', 'min_receivers',
+                'max_gdop', 'inside_ratio'
+            ]
+            
+            inherited_count = 0
+            for param in params_to_inherit:
+                if param in original_config:
+                    request_dict[param] = original_config[param]
+                    logger.info(f"Inherited {param}={original_config[param]} from original dataset {request.expand_dataset_id}")
+                    inherited_count += 1
+                else:
+                    logger.warning(f"Parameter {param} not found in original dataset config, using request value: {request_dict.get(param)}")
+            
+            logger.info(f"Dataset expansion: inherited {inherited_count}/{len(params_to_inherit)} parameters from original dataset")
+            logger.info(f"Expanding dataset {request.expand_dataset_id}: adding {request.num_samples} samples (current: {existing_samples})")
+        
+        # Create job record
+        with db_manager.get_session() as session:
+            job_query = text("""
+                INSERT INTO heimdall.training_jobs (
+                    job_name, job_type, status, config, total_epochs
+                )
+                VALUES (
+                    :job_name, 'synthetic_generation', 'pending', CAST(:config AS jsonb), 0
+                )
+                RETURNING id, created_at
+            """)
+            
+            import json
+            from uuid import UUID
+            
+            # Custom JSON encoder to handle UUID objects
+            class UUIDEncoder(json.JSONEncoder):
+                def default(self, o):
+                    if isinstance(o, UUID):
+                        return str(o)
+                    return super().default(o)
+            
+            job_name = f"Synthetic Data: {request_dict.get('name', 'Unnamed')}"
+            if request.expand_dataset_id:
+                job_name = f"Expand Dataset: {request_dict.get('name', 'Unnamed')} (+{request.num_samples} samples)"
+            
+            result = session.execute(
+                job_query,
+                {
+                    "job_name": job_name,
+                    "config": json.dumps(request_dict, cls=UUIDEncoder)
+                }
+            )
+            row = result.fetchone()
+            job_id = row[0]
+            created_at = row[1]
+            
+            session.commit()
+        
+        logger.info(f"Created synthetic data generation job {job_id}")
+        
+        # Queue Celery task to training service
+        from ..main import celery_app
+        task = celery_app.send_task(
+            'src.tasks.training_task.generate_synthetic_data_task',
+            args=[str(job_id)],
+            queue='training'
+        )
+        
+        # Save celery_task_id to database
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.training_jobs
+                SET celery_task_id = :task_id
+                WHERE id = :job_id
+            """)
+            session.execute(update_query, {"task_id": task.id, "job_id": str(job_id)})
+            session.commit()
+        
+        logger.info(f"Queued Celery task {task.id} for job {job_id}")
+
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "job_id": str(job_id),
+                "status": "pending",
+                "action": "created",
+            }
+        })
+        
+        return {
+            "job_id": job_id,
+            "status": "pending",
+            "created_at": created_at,
+            "status_url": f"/api/v1/training/jobs/{job_id}"
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating synthetic data job: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create job: {e!s}")
+
+
+@router.get("/synthetic/datasets")
+async def list_synthetic_datasets(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0)
+):
+    """
+    List all synthetic datasets.
+    
+    Args:
+        limit: Maximum number of datasets to return
+        offset: Pagination offset
+    
+    Returns:
+        List of synthetic datasets
+    """
+    from ..models.synthetic_data import SyntheticDatasetResponse, SyntheticDatasetListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Get datasets with sample counts and health status
+            query = text("""
+                SELECT
+                    sd.id,
+                    sd.name,
+                    sd.description,
+                    sd.dataset_type,
+                    sd.num_samples,
+                    sd.config,
+                    sd.quality_metrics,
+                    sd.storage_table,
+                    sd.storage_size_bytes,
+                    sd.created_at,
+                    sd.created_by_job_id,
+                    sd.health_status,
+                    sd.last_validated_at,
+                    sd.validation_issues
+                FROM heimdall.synthetic_datasets sd
+                ORDER BY sd.created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+
+            results = session.execute(query, {"limit": limit, "offset": offset}).fetchall()
+
+            # Get total count
+            count_query = text("SELECT COUNT(*) FROM heimdall.synthetic_datasets")
+            total = session.execute(count_query).scalar() or 0
+            
+            # Convert to response models
+            import json
+            datasets = []
+            for row in results:
+                # JSONB columns are already dicts, not strings
+                config = row[5] if isinstance(row[5], dict) else (json.loads(row[5]) if row[5] else {})
+                quality_metrics = row[6] if isinstance(row[6], dict) else (json.loads(row[6]) if row[6] else None)
+                validation_issues = row[13] if isinstance(row[13], dict) else (json.loads(row[13]) if row[13] else None)
+
+                datasets.append(SyntheticDatasetResponse(
+                    id=row[0],
+                    name=row[1],
+                    description=row[2],
+                    dataset_type=row[3],
+                    num_samples=row[4],
+                    config=config,
+                    quality_metrics=quality_metrics,
+                    storage_table=row[7],
+                    storage_size_bytes=row[8],
+                    created_at=row[9],
+                    created_by_job_id=row[10],
+                    health_status=row[11],
+                    last_validated_at=row[12],
+                    validation_issues=validation_issues
+                ))
+            
+            return SyntheticDatasetListResponse(datasets=datasets, total=total)
+    
+    except Exception as e:
+        logger.error(f"Error listing synthetic datasets: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list datasets: {e!s}")
+
+
+@router.get("/synthetic/datasets/{dataset_id}")
+async def get_synthetic_dataset(dataset_id: UUID):
+    """
+    Get synthetic dataset details.
+    
+    Args:
+        dataset_id: Dataset UUID
+    
+    Returns:
+        Dataset details
+    """
+    from ..models.synthetic_data import SyntheticDatasetResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Get dataset - use stored num_samples for consistency with list endpoint
+            query = text("""
+                SELECT
+                    sd.id,
+                    sd.name,
+                    sd.description,
+                    sd.dataset_type,
+                    sd.num_samples,
+                    sd.config,
+                    sd.quality_metrics,
+                    sd.storage_table,
+                    sd.storage_size_bytes,
+                    sd.created_at,
+                    sd.created_by_job_id,
+                    sd.health_status,
+                    sd.last_validated_at,
+                    sd.validation_issues
+                FROM heimdall.synthetic_datasets sd
+                WHERE sd.id = :dataset_id
+            """)
+
+            result = session.execute(query, {"dataset_id": str(dataset_id)}).fetchone()
+
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            import json
+            # JSONB columns are already dicts, not strings
+            config = result[5] if isinstance(result[5], dict) else (json.loads(result[5]) if result[5] else {})
+            quality_metrics = result[6] if isinstance(result[6], dict) else (json.loads(result[6]) if result[6] else None)
+            validation_issues = result[13] if isinstance(result[13], dict) else (json.loads(result[13]) if result[13] else None)
+
+            return SyntheticDatasetResponse(
+                id=result[0],
+                name=result[1],
+                description=result[2],
+                dataset_type=result[3],
+                num_samples=result[4],
+                config=config,
+                quality_metrics=quality_metrics,
+                storage_table=result[7],
+                storage_size_bytes=result[8],
+                created_at=result[9],
+                created_by_job_id=result[10],
+                health_status=result[11],
+                last_validated_at=result[12],
+                validation_issues=validation_issues
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get dataset: {e!s}")
+
+
+@router.get("/synthetic/datasets/{dataset_id}/samples")
+async def get_dataset_samples(
+    dataset_id: UUID,
+    limit: int = Query(default=10, ge=1, le=100, description="Number of samples to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+    split: str = Query(default=None, description="Filter by split (train/val/test)")
+):
+    """
+    Get samples from a synthetic dataset.
+    
+    Args:
+        dataset_id: UUID of the dataset
+        limit: Maximum number of samples to return (1-100)
+        offset: Number of samples to skip
+        split: Optional filter by split type
+    
+    Returns:
+        List of samples with pagination info
+    """
+    from ..models.synthetic_data import SyntheticSampleResponse, SyntheticSamplesListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Build query - samples are in measurement_features table
+            where_clause = "WHERE dataset_id = :dataset_id"
+            params = {"dataset_id": str(dataset_id), "limit": limit, "offset": offset}
+            
+            # Note: split filter not applicable for measurement_features (no split column)
+            # Splits are calculated at training time, not stored per-sample
+            
+            # Count total
+            count_query = text(f"""
+                SELECT COUNT(*) as total
+                FROM heimdall.measurement_features
+                {where_clause}
+            """)
+            
+            count_result = session.execute(count_query, params).fetchone()
+            total = count_result[0] if count_result else 0
+            
+            # Fetch samples from measurement_features
+            samples_query = text(f"""
+                SELECT recording_session_id, timestamp, tx_latitude, tx_longitude,
+                       tx_power_dbm, extraction_metadata->>'frequency_hz' as frequency_hz,
+                       receiver_features, gdop, num_receivers_detected, 
+                       mean_snr_db, overall_confidence, created_at
+                FROM heimdall.measurement_features
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT :limit OFFSET :offset
+            """)
+            
+            rows = session.execute(samples_query, params).fetchall()
+            
+            samples = []
+            for row in rows:
+                # Convert receiver_features array to dict for response
+                receivers_data = {
+                    "num_receivers": row[8],
+                    "mean_snr_db": row[9],
+                    "overall_confidence": row[10],
+                    "receiver_features": row[6]  # JSONB array
+                }
+                
+                samples.append(SyntheticSampleResponse(
+                    id=hash(str(row[0])),  # Use hash of UUID as int ID
+                    timestamp=row[1],
+                    tx_lat=row[2] or 0.0,
+                    tx_lon=row[3] or 0.0,
+                    tx_power_dbm=row[4] or 0.0,
+                    frequency_hz=float(row[5]) if row[5] else 0.0,
+                    receivers=receivers_data,
+                    gdop=row[7] or 0.0,
+                    num_receivers=row[8] or 0,
+                    split="",  # Not stored at sample level
+                    created_at=row[11]
+                ))
+            
+            return SyntheticSamplesListResponse(
+                samples=samples,
+                total=total,
+                limit=limit,
+                offset=offset,
+                dataset_id=str(dataset_id)
+            )
+    
+    except Exception as e:
+        logger.error(f"Error getting samples for dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get samples: {e!s}")
+
+
+@router.patch("/synthetic/datasets/{dataset_id}", status_code=200)
+async def update_dataset_name(dataset_id: UUID, dataset_name: str):
+    """
+    Update dataset name.
+    
+    Args:
+        dataset_id: Dataset UUID
+        dataset_name: New dataset name (1-200 characters)
+    
+    Returns:
+        Success message with updated dataset name
+    """
+    from ..events.publisher import get_event_publisher
+    
+    # Validate dataset name length
+    if not dataset_name or len(dataset_name) < 1 or len(dataset_name) > 200:
+        raise HTTPException(status_code=400, detail="Dataset name must be between 1 and 200 characters")
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if dataset exists
+            check_query = text("SELECT id, name FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            old_name = result[1]
+            
+            # Update dataset name
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets 
+                SET name = :dataset_name
+                WHERE id = :dataset_id
+            """)
+            session.execute(update_query, {"dataset_id": str(dataset_id), "dataset_name": dataset_name})
+            session.commit()
+            
+            logger.info(f"Updated dataset {dataset_id} name from '{old_name}' to '{dataset_name}'")
+            
+            # Broadcast WebSocket event (optional - if you want real-time updates)
+            # event_publisher = get_event_publisher()
+            # event_publisher.publish_dataset_updated(
+            #     dataset_id=str(dataset_id),
+            #     old_name=old_name,
+            #     new_name=dataset_name
+            # )
+            
+            return {"message": f"Dataset name updated to '{dataset_name}'", "dataset_id": str(dataset_id)}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating dataset name {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update dataset name: {e!s}")
+
+
+@router.delete("/synthetic/datasets/{dataset_id}", status_code=204)
+async def delete_synthetic_dataset(dataset_id: UUID):
+    """
+    Delete synthetic dataset and all its samples.
+    
+    This endpoint performs a complete cleanup:
+    1. Deletes all IQ data files from MinIO (heimdall-synthetic-iq bucket)
+    2. Deletes database records (cascade deletes samples from synthetic_training_samples)
+    
+    Args:
+        dataset_id: Dataset UUID
+    """
+    db_manager = get_db_manager()
+    
+    # Initialize MinIO client for synthetic IQ data
+    minio_client = MinIOClient(
+        endpoint_url=settings.MINIO_ENDPOINT,
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        bucket_name="heimdall-synthetic-iq",
+        region_name=settings.MINIO_REGION,
+    )
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if dataset exists
+            check_query = text("SELECT id FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            # CRITICAL FIX: Delete MinIO files BEFORE database records
+            # This prevents orphaned files in object storage
+            logger.info(f"Deleting MinIO files for dataset {dataset_id}...")
+            successful, failed = minio_client.delete_dataset_iq_data(
+                dataset_id=str(dataset_id),
+                prefix_pattern="synthetic"
+            )
+            
+            if failed > 0:
+                logger.warning(
+                    f"Some MinIO files failed to delete for dataset {dataset_id}: "
+                    f"{successful} successful, {failed} failed"
+                )
+            else:
+                logger.info(f"Successfully deleted {successful} MinIO files for dataset {dataset_id}")
+            
+            # Delete dataset (cascade will delete samples from synthetic_training_samples)
+            delete_query = text("DELETE FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            session.execute(delete_query, {"dataset_id": str(dataset_id)})
+            session.commit()
+            
+            logger.info(
+                f"Deleted synthetic dataset {dataset_id} "
+                f"(DB records + {successful} MinIO files, {failed} failures)"
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete dataset: {e!s}")
+
+
+# ============================================================================
+# MODEL MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@models_router.get("/models")
+async def list_models(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    active_only: bool = Query(default=False)
+):
+    """
+    List all trained models.
+    
+    Args:
+        limit: Maximum number of models to return
+        offset: Pagination offset
+        active_only: Only return active models
+    
+    Returns:
+        List of trained models
+    """
+    from ..models.synthetic_data import ModelMetadataResponse, ModelListResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Build query and parameters safely
+            params = {"limit": limit, "offset": offset}
+            if active_only:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
+                    FROM heimdall.models
+                    WHERE is_active = :is_active
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                params["is_active"] = True
+                count_query = text("SELECT COUNT(*) FROM heimdall.models WHERE is_active = :is_active")
+                count_params = {"is_active": True}
+            else:
+                query = text("""
+                    SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                           mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                           pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                           loss_value, epoch, is_active, is_production, hyperparameters,
+                           training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
+                    FROM heimdall.models
+                    ORDER BY created_at DESC
+                    LIMIT :limit OFFSET :offset
+                """)
+                count_query = text("SELECT COUNT(*) FROM heimdall.models")
+                count_params = {}
+            
+            results = session.execute(query, params).fetchall()
+            total = session.execute(count_query, count_params).scalar() or 0
+            
+            import json
+            models = []
+            for row in results:
+                # JSONB columns are already dicts, not strings
+                hyperparameters = row[15] if isinstance(row[15], dict) else (json.loads(row[15]) if row[15] else None)
+                training_metrics = row[16] if isinstance(row[16], dict) else (json.loads(row[16]) if row[16] else None)
+                test_metrics = row[17] if isinstance(row[17], dict) else (json.loads(row[17]) if row[17] else None)
+
+                models.append(ModelMetadataResponse(
+                    id=row[0],
+                    model_name=row[1],
+                    version=row[2] or 1,
+                    model_type=row[3],
+                    synthetic_dataset_id=row[4],
+                    mlflow_run_id=row[5],
+                    mlflow_experiment_id=row[6],
+                    onnx_model_location=row[7],
+                    pytorch_model_location=row[8],
+                    accuracy_meters=row[9],
+                    accuracy_sigma_meters=row[10],
+                    loss_value=row[11],
+                    epoch=row[12],
+                    is_active=row[13],
+                    is_production=row[14],
+                    hyperparameters=hyperparameters,
+                    training_metrics=training_metrics,
+                    test_metrics=test_metrics,
+                    created_at=row[18],
+                    trained_by_job_id=row[19],
+                    parent_model_id=row[20]
+                ))
+            
+            return ModelListResponse(models=models, total=total)
+    
+    except Exception as e:
+        logger.error(f"Error listing models: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list models: {e!s}")
+
+
+@models_router.get("/models/{model_id}")
+async def get_model(model_id: UUID):
+    """
+    Get model details.
+    
+    Args:
+        model_id: Model UUID
+    
+    Returns:
+        Model details
+    """
+    from ..models.synthetic_data import ModelMetadataResponse
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            query = text("""
+                SELECT id, model_name, version, model_type, synthetic_dataset_id,
+                       mlflow_run_id, mlflow_experiment_id, onnx_model_location,
+                       pytorch_model_location, accuracy_meters, accuracy_sigma_meters,
+                       loss_value, epoch, is_active, is_production, hyperparameters,
+                       training_metrics, test_metrics, created_at, trained_by_job_id, parent_model_id
+                FROM heimdall.models
+                WHERE id = :model_id
+            """)
+            
+            result = session.execute(query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            import json
+            # JSONB columns are already dicts, not strings
+            hyperparameters = result[15] if isinstance(result[15], dict) else (json.loads(result[15]) if result[15] else None)
+            training_metrics = result[16] if isinstance(result[16], dict) else (json.loads(result[16]) if result[16] else None)
+            test_metrics = result[17] if isinstance(result[17], dict) else (json.loads(result[17]) if result[17] else None)
+
+            return ModelMetadataResponse(
+                id=result[0],
+                model_name=result[1],
+                version=result[2] or 1,
+                model_type=result[3],
+                synthetic_dataset_id=result[4],
+                mlflow_run_id=result[5],
+                mlflow_experiment_id=result[6],
+                onnx_model_location=result[7],
+                pytorch_model_location=result[8],
+                accuracy_meters=result[9],
+                accuracy_sigma_meters=result[10],
+                loss_value=result[11],
+                epoch=result[12],
+                is_active=result[13],
+                is_production=result[14],
+                hyperparameters=hyperparameters,
+                training_metrics=training_metrics,
+                test_metrics=test_metrics,
+                created_at=result[18],
+                trained_by_job_id=result[19],
+                parent_model_id=result[20]
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get model: {e!s}")
+
+
+@models_router.patch("/models/{model_id}", status_code=200)
+async def update_model_name(model_id: UUID, model_name: str):
+    """
+    Update model name.
+    
+    Args:
+        model_id: Model UUID
+        model_name: New model name (1-100 characters)
+    
+    Returns:
+        Success message with updated model name
+    """
+    from ..events.publisher import get_event_publisher
+    
+    # Validate model name length
+    if not model_name or len(model_name) < 1 or len(model_name) > 100:
+        raise HTTPException(status_code=400, detail="Model name must be between 1 and 100 characters")
+    
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id, model_name FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            # Update model name
+            update_query = text("""
+                UPDATE heimdall.models 
+                SET model_name = :model_name
+                WHERE id = :model_id
+            """)
+            session.execute(update_query, {"model_id": str(model_id), "model_name": model_name})
+            session.commit()
+            
+            logger.info(f"Updated model {model_id} name to '{model_name}'")
+            
+            # Broadcast WebSocket event
+            publisher = get_event_publisher()
+            event_data = {
+                'event': 'model:name_updated',
+                'timestamp': datetime.utcnow().isoformat(),
+                'data': {
+                    'model_id': str(model_id),
+                    'model_name': model_name
+                }
+            }
+            publisher._publish('model.name.updated', event_data)
+            
+            return {"success": True, "model_id": str(model_id), "model_name": model_name}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating model {model_id} name: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to update model name: {e!s}")
+
+
+@models_router.post("/models/{model_id}/deploy", status_code=200)
+async def deploy_model(model_id: UUID, set_production: bool = False):
+    """
+    Deploy model (set as active for inference).
+    
+    Args:
+        model_id: Model UUID
+        set_production: Also set as production model
+    
+    Returns:
+        Updated model details
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            # Deactivate other models
+            deactivate_query = text("UPDATE heimdall.models SET is_active = FALSE")
+            session.execute(deactivate_query)
+            
+            if set_production:
+                unprod_query = text("UPDATE heimdall.models SET is_production = FALSE")
+                session.execute(unprod_query)
+            
+            # Activate this model
+            activate_query = text("""
+                UPDATE heimdall.models
+                SET is_active = TRUE, is_production = :set_production, updated_at = NOW()
+                WHERE id = :model_id
+            """)
+            session.execute(activate_query, {"model_id": str(model_id), "set_production": set_production})
+            session.commit()
+            
+            logger.info(f"Deployed model {model_id} (production={set_production})")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "model_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "model_id": str(model_id),
+                    "action": "deployed",
+                    "is_production": set_production,
+                }
+            })
+            
+            return {"status": "deployed", "model_id": model_id, "is_production": set_production}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deploying model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to deploy model: {e!s}")
+
+
+@models_router.delete("/models/{model_id}", status_code=204)
+async def delete_model(model_id: UUID):
+    """
+    Delete model and associated artifacts.
+    
+    Args:
+        model_id: Model UUID
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        with db_manager.get_session() as session:
+            # Check if model exists
+            check_query = text("SELECT id, is_active FROM heimdall.models WHERE id = :model_id")
+            result = session.execute(check_query, {"model_id": str(model_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+            
+            is_active = result[1]
+            if is_active:
+                raise HTTPException(status_code=400, detail="Cannot delete active model. Deactivate first.")
+            
+            # Delete model
+            delete_query = text("DELETE FROM heimdall.models WHERE id = :model_id")
+            session.execute(delete_query, {"model_id": str(model_id)})
+            session.commit()
+            
+            logger.info(f"Deleted model {model_id}")
+
+            # Broadcast WebSocket update
+            from .websocket import manager as ws_manager
+            await ws_manager.broadcast({
+                "event": "model_update",
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": {
+                    "model_id": str(model_id),
+                    "action": "deleted",
+                }
+            })
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete model: {e!s}")
+
+
+@models_router.get("/models/{model_id}/export", response_class=Response)
+async def export_model_heimdall(
+    model_id: str,
+    include_config: bool = Query(True, description="Include training configuration"),
+    include_metrics: bool = Query(True, description="Include performance metrics"),
+    include_normalization: bool = Query(True, description="Include normalization stats"),
+    include_samples: bool = Query(True, description="Include sample predictions"),
+    num_samples: int = Query(5, description="Number of sample predictions to include", ge=0, le=100),
+    description: str = Query(None, description="Optional description for the bundle")
+):
+    """
+    Export a trained model as a .heimdall bundle file.
+    
+    The bundle includes:
+    - ONNX model (base64-encoded)
+    - Model architecture details
+    - Training configuration (optional)
+    - Performance metrics (optional)
+    - Normalization statistics (optional)
+    - Sample predictions for validation (optional)
+    
+    Args:
+        model_id: UUID of the model to export
+        include_config: Include training hyperparameters
+        include_metrics: Include accuracy and performance metrics
+        include_normalization: Include feature normalization parameters
+        include_samples: Include sample predictions for validation
+        num_samples: Number of sample predictions (0-100)
+        description: Optional description added to bundle metadata
+        
+    Returns:
+        Downloadable .heimdall JSON file
+    """
+    try:
+        db_manager = get_db_manager()
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-models"
+        )
+        exporter = HeimdallExporter(db_manager, minio_client.s3_client)
+        
+        logger.info(f"Exporting model {model_id} as .heimdall bundle")
+        
+        # Create bundle
+        bundle = exporter.export_model(
+            model_id=model_id,
+            include_config=include_config,
+            include_metrics=include_metrics,
+            include_normalization=include_normalization,
+            include_samples=include_samples,
+            num_samples=num_samples,
+            description=description
+        )
+        
+        # Serialize to JSON
+        bundle_json = bundle.model_dump_json(indent=2)
+        
+        # Get model name for filename
+        model_name = bundle.model.model_name.replace(" ", "_")
+        version = bundle.model.version
+        filename = f"{model_name}-v{version}.heimdall"
+        
+        logger.info(f"Successfully exported model {model_id} to {filename} ({len(bundle_json)} bytes)")
+        
+        # Return as downloadable file
+        return Response(
+            content=bundle_json,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Bundle-ID": bundle.bundle_metadata.bundle_id,
+                "X-Model-ID": model_id
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting model {model_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to export model: {e!s}")
+
+
+@models_router.post("/models/import", status_code=201)
+async def import_model_heimdall(
+    file: UploadFile = File(..., description=".heimdall bundle file to import")
+):
+    """
+    Import a trained model from a .heimdall bundle file.
+    
+    The bundle is validated, the ONNX model is uploaded to MinIO,
+    and the model is registered in the database.
+    
+    Args:
+        file: Uploaded .heimdall bundle file
+        
+    Returns:
+        Model ID and registration details
+    """
+    try:
+        # Validate file extension
+        if not file.filename.endswith(".heimdall"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file format. Expected .heimdall file"
+            )
+        
+        logger.info(f"Importing model from {file.filename}")
+        
+        # Read bundle contents
+        bundle_json = await file.read()
+        
+        # Parse bundle
+        bundle = HeimdallBundle.model_validate_json(bundle_json)
+        
+        # Import model
+        db_manager = get_db_manager()
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-models"
+        )
+        importer = HeimdallImporter(db_manager, minio_client.s3_client)
+        
+        result = importer.import_model(bundle)
+        model_id = result["model_id"]
+        
+        logger.info(f"Successfully imported model from {file.filename} as {model_id}")
+        
+        return {
+            "status": "success",
+            "model_id": str(model_id),
+            "filename": file.filename,
+            "message": f"Model imported successfully with ID {model_id}"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing model from {file.filename}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to import model: {e!s}")
+
+
+@router.get("/models/architectures")
+async def list_architectures(data_type: str | None = Query(None, description="Filter by data type (feature_based, iq_raw, or all)")):
+    """
+    List all available model architectures with metadata.
+    
+    Args:
+        data_type: Optional filter by data type
+    
+    Returns:
+        List of architectures with display names, data types, and descriptions
+    """
+    try:
+        from common.model_registry import list_architectures as list_arch
+        
+        architectures = list_arch(data_type=data_type)
+        
+        return {
+            "architectures": architectures,
+            "total": len(architectures)
+        }
+    
+    except Exception as e:
+        logger.error(f"Error listing architectures: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/synthetic/datasets/{dataset_id}/validate")
+async def validate_dataset(dataset_id: UUID):
+    """
+    Validate a synthetic dataset for integrity issues.
+    
+    Checks for:
+    - IQ files in MinIO without corresponding feature records (orphaned IQ)
+    - Feature records without corresponding IQ files (orphaned features)
+    
+    Returns health status: healthy, warning, or critical.
+    
+    Args:
+        dataset_id: Dataset UUID to validate
+        
+    Returns:
+        Validation report with health status and issues list
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        # Check if dataset exists
+        with db_manager.get_session() as session:
+            check_query = text("""
+                SELECT id FROM heimdall.synthetic_datasets
+                WHERE id = :dataset_id
+            """)
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        
+        # Initialize validator
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-synthetic-iq"
+        )
+        
+        from ..validators import DatasetValidator
+        validator = DatasetValidator(db_manager, minio_client)
+        
+        # Run validation
+        logger.info(f"Starting validation for dataset {dataset_id}")
+        report = validator.validate_dataset(dataset_id)
+        
+        # Calculate storage size from MinIO
+        storage_size = validator.calculate_storage_size(dataset_id)
+        logger.info(f"Calculated storage size for dataset {dataset_id}: {storage_size} bytes")
+        
+        # Recalculate actual num_samples from database (check dataset type first)
+        with db_manager.get_session() as session:
+            # Get dataset type
+            type_query = text("SELECT dataset_type FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            type_result = session.execute(type_query, {"dataset_id": str(dataset_id)}).fetchone()
+            dataset_type = type_result[0] if type_result else "feature_based"
+            
+            # Count samples from appropriate table
+            if dataset_type == 'iq_raw':
+                count_query = text("""
+                    SELECT COUNT(*) as total
+                    FROM heimdall.synthetic_iq_samples
+                    WHERE dataset_id = :dataset_id
+                """)
+            else:
+                count_query = text("""
+                    SELECT COUNT(*) as total
+                    FROM heimdall.measurement_features
+                    WHERE extraction_metadata->>'synthetic_dataset_id' = :dataset_id
+                """)
+            
+            count_result = session.execute(count_query, {"dataset_id": str(dataset_id)}).fetchone()
+            actual_num_samples = count_result[0] if count_result else 0
+        
+        # Update database with validation results, corrected num_samples, AND storage_size_bytes
+        # Store the full issues list so repair can use it without re-validating
+        import json
+        validation_issues_json = json.dumps({
+            "orphaned_iq_files": report.orphaned_iq_files,
+            "orphaned_features": report.orphaned_features,
+            "total_issues": len(report.issues),
+            "total_samples": report.total_features,  # Number of samples in DB
+            "total_iq_files": report.total_iq_files,  # Number of IQ files in MinIO
+            "orphan_percentage": round(report.orphan_percentage, 2),
+            "issues": [  # Store full issues list for repair
+                {
+                    "issue_type": issue.issue_type,
+                    "path": issue.path,
+                    "details": issue.details,
+                }
+                for issue in report.issues
+            ],
+        })
+        
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets
+                SET health_status = :health_status,
+                    last_validated_at = :validated_at,
+                    validation_issues = CAST(:validation_issues AS jsonb),
+                    num_samples = :num_samples,
+                    storage_size_bytes = :storage_size_bytes
+                WHERE id = :dataset_id
+            """)
+            
+            session.execute(
+                update_query,
+                {
+                    "dataset_id": str(dataset_id),
+                    "health_status": report.health_status.value,
+                    "validated_at": report.validated_at,
+                    "num_samples": actual_num_samples,
+                    "storage_size_bytes": storage_size,
+                    "validation_issues": validation_issues_json,
+                }
+            )
+            session.commit()
+        
+        logger.info(f"Validation complete for dataset {dataset_id}: {report.health_status.value}, num_samples={actual_num_samples}")
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_validated",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "dataset_id": str(dataset_id),
+                "health_status": report.health_status.value,
+                "orphan_percentage": report.orphan_percentage,
+                "num_samples": actual_num_samples,
+            }
+        })
+        
+        # Return enhanced report with additional fields that were saved to DB
+        report_dict = report.to_dict()
+        report_dict["num_samples"] = actual_num_samples
+        report_dict["storage_size_bytes"] = storage_size
+        report_dict["validation_issues"] = json.loads(validation_issues_json)
+        return report_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to validate dataset: {e!s}")
+
+
+@router.post("/synthetic/datasets/{dataset_id}/repair")
+async def repair_dataset(
+    dataset_id: UUID,
+    strategy: str = Query(default="delete_orphans", description="Repair strategy: delete_orphans, delete_iq, or delete_features")
+):
+    """
+    Repair a dataset by fixing integrity issues.
+    
+    Available strategies:
+    - delete_orphans: Delete both orphaned IQ files and feature records (default)
+    - delete_iq: Only delete orphaned IQ files
+    - delete_features: Only delete orphaned feature records
+    
+    Args:
+        dataset_id: Dataset UUID to repair
+        strategy: Repair strategy to use
+        
+    Returns:
+        Repair results with counts of deleted items
+    """
+    db_manager = get_db_manager()
+    
+    # Validate strategy
+    valid_strategies = ["delete_orphans", "delete_iq", "delete_features"]
+    if strategy not in valid_strategies:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid strategy '{strategy}'. Must be one of: {', '.join(valid_strategies)}"
+        )
+    
+    try:
+        # Check if dataset exists and fetch cached validation issues
+        cached_issues = None
+        with db_manager.get_session() as session:
+            check_query = text("""
+                SELECT id, name, validation_issues FROM heimdall.synthetic_datasets
+                WHERE id = :dataset_id
+            """)
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            dataset_name = result[1]
+            validation_issues_json = result[2]
+            
+            # Extract cached issues if available
+            if validation_issues_json and "issues" in validation_issues_json:
+                cached_issues = validation_issues_json["issues"]
+                logger.info(f"Found {len(cached_issues)} cached validation issues for dataset {dataset_id}")
+        
+        # Initialize validator
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-synthetic-iq"
+        )
+        
+        from ..validators import DatasetValidator
+        validator = DatasetValidator(db_manager, minio_client)
+        
+        # Run repair with cached issues (avoids expensive re-validation)
+        logger.info(f"Starting repair for dataset {dataset_id} with strategy '{strategy}'")
+        repair_result = validator.repair_dataset(dataset_id, strategy, cached_issues=cached_issues)
+        
+        # Re-validate to get updated health status
+        report = validator.validate_dataset(dataset_id)
+        
+        # Recalculate actual num_samples from database (features table is source of truth)
+        with db_manager.get_session() as session:
+            count_query = text("""
+                SELECT COUNT(*) as total
+                FROM heimdall.measurement_features
+                WHERE extraction_metadata->>'synthetic_dataset_id' = :dataset_id
+            """)
+            count_result = session.execute(count_query, {"dataset_id": str(dataset_id)}).fetchone()
+            actual_num_samples = count_result[0] if count_result else 0
+        
+        # Update database with new validation results AND corrected num_samples
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets
+                SET health_status = :health_status,
+                    last_validated_at = :validated_at,
+                    validation_issues = CAST(:validation_issues AS jsonb),
+                    num_samples = :num_samples
+                WHERE id = :dataset_id
+            """)
+            
+            import json
+            session.execute(
+                update_query,
+                {
+                    "dataset_id": str(dataset_id),
+                    "health_status": report.health_status.value,
+                    "validated_at": report.validated_at,
+                    "num_samples": actual_num_samples,
+                    "validation_issues": json.dumps({
+                        "orphaned_iq_files": report.orphaned_iq_files,
+                        "orphaned_features": report.orphaned_features,
+                        "total_issues": len(report.issues),
+                    }),
+                }
+            )
+            session.commit()
+        
+        logger.info(
+            f"Repair complete for dataset {dataset_id}: "
+            f"{repair_result['deleted_iq_files']} IQ files, "
+            f"{repair_result['deleted_features']} features deleted, "
+            f"num_samples={actual_num_samples}"
+        )
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_repaired",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "dataset_id": str(dataset_id),
+                "dataset_name": dataset_name,
+                "health_status": report.health_status.value,
+                "deleted_iq_files": repair_result["deleted_iq_files"],
+                "deleted_features": repair_result["deleted_features"],
+                "num_samples": actual_num_samples,
+            }
+        })
+        
+        return {
+            **repair_result,
+            "new_health_status": report.health_status.value,
+            "remaining_issues": len(report.issues),
+            "num_samples": actual_num_samples,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error repairing dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to repair dataset: {e!s}")
+
+
+# Alias router for /v1/jobs path (for frontend compatibility)
+jobs_router = APIRouter(prefix="/v1/jobs", tags=["jobs"])
+
+@jobs_router.patch("/synthetic/datasets/{dataset_id}", status_code=200)
+async def update_dataset_name_alias(dataset_id: UUID, dataset_name: str = Query(..., min_length=1, max_length=200)):
+    """
+    Update dataset name (alias for /api/v1/training/synthetic/datasets/{dataset_id}).
+    
+    Args:
+        dataset_id: Dataset UUID
+        dataset_name: New dataset name (1-200 characters, query parameter)
+    
+    Returns:
+        Success message with updated dataset name
+    """
+    return await update_dataset_name(dataset_id, dataset_name)

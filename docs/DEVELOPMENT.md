@@ -69,7 +69,7 @@ heimdall/
 │   ├── rf-acquisition/ # WebSDR data fetching
 │   ├── training/       # ML model training
 │   ├── inference/      # Real-time inference
-│   ├── data-ingestion-web/  # Data management API
+│   ├── rf-acquisition/      # RF data acquisition + sessions management
 │   └── api-gateway/    # API gateway
 ├── frontend/           # React + TypeScript UI
 ├── db/                 # Database scripts and migrations
@@ -432,7 +432,7 @@ pnpm store prune
 ## Getting Help
 
 - **Documentation**: Check [docs/index.md](index.md)
-- **FAQ**: See [FAQ](faqs.md)
+- **FAQ**: See [FAQ](FAQ.md)
 - **Issues**: Search [GitHub Issues](https://github.com/fulgidus/heimdall/issues)
 - **Discussions**: Use [GitHub Discussions](https://github.com/fulgidus/heimdall/discussions)
 - **Email**: alessio.corsi@gmail.com
@@ -440,7 +440,176 @@ pnpm store prune
 ## Additional Resources
 
 - [Architecture Guide](ARCHITECTURE.md) - System design deep-dive
-- [API Reference](api_reference.md) - REST API documentation
+- [API Reference](API.md) - REST API documentation
 - [Contributing Guidelines](../CONTRIBUTING.md) - How to contribute
-- [Project Standards](standards/PROJECT_STANDARDS.md) - Coding standards
-- [Documentation Standards](standards/DOCUMENTATION_STANDARDS.md) - Doc guidelines
+
+## CORS Configuration
+
+### Overview
+
+CORS is implemented at two levels:
+1. **Backend (FastAPI)** - Application-level CORS middleware
+2. **Envoy Gateway** - Gateway-level CORS headers
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173` | Comma-separated allowed origins |
+| `CORS_ALLOW_CREDENTIALS` | `true` | Allow cookies and auth headers |
+| `CORS_ALLOW_METHODS` | `GET,POST,PUT,DELETE,PATCH,OPTIONS` | Allowed HTTP methods |
+| `CORS_ALLOW_HEADERS` | `Authorization,Content-Type,Accept,Origin` | Allowed request headers |
+| `CORS_MAX_AGE` | `3600` | Pre-flight cache duration (seconds) |
+
+### Development Setup
+
+Default configuration works for local development:
+- Frontend Vite dev: `http://localhost:5173`
+- Frontend production: `http://localhost:3000`
+- API Gateway: `http://localhost:8000`
+
+### Production Setup
+
+Update `.env` with your domain:
+
+```bash
+# Single domain
+CORS_ORIGINS=https://heimdall.example.com
+
+# Multiple domains
+CORS_ORIGINS=https://heimdall.example.com,https://app.heimdall.example.com
+```
+
+⚠️ **Never use wildcard (`*`) in production!**
+
+### Testing CORS
+
+```bash
+# Pre-flight request
+curl -X OPTIONS http://localhost:8000/api/v1/health \
+  -H "Origin: http://localhost:3000" \
+  -H "Access-Control-Request-Method: GET" \
+  -v
+
+# Actual request with credentials
+curl http://localhost:8000/api/v1/health \
+  -H "Origin: http://localhost:3000" \
+  -H "Authorization: Bearer your-token" \
+  -v
+```
+
+Expected headers: `access-control-allow-origin`, `access-control-allow-credentials`, `access-control-allow-methods`
+
+### Troubleshooting CORS
+
+**CORS Error in Browser**: Check `CORS_ORIGINS` includes your frontend URL  
+**Pre-flight Failing**: Verify Envoy CORS filter in `db/envoy/envoy.yaml`  
+**Credentials Not Working**: Cannot use wildcard with credentials - use specific origins  
+**WebSocket CORS**: WebSocket inherits HTTP CORS policy from `/ws` route
+
+
+## Frontend Development
+
+### Vite Dev Server (Recommended)
+
+**Prerequisites:**
+- Envoy API Gateway running on port 80
+- Backend services running via Docker
+
+```bash
+# Terminal 1: Start backend services
+docker compose up -d postgres redis rabbitmq minio backend training inference envoy
+
+# Terminal 2: Start frontend dev server
+cd frontend
+pnpm install
+pnpm dev
+```
+
+Access at: http://localhost:5173
+
+**Features:**
+- ✅ Hot Module Replacement (HMR) - instant updates
+- ✅ Auto proxy to Envoy for `/api/*` requests
+- ✅ WebSocket proxy for `/ws` connections
+- ✅ No CORS issues - proxy handles everything
+- ✅ Fast TypeScript compilation
+
+**Proxy Configuration:**
+The Vite dev server automatically proxies to `http://localhost`:
+- `/api/*` → API Gateway (port 80)
+- `/ws` → WebSocket
+- `/health/*` → Health checks
+
+### API URL Standards
+
+**Base URL**: Configured in `src/lib/api.ts` as `/api`
+
+**ALL endpoint paths MUST start with `/v1/`** (NOT `/api/v1/`)
+
+```typescript
+// ✅ CORRECT
+const response = await api.get('/v1/acquisition/websdrs');
+const response = await api.post('/v1/sessions', data);
+
+// ❌ WRONG - causes /api/api/v1/... double prefix
+const response = await api.get('/api/v1/acquisition/websdrs');
+```
+
+**URL Construction:**
+```
+baseURL        +  endpoint path    =  final URL
+/api           +  /v1/websdrs      =  /api/v1/websdrs
+```
+
+**Verify No Violations:**
+```bash
+cd frontend
+grep -r "/api/v1/" src/ --include="*.ts" --include="*.tsx"
+# Should return 0 results
+```
+
+**Fix Violations (if any):**
+```bash
+cd frontend
+find src -name "*.ts" -o -name "*.tsx" | xargs sed -i "s|'/api/v1/|'/v1/|g"
+find src -name "*.ts" -o -name "*.tsx" | xargs sed -i 's|"/api/v1/|"/v1/|g'
+```
+
+### Frontend Environment Variables
+
+Edit `frontend/.env.development`:
+```env
+VITE_API_URL=
+VITE_ENV=development
+VITE_ENABLE_DEBUG=true
+```
+
+### Ports
+
+| Service | Dev Port | Docker Port |
+|---------|----------|-------------|
+| Vite Dev Server | 5173 | N/A |
+| Frontend (nginx) | N/A | 3000 |
+| Envoy API Gateway | 80 | 80 |
+
+### Troubleshooting Frontend
+
+**CORS Error**: Ensure Envoy is running on port 80
+```bash
+docker compose ps envoy
+curl http://localhost/api/v1/health
+```
+
+**Connection Refused**: Start backend services
+```bash
+docker compose up -d
+```
+
+**Docker Build Not Picking Up Changes**: Force rebuild
+```bash
+docker compose build --no-cache frontend
+docker compose up -d frontend
+```
+
+**Browser Shows Old Code**: Hard refresh (`Ctrl + Shift + R`) or use Incognito

@@ -1,0 +1,283 @@
+admin:
+  access_log_path: /tmp/admin_access.log
+  address:
+    socket_address:
+      protocol: TCP
+      address: 0.0.0.0
+      port_value: 9901
+
+static_resources:
+  listeners:
+    # Main HTTP listener on port 10000
+    - name: listener_0
+      address:
+        socket_address:
+          protocol: TCP
+          address: 0.0.0.0
+          port_value: 10000
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
+                
+                access_log:
+                  - name: envoy.access_loggers.stdout
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains:
+                        - "*"
+                      # CORS policy for all routes
+                      cors:
+                        allow_origin_string_match:
+                          - safe_regex:
+                              regex: ".*"
+                        allow_methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+                        allow_headers: "Authorization, Content-Type, Accept, Origin, X-Requested-With, X-Request-ID"
+                        expose_headers: "Content-Length, Content-Type, Authorization, X-Request-ID"
+                        max_age: "3600"
+                        allow_credentials: true
+                      routes:
+                        # Keycloak auth routes - /auth/* goes to keycloak
+                        - match:
+                            prefix: "/auth"
+                          route:
+                            cluster: keycloak_cluster
+                            prefix_rewrite: "/"
+                          name: "keycloak_auth"
+
+                        # Service-specific routes (must come before /api/v1/)
+                        - match:
+                            prefix: "/backend/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "backend_service"
+
+                        - match:
+                            prefix: "/training/"
+                          route:
+                            cluster: training_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "training_service"
+
+                        - match:
+                            prefix: "/inference/"
+                          route:
+                            cluster: inference_cluster
+                            prefix_rewrite: "/"
+                            timeout: 30s
+                          name: "inference_service"
+
+                        # API v1 Jobs routes (RESTful) - /api/v1/jobs/* goes to training service
+                        - match:
+                            prefix: "/api/v1/jobs/"
+                          route:
+                            cluster: training_cluster
+                            prefix_rewrite: "/api/v1/jobs/"
+                            timeout: 60s
+                          name: "api_v1_jobs"
+
+                        # API v1 Models routes - /api/v1/models/* goes to backend service
+                        - match:
+                            prefix: "/api/v1/models/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/v1/models/"
+                            timeout: 60s
+                          name: "api_v1_models"
+
+                        # API v1 Training routes - /api/v1/training/* goes to backend service
+                        - match:
+                            prefix: "/api/v1/training/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/v1/training/"
+                            timeout: 60s
+                          name: "api_v1_training"
+
+                        # API v1 Inference routes - /api/v1/inference/* goes to inference service
+                        - match:
+                            prefix: "/api/v1/inference/"
+                          route:
+                            cluster: inference_cluster
+                            prefix_rewrite: "/api/v1/inference/"
+                            timeout: 30s
+                          name: "api_v1_inference"
+
+                        # API Gateway routes - all other /api/v1 goes to backend
+                        - match:
+                            prefix: "/api/v1/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/v1/"
+                            timeout: 30s
+                          name: "api_v1"
+
+                        # API routes (catch-all for /api/*) - goes to backend
+                        - match:
+                            prefix: "/api/"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/api/"
+                            timeout: 30s
+                          name: "api_routes"
+
+                        # WebSocket routes for real-time updates
+                        - match:
+                            prefix: "/ws"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/ws"
+                            upgrade_configs:
+                              - upgrade_type: websocket
+                          name: "websocket"
+
+                        # Health check routes - should go to backend
+                        - match:
+                            prefix: "/health"
+                          route:
+                            cluster: backend_cluster
+                            prefix_rewrite: "/health"
+                          name: "health_checks"
+
+                        # Frontend static files and SPA
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: frontend_cluster
+                            prefix_rewrite: "/"
+                          name: "frontend"
+                
+                http_filters:
+                  # CORS filter for pre-flight and response headers
+                  - name: envoy.filters.http.cors
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
+                  
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                
+                common_http_protocol_options:
+                  idle_timeout: 10s
+
+  clusters:
+    # Backend cluster - FastAPI services
+    - name: backend_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: backend_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: backend
+                      port_value: 8001
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Frontend cluster - React app
+    - name: frontend_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: frontend_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: frontend
+                      port_value: 3000
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Keycloak cluster - Identity Provider
+    - name: keycloak_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: keycloak_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: keycloak
+                      port_value: 8080
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Training cluster - ML Training Service
+    - name: training_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: training_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: training
+                      port_value: 8002
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}
+
+    # Inference cluster - ML Inference Service
+    - name: inference_cluster
+      connect_timeout: 5s
+      type: STRICT_DNS
+      dns_lookup_family: V4_ONLY
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: inference_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: inference
+                      port_value: 8003
+      health_checks:
+        - timeout: 3s
+          interval: 10s
+          unhealthy_threshold: 2
+          healthy_threshold: 2
+          tcp_health_check: {}

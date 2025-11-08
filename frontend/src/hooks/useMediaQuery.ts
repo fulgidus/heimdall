@@ -1,28 +1,30 @@
 import { useEffect, useState } from 'react';
 
+/* eslint-disable react-hooks/exhaustive-deps */
+
 export const useMediaQuery = (query: string): boolean => {
-    const [matches, setMatches] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return window.matchMedia(query).matches;
-        }
-        return false;
-    });
+  const [matches, setMatches] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia(query).matches;
+    }
+    return false;
+  });
 
-    useEffect(() => {
-        const media = window.matchMedia(query);
+  useEffect(() => {
+    const media = window.matchMedia(query);
 
-        // Update state if initial value doesn't match
-        if (media.matches !== matches) {
-            setMatches(media.matches);
-        }
+    // Update state if initial value doesn't match
+    if (media.matches !== matches) {
+      setMatches(media.matches);
+    }
 
-        const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
-        media.addEventListener('change', listener);
+    const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
+    media.addEventListener('change', listener);
 
-        return () => media.removeEventListener('change', listener);
-    }, [query]); // Only depend on query, not matches
+    return () => media.removeEventListener('change', listener);
+  }, [query]); // Only depend on query, not matches
 
-    return matches;
+  return matches;
 };
 
 // Common breakpoints
