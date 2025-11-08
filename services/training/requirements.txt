@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Training Service Requirements
 # References centralized requirements
 -r ../requirements/base.txt
