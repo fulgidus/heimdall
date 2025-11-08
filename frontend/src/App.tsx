@@ -5,6 +5,7 @@ import DattaLayout from './components/layout/DattaLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useTokenRefresh } from './hooks/useTokenRefresh';
 import { WebSocketProvider } from './contexts/WebSocketContext';
+import { RequireRole } from './components/auth/RequireRole';
 
 // Lazy load all pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -71,11 +72,15 @@ function App() {
               <Route path="/login" element={<Login />} />
 
               {/* Protected Routes */}
+
+              {/* User+ Routes (All Authenticated Users) */}
               <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <RequireRole role="user">
+                      <Dashboard />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -83,7 +88,9 @@ function App() {
                 path="/localization"
                 element={
                   <ProtectedRoute>
-                    <Localization />
+                    <RequireRole role="user">
+                      <Localization />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -91,23 +98,9 @@ function App() {
                 path="/analytics"
                 element={
                   <ProtectedRoute>
-                    <Analytics />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/data-ingestion"
-                element={
-                  <ProtectedRoute>
-                    <DataIngestion />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
+                    <RequireRole role="user">
+                      <Analytics />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -115,7 +108,9 @@ function App() {
                 path="/profile"
                 element={
                   <ProtectedRoute>
-                    <Profile />
+                    <RequireRole role="user">
+                      <Profile />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -123,7 +118,9 @@ function App() {
                 path="/recording"
                 element={
                   <ProtectedRoute>
-                    <RecordingSession />
+                    <RequireRole role="user">
+                      <RecordingSession />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -131,15 +128,9 @@ function App() {
                 path="/history"
                 element={
                   <ProtectedRoute>
-                    <SessionHistory />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/websdrs"
-                element={
-                  <ProtectedRoute>
-                    <WebSDRManagement />
+                    <RequireRole role="user">
+                      <SessionHistory />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -147,7 +138,21 @@ function App() {
                 path="/system-status"
                 element={
                   <ProtectedRoute>
-                    <SystemStatus />
+                    <RequireRole role="user">
+                      <SystemStatus />
+                    </RequireRole>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Operator+ Routes */}
+              <Route
+                path="/websdrs"
+                element={
+                  <ProtectedRoute>
+                    <RequireRole role="operator">
+                      <WebSDRManagement />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -155,7 +160,9 @@ function App() {
                 path="/sources"
                 element={
                   <ProtectedRoute>
-                    <SourcesManagement />
+                    <RequireRole role="operator">
+                      <SourcesManagement />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -163,7 +170,9 @@ function App() {
                 path="/import-export"
                 element={
                   <ProtectedRoute>
-                    <ImportExport />
+                    <RequireRole role="operator">
+                      <ImportExport />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -171,7 +180,9 @@ function App() {
                 path="/training"
                 element={
                   <ProtectedRoute>
-                    <Training />
+                    <RequireRole role="operator">
+                      <Training />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -179,7 +190,9 @@ function App() {
                 path="/terrain"
                 element={
                   <ProtectedRoute>
-                    <TerrainManagement />
+                    <RequireRole role="operator">
+                      <TerrainManagement />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />
@@ -187,7 +200,31 @@ function App() {
                 path="/audio-library"
                 element={
                   <ProtectedRoute>
-                    <AudioLibrary />
+                    <RequireRole role="operator">
+                      <AudioLibrary />
+                    </RequireRole>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/data-ingestion"
+                element={
+                  <ProtectedRoute>
+                    <RequireRole role="operator">
+                      <DataIngestion />
+                    </RequireRole>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin-only Routes */}
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <RequireRole role="admin">
+                      <Settings />
+                    </RequireRole>
                   </ProtectedRoute>
                 }
               />

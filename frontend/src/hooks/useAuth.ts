@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useAuthStore } from '../store';
 
 interface User {
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  role?: string;
-  organization?: string;
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'operator' | 'user';
+  roles: string[];
+  avatar?: string;
 }
 
 interface UseAuthReturn {
@@ -15,6 +16,10 @@ interface UseAuthReturn {
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  // Role hierarchy checks
+  isAdmin: boolean;
+  isOperator: boolean; // operator OR admin
+  isUser: boolean; // all authenticated users
 }
 
 export const useAuth = (): UseAuthReturn => {
@@ -35,11 +40,19 @@ export const useAuth = (): UseAuthReturn => {
     }
   }, []);
 
+  // Implement role hierarchy: admin > operator > user
+  const isAdmin = user?.role === 'admin';
+  const isOperator = user?.role === 'operator' || user?.role === 'admin';
+  const isUser = isAuthenticated; // all authenticated users are 'user' level
+
   return {
     isAuthenticated,
     user,
     token,
     login,
     logout,
+    isAdmin,
+    isOperator,
+    isUser,
   };
 };
