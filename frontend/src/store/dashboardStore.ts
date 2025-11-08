@@ -30,6 +30,10 @@ interface DashboardStore {
   lastUpdate: Date | null;
   retryCount: number;
   retryDelay: number;
+  
+  // Constellation filtering
+  selectedConstellationId: string | null;
+  setSelectedConstellation: (constellationId: string | null) => void;
 
   setMetrics: (metrics: DashboardMetrics) => void;
   setLoading: (loading: boolean) => void;
@@ -64,6 +68,10 @@ export const useDashboardStore = create<DashboardStore>((set, get) => ({
   lastUpdate: null,
   retryCount: 0,
   retryDelay: 1000,
+  
+  // Constellation filtering
+  selectedConstellationId: null,
+  setSelectedConstellation: (constellationId) => set({ selectedConstellationId: constellationId }),
 
   setMetrics: metrics => set({ metrics }),
   setLoading: loading => set({ isLoading: loading }),

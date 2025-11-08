@@ -3,6 +3,7 @@ import { useDashboardStore } from '@/store';
 
 interface SystemHealthWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
 export const SystemHealthWidget: React.FC<SystemHealthWidgetProps> = () => {

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 interface QuickActionsWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
 export const QuickActionsWidget: React.FC<QuickActionsWidgetProps> = () => {

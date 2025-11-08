@@ -26,6 +26,7 @@ ChartJS.register(
 
 interface SignalChartWidgetProps {
   widgetId: string;
+  selectedConstellationId?: string | null;
 }
 
 interface DataPoint {
