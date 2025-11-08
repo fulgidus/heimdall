@@ -607,6 +607,30 @@ class EventPublisher:
         self._publish(f'export.completed.{task_id}', event)
         logger.info(f"Published export completed: task {task_id}, status={status}")
 
+    def publish_export_cancelled(
+        self,
+        task_id: str,
+        status: str = 'cancelled'
+    ) -> None:
+        """
+        Publish export cancelled event.
+
+        Args:
+            task_id: Export task ID
+            status: Cancellation status (default: 'cancelled')
+        """
+        event = {
+            'event': 'export:cancelled',
+            'timestamp': datetime.utcnow().isoformat(),
+            'data': {
+                'task_id': task_id,
+                'status': status
+            }
+        }
+
+        self._publish(f'export.cancelled.{task_id}', event)
+        logger.info(f"Published export cancelled: task {task_id}")
+
 
 # Singleton instance for convenience
 _publisher = None

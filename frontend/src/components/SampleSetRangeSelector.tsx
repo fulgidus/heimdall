@@ -24,7 +24,10 @@ interface SampleSetRangeSelectorProps {
  * Format bytes to human-readable format
  */
 function formatBytes(bytes: number): string {
+  // Handle edge cases
+  if (!bytes || !isFinite(bytes) || bytes < 0) return '0 B';
   if (bytes === 0) return '0 B';
+  
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -50,8 +53,17 @@ export default function SampleSetRangeSelector({
   }, [range, sampleSet.num_samples]);
 
   // Calculate estimated size based on range
-  const effectiveSamples = useFullDataset ? sampleSet.num_samples : limit;
-  const estimatedSize = effectiveSamples * sampleSet.estimated_size_per_sample;
+  // When selecting a partial dataset, we need to estimate proportionally
+  // Note: Features and IQ samples are exported using the same OFFSET/LIMIT
+  // So when you export features 100-200, you also get IQ samples 100-200
+  const effectiveSamples = useFullDataset ? sampleSet.num_samples : (limit || sampleSet.num_samples);
+  const totalSamples = sampleSet.num_samples;
+  const proportion = totalSamples > 0 ? effectiveSamples / totalSamples : 0;
+  
+  // Calculate size: (features + IQ data) scaled by proportion
+  const featureSize = effectiveSamples * (sampleSet.estimated_size_per_feature || 0);
+  const iqSize = sampleSet.num_iq_samples * proportion * (sampleSet.estimated_size_per_iq || 0);
+  const estimatedSize = Math.round(featureSize + iqSize);
 
   // Handle checkbox toggle
   const handleEnabledChange = (checked: boolean) => {

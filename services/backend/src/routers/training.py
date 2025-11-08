@@ -1511,22 +1511,23 @@ async def list_synthetic_datasets(
     
     try:
         with db_manager.get_session() as session:
-            # Get datasets with REAL-TIME sample counts from correct table based on dataset_type
-            # iq_raw datasets → count from synthetic_iq_samples
-            # feature_based datasets → count from measurement_features
+            # Get datasets with sample counts and health status
             query = text("""
                 SELECT
                     sd.id,
                     sd.name,
                     sd.description,
                     sd.dataset_type,
-                    COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
+                    sd.num_samples,
                     sd.config,
                     sd.quality_metrics,
                     sd.storage_table,
                     sd.storage_size_bytes,
                     sd.created_at,
-                    sd.created_by_job_id
+                    sd.created_by_job_id,
+                    sd.health_status,
+                    sd.last_validated_at,
+                    sd.validation_issues
                 FROM heimdall.synthetic_datasets sd
                 ORDER BY sd.created_at DESC
                 LIMIT :limit OFFSET :offset
@@ -1545,6 +1546,7 @@ async def list_synthetic_datasets(
                 # JSONB columns are already dicts, not strings
                 config = row[5] if isinstance(row[5], dict) else (json.loads(row[5]) if row[5] else {})
                 quality_metrics = row[6] if isinstance(row[6], dict) else (json.loads(row[6]) if row[6] else None)
+                validation_issues = row[13] if isinstance(row[13], dict) else (json.loads(row[13]) if row[13] else None)
 
                 datasets.append(SyntheticDatasetResponse(
                     id=row[0],
@@ -1557,7 +1559,10 @@ async def list_synthetic_datasets(
                     storage_table=row[7],
                     storage_size_bytes=row[8],
                     created_at=row[9],
-                    created_by_job_id=row[10]
+                    created_by_job_id=row[10],
+                    health_status=row[11],
+                    last_validated_at=row[12],
+                    validation_issues=validation_issues
                 ))
             
             return SyntheticDatasetListResponse(datasets=datasets, total=total)
@@ -1584,23 +1589,25 @@ async def get_synthetic_dataset(dataset_id: UUID):
     
     try:
         with db_manager.get_session() as session:
-            # Get dataset with REAL-TIME sample count from measurement_features
+            # Get dataset - use stored num_samples for consistency with list endpoint
             query = text("""
                 SELECT
                     sd.id,
                     sd.name,
                     sd.description,
-                    COALESCE(COUNT(mf.recording_session_id), 0) as num_samples,
+                    sd.dataset_type,
+                    sd.num_samples,
                     sd.config,
                     sd.quality_metrics,
                     sd.storage_table,
+                    sd.storage_size_bytes,
                     sd.created_at,
-                    sd.created_by_job_id
+                    sd.created_by_job_id,
+                    sd.health_status,
+                    sd.last_validated_at,
+                    sd.validation_issues
                 FROM heimdall.synthetic_datasets sd
-                LEFT JOIN heimdall.measurement_features mf ON mf.dataset_id = sd.id
                 WHERE sd.id = :dataset_id
-                GROUP BY sd.id, sd.name, sd.description, sd.config, sd.quality_metrics,
-                         sd.storage_table, sd.created_at, sd.created_by_job_id
             """)
 
             result = session.execute(query, {"dataset_id": str(dataset_id)}).fetchone()
@@ -1610,19 +1617,25 @@ async def get_synthetic_dataset(dataset_id: UUID):
             
             import json
             # JSONB columns are already dicts, not strings
-            config = result[4] if isinstance(result[4], dict) else (json.loads(result[4]) if result[4] else {})
-            quality_metrics = result[5] if isinstance(result[5], dict) else (json.loads(result[5]) if result[5] else None)
+            config = result[5] if isinstance(result[5], dict) else (json.loads(result[5]) if result[5] else {})
+            quality_metrics = result[6] if isinstance(result[6], dict) else (json.loads(result[6]) if result[6] else None)
+            validation_issues = result[13] if isinstance(result[13], dict) else (json.loads(result[13]) if result[13] else None)
 
             return SyntheticDatasetResponse(
                 id=result[0],
                 name=result[1],
                 description=result[2],
-                num_samples=result[3],
+                dataset_type=result[3],
+                num_samples=result[4],
                 config=config,
                 quality_metrics=quality_metrics,
-                storage_table=result[6],
-                created_at=result[7],
-                created_by_job_id=result[8]
+                storage_table=result[7],
+                storage_size_bytes=result[8],
+                created_at=result[9],
+                created_by_job_id=result[10],
+                health_status=result[11],
+                last_validated_at=result[12],
+                validation_issues=validation_issues
             )
     
     except HTTPException:
@@ -2359,6 +2372,296 @@ async def list_architectures(data_type: str | None = Query(None, description="Fi
     except Exception as e:
         logger.error(f"Error listing architectures: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/synthetic/datasets/{dataset_id}/validate")
+async def validate_dataset(dataset_id: UUID):
+    """
+    Validate a synthetic dataset for integrity issues.
+    
+    Checks for:
+    - IQ files in MinIO without corresponding feature records (orphaned IQ)
+    - Feature records without corresponding IQ files (orphaned features)
+    
+    Returns health status: healthy, warning, or critical.
+    
+    Args:
+        dataset_id: Dataset UUID to validate
+        
+    Returns:
+        Validation report with health status and issues list
+    """
+    db_manager = get_db_manager()
+    
+    try:
+        # Check if dataset exists
+        with db_manager.get_session() as session:
+            check_query = text("""
+                SELECT id FROM heimdall.synthetic_datasets
+                WHERE id = :dataset_id
+            """)
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+        
+        # Initialize validator
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-synthetic-iq"
+        )
+        
+        from ..validators import DatasetValidator
+        validator = DatasetValidator(db_manager, minio_client)
+        
+        # Run validation
+        logger.info(f"Starting validation for dataset {dataset_id}")
+        report = validator.validate_dataset(dataset_id)
+        
+        # Calculate storage size from MinIO
+        storage_size = validator.calculate_storage_size(dataset_id)
+        logger.info(f"Calculated storage size for dataset {dataset_id}: {storage_size} bytes")
+        
+        # Recalculate actual num_samples from database (check dataset type first)
+        with db_manager.get_session() as session:
+            # Get dataset type
+            type_query = text("SELECT dataset_type FROM heimdall.synthetic_datasets WHERE id = :dataset_id")
+            type_result = session.execute(type_query, {"dataset_id": str(dataset_id)}).fetchone()
+            dataset_type = type_result[0] if type_result else "feature_based"
+            
+            # Count samples from appropriate table
+            if dataset_type == 'iq_raw':
+                count_query = text("""
+                    SELECT COUNT(*) as total
+                    FROM heimdall.synthetic_iq_samples
+                    WHERE dataset_id = :dataset_id
+                """)
+            else:
+                count_query = text("""
+                    SELECT COUNT(*) as total
+                    FROM heimdall.measurement_features
+                    WHERE extraction_metadata->>'synthetic_dataset_id' = :dataset_id
+                """)
+            
+            count_result = session.execute(count_query, {"dataset_id": str(dataset_id)}).fetchone()
+            actual_num_samples = count_result[0] if count_result else 0
+        
+        # Update database with validation results, corrected num_samples, AND storage_size_bytes
+        # Store the full issues list so repair can use it without re-validating
+        import json
+        validation_issues_json = json.dumps({
+            "orphaned_iq_files": report.orphaned_iq_files,
+            "orphaned_features": report.orphaned_features,
+            "total_issues": len(report.issues),
+            "total_samples": report.total_features,  # Number of samples in DB
+            "total_iq_files": report.total_iq_files,  # Number of IQ files in MinIO
+            "orphan_percentage": round(report.orphan_percentage, 2),
+            "issues": [  # Store full issues list for repair
+                {
+                    "issue_type": issue.issue_type,
+                    "path": issue.path,
+                    "details": issue.details,
+                }
+                for issue in report.issues
+            ],
+        })
+        
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets
+                SET health_status = :health_status,
+                    last_validated_at = :validated_at,
+                    validation_issues = CAST(:validation_issues AS jsonb),
+                    num_samples = :num_samples,
+                    storage_size_bytes = :storage_size_bytes
+                WHERE id = :dataset_id
+            """)
+            
+            session.execute(
+                update_query,
+                {
+                    "dataset_id": str(dataset_id),
+                    "health_status": report.health_status.value,
+                    "validated_at": report.validated_at,
+                    "num_samples": actual_num_samples,
+                    "storage_size_bytes": storage_size,
+                    "validation_issues": validation_issues_json,
+                }
+            )
+            session.commit()
+        
+        logger.info(f"Validation complete for dataset {dataset_id}: {report.health_status.value}, num_samples={actual_num_samples}")
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_validated",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "dataset_id": str(dataset_id),
+                "health_status": report.health_status.value,
+                "orphan_percentage": report.orphan_percentage,
+                "num_samples": actual_num_samples,
+            }
+        })
+        
+        # Return enhanced report with additional fields that were saved to DB
+        report_dict = report.to_dict()
+        report_dict["num_samples"] = actual_num_samples
+        report_dict["storage_size_bytes"] = storage_size
+        report_dict["validation_issues"] = json.loads(validation_issues_json)
+        return report_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to validate dataset: {e!s}")
+
+
+@router.post("/synthetic/datasets/{dataset_id}/repair")
+async def repair_dataset(
+    dataset_id: UUID,
+    strategy: str = Query(default="delete_orphans", description="Repair strategy: delete_orphans, delete_iq, or delete_features")
+):
+    """
+    Repair a dataset by fixing integrity issues.
+    
+    Available strategies:
+    - delete_orphans: Delete both orphaned IQ files and feature records (default)
+    - delete_iq: Only delete orphaned IQ files
+    - delete_features: Only delete orphaned feature records
+    
+    Args:
+        dataset_id: Dataset UUID to repair
+        strategy: Repair strategy to use
+        
+    Returns:
+        Repair results with counts of deleted items
+    """
+    db_manager = get_db_manager()
+    
+    # Validate strategy
+    valid_strategies = ["delete_orphans", "delete_iq", "delete_features"]
+    if strategy not in valid_strategies:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid strategy '{strategy}'. Must be one of: {', '.join(valid_strategies)}"
+        )
+    
+    try:
+        # Check if dataset exists and fetch cached validation issues
+        cached_issues = None
+        with db_manager.get_session() as session:
+            check_query = text("""
+                SELECT id, name, validation_issues FROM heimdall.synthetic_datasets
+                WHERE id = :dataset_id
+            """)
+            result = session.execute(check_query, {"dataset_id": str(dataset_id)}).fetchone()
+            
+            if not result:
+                raise HTTPException(status_code=404, detail=f"Dataset {dataset_id} not found")
+            
+            dataset_name = result[1]
+            validation_issues_json = result[2]
+            
+            # Extract cached issues if available
+            if validation_issues_json and "issues" in validation_issues_json:
+                cached_issues = validation_issues_json["issues"]
+                logger.info(f"Found {len(cached_issues)} cached validation issues for dataset {dataset_id}")
+        
+        # Initialize validator
+        minio_client = MinIOClient(
+            endpoint_url=settings.minio_url,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            bucket_name="heimdall-synthetic-iq"
+        )
+        
+        from ..validators import DatasetValidator
+        validator = DatasetValidator(db_manager, minio_client)
+        
+        # Run repair with cached issues (avoids expensive re-validation)
+        logger.info(f"Starting repair for dataset {dataset_id} with strategy '{strategy}'")
+        repair_result = validator.repair_dataset(dataset_id, strategy, cached_issues=cached_issues)
+        
+        # Re-validate to get updated health status
+        report = validator.validate_dataset(dataset_id)
+        
+        # Recalculate actual num_samples from database (features table is source of truth)
+        with db_manager.get_session() as session:
+            count_query = text("""
+                SELECT COUNT(*) as total
+                FROM heimdall.measurement_features
+                WHERE extraction_metadata->>'synthetic_dataset_id' = :dataset_id
+            """)
+            count_result = session.execute(count_query, {"dataset_id": str(dataset_id)}).fetchone()
+            actual_num_samples = count_result[0] if count_result else 0
+        
+        # Update database with new validation results AND corrected num_samples
+        with db_manager.get_session() as session:
+            update_query = text("""
+                UPDATE heimdall.synthetic_datasets
+                SET health_status = :health_status,
+                    last_validated_at = :validated_at,
+                    validation_issues = CAST(:validation_issues AS jsonb),
+                    num_samples = :num_samples
+                WHERE id = :dataset_id
+            """)
+            
+            import json
+            session.execute(
+                update_query,
+                {
+                    "dataset_id": str(dataset_id),
+                    "health_status": report.health_status.value,
+                    "validated_at": report.validated_at,
+                    "num_samples": actual_num_samples,
+                    "validation_issues": json.dumps({
+                        "orphaned_iq_files": report.orphaned_iq_files,
+                        "orphaned_features": report.orphaned_features,
+                        "total_issues": len(report.issues),
+                    }),
+                }
+            )
+            session.commit()
+        
+        logger.info(
+            f"Repair complete for dataset {dataset_id}: "
+            f"{repair_result['deleted_iq_files']} IQ files, "
+            f"{repair_result['deleted_features']} features deleted, "
+            f"num_samples={actual_num_samples}"
+        )
+        
+        # Broadcast WebSocket update
+        from .websocket import manager as ws_manager
+        await ws_manager.broadcast({
+            "event": "dataset_repaired",
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": {
+                "dataset_id": str(dataset_id),
+                "dataset_name": dataset_name,
+                "health_status": report.health_status.value,
+                "deleted_iq_files": repair_result["deleted_iq_files"],
+                "deleted_features": repair_result["deleted_features"],
+                "num_samples": actual_num_samples,
+            }
+        })
+        
+        return {
+            **repair_result,
+            "new_health_status": report.health_status.value,
+            "remaining_issues": len(report.issues),
+            "num_samples": actual_num_samples,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error repairing dataset {dataset_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to repair dataset: {e!s}")
 
 
 # Alias router for /v1/jobs path (for frontend compatibility)

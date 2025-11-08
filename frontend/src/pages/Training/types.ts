@@ -156,6 +156,16 @@ export interface SyntheticDataset {
   storage_size_bytes?: number;  // Total storage (PostgreSQL + MinIO), null if not calculated
   created_at: string;
   created_by_job_id?: string;
+  health_status?: 'unknown' | 'healthy' | 'warning' | 'critical';
+  last_validated_at?: string;
+  validation_issues?: {
+    orphaned_iq_files: number;
+    orphaned_features: number;
+    total_issues: number;
+    total_samples: number;  // Number of samples in database
+    total_iq_files: number;  // Number of IQ files in MinIO
+    orphan_percentage: number;  // Percentage of orphaned items
+  };
 }
 
 export interface QualityMetrics {

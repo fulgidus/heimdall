@@ -170,15 +170,15 @@ export const JobCard: React.FC<JobCardProps> = ({ job }) => {
             </div>
             
             {/* Real-time Loss Display */}
-            {(job.train_loss !== undefined || job.val_loss !== undefined) && (
+            {(job.train_loss != null || job.val_loss != null) && (
               <div className="d-flex justify-content-between small mt-2">
-                {job.train_loss !== undefined && (
+                {job.train_loss != null && (
                   <span className={job.train_loss > 100 ? 'text-danger fw-medium' : 'text-muted'}>
                     <i className="ph ph-chart-line me-1"></i>
                     Train Loss: {job.train_loss.toFixed(4)}
                   </span>
                 )}
-                {job.val_loss !== undefined && (
+                {job.val_loss != null && (
                   <span className={job.val_loss > 100 ? 'text-danger fw-medium' : 'text-muted'}>
                     <i className="ph ph-chart-line-up me-1"></i>
                     Val Loss: {job.val_loss.toFixed(4)}

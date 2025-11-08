@@ -1386,7 +1386,8 @@ async def generate_synthetic_data_with_iq(
     job_id: Optional[str] = None,
     dataset_type: str = 'feature_based',
     use_gpu: Optional[bool] = None,
-    shutdown_requested: Optional[dict] = None
+    shutdown_requested: Optional[dict] = None,
+    samples_offset: int = 0
 ) -> dict:
     """
     Generate synthetic training data with IQ samples and feature extraction.
@@ -1404,11 +1405,12 @@ async def generate_synthetic_data_with_iq(
         dataset_type: Dataset type ('feature_based' or 'iq_raw')
         use_gpu: GPU acceleration: None=auto-detect, True=force GPU, False=force CPU
         shutdown_requested: Optional dict with 'value' key set by signal handler for fast cancellation
+        samples_offset: Starting sample index for dataset expansion (default 0 for new datasets)
 
     Returns:
         dict with generation statistics
     """
-    logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples (type: {dataset_type})")
+    logger.info(f"Starting synthetic data generation with IQ: {num_samples} samples (type: {dataset_type}, samples_offset={samples_offset})")
 
     # Extract generation parameters
     min_snr_db = config.get('min_snr_db') if config.get('min_snr_db') is not None else 3.0
@@ -1568,10 +1570,10 @@ async def generate_synthetic_data_with_iq(
     
     while valid_samples_collected < target_valid_samples and total_attempted < max_attempts:
         batch_number += 1
-        batch_start = total_attempted
+        batch_start = samples_offset + total_attempted  # Add samples_offset for dataset expansion
         batch_end = batch_start + batch_size
         
-        # Generate args for this batch (indices continue from total_attempted)
+        # Generate args for this batch (indices continue from samples_offset + total_attempted)
         batch_args = [
             (batch_start + i, receivers_list, training_config_dict, config, seed, dataset_type, use_random_receivers)
             for i in range(batch_size)
@@ -1825,10 +1827,10 @@ async def generate_synthetic_data_with_iq(
         # Save batch to database based on dataset_type
         if batch_results:
             try:
-                # ALWAYS save features to measurement_features (both dataset types need this)
+                # ALWAYS save features to measurement_features (both dataset types need this for training)
                 logger.info(f"[DB SAVE DEBUG] About to save {len(batch_results)} feature samples to dataset_id={dataset_id}")
                 await save_features_to_db(dataset_id, batch_results, conn)
-                logger.info(f"[DB SAVE DEBUG] Saved {len(batch_results)} feature samples to database ({valid_samples_collected} total)")
+                logger.info(f"[DB SAVE DEBUG] Saved {len(batch_results)} feature samples to measurement_features ({valid_samples_collected} total)")
                 
                 # For iq_raw: ADDITIONALLY save IQ data to MinIO and metadata to synthetic_iq_samples
                 if dataset_type == 'iq_raw':
@@ -1844,7 +1846,7 @@ async def generate_synthetic_data_with_iq(
                         # Save metadata to synthetic_iq_samples table
                         samples_with_iq = [s for s in batch_results if s['sample_idx'] in storage_paths]
                         await save_iq_metadata_to_db(dataset_id, samples_with_iq, storage_paths, conn)
-                        logger.info(f"Saved {len(samples_with_iq)} IQ metadata to database ({valid_samples_collected} total)")
+                        logger.info(f"Saved {len(samples_with_iq)} IQ metadata to synthetic_iq_samples ({valid_samples_collected} total)")
                     else:
                         logger.warning(f"No IQ samples found for batch {batch_number} (indices: {batch_sample_indices})")
                 

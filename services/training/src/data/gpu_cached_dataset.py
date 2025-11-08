@@ -36,13 +36,21 @@ class GPUCachedDataset(Dataset):
         db_session, 
         device, 
         max_receivers: int = 7,
-        preload_to_gpu: bool = True
+        preload_to_gpu: bool = True,
+        min_snr_db: float = -999.0,
+        max_gdop: float = 999.0
     ):
         self.dataset_ids = dataset_ids
         self.split = split
         self.max_receivers = max_receivers
         self.device = device
         self.preload_to_gpu = preload_to_gpu
+        self.min_snr_db = min_snr_db
+        self.max_gdop = max_gdop
+        
+        # Log filtering parameters
+        if min_snr_db > -999.0 or max_gdop < 999.0:
+            logger.info(f"📊 Quality filters: min_snr_db={min_snr_db:.1f}, max_gdop={max_gdop:.1f}")
         
         if preload_to_gpu:
             logger.info(f"🚀 PRELOAD MODE: Loading ALL {split} data DIRECTLY TO GPU ({device})...")
@@ -55,8 +63,19 @@ class GPUCachedDataset(Dataset):
             logger.info(f"✅ {len(self)} samples in RAM (will copy to GPU per batch)")
     
     def _load_to_gpu(self, session):
-        """Load everything directly to GPU memory."""
-        query = text("""
+        """Load everything directly to GPU memory with quality filtering."""
+        # Build WHERE clause with optional filters
+        where_clauses = ["dataset_id = ANY(CAST(:dataset_ids AS uuid[]))"]
+        
+        if self.min_snr_db > -999.0:
+            where_clauses.append("mean_snr_db >= :min_snr_db")
+        
+        if self.max_gdop < 999.0:
+            where_clauses.append("gdop <= :max_gdop")
+        
+        where_sql = " AND ".join(where_clauses)
+        
+        query = text(f"""
             SELECT 
                 tx_latitude, 
                 tx_longitude, 
@@ -64,11 +83,20 @@ class GPUCachedDataset(Dataset):
                 gdop, 
                 num_receivers_detected
             FROM heimdall.measurement_features
-            WHERE dataset_id = ANY(CAST(:dataset_ids AS uuid[]))
+            WHERE {where_sql}
             ORDER BY timestamp
         """)
         
-        results = session.execute(query, {"dataset_ids": self.dataset_ids}).fetchall()
+        # Build query parameters
+        params = {"dataset_ids": self.dataset_ids}
+        if self.min_snr_db > -999.0:
+            params["min_snr_db"] = self.min_snr_db
+        if self.max_gdop < 999.0:
+            params["max_gdop"] = self.max_gdop
+        
+        results = session.execute(query, params).fetchall()
+        total_loaded = len(results)
+        logger.info(f"Loaded {total_loaded} samples from database (after quality filtering)")
         
         # Split train/val
         split_idx = int(len(results) * 0.8)
@@ -77,7 +105,7 @@ class GPUCachedDataset(Dataset):
         else:
             results = results[split_idx:]
         
-        logger.info(f"Processing {len(results)} samples...")
+        logger.info(f"Processing {len(results)} samples for {self.split} split...")
         
         # Pre-allocate tensors on GPU
         num_samples = len(results)
@@ -159,8 +187,19 @@ class GPUCachedDataset(Dataset):
                 logger.info(f"Loaded {i+1}/{num_samples} to GPU...")
     
     def _load_to_ram(self, session):
-        """Load to RAM (normal mode, will copy to GPU per batch)."""
-        query = text("""
+        """Load to RAM (normal mode, will copy to GPU per batch) with quality filtering."""
+        # Build WHERE clause with optional filters
+        where_clauses = ["dataset_id = ANY(CAST(:dataset_ids AS uuid[]))"]
+        
+        if self.min_snr_db > -999.0:
+            where_clauses.append("mean_snr_db >= :min_snr_db")
+        
+        if self.max_gdop < 999.0:
+            where_clauses.append("gdop <= :max_gdop")
+        
+        where_sql = " AND ".join(where_clauses)
+        
+        query = text(f"""
             SELECT 
                 tx_latitude, 
                 tx_longitude, 
@@ -168,11 +207,20 @@ class GPUCachedDataset(Dataset):
                 gdop, 
                 num_receivers_detected
             FROM heimdall.measurement_features
-            WHERE dataset_id = ANY(CAST(:dataset_ids AS uuid[]))
+            WHERE {where_sql}
             ORDER BY timestamp
         """)
         
-        results = session.execute(query, {"dataset_ids": self.dataset_ids}).fetchall()
+        # Build query parameters
+        params = {"dataset_ids": self.dataset_ids}
+        if self.min_snr_db > -999.0:
+            params["min_snr_db"] = self.min_snr_db
+        if self.max_gdop < 999.0:
+            params["max_gdop"] = self.max_gdop
+        
+        results = session.execute(query, params).fetchall()
+        total_loaded = len(results)
+        logger.info(f"Loaded {total_loaded} samples from database (after quality filtering)")
         
         # Split train/val
         split_idx = int(len(results) * 0.8)

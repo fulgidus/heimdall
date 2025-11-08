@@ -120,6 +120,10 @@ class SyntheticDatasetResponse(BaseModel):
     storage_size_bytes: Optional[int] = None  # Total storage (PostgreSQL + MinIO), NULL if not calculated
     created_at: datetime
     created_by_job_id: Optional[UUID]
+    # Health tracking fields (added in migration 029)
+    health_status: Optional[str] = "unknown"
+    last_validated_at: Optional[datetime] = None
+    validation_issues: Optional[dict[str, Any]] = None
 
     class Config:
         from_attributes = True

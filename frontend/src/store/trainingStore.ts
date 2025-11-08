@@ -59,6 +59,20 @@ interface TrainingStore {
     generateSyntheticData: (request: SyntheticDataRequest) => Promise<string>;
     deleteDataset: (datasetId: string) => Promise<void>;
     updateDatasetName: (datasetId: string, newName: string) => Promise<void>;
+    updateDatasetHealth: (datasetId: string, healthData: {
+        health_status: 'unknown' | 'healthy' | 'warning' | 'critical';
+        last_validated_at?: string;
+        num_samples?: number;
+        storage_size_bytes?: number;
+        validation_issues?: {
+            orphaned_iq_files: number;
+            orphaned_features: number;
+            total_issues: number;
+            total_samples?: number;
+            total_iq_files?: number;
+            orphan_percentage?: number;
+        };
+    }) => void;
     fetchDatasetSamples: (datasetId: string, limit?: number) => Promise<SyntheticSamplesResponse>;
     fetchSampleIQData: (datasetId: string, sampleIdx: number, rxId: string) => Promise<IQDataResponse>;
     expandDataset: (request: ExpandDatasetRequest) => Promise<string>;
@@ -601,7 +615,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
             set({ isLoading: true, error: null });
         }
         try {
-            const response = await api.get('/v1/jobs/synthetic/datasets');
+            const response = await api.get('/v1/training/synthetic/datasets');
             set({ datasets: response.data.datasets || response.data, isLoading: false });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch synthetic datasets';
@@ -733,6 +747,30 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
             console.error('Dataset name update error:', error);
             throw error;
         }
+    },
+
+    // Update dataset health status (called from WebSocket events)
+    updateDatasetHealth: (datasetId: string, healthData: {
+        health_status: 'unknown' | 'healthy' | 'warning' | 'critical';
+        last_validated_at?: string;
+        num_samples?: number;
+        storage_size_bytes?: number;
+        validation_issues?: {
+            orphaned_iq_files: number;
+            orphaned_features: number;
+            total_issues: number;
+            total_samples?: number;
+            total_iq_files?: number;
+            orphan_percentage?: number;
+        };
+    }) => {
+        set(state => ({
+            datasets: state.datasets.map(dataset =>
+                dataset.id === datasetId 
+                    ? { ...dataset, ...healthData }
+                    : dataset
+            ),
+        }));
     },
 
     // Expand an existing dataset with more samples

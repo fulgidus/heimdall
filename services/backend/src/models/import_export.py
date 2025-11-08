@@ -309,13 +309,17 @@ class AvailableSampleSet(BaseModel):
 
     id: str
     name: str
-    num_samples: int
+    num_samples: int  # Number of feature samples
+    num_iq_samples: int = 0  # Number of IQ samples (raw RF data)
     created_at: str
     estimated_size_bytes: int = Field(
-        default=0, description="Estimated size of full dataset in bytes"
+        default=0, description="Estimated size of full dataset in bytes (features + IQ data)"
     )
-    estimated_size_per_sample: int = Field(
-        default=5600, description="Estimated size per sample in bytes"
+    estimated_size_per_feature: int = Field(
+        default=5600, description="Estimated size per feature sample in bytes"
+    )
+    estimated_size_per_iq: int = Field(
+        default=13_000_000, description="Estimated size per IQ sample in bytes (~13MB)"
     )
 
 
@@ -337,7 +341,8 @@ class AvailableAudioLibrary(BaseModel):
     category: str
     duration_seconds: float
     total_chunks: int
-    file_size_bytes: int
+    file_size_bytes: int  # Original audio file size
+    chunks_total_bytes: int  # Total size of preprocessed chunks in MinIO
     created_at: str
 
 

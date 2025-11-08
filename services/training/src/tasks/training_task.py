@@ -203,6 +203,9 @@ def start_training_job(self, job_id: str):
             # Create one-time session for dataset preloading
             with db_manager.get_session() as load_session:
                 # Create GPU-cached datasets (loads all data to VRAM)
+                # Apply quality filters from config
+                min_snr_db = config.get("min_snr_db", -999.0)
+                
                 logger.info("Loading train dataset to GPU...")
                 train_dataset = GPUCachedDataset(
                     dataset_ids=dataset_ids,
@@ -210,7 +213,9 @@ def start_training_job(self, job_id: str):
                     db_session=load_session,
                     device=device,
                     max_receivers=7,
-                    preload_to_gpu=True
+                    preload_to_gpu=True,
+                    min_snr_db=min_snr_db,
+                    max_gdop=max_gdop
                 )
                 
                 logger.info("Loading validation dataset to GPU...")
@@ -220,7 +225,9 @@ def start_training_job(self, job_id: str):
                     db_session=load_session,
                     device=device,
                     max_receivers=7,
-                    preload_to_gpu=True
+                    preload_to_gpu=True,
+                    min_snr_db=min_snr_db,
+                    max_gdop=max_gdop
                 )
             
             # Import collate function for GPU-cached datasets
@@ -1544,7 +1551,8 @@ def generate_synthetic_data_task(self, job_id: str):
                         job_id=job_id,  # Pass job_id for cancellation detection
                         dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
                         use_gpu=config.get('use_gpu', False),  # DEFAULT: CPU-only (False). Set use_gpu=True in config to enable GPU
-                        shutdown_requested=shutdown_requested  # Pass signal handler flag for fast cancellation
+                        shutdown_requested=shutdown_requested,  # Pass signal handler flag for fast cancellation
+                        samples_offset=samples_offset  # Pass offset for dataset expansion
                     )
                     # Final commit after all batches
                     await conn.commit()

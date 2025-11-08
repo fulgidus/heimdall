@@ -5,11 +5,13 @@
  * to/from .heimdall JSON files for backup, migration, and sharing.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Download, Upload, Info, AlertCircle, CheckCircle } from 'lucide-react';
 import {
   getExportMetadata,
   exportData,
+  exportDataAsync,
+  downloadExportedFile,
   importData,
   downloadHeimdallFile,
   loadHeimdallFile,
@@ -19,13 +21,19 @@ import {
   type HeimdallFile,
   type ImportResponse,
   type SampleSetExportConfig,
+  type ExportProgressEvent,
+  type ExportCompletedEvent,
 } from '@/services/api/import-export';
 import { useAuthStore } from '@/store/authStore';
+import { useWebSocket } from '@/contexts/WebSocketContext';
 import SampleSetRangeSelector from '@/components/SampleSetRangeSelector';
 
 export default function ImportExport() {
   // Get authenticated user info
   const { user } = useAuthStore();
+  
+  // WebSocket for real-time export progress
+  const { subscribe } = useWebSocket();
 
   // State for metadata
   const [metadata, setMetadata] = useState<MetadataResponse | null>(null);
@@ -35,6 +43,16 @@ export default function ImportExport() {
   const [exportLoading, setExportLoading] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportSuccess, setExportSuccess] = useState(false);
+  
+  // State for streaming export progress
+  const [exportTaskId, setExportTaskId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<{
+    stage: string;
+    current: number;
+    total: number;
+    message: string;
+    percentage: number;
+  } | null>(null);
 
   // State for export form - username and name auto-populated from auth
   const [exportForm, setExportForm] = useState({
@@ -112,6 +130,48 @@ export default function ImportExport() {
     }
   }, [user]);
 
+  // Subscribe to export progress WebSocket events
+  const handleExportProgress = useCallback((data: ExportProgressEvent) => {
+    if (data.task_id === exportTaskId) {
+      setExportProgress({
+        stage: data.stage,
+        current: data.current,
+        total: data.total,
+        message: data.message,
+        percentage: data.percentage || Math.round((data.current / data.total) * 100),
+      });
+    }
+  }, [exportTaskId]);
+
+  const handleExportCompleted = useCallback((data: ExportCompletedEvent) => {
+    if (data.task_id === exportTaskId) {
+      setExportLoading(false);
+      setExportProgress(null);
+      
+      if (data.status === 'completed' && data.download_url) {
+        // Auto-download the file
+        downloadExportedFile(data.task_id);
+        setExportSuccess(true);
+        setTimeout(() => setExportSuccess(false), 3000);
+      } else if (data.status === 'failed') {
+        setExportError(data.error_message || 'Export failed');
+      }
+      
+      // Clear task ID
+      setExportTaskId(null);
+    }
+  }, [exportTaskId]);
+
+  useEffect(() => {
+    const unsubProgress = subscribe('export:progress', handleExportProgress);
+    const unsubCompleted = subscribe('export:completed', handleExportCompleted);
+    
+    return () => {
+      unsubProgress();
+      unsubCompleted();
+    };
+  }, [subscribe, handleExportProgress, handleExportCompleted]);
+
   const loadMetadata = async () => {
     try {
       setLoadingMetadata(true);
@@ -124,7 +184,7 @@ export default function ImportExport() {
     }
   };
 
-  const handleExport = async () => {
+  const handleExport = async (useAsync = false) => {
     if (!user) {
       setExportError('You must be logged in to export data');
       return;
@@ -134,6 +194,7 @@ export default function ImportExport() {
       setExportLoading(true);
       setExportError(null);
       setExportSuccess(false);
+      setExportProgress(null);
 
       // Build sample_set_configs from enabled ranges
       const sampleSetConfigs: SampleSetExportConfig[] = [];
@@ -162,19 +223,29 @@ export default function ImportExport() {
         audio_library_ids: selectedAudioLibrary.size > 0 ? Array.from(selectedAudioLibrary) : null,
       };
 
-      const response = await exportData(request);
+      if (useAsync) {
+        // Use async export with WebSocket progress tracking
+        const response = await exportDataAsync(request);
+        setExportTaskId(response.task_id);
+        // Keep loading state - will be cleared when export completes
+      } else {
+        // Use synchronous export (legacy, for small exports)
+        const response = await exportData(request);
 
-      // Download the file
-      const timestamp = new Date().toISOString().split('T')[0];
-      downloadHeimdallFile(response.file, `heimdall-export-${timestamp}.heimdall`);
+        // Download the file
+        const timestamp = new Date().toISOString().split('T')[0];
+        downloadHeimdallFile(response.file, `heimdall-export-${timestamp}.heimdall`);
 
-      setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 3000);
+        setExportSuccess(true);
+        setTimeout(() => setExportSuccess(false), 3000);
+        setExportLoading(false);
+      }
     } catch (error) {
       console.error('Export error:', error);
       setExportError(error instanceof Error ? error.message : 'Export failed');
-    } finally {
       setExportLoading(false);
+      setExportProgress(null);
+      setExportTaskId(null);
     }
   };
 
@@ -570,23 +641,63 @@ export default function ImportExport() {
                     </div>
                   )}
 
-                  <button
-                    className="btn btn-primary w-100"
-                    onClick={handleExport}
-                    disabled={exportLoading || !user}
-                  >
-                    {exportLoading ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="me-2" size={18} />
-                        {!user ? 'Login Required to Export' : 'Export & Download'}
-                      </>
-                    )}
-                  </button>
+                  {/* Progress bar for streaming export */}
+                  {exportProgress && (
+                    <div className="mb-3">
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <small className="text-muted">
+                          <strong>{exportProgress.stage}</strong> | {exportProgress.current}/{exportProgress.total}
+                        </small>
+                        <small className="text-muted">{exportProgress.percentage}%</small>
+                      </div>
+                      <div className="progress" style={{ height: '20px' }}>
+                        <div
+                          className="progress-bar progress-bar-striped progress-bar-animated"
+                          role="progressbar"
+                          style={{ width: `${exportProgress.percentage}%` }}
+                          aria-valuenow={exportProgress.percentage}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          {exportProgress.percentage}%
+                        </div>
+                      </div>
+                      <small className="text-muted d-block mt-1">{exportProgress.message}</small>
+                    </div>
+                  )}
+
+                  <div className="d-grid gap-2">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleExport(true)}
+                      disabled={exportLoading || !user}
+                    >
+                      {exportLoading && exportProgress ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" />
+                          Exporting... ({exportProgress.percentage}%)
+                        </>
+                      ) : exportLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" />
+                          Starting Export...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="me-2" size={18} />
+                          {!user ? 'Login Required to Export' : 'Export with Progress Tracking'}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleExport(false)}
+                      disabled={exportLoading || !user}
+                      title="Use for small exports (no progress tracking)"
+                    >
+                      Quick Export (No Progress)
+                    </button>
+                  </div>
                 </div>
 
                 {/* Import Section */}

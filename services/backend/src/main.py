@@ -21,6 +21,10 @@ from common.health import HealthChecker
 from .config import settings
 from .db import close_pool, init_pool
 from .models.health import HealthResponse
+
+# Import celery_worker to register worker initialization signals
+# This ensures database pool is initialized when Celery worker starts
+from . import celery_worker  # noqa: F401
 from .routers.acquisition import router as acquisition_router
 from .routers.admin import router as admin_router
 from .routers.audio_library import router as audio_library_router

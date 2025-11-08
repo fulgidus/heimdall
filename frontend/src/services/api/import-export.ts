@@ -167,9 +167,11 @@ export interface AvailableSampleSet {
   id: string;
   name: string;
   num_samples: number;
+  num_iq_samples: number;
   created_at: string;
   estimated_size_bytes: number;
-  estimated_size_per_sample: number;
+  estimated_size_per_feature: number;
+  estimated_size_per_iq: number;
 }
 
 export interface SampleSetExportConfig {
@@ -224,6 +226,7 @@ export interface AvailableAudioLibrary {
   duration_seconds: number;
   total_chunks: number;
   file_size_bytes: number;
+  chunks_total_bytes: number;
   created_at: string;
 }
 
@@ -343,4 +346,69 @@ export function loadHeimdallFile(): Promise<HeimdallFile> {
 
     input.click();
   });
+}
+
+// ===== ASYNC EXPORT WITH STREAMING PROGRESS =====
+
+/**
+ * WebSocket event types for export progress
+ */
+export interface ExportProgressEvent {
+  event: 'export:progress';
+  task_id: string;
+  stage: 'settings' | 'sources' | 'websdrs' | 'sample_sets' | 'finalizing';
+  current: number;
+  total: number;
+  message: string;
+  percentage?: number;
+}
+
+export interface ExportCompletedEvent {
+  event: 'export:completed';
+  task_id: string;
+  status: 'completed' | 'failed';
+  download_url?: string;
+  file_size_bytes?: number;
+  error_message?: string;
+}
+
+export type ExportWebSocketEvent = ExportProgressEvent | ExportCompletedEvent;
+
+/**
+ * Response from starting an async export
+ */
+export interface AsyncExportResponse {
+  task_id: string;
+  message: string;
+}
+
+/**
+ * Start an async export job (returns immediately with task_id)
+ * Progress is tracked via WebSocket events
+ */
+export async function exportDataAsync(request: ExportRequest): Promise<AsyncExportResponse> {
+  const response = await api.post('/import-export/export/async', request);
+  return response.data;
+}
+
+/**
+ * Download exported file from MinIO via task_id
+ * This should be called after receiving export:completed event
+ */
+export function downloadExportedFile(taskId: string): void {
+  const downloadUrl = `/api/import-export/download/${taskId}`;
+  
+  // Use window.location for automatic download
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = `heimdall-export-${taskId.slice(0, 8)}.heimdall`;
+  document.body.appendChild(a);
+  a.click();
+  
+  // Cleanup
+  setTimeout(() => {
+    if (a.parentNode === document.body) {
+      document.body.removeChild(a);
+    }
+  }, 100);
 }

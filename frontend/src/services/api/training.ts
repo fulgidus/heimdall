@@ -190,17 +190,17 @@ export async function listSyntheticDatasets(
         offset: offset.toString(),
     };
 
-    const response = await api.get('/v1/jobs/synthetic/datasets', { params });
+    const response = await api.get('/v1/training/synthetic/datasets', { params });
     return response.data;
 }
 
 export async function getSyntheticDataset(datasetId: string): Promise<SyntheticDataset> {
-    const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}`);
+    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}`);
     return response.data;
 }
 
 export async function deleteSyntheticDataset(datasetId: string): Promise<void> {
-    await api.delete(`/v1/jobs/synthetic/datasets/${datasetId}`);
+    await api.delete(`/v1/training/synthetic/datasets/${datasetId}`);
 }
 
 export interface SyntheticSampleResponse {
@@ -232,7 +232,57 @@ export async function getSyntheticDatasetSamples(
         params.split = split;
     }
 
-    const response = await api.get(`/v1/jobs/synthetic/datasets/${datasetId}/samples`, { params });
+    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/samples`, { params });
+    return response.data;
+}
+
+export interface DatasetValidationReport {
+    dataset_id: string;
+    health_status: 'unknown' | 'healthy' | 'warning' | 'critical';
+    validated_at: string;
+    total_features: number;
+    total_iq_files: number;
+    orphaned_iq_files: number;
+    orphaned_features: number;
+    num_samples?: number;
+    storage_size_bytes?: number;
+    issues: Array<{
+        issue_type: string;
+        path: string;
+        details: string;
+    }>;
+    validation_issues?: {
+        orphaned_iq_files: number;
+        orphaned_features: number;
+        total_issues: number;
+        total_samples: number;
+        total_iq_files: number;
+        orphan_percentage: number;
+    };
+}
+
+export async function validateDataset(datasetId: string): Promise<DatasetValidationReport> {
+    const response = await api.get(`/v1/training/synthetic/datasets/${datasetId}/validate`);
+    return response.data;
+}
+
+export interface DatasetRepairResult {
+    status: string;
+    message: string;
+    deleted_iq_files: number;
+    deleted_features: number;
+    new_health_status: string;
+    remaining_issues: number;
+    num_samples?: number;
+}
+
+export async function repairDataset(
+    datasetId: string,
+    strategy: 'delete_orphans' | 'delete_iq' | 'delete_features' = 'delete_orphans'
+): Promise<DatasetRepairResult> {
+    const response = await api.post(`/v1/training/synthetic/datasets/${datasetId}/repair`, null, {
+        params: { strategy }
+    });
     return response.data;
 }
 

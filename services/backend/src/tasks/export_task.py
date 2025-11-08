@@ -18,6 +18,8 @@ from ..config import settings
 from ..db import get_pool
 from ..events.publisher import get_event_publisher
 from ..models.import_export import (
+    ExportedAudioChunk,
+    ExportedAudioLibrary,
     ExportedFeature,
     ExportedIQSample,
     ExportedModel,
@@ -54,6 +56,36 @@ class ExportTask(Task):
         )
 
 
+def calculate_precise_section_size(
+    metadata_objects: List[Any],
+    minio_bytes: int = 0
+) -> int:
+    """
+    Calculate precise size for an export section including:
+    1. DB metadata (JSON serialized)
+    2. MinIO binary files (if any)
+    3. Base64 encoding overhead (33% increase for binary data)
+    4. JSON structure overhead (~10% for brackets, quotes, field names)
+    
+    Args:
+        metadata_objects: List of Pydantic models to serialize
+        minio_bytes: Total bytes from MinIO files (before base64 encoding)
+        
+    Returns:
+        Estimated final size in bytes
+    """
+    # 1. DB metadata size (JSON serialized)
+    db_size = len(json.dumps([obj.model_dump() for obj in metadata_objects]))
+    
+    # 2. Base64 encoding increases binary size by 4/3
+    base64_size = int(minio_bytes * 4 / 3) if minio_bytes > 0 else 0
+    
+    # 3. JSON structure overhead (~10% for field names, brackets, commas)
+    json_overhead = int((db_size + base64_size) * 0.10)
+    
+    return db_size + base64_size + json_overhead
+
+
 @shared_task(bind=True, base=ExportTask, name="export_async")
 def export_async(self: ExportTask, request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -74,16 +106,13 @@ def export_async(self: ExportTask, request_data: Dict[str, Any]) -> Dict[str, An
         # Parse request
         request = ExportRequest(**request_data)
         
-        # Use asyncio to run async database queries
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Use the worker's event loop (created during worker_process_init)
+        from ..celery_worker import get_worker_loop
+        loop = get_worker_loop()
         
-        try:
-            result = loop.run_until_complete(_export_data_async(self, request))
-            return result
-        finally:
-            loop.close()
+        # The loop exists but isn't running - use run_until_complete
+        result = loop.run_until_complete(_export_data_async(self, request))
+        return result
             
     except Exception as e:
         logger.error(f"Export task {task_id} failed: {e}", exc_info=True)
@@ -109,7 +138,7 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
         if request.include_settings:
             task.update_progress("settings", 0, 1, "Exporting settings...")
             sections.settings = UserSettings()  # Default for now
-            section_sizes.settings = len(json.dumps(sections.settings.dict()))
+            section_sizes.settings = len(json.dumps(sections.settings.model_dump()))
             task.update_progress("settings", 1, 1, "Settings exported")
         
         # Stage 2: Sources
@@ -146,7 +175,7 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                     for row in sources_rows
                 ]
                 
-                section_sizes.sources = len(json.dumps([s.dict() for s in sections.sources]))
+                section_sizes.sources = len(json.dumps([s.model_dump() for s in sections.sources]))
                 task.update_progress("sources", sources_count, sources_count, f"Exported {sources_count} sources")
         
         # Stage 3: WebSDRs
@@ -159,7 +188,7 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                 
                 websdrs_rows = await conn.fetch("""
                     SELECT id, name, url, location_description, latitude, longitude,
-                           altitude_meters, country, operator, is_active,
+                           altitude_asl, country, is_active,
                            timeout_seconds, retry_count, created_at, updated_at
                     FROM heimdall.websdr_stations
                     ORDER BY created_at DESC
@@ -173,9 +202,9 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                         location_description=row["location_description"],
                         latitude=float(row["latitude"]),
                         longitude=float(row["longitude"]),
-                        altitude_meters=float(row["altitude_meters"]) if row["altitude_meters"] else None,
+                        altitude_meters=float(row["altitude_asl"]) if row["altitude_asl"] else None,
                         country=row["country"],
-                        operator=row["operator"],
+                        operator=None,  # operator column doesn't exist in schema
                         is_active=row["is_active"],
                         timeout_seconds=row["timeout_seconds"],
                         retry_count=row["retry_count"],
@@ -185,13 +214,97 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                     for row in websdrs_rows
                 ]
                 
-                section_sizes.websdrs = len(json.dumps([w.dict() for w in sections.websdrs]))
+                section_sizes.websdrs = len(json.dumps([w.model_dump() for w in sections.websdrs]))
                 task.update_progress("websdrs", websdrs_count, websdrs_count, f"Exported {websdrs_count} WebSDRs")
+        
+        # Stage 3.5: Models
+        if request.model_ids:
+            models_count = len(request.model_ids)
+            task.update_progress("models", 0, models_count, f"Exporting {models_count} models...")
+            
+            minio_client = MinIOClient(
+                endpoint_url=settings.MINIO_ENDPOINT,
+                access_key=settings.MINIO_ACCESS_KEY,
+                secret_key=settings.MINIO_SECRET_KEY,
+                bucket_name="heimdall-models",
+            )
+            
+            sections.models = []
+            models_minio_bytes = 0  # Track total MinIO bytes for precise size calculation
+            
+            for idx, model_id in enumerate(request.model_ids, 1):
+                task.update_progress("models", idx - 1, models_count, f"Exporting model {idx}/{models_count}...")
+                
+                # Get model metadata
+                model_row = await conn.fetchrow(
+                    """
+                    SELECT 
+                        id, model_name, COALESCE(version, 1) as version, model_type,
+                        onnx_model_location, accuracy_meters, hyperparameters,
+                        training_metrics, created_at
+                    FROM heimdall.models
+                    WHERE id = $1
+                    """,
+                    model_id,
+                )
+                
+                if not model_row:
+                    logger.warning(f"Model {model_id} not found, skipping")
+                    continue
+
+                # Download ONNX model from MinIO if available
+                onnx_base64 = None
+                if model_row["onnx_model_location"]:
+                    try:
+                        # Parse s3://bucket/key format
+                        s3_path = model_row["onnx_model_location"]
+                        if s3_path.startswith("s3://"):
+                            s3_path = s3_path[5:]
+                        
+                        parts = s3_path.split("/", 1)
+                        bucket = parts[0]
+                        key = parts[1] if len(parts) > 1 else ""
+                        
+                        # Download from MinIO
+                        response = minio_client.s3_client.get_object(Bucket=bucket, Key=key)
+                        onnx_bytes = response["Body"].read()
+                        models_minio_bytes += len(onnx_bytes)  # Track raw bytes
+                        onnx_base64 = base64.b64encode(onnx_bytes).decode("utf-8")
+                        logger.info(f"Downloaded ONNX model from {s3_path} ({len(onnx_bytes)} bytes)")
+                    except Exception as e:
+                        logger.error(f"Failed to download ONNX model for {model_id}: {e}")
+
+                # Parse JSON fields if they're strings (PostgreSQL JSONB returns as strings)
+                hyperparameters = model_row["hyperparameters"]
+                if isinstance(hyperparameters, str):
+                    hyperparameters = json.loads(hyperparameters)
+                
+                training_metrics = model_row["training_metrics"]
+                if isinstance(training_metrics, str):
+                    training_metrics = json.loads(training_metrics)
+                
+                sections.models.append(
+                    ExportedModel(
+                        id=str(model_row["id"]),
+                        model_name=model_row["model_name"],
+                        version=model_row["version"],
+                        model_type=model_row["model_type"],
+                        created_at=model_row["created_at"].isoformat(),
+                        onnx_model_base64=onnx_base64,
+                        accuracy_meters=model_row["accuracy_meters"],
+                        hyperparameters=hyperparameters,
+                        training_metrics=training_metrics,
+                    )
+                )
+            
+            section_sizes.models = calculate_precise_section_size(sections.models, models_minio_bytes)
+            task.update_progress("models", models_count, models_count, f"Exported {len(sections.models)} models")
         
         # Stage 4: Sample Sets (the big one!)
         if request.sample_set_configs:
             total_datasets = len(request.sample_set_configs)
             sections.sample_sets = []
+            sample_sets_minio_bytes = 0  # Track total MinIO bytes
             
             for idx, config in enumerate(request.sample_set_configs, 1):
                 task.update_progress(
@@ -202,8 +315,9 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                 )
                 
                 # Export this dataset (with streaming progress for large datasets)
-                exported_set = await _export_sample_set(task, conn, config, idx, total_datasets)
+                exported_set, minio_bytes = await _export_sample_set(task, conn, config, idx, total_datasets)
                 sections.sample_sets.append(exported_set)
+                sample_sets_minio_bytes += minio_bytes
                 
                 task.update_progress(
                     "sample_sets",
@@ -212,7 +326,111 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
                     f"Exported dataset {idx}/{total_datasets}"
                 )
             
-            section_sizes.sample_sets = len(json.dumps([s.dict() for s in sections.sample_sets]))
+            section_sizes.sample_sets = calculate_precise_section_size(sections.sample_sets, sample_sets_minio_bytes)
+        
+        # Stage 4.5: Audio Library
+        if request.audio_library_ids:
+            audio_count = len(request.audio_library_ids)
+            task.update_progress("audio_library", 0, audio_count, f"Exporting {audio_count} audio files...")
+            
+            sections.audio_library = []
+            audio_minio_bytes = 0  # Track total MinIO bytes
+            
+            for idx, audio_id in enumerate(request.audio_library_ids, 1):
+                task.update_progress(
+                    "audio_library",
+                    idx - 1,
+                    audio_count,
+                    f"Exporting audio {idx}/{audio_count}: {audio_id[:8]}..."
+                )
+                
+                # Query audio library entry
+                audio_row = await conn.fetchrow("""
+                    SELECT id, filename, category, tags, file_size_bytes, duration_seconds,
+                           sample_rate, channels, audio_format, processing_status, total_chunks,
+                           enabled, created_at, updated_at
+                    FROM heimdall.audio_library
+                    WHERE id = $1
+                """, audio_id)
+                
+                if not audio_row:
+                    logger.warning(f"Audio library entry {audio_id} not found, skipping")
+                    continue
+                
+                # Query audio chunks
+                chunks_rows = await conn.fetch("""
+                    SELECT id, chunk_index, duration_seconds, sample_rate, num_samples,
+                           file_size_bytes, original_offset_seconds, rms_amplitude,
+                           minio_path, created_at
+                    FROM heimdall.audio_chunks
+                    WHERE audio_id = $1
+                    ORDER BY chunk_index ASC
+                """, audio_id)
+                
+                # Initialize MinIO client for audio chunks
+                minio_client = MinIOClient(
+                    endpoint_url=settings.MINIO_ENDPOINT,
+                    access_key=settings.MINIO_ACCESS_KEY,
+                    secret_key=settings.MINIO_SECRET_KEY,
+                    bucket_name="heimdall-audio-chunks"
+                )
+                
+                exported_chunks = []
+                for chunk_row in chunks_rows:
+                    try:
+                        # Download chunk from MinIO
+                        response = minio_client.s3_client.get_object(
+                            Bucket="heimdall-audio-chunks",
+                            Key=chunk_row["minio_path"]
+                        )
+                        audio_bytes = response["Body"].read()
+                        audio_minio_bytes += len(audio_bytes)  # Track raw bytes
+                        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+                        
+                        exported_chunks.append(ExportedAudioChunk(
+                            id=str(chunk_row["id"]),
+                            chunk_index=chunk_row["chunk_index"],
+                            duration_seconds=float(chunk_row["duration_seconds"]),
+                            sample_rate=chunk_row["sample_rate"],
+                            num_samples=chunk_row["num_samples"],
+                            file_size_bytes=chunk_row["file_size_bytes"],
+                            original_offset_seconds=float(chunk_row["original_offset_seconds"]),
+                            rms_amplitude=float(chunk_row["rms_amplitude"]) if chunk_row["rms_amplitude"] else None,
+                            created_at=chunk_row["created_at"].isoformat(),
+                            audio_data_base64=audio_base64
+                        ))
+                    except Exception as e:
+                        logger.error(f"Failed to download audio chunk {chunk_row['id']} at {chunk_row['minio_path']}: {e}")
+                
+                # Parse tags array
+                tags = audio_row["tags"] if audio_row["tags"] else []
+                
+                sections.audio_library.append(ExportedAudioLibrary(
+                    id=str(audio_row["id"]),
+                    filename=audio_row["filename"],
+                    category=audio_row["category"],
+                    tags=tags,
+                    file_size_bytes=audio_row["file_size_bytes"],
+                    duration_seconds=float(audio_row["duration_seconds"]),
+                    sample_rate=audio_row["sample_rate"],
+                    channels=audio_row["channels"],
+                    audio_format=audio_row["audio_format"],
+                    processing_status=audio_row["processing_status"],
+                    total_chunks=audio_row["total_chunks"],
+                    enabled=audio_row["enabled"],
+                    created_at=audio_row["created_at"].isoformat(),
+                    updated_at=audio_row["updated_at"].isoformat(),
+                    chunks=exported_chunks
+                ))
+                
+                task.update_progress(
+                    "audio_library",
+                    idx,
+                    audio_count,
+                    f"Exported audio {idx}/{audio_count}"
+                )
+            
+            section_sizes.audio_library = calculate_precise_section_size(sections.audio_library, audio_minio_bytes)
     
     # Stage 5: Finalize and save to MinIO
     task.update_progress("finalizing", 0, 1, "Finalizing export file...")
@@ -230,8 +448,8 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
         sections=sections
     )
     
-    # Serialize to JSON
-    file_json = heimdall_file.json(indent=2)
+    # Serialize to JSON (Pydantic v2)
+    file_json = heimdall_file.model_dump_json(indent=2)
     file_bytes = file_json.encode('utf-8')
     file_size = len(file_bytes)
     
@@ -272,7 +490,8 @@ async def _export_data_async(task: ExportTask, request: ExportRequest) -> Dict[s
         'status': 'completed',
         'download_url': download_url,
         'file_size_bytes': file_size,
-        'task_id': task_id
+        'task_id': task_id,
+        'section_sizes': section_sizes.model_dump()  # Include for size validation
     }
 
 
@@ -282,8 +501,13 @@ async def _export_sample_set(
     config,
     dataset_num: int,
     total_datasets: int
-) -> ExportedSampleSet:
-    """Export a single sample set with granular progress updates."""
+) -> tuple[ExportedSampleSet, int]:
+    """
+    Export a single sample set with granular progress updates.
+    
+    Returns:
+        Tuple of (ExportedSampleSet, minio_bytes_downloaded)
+    """
     
     # Get dataset metadata
     dataset_row = await conn.fetchrow("""
@@ -368,6 +592,7 @@ async def _export_sample_set(
     
     # Export IQ samples if requested
     iq_samples = []
+    iq_minio_bytes = 0  # Track MinIO bytes for precise size calculation
     if config.include_iq_data:
         task.update_progress(
             "sample_sets",
@@ -393,7 +618,7 @@ async def _export_sample_set(
             endpoint_url=settings.MINIO_ENDPOINT,
             access_key=settings.MINIO_ACCESS_KEY,
             secret_key=settings.MINIO_SECRET_KEY,
-            bucket_name="rf-signals"
+            bucket_name="heimdall-synthetic-iq"
         )
         
         for iq_idx, iq_row in enumerate(iq_rows, 1):
@@ -424,10 +649,11 @@ async def _export_sample_set(
             for receiver_id, s3_path in iq_storage_paths.items():
                 try:
                     response = minio_client.s3_client.get_object(
-                        Bucket="rf-signals",
+                        Bucket="heimdall-synthetic-iq",
                         Key=s3_path
                     )
                     iq_bytes = response["Body"].read()
+                    iq_minio_bytes += len(iq_bytes)  # Track raw bytes before encoding
                     iq_base64 = base64.b64encode(iq_bytes).decode("utf-8")
                     
                     iq_data_list.append(IQData(
@@ -466,7 +692,7 @@ async def _export_sample_set(
     if isinstance(quality_metrics, str):
         quality_metrics = json.loads(quality_metrics)
     
-    return ExportedSampleSet(
+    exported_set = ExportedSampleSet(
         id=str(dataset_row["id"]),
         name=dataset_row["name"],
         description=dataset_row["description"],
@@ -480,3 +706,5 @@ async def _export_sample_set(
         num_exported_iq_samples=len(iq_samples) if config.include_iq_data else 0,
         export_range={"offset": offset, "limit": actual_limit},
     )
+    
+    return exported_set, iq_minio_bytes
