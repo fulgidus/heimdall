@@ -61,6 +61,13 @@ from .model_registry import (
     model_info_to_dict,
 )
 
+# Model factory
+from .model_factory import (
+    create_model_from_registry,
+    get_model_input_requirements,
+    validate_model_config,
+)
+
 __all__ = [
     # Spectrogram-based
     "LocalizationNet",
@@ -100,4 +107,9 @@ __all__ = [
     "get_all_model_ids",
     "get_model_count",
     "model_info_to_dict",
+    
+    # Factory
+    "create_model_from_registry",
+    "get_model_input_requirements",
+    "validate_model_config",
 ]

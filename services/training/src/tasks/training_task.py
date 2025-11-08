@@ -148,13 +148,13 @@ def start_training_job(self, job_id: str):
             logger.info(f"Training job '{job_name}' (ID: {job_id})")
 
         # Extract configuration
+        # For backward compatibility: support both dataset_id (singular) and dataset_ids (plural)
         dataset_ids = config.get("dataset_ids")
-        if not dataset_ids or len(dataset_ids) == 0:
-            raise ValueError("dataset_ids is required in training configuration and must contain at least one dataset")
-        
-        # For backward compatibility with single dataset_id
         if not dataset_ids and config.get("dataset_id"):
             dataset_ids = [config.get("dataset_id")]
+        
+        if not dataset_ids or len(dataset_ids) == 0:
+            raise ValueError("dataset_ids is required in training configuration and must contain at least one dataset")
 
         batch_size = config.get("batch_size", 32)
         # Auto-detect optimal num_workers if not specified or set to 0
@@ -174,9 +174,11 @@ def start_training_job(self, job_id: str):
 
         # Import training components (using absolute imports from /app)
         from src.models.triangulator import TriangulationModel, gaussian_nll_loss, haversine_distance_torch
-        from src.data.triangulation_dataloader import create_triangulation_dataloader
+        from src.models.model_factory import create_model_from_registry, get_model_input_requirements
+        from src.data.triangulation_dataloader import create_triangulation_dataloader, create_iq_dataloader
         from src.data.gpu_cached_dataset import GPUCachedDataset
         from torch.utils.data import DataLoader
+        from storage.minio_client import MinIOClient
 
         # Determine device
         accelerator = config.get("accelerator", "auto")
@@ -194,110 +196,188 @@ def start_training_job(self, job_id: str):
         
         logger.info(f"Using device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
 
-        # GPU-CACHED DATASET: Load ALL data to VRAM for 100% GPU utilization!
-        preload_to_gpu = config.get("preload_to_gpu", True)
+        # ===============================================================================
+        # STEP 1: Determine Model Architecture and Data Requirements
+        # ===============================================================================
+        # Get model architecture from config (default to triangulation_model for backward compatibility)
+        model_architecture = config.get("model_architecture", "triangulation_model")
+        logger.info(f"📐 Model architecture: {model_architecture}")
         
-        if preload_to_gpu and device.type == "cuda":
-            logger.info("🚀 GPU-CACHED MODE: Loading ALL data to VRAM for maximum GPU utilization!")
-            
-            # Create one-time session for dataset preloading
-            with db_manager.get_session() as load_session:
-                # Create GPU-cached datasets (loads all data to VRAM)
-                # Apply quality filters from config
-                min_snr_db = config.get("min_snr_db", -999.0)
-                
-                logger.info("Loading train dataset to GPU...")
-                train_dataset = GPUCachedDataset(
-                    dataset_ids=dataset_ids,
-                    split="train",
-                    db_session=load_session,
-                    device=device,
-                    max_receivers=7,
-                    preload_to_gpu=True,
-                    min_snr_db=min_snr_db,
-                    max_gdop=max_gdop
-                )
-                
-                logger.info("Loading validation dataset to GPU...")
-                val_dataset = GPUCachedDataset(
-                    dataset_ids=dataset_ids,
-                    split="val",
-                    db_session=load_session,
-                    device=device,
-                    max_receivers=7,
-                    preload_to_gpu=True,
-                    min_snr_db=min_snr_db,
-                    max_gdop=max_gdop
-                )
-            
-            # Import collate function for GPU-cached datasets
-            from ..data.gpu_cached_dataset import collate_gpu_cached
-            
-            # Create DataLoaders (num_workers MUST be 0 for GPU-cached datasets)
-            train_loader = DataLoader(
-                train_dataset,
-                batch_size=batch_size,
-                shuffle=True,
-                num_workers=0,  # Data already on GPU, no I/O needed
-                pin_memory=False,  # Data already on GPU
-                collate_fn=collate_gpu_cached  # Custom collate with centroid support
-            )
-            
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=batch_size,
-                shuffle=False,
-                num_workers=0,
-                pin_memory=False,
-                collate_fn=collate_gpu_cached  # Custom collate with centroid support
-            )
-            
-            logger.info(f"✅ GPU-CACHED READY: {len(train_dataset)} train + {len(val_dataset)} val samples in VRAM")
-            logger.info(f"💪 GPU will run at 100% utilization with ZERO I/O wait!")
-            
+        # Get model input requirements to determine which dataloader to use
+        model_requirements = get_model_input_requirements(model_architecture)
+        logger.info(f"📊 Model data requirements: {model_requirements}")
+        
+        # Determine dataloader type based on model requirements
+        requires_iq = model_requirements.get("iq_raw", False)
+        requires_spectrogram = model_requirements.get("spectrogram", False)
+        use_iq_dataloader = requires_iq or requires_spectrogram
+        
+        if use_iq_dataloader:
+            logger.info("🎵 Using IQ/Spectrogram dataloader for this model")
         else:
-            # FALLBACK: Traditional DB-based dataloader with file cache
-            if not preload_to_gpu:
-                logger.info("📦 NORMAL MODE: Using DB-based dataloaders with file cache")
-            else:
-                logger.info("⚠️  GPU not available, falling back to DB-based dataloaders")
+            logger.info("📊 Using feature-based dataloader for this model")
+
+        # ===============================================================================
+        # STEP 2: Create Dataloaders (IQ or Feature-based)
+        # ===============================================================================
+        # Choose dataloader based on model requirements
+        if use_iq_dataloader:
+            # =========================================================================
+            # IQ/SPECTROGRAM DATALOADER (for CNN/Transformer models on raw IQ data)
+            # =========================================================================
+            logger.info("🎵 Creating IQ/Spectrogram dataloaders...")
             
-            # IMPORTANT: DataLoader workers incompatible with DB sessions (pickling error)
-            # Solution: Use num_workers=0 BUT enable file cache for 10-50x speedup on epoch 2+
-            # - Epoch 1: Slow (DB load), saves to /tmp/heimdall_training_cache
-            # - Epoch 2+: FAST (disk cache is 100x faster than DB queries)
-            actual_num_workers = 0  # Force single-threaded to avoid DB session pickling issues
-            if num_workers > 0:
-                logger.info(f"Requested {num_workers} workers, but using 0 due to DB session constraints. Cache will make epoch 2+ FAST!")
+            # IQ models need MinIO client to load raw IQ samples
+            minio_client = MinIOClient(
+                endpoint_url=backend_settings.minio_url,
+                access_key=backend_settings.minio_access_key,
+                secret_key=backend_settings.minio_secret_key,
+                bucket_name="heimdall-synthetic-iq"
+            )
             
-            # Create persistent sessions for dataloaders (will be closed in finally block)
-            # Note: We cannot use context managers here because dataloaders need sessions
-            # to stay alive during the entire training loop
-            logger.info(f"Creating train dataloader with file cache enabled...")
+            # Create DB sessions for IQ dataloaders
             train_session = db_manager.SessionLocal()
-            train_loader = create_triangulation_dataloader(
+            val_session = db_manager.SessionLocal()
+            
+            # Note: IQ models typically use smaller batch sizes due to memory requirements
+            iq_batch_size = min(batch_size, 32)  # Cap at 32 for IQ data
+            if iq_batch_size < batch_size:
+                logger.info(f"Reducing batch size from {batch_size} to {iq_batch_size} for IQ data (memory optimization)")
+            
+            train_loader = create_iq_dataloader(
                 dataset_ids=dataset_ids,
                 split="train",
                 db_session=train_session,
-                batch_size=batch_size,
-                num_workers=actual_num_workers,
+                minio_client=minio_client,
+                batch_size=iq_batch_size,
+                num_workers=0,  # Single-threaded due to DB session constraints
                 shuffle=True,
-                max_receivers=7,
-                use_cache=True  # Enable file cache for massive speedup
+                max_receivers=max_receivers,
+                use_cache=True  # File cache for spectrograms
             )
-
-            logger.info(f"Creating validation dataloader with file cache enabled...")
-            val_session = db_manager.SessionLocal()
-            val_loader = create_triangulation_dataloader(
+            
+            val_loader = create_iq_dataloader(
                 dataset_ids=dataset_ids,
                 split="val",
                 db_session=val_session,
-                batch_size=batch_size,
-                num_workers=actual_num_workers,
+                minio_client=minio_client,
+                batch_size=iq_batch_size,
+                num_workers=0,
                 shuffle=False,
-                max_receivers=7,
-                use_cache=True  # Enable file cache
+                max_receivers=max_receivers,
+                use_cache=True
             )
+            
+            logger.info(f"✅ IQ dataloaders created: {len(train_loader.dataset)} train + {len(val_loader.dataset)} val samples")
+            
+        else:
+            # =========================================================================
+            # FEATURE-BASED DATALOADER (for MLP/feature models)
+            # =========================================================================
+            # GPU-CACHED DATASET: Load ALL data to VRAM for 100% GPU utilization!
+            preload_to_gpu = config.get("preload_to_gpu", True)
+            
+            if preload_to_gpu and device.type == "cuda":
+                logger.info("🚀 GPU-CACHED MODE: Loading ALL data to VRAM for maximum GPU utilization!")
+                
+                # Create one-time session for dataset preloading
+                with db_manager.get_session() as load_session:
+                    # Create GPU-cached datasets (loads all data to VRAM)
+                    # Apply quality filters from config
+                    min_snr_db = config.get("min_snr_db", -999.0)
+                    
+                    logger.info("Loading train dataset to GPU...")
+                    train_dataset = GPUCachedDataset(
+                        dataset_ids=dataset_ids,
+                        split="train",
+                        db_session=load_session,
+                        device=device,
+                        max_receivers=max_receivers,
+                        preload_to_gpu=True,
+                        min_snr_db=min_snr_db,
+                        max_gdop=max_gdop
+                    )
+                    
+                    logger.info("Loading validation dataset to GPU...")
+                    val_dataset = GPUCachedDataset(
+                        dataset_ids=dataset_ids,
+                        split="val",
+                        db_session=load_session,
+                        device=device,
+                        max_receivers=max_receivers,
+                        preload_to_gpu=True,
+                        min_snr_db=min_snr_db,
+                        max_gdop=max_gdop
+                    )
+                
+                # Import collate function for GPU-cached datasets
+                from ..data.gpu_cached_dataset import collate_gpu_cached
+                
+                # Create DataLoaders (num_workers MUST be 0 for GPU-cached datasets)
+                train_loader = DataLoader(
+                    train_dataset,
+                    batch_size=batch_size,
+                    shuffle=True,
+                    num_workers=0,  # Data already on GPU, no I/O needed
+                    pin_memory=False,  # Data already on GPU
+                    collate_fn=collate_gpu_cached  # Custom collate with centroid support
+                )
+                
+                val_loader = DataLoader(
+                    val_dataset,
+                    batch_size=batch_size,
+                    shuffle=False,
+                    num_workers=0,
+                    pin_memory=False,
+                    collate_fn=collate_gpu_cached  # Custom collate with centroid support
+                )
+                
+                logger.info(f"✅ GPU-CACHED READY: {len(train_dataset)} train + {len(val_dataset)} val samples in VRAM")
+                logger.info(f"💪 GPU will run at 100% utilization with ZERO I/O wait!")
+                
+            else:
+                # FALLBACK: Traditional DB-based dataloader with file cache
+                if not preload_to_gpu:
+                    logger.info("📦 NORMAL MODE: Using DB-based dataloaders with file cache")
+                else:
+                    logger.info("⚠️  GPU not available, falling back to DB-based dataloaders")
+                
+                # IMPORTANT: DataLoader workers incompatible with DB sessions (pickling error)
+                # Solution: Use num_workers=0 BUT enable file cache for 10-50x speedup on epoch 2+
+                # - Epoch 1: Slow (DB load), saves to /tmp/heimdall_training_cache
+                # - Epoch 2+: FAST (disk cache is 100x faster than DB queries)
+                actual_num_workers = 0  # Force single-threaded to avoid DB session pickling issues
+                if num_workers > 0:
+                    logger.info(f"Requested {num_workers} workers, but using 0 due to DB session constraints. Cache will make epoch 2+ FAST!")
+                
+                # Create persistent sessions for dataloaders (will be closed in finally block)
+                # Note: We cannot use context managers here because dataloaders need sessions
+                # to stay alive during the entire training loop
+                logger.info(f"Creating train dataloader with file cache enabled...")
+                train_session = db_manager.SessionLocal()
+                train_loader = create_triangulation_dataloader(
+                    dataset_ids=dataset_ids,
+                    split="train",
+                    db_session=train_session,
+                    batch_size=batch_size,
+                    num_workers=actual_num_workers,
+                    shuffle=True,
+                    max_receivers=max_receivers,
+                    use_cache=True  # Enable file cache for massive speedup
+                )
+
+                logger.info(f"Creating validation dataloader with file cache enabled...")
+                val_session = db_manager.SessionLocal()
+                val_loader = create_triangulation_dataloader(
+                    dataset_ids=dataset_ids,
+                    split="val",
+                    db_session=val_session,
+                    batch_size=batch_size,
+                    num_workers=actual_num_workers,
+                    shuffle=False,
+                    max_receivers=max_receivers,
+                    use_cache=True  # Enable file cache
+                )
 
         # Update dataset info in job
         train_samples = len(train_loader.dataset)
@@ -320,17 +400,18 @@ def start_training_job(self, job_id: str):
             val_samples=val_samples
         )
 
-        # Initialize model
-        model = TriangulationModel(
-            encoder_input_dim=6,
-            encoder_hidden_dim=64,
-            encoder_output_dim=32,
-            attention_heads=4,
-            head_hidden_dim=64,
+        # ===============================================================================
+        # STEP 3: Initialize Model from Registry
+        # ===============================================================================
+        # Note: model_architecture was already determined in STEP 1 (lines 199-218)
+        # Initialize model using factory
+        model = create_model_from_registry(
+            model_id=model_architecture,
+            max_receivers=max_receivers,
             dropout=dropout_rate
         ).to(device)
 
-        logger.info(f"Model initialized with {sum(p.numel() for p in model.parameters())} parameters")
+        logger.info(f"✅ Model '{model_architecture}' initialized with {sum(p.numel() for p in model.parameters())} parameters")
 
         # Initialize optimizer and scheduler
         optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
