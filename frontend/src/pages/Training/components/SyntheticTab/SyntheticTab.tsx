@@ -7,6 +7,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTrainingStore } from '../../../../store/trainingStore';
 import { useWebSocket } from '../../../../contexts/WebSocketContext';
+import { useAuth } from '../../../../hooks/useAuth';
 import { DatasetCard } from './DatasetCard';
 import { GenerateDataDialog } from './GenerateDataDialog';
 import { GenerationJobCard } from './GenerationJobCard';
@@ -14,6 +15,7 @@ import { GenerationJobCard } from './GenerationJobCard';
 export const SyntheticTab: React.FC = () => {
   const { datasets, generationJobs, fetchDatasets, fetchGenerationJobs, handleGenerationJobUpdate, isLoading } = useTrainingStore();
   const { subscribe } = useWebSocket();
+  const { isOperator } = useAuth();
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -121,13 +123,15 @@ export const SyntheticTab: React.FC = () => {
             Generate synthetic RF localization data for training
           </p>
         </div>
-        <button
-          onClick={() => setIsGenerateDialogOpen(true)}
-          className="btn btn-primary d-flex align-items-center gap-2"
-        >
-          <i className="ph ph-plus-circle"></i>
-          Generate Dataset
-        </button>
+        {isOperator && (
+          <button
+            onClick={() => setIsGenerateDialogOpen(true)}
+            className="btn btn-primary d-flex align-items-center gap-2"
+          >
+            <i className="ph ph-plus-circle"></i>
+            Generate Dataset
+          </button>
+        )}
       </div>
 
       {/* Loading State */}
@@ -165,15 +169,20 @@ export const SyntheticTab: React.FC = () => {
           <i className="ph ph-database" style={{ fontSize: '3rem', color: 'var(--bs-gray-400)' }}></i>
           <h5 className="mt-3 mb-2">No Datasets Yet</h5>
           <p className="text-muted mb-4">
-            Generate your first synthetic dataset to start training models
+            {isOperator 
+              ? 'Generate your first synthetic dataset to start training models'
+              : 'No synthetic datasets available yet'
+            }
           </p>
-          <button
-            onClick={() => setIsGenerateDialogOpen(true)}
-            className="btn btn-primary d-flex align-items-center gap-2 mx-auto"
-          >
-            <i className="ph ph-plus-circle"></i>
-            Generate Dataset
-          </button>
+          {isOperator && (
+            <button
+              onClick={() => setIsGenerateDialogOpen(true)}
+              className="btn btn-primary d-flex align-items-center gap-2 mx-auto"
+            >
+              <i className="ph ph-plus-circle"></i>
+              Generate Dataset
+            </button>
+          )}
         </div>
       )}
 

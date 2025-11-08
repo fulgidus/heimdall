@@ -20,6 +20,7 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 - **[Quick Start Guide](QUICK_START.md)** - Get running in 5 minutes
 - **[Architecture Guide](ARCHITECTURE.md)** - System design and components
 - **[API Reference](API.md)** - Complete REST API documentation
+- **[RBAC User Guide](RBAC.md)** - Role-based access control and sharing ✨ NEW
 
 ### ML & Training
 - **[Training Guide](TRAINING.md)** - Machine learning model training
@@ -31,11 +32,13 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 - **[Pause/Resume Training](PAUSE_RESUME_IMPLEMENTATION.md)** - Pause and resume ML jobs
 - **[Import/Export](IMPORT_EXPORT.md)** - Data backup and restoration
 - **[Import/Export UI](IMPORT_EXPORT_UI.md)** - UI for data management
+- **[Constellations & Sharing](RBAC.md)** - Manage SDR groups and share with users ✨ NEW
 
 ### Development
 - **[Development Guide](DEVELOPMENT.md)** - Contributing, setup, CORS, frontend dev
 - **[Testing Guide](TESTING.md)** - Running tests and adding new tests
 - **[Release Workflow](RELEASE_WORKFLOW.md)** - How to create releases
+- **[RBAC Implementation](RBAC_IMPLEMENTATION.md)** - Technical RBAC implementation details
 
 ---
 
@@ -63,4 +66,4 @@ Welcome to Heimdall - AI-powered radio source localization platform.
 
 ---
 
-**Last Updated**: November 2025 | **Status**: Phase 7 In Progress (Frontend Development)
+**Last Updated**: November 2025 | **Status**: Phase 7 - 95% Complete (Frontend + RBAC ✅)

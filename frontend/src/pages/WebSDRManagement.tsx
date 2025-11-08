@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useWebSDRStore } from '../store/websdrStore';
 import { useWebSocket } from '../contexts/WebSocketContext';
 import { useWebSDRWebSocket } from '../hooks/useWebSDRWebSocket';
+import { useAuth } from '../hooks/useAuth';
 import WebSDRModal from '../components/WebSDRModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import type { WebSDRConfig } from '@/services/api/types';
@@ -22,6 +23,7 @@ const WebSDRManagement: React.FC = () => {
   } = useWebSDRStore();
 
   const { isConnected, manager } = useWebSocket();
+  const { isOperator } = useAuth(); // For permission checks
   useWebSDRWebSocket(); // Auto-subscribe to WebSDR WebSocket events
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedWebSDR, setSelectedWebSDR] = useState<string | null>(null);
@@ -157,9 +159,11 @@ const WebSDRManagement: React.FC = () => {
             <div className="card-header d-flex align-items-center justify-content-between">
               <h5 className="mb-0">Configured WebSDR Receivers</h5>
               <div className="btn-group">
-                <button className="btn btn-sm btn-primary me-2" onClick={handleCreateClick}>
-                  <i className="ph ph-plus"></i> Add New WebSDR
-                </button>
+                {isOperator && (
+                  <button className="btn btn-sm btn-primary me-2" onClick={handleCreateClick}>
+                    <i className="ph ph-plus"></i> Add New WebSDR
+                  </button>
+                )}
                 <button
                   className="btn btn-sm btn-outline-primary"
                   onClick={handleRefresh}
@@ -263,20 +267,24 @@ const WebSDRManagement: React.FC = () => {
                                 >
                                   <i className="ph ph-eye"></i>
                                 </button>
-                                <button
-                                  className="btn btn-sm btn-link-primary"
-                                  onClick={() => handleEditClick(websdr)}
-                                  title="Edit"
-                                >
-                                  <i className="ph ph-pencil-simple"></i>
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-link-danger"
-                                  onClick={() => handleDeleteClick(websdr)}
-                                  title="Delete"
-                                >
-                                  <i className="ph ph-trash"></i>
-                                </button>
+                                {isOperator && (
+                                  <>
+                                    <button
+                                      className="btn btn-sm btn-link-primary"
+                                      onClick={() => handleEditClick(websdr)}
+                                      title="Edit"
+                                    >
+                                      <i className="ph ph-pencil-simple"></i>
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-link-danger"
+                                      onClick={() => handleDeleteClick(websdr)}
+                                      title="Delete"
+                                    >
+                                      <i className="ph ph-trash"></i>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -289,10 +297,12 @@ const WebSDRManagement: React.FC = () => {
                 <div className="text-center py-5">
                   <i className="ph ph-warning-circle f-40 text-warning mb-3"></i>
                   <p className="text-muted mb-0">No WebSDR receivers configured</p>
-                  <button className="btn btn-primary mt-3" onClick={handleCreateClick}>
-                    <i className="ph ph-plus-circle"></i>
-                    Add WebSDR Receiver
-                  </button>
+                  {isOperator && (
+                    <button className="btn btn-primary mt-3" onClick={handleCreateClick}>
+                      <i className="ph ph-plus-circle"></i>
+                      Add WebSDR Receiver
+                    </button>
+                  )}
                 </div>
               )}
             </div>

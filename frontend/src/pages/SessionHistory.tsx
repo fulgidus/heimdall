@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { useAuth } from '../hooks/useAuth';
 import SessionEditModal from '../components/SessionEditModal';
 
 const SessionHistory: React.FC = () => {
@@ -21,6 +22,7 @@ const SessionHistory: React.FC = () => {
     deleteSession,
   } = useSessionStore();
 
+  const { isOperator } = useAuth(); // For permission checks
   const [selectedSession, setSelectedSession] = useState<number | null>(null);
   const [editingSession, setEditingSession] = useState<number | null>(null);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
@@ -332,7 +334,7 @@ const SessionHistory: React.FC = () => {
                               </span>
                             </td>
                             <td>{session.measurements_count}</td>
-                            <td>
+                             <td>
                               <div className="btn-group">
                                 <button
                                   className="btn btn-sm btn-link-primary"
@@ -341,24 +343,28 @@ const SessionHistory: React.FC = () => {
                                 >
                                   <i className="ph ph-eye"></i>
                                 </button>
-                                <button
-                                  className="btn btn-sm btn-link-warning"
-                                  onClick={() => setEditingSession(session.id)}
-                                  title="Edit Session"
-                                >
-                                  <i className="ph ph-pencil-simple"></i>
-                                </button>
-                                <button className="btn btn-sm btn-link-secondary" title="Download">
-                                  <i className="ph ph-download-simple"></i>
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-link-danger"
-                                  onClick={() => setDeletingSession(session.id)}
-                                  title="Delete Session"
-                                  disabled={deletingSession === session.id}
-                                >
-                                  <i className="ph ph-trash"></i>
-                                </button>
+                                {isOperator && (
+                                  <>
+                                    <button
+                                      className="btn btn-sm btn-link-warning"
+                                      onClick={() => setEditingSession(session.id)}
+                                      title="Edit Session"
+                                    >
+                                      <i className="ph ph-pencil-simple"></i>
+                                    </button>
+                                    <button className="btn btn-sm btn-link-secondary" title="Download">
+                                      <i className="ph ph-download-simple"></i>
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-link-danger"
+                                      onClick={() => setDeletingSession(session.id)}
+                                      title="Delete Session"
+                                      disabled={deletingSession === session.id}
+                                    >
+                                      <i className="ph ph-trash"></i>
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -429,10 +435,12 @@ const SessionHistory: React.FC = () => {
                 <div className="text-center py-5">
                   <i className="ph ph-folder-open f-40 text-muted mb-3"></i>
                   <p className="text-muted mb-0">No recording sessions found</p>
-                  <a href="/recording" className="btn btn-primary mt-3">
-                    <i className="ph ph-plus-circle me-1"></i>
-                    Create New Session
-                  </a>
+                  {isOperator && (
+                    <a href="/recording" className="btn btn-primary mt-3">
+                      <i className="ph ph-plus-circle me-1"></i>
+                      Create New Session
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -448,16 +456,18 @@ const SessionHistory: React.FC = () => {
               <div className="card-header d-flex align-items-center justify-content-between">
                 <h5 className="mb-0">Session Details</h5>
                 <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-sm btn-warning"
-                    onClick={() => {
-                      setEditingSession(selectedSessionData.id);
-                      setSelectedSession(null);
-                    }}
-                  >
-                    <i className="ph ph-pencil-simple me-1"></i>
-                    Edit
-                  </button>
+                  {isOperator && (
+                    <button
+                      className="btn btn-sm btn-warning"
+                      onClick={() => {
+                        setEditingSession(selectedSessionData.id);
+                        setSelectedSession(null);
+                      }}
+                    >
+                      <i className="ph ph-pencil-simple me-1"></i>
+                      Edit
+                    </button>
+                  )}
                   <button
                     className="btn btn-sm btn-link-secondary"
                     onClick={() => setSelectedSession(null)}

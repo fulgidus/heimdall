@@ -21,6 +21,8 @@ class KnownSource(BaseModel):
     source_type: str | None = None
     is_validated: bool = False
     error_margin_meters: float | None = None  # Optional, can be set later
+    owner_id: str | None = None  # Keycloak user ID of the owner
+    is_public: bool = False  # Public visibility flag
     created_at: datetime
     updated_at: datetime
 

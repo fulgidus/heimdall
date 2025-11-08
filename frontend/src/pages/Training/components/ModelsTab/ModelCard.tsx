@@ -9,6 +9,7 @@ import type { TrainedModel } from '../../types';
 import { ExportDialog } from './ExportDialog';
 import { ModelDetailsModal } from './ModelDetailsModal';
 import { useTrainingStore } from '../../../../store/trainingStore';
+import { useAuth } from '../../../../hooks/useAuth';
 import { InlineEditText } from '../../../../components/InlineEditText';
 
 interface ModelCardProps {
@@ -19,6 +20,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const { deleteModel, updateModelName } = useTrainingStore();
+  const { isOperator } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const formatNumber = (num: number | undefined) => {
@@ -47,12 +49,16 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div className="flex-grow-1">
               <h5 className="mb-1">
-                <InlineEditText
-                  value={model.model_name}
-                  onSave={(newName) => updateModelName(model.id, newName)}
-                  className="d-inline-block"
-                  placeholder="Model Name"
-                />
+                {isOperator ? (
+                  <InlineEditText
+                    value={model.model_name}
+                    onSave={(newName) => updateModelName(model.id, newName)}
+                    className="d-inline-block"
+                    placeholder="Model Name"
+                  />
+                ) : (
+                  model.model_name
+                )}
               </h5>
               <p className="text-muted small mb-0">
                 Version: {model.version} | Type: {model.model_type || 'N/A'}
@@ -177,21 +183,25 @@ export const ModelCard: React.FC<ModelCardProps> = ({ model }) => {
               <i className="ph ph-info"></i>
               View Details
             </button>
-            <button
-              onClick={() => setIsExportDialogOpen(true)}
-              className="btn btn-primary d-flex align-items-center justify-content-center gap-2"
-            >
-              <i className="ph ph-download-simple"></i>
-              Export Model
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isLoading}
-              className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2"
-            >
-              <i className="ph ph-trash"></i>
-              {isLoading ? 'Deleting...' : 'Delete Model'}
-            </button>
+            {isOperator && (
+              <>
+                <button
+                  onClick={() => setIsExportDialogOpen(true)}
+                  className="btn btn-primary d-flex align-items-center justify-content-center gap-2"
+                >
+                  <i className="ph ph-download-simple"></i>
+                  Export Model
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  className="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2"
+                >
+                  <i className="ph ph-trash"></i>
+                  {isLoading ? 'Deleting...' : 'Delete Model'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
