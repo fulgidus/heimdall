@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 def create_model_from_registry(
     model_id: str,
-    max_receivers: int = 7,
+    max_receivers: int = 10,
     dropout: float = 0.1,
     **kwargs: Any
 ) -> nn.Module:
@@ -150,8 +150,10 @@ def create_model_from_registry(
         model = IQEfficientNetB4(
             max_receivers=max_receivers,
             iq_sequence_length=kwargs.get("iq_sequence_length", 1024),
-            embedding_dim=kwargs.get("embedding_dim", 192),
-            dropout=dropout
+            attention_heads=kwargs.get("attention_heads", 8),
+            dropout=dropout,
+            uncertainty_min=kwargs.get("uncertainty_min", 0.01),
+            uncertainty_max=kwargs.get("uncertainty_max", 1.0)
         )
     
     # ------------------------------------------------------------------------
@@ -190,7 +192,7 @@ def create_model_from_registry(
     # ------------------------------------------------------------------------
     # HYBRID MODELS (🔬)
     # ------------------------------------------------------------------------
-    elif model_id == "iq_hybrid_net":
+    elif model_id == "iq_hybrid":
         model = IQHybridNet(
             max_receivers=max_receivers,
             iq_sequence_length=kwargs.get("iq_sequence_length", 1024),
@@ -228,7 +230,7 @@ def create_model_from_registry(
     # ------------------------------------------------------------------------
     # ENSEMBLE MODELS (🏆)
     # ------------------------------------------------------------------------
-    elif model_id == "ensemble_flagship":
+    elif model_id == "localization_ensemble_flagship":
         # Fixed: Use LocalizationEnsembleFlagship with correct params
         from .ensemble_flagship import LocalizationEnsembleFlagship
         model = LocalizationEnsembleFlagship(
@@ -358,7 +360,7 @@ def validate_model_config(model_id: str, config: dict) -> tuple[bool, Optional[s
     
     # Check max_receivers for IQ-based models
     if model_info.data_type in ["iq_raw", "hybrid", "multi_modal"]:
-        max_receivers = config.get("max_receivers", 7)
+        max_receivers = config.get("max_receivers", 10)
         if max_receivers > 10:
             return False, "max_receivers cannot exceed 10 (system limitation)"
         if max_receivers < 1:

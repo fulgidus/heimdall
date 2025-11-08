@@ -85,7 +85,7 @@ class SyntheticTriangulationDataset(Dataset):
         dataset_ids: List[str],
         split: str,
         db_session,
-        max_receivers: int = 7,
+        max_receivers: int = 10,
         cache_size: int = 10000,
         use_cache: bool = True
     ):
@@ -416,11 +416,13 @@ def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     signal_mask = torch.stack([sample["signal_mask"] for sample in batch])
     target_position = torch.stack([sample["target_position"] for sample in batch])
     
-    # Collect metadata
+    # Collect metadata including centroids for coordinate reconstruction
+    # Centroids are needed to convert predicted DELTA coordinates back to absolute lat/lon
     metadata = {
         "sample_ids": [sample["metadata"]["sample_id"] for sample in batch],
         "gdop": torch.tensor([sample["metadata"]["gdop"] for sample in batch], dtype=torch.float32),
-        "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long)
+        "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long),
+        "centroids": torch.tensor([sample["metadata"]["centroid"] for sample in batch], dtype=torch.float32)  # [batch, 2] (lat, lon)
     }
     
     return {
@@ -439,7 +441,7 @@ def create_triangulation_dataloader(
     batch_size: int = 256,
     num_workers: int = 8,
     shuffle: bool = True,
-    max_receivers: int = 7,
+    max_receivers: int = 10,
     use_cache: bool = True
 ) -> DataLoader:
     """
@@ -790,11 +792,42 @@ class TriangulationIQDataset(Dataset):
                     receiver_positions.append([0.0, 0.0])
                     signal_mask.append(True)  # Mask padded positions
             
+            # Calculate centroid from VALID receivers (exclude masked/padded)
+            # This creates a local reference frame for each sample
+            valid_positions = []
+            for i in range(len(receiver_positions)):
+                if not signal_mask[i]:  # Signal present (not masked)
+                    valid_positions.append(receiver_positions[i])
+            
+            if len(valid_positions) > 0:
+                # Use mean of valid receiver positions as centroid
+                centroid_lat = np.mean([pos[0] for pos in valid_positions])
+                centroid_lon = np.mean([pos[1] for pos in valid_positions])
+            else:
+                # Fallback: use all receivers (shouldn't happen in normal training)
+                logger.warning(f"Sample {sample_id}: No valid receivers for centroid, using all positions")
+                centroid_lat = np.mean([pos[0] for pos in receiver_positions])
+                centroid_lon = np.mean([pos[1] for pos in receiver_positions])
+            
+            centroid = np.array([centroid_lat, centroid_lon])
+            
+            # Transform coordinates to DELTAS relative to centroid
+            # This puts all coordinates in a local reference frame
+            receiver_positions_delta = []
+            for i in range(len(receiver_positions)):
+                rx_lat_delta = receiver_positions[i][0] - centroid_lat
+                rx_lon_delta = receiver_positions[i][1] - centroid_lon
+                receiver_positions_delta.append([rx_lat_delta, rx_lon_delta])
+            
+            # Transform target to DELTA coordinates (relative to centroid)
+            target_delta_lat = tx_lat - centroid_lat
+            target_delta_lon = tx_lon - centroid_lon
+            
             # Stack into tensors
             iq_spectrograms = torch.stack(spectrograms)  # (num_receivers, 2, freq, time)
-            receiver_positions = torch.tensor(receiver_positions, dtype=torch.float32)  # (num_receivers, 2)
+            receiver_positions = torch.tensor(receiver_positions_delta, dtype=torch.float32)  # (num_receivers, 2) DELTA coordinates
             signal_mask = torch.tensor(signal_mask, dtype=torch.bool)  # (num_receivers,)
-            target_position = torch.tensor([tx_lat, tx_lon], dtype=torch.float32)  # (2,)
+            target_position = torch.tensor([target_delta_lat, target_delta_lon], dtype=torch.float32)  # (2,) DELTA coordinates
             
             sample_data = {
                 "iq_spectrograms": iq_spectrograms,
@@ -804,7 +837,8 @@ class TriangulationIQDataset(Dataset):
                 "metadata": {
                     "sample_id": sample_id,
                     "gdop": gdop if gdop else 50.0,
-                    "num_receivers": num_receivers
+                    "num_receivers": num_receivers,
+                    "centroid": centroid.tolist()  # Store for reconstruction in training/inference
                 }
             }
             

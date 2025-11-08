@@ -51,8 +51,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy installed packages from builder
 COPY --from=deps-train /root/.local /home/appuser/.local
 
-# Create CuPy cache directory with proper permissions
-RUN mkdir -p /home/appuser/.cupy && chown -R appuser:appuser /home/appuser/.cupy
+# Create cache directories with proper permissions
+RUN mkdir -p /home/appuser/.cupy /home/appuser/.cache && \
+    chown -R appuser:appuser /home/appuser/.cupy /home/appuser/.cache
 
 # Copy application code
 COPY --chown=appuser:appuser services/training/src/ ./src/

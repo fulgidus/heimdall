@@ -189,19 +189,19 @@ class LocalizationEnsembleFlagship(nn.Module):
         # Model 1: IQ Transformer (±10-18m, pure attention)
         self.iq_transformer = IQTransformer(
             max_receivers=max_receivers,
-            iq_seq_len=iq_seq_len,
+            iq_sequence_length=iq_seq_len,
         )
         
         # Model 2: IQ HybridNet (±12-20m, CNN+Transformer fusion)
         self.iq_hybrid = IQHybridNet(
             max_receivers=max_receivers,
-            iq_seq_len=iq_seq_len,
+            iq_sequence_length=iq_seq_len,
         )
         
         # Model 3: IQ WaveNet (±20-28m, temporal modeling)
         self.iq_wavenet = IQWaveNet(
             max_receivers=max_receivers,
-            iq_seq_len=iq_seq_len,
+            iq_sequence_length=iq_seq_len,
         )
         
         # Optionally freeze base models

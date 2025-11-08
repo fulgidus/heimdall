@@ -35,7 +35,7 @@ class GPUCachedDataset(Dataset):
         split: str, 
         db_session, 
         device, 
-        max_receivers: int = 7,
+        max_receivers: int = 10,
         preload_to_gpu: bool = True,
         min_snr_db: float = -999.0,
         max_gdop: float = 999.0

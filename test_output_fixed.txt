@@ -1,0 +1,34 @@
+
+================================================================================
+BULK TRAINING TEST: All 13 Model Architectures
+================================================================================
+Testing 13 models with dataset 22a722a3-5508-48a9-8657-d75bbe5629bd
+================================================================================
+
+[1/13] Testing: triangulation_model... ✓ SUCCESS (status: running)
+[2/13] Testing: localization_net_convnext_large... ✓ SUCCESS (status: running)
+[3/13] Testing: localization_net_vit... ✓ SUCCESS (status: pending)
+[4/13] Testing: iq_resnet18... ✓ SUCCESS (status: pending)
+[5/13] Testing: iq_resnet50... ✓ SUCCESS (status: pending)
+[6/13] Testing: iq_resnet101... ✓ SUCCESS (status: pending)
+[7/13] Testing: iq_vggnet... ✓ SUCCESS (status: pending)
+[8/13] Testing: iq_efficientnet_b4... ✓ SUCCESS (status: pending)
+[9/13] Testing: iq_transformer... ✓ SUCCESS (status: pending)
+[10/13] Testing: iq_wavenet... ✓ SUCCESS (status: pending)
+[11/13] Testing: iq_hybrid... ✓ SUCCESS (status: pending)
+[12/13] Testing: heimdall_net... ✓ SUCCESS (status: pending)
+[13/13] Testing: localization_ensemble_flagship... ✓ SUCCESS (status: pending)
+
+================================================================================
+SUMMARY
+================================================================================
+Total models: 13
+✓ Success: 13
+✗ Failed: 0
+✗ Errors: 0
+================================================================================
+
+================================================================================
+RESULT: 13/13 models working
+================================================================================
+

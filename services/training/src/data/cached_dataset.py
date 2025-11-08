@@ -17,7 +17,7 @@ class InMemoryTriangulationDataset(Dataset):
     GPU will run at 100% because no I/O wait.
     """
     
-    def __init__(self, dataset_ids: List[str], split: str, db_session, max_receivers: int = 7):
+    def __init__(self, dataset_ids: List[str], split: str, db_session, max_receivers: int = 10):
         self.dataset_ids = dataset_ids
         self.split = split
         self.max_receivers = max_receivers

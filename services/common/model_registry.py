@@ -5,7 +5,7 @@ This module provides a comprehensive registry of all available ML architectures
 for RF source localization, with detailed metadata for informed model selection.
 
 Features:
-- 11 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal)
+- 13 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, multi-modal, ensemble)
 - Performance metrics (accuracy, speed, memory)
 - Visual indicators (emoji, badges, star ratings)
 - Query and comparison utilities
@@ -28,9 +28,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Type aliases for better type hints
-DataType = Literal["spectrogram", "iq_raw", "features", "hybrid"]
-ArchitectureType = Literal["cnn", "transformer", "tcn", "hybrid", "mlp"]
-Badge = Literal["RECOMMENDED", "MAXIMUM_ACCURACY", "FASTEST", "BEST_RATIO", "BASELINE", "EXPERIMENTAL", "LIGHTWEIGHT"]
+DataType = Literal["spectrogram", "iq_raw", "features", "hybrid", "multi_modal"]
+ArchitectureType = Literal["cnn", "transformer", "tcn", "hybrid", "mlp", "multi_modal"]
+Badge = Literal["RECOMMENDED", "MAXIMUM_ACCURACY", "FASTEST", "BEST_RATIO", "BASELINE", "EXPERIMENTAL", "LIGHTWEIGHT", "FLAGSHIP"]
 
 
 @dataclass
@@ -101,7 +101,7 @@ class ModelArchitectureInfo:
 
 
 # ============================================================================
-# REGISTRY: All 11 Model Architectures
+# REGISTRY: All 13 Model Architectures
 # ============================================================================
 
 MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
@@ -630,6 +630,113 @@ MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
     ),
     
     # ------------------------------------------------------------------------
+    # MULTI-MODAL MODELS (👁️)
+    # ------------------------------------------------------------------------
+    "heimdall_net": ModelArchitectureInfo(
+        id="heimdall_net",
+        display_name="HeimdallNet (Multi-Modal Fusion)",
+        description="Multi-modal fusion architecture combining IQ samples, extracted features, and receiver geometry.",
+        long_description=(
+            "Advanced multi-modal architecture that fuses three information streams: raw IQ samples (CNN encoder), "
+            "extracted RF features (MLP), and receiver geometry (positional encoding). Uses cross-attention to fuse "
+            "modalities before final position prediction. Excellent accuracy (±8-15m) with fast inference (40-60ms). "
+            "Optimal for production deployments with diverse data sources. Named after Heimdall, the all-seeing Norse god."
+        ),
+        data_type="multi_modal",
+        architecture_type="multi_modal",
+        architecture_emoji="👁️",
+        performance=PerformanceMetrics(
+            expected_error_min_m=8.0,
+            expected_error_max_m=15.0,
+            accuracy_stars=5,
+            inference_time_min_ms=40.0,
+            inference_time_max_ms=60.0,
+            speed_stars=4,
+            parameters_millions=2.2,
+            vram_training_gb=4.0,
+            vram_inference_gb=1.0,
+            efficiency_stars=5,
+            speed_emoji="🏃",
+            memory_emoji="📦",
+            accuracy_emoji="💎",
+        ),
+        badges=["RECOMMENDED"],
+        best_for=[
+            "Production deployments with diverse data sources",
+            "When IQ samples and features are both available",
+            "High accuracy with fast inference requirements",
+            "Multi-receiver scenarios with geometry information",
+        ],
+        not_recommended_for=[
+            "When only IQ or features are available (not both)",
+            "Extremely limited GPU memory (<2GB)",
+        ],
+        backbone="Multi-Modal Fusion (CNN + MLP + Geometry)",
+        pretrained_weights=None,
+        input_shape=(None, 10, 2, 1024),  # IQ: (batch, receivers, [I,Q], seq_len)
+        output_shape=(None, 2),
+        training_difficulty="medium",
+        convergence_epochs=45,
+        recommended_batch_size=32,
+        implementation_file="models/heimdall_net.py",
+    ),
+    
+    # ------------------------------------------------------------------------
+    # ENSEMBLE MODELS (🎯)
+    # ------------------------------------------------------------------------
+    "localization_ensemble_flagship": ModelArchitectureInfo(
+        id="localization_ensemble_flagship",
+        display_name="Localization Ensemble (Flagship)",
+        description="Ensemble of top 3 models (IQ Transformer + HybridNet + WaveNet) for maximum accuracy.",
+        long_description=(
+            "Flagship ensemble combining the best three models: IQ Transformer (maximum accuracy), "
+            "IQ HybridNet (CNN+Transformer fusion), and IQ WaveNet (temporal modeling). Uses weighted voting "
+            "with uncertainty-aware aggregation. Achieves absolute best accuracy (±5-12m) at the cost of slow "
+            "inference (500-800ms). 200M total parameters. Recommended only for scenarios where accuracy is "
+            "paramount and inference time is not critical."
+        ),
+        data_type="hybrid",
+        architecture_type="hybrid",
+        architecture_emoji="🎯",
+        performance=PerformanceMetrics(
+            expected_error_min_m=5.0,
+            expected_error_max_m=12.0,
+            accuracy_stars=5,
+            inference_time_min_ms=500.0,
+            inference_time_max_ms=800.0,
+            speed_stars=1,
+            parameters_millions=200.0,
+            vram_training_gb=16.0,
+            vram_inference_gb=4.0,
+            efficiency_stars=1,
+            speed_emoji="🐢",
+            memory_emoji="🏢",
+            accuracy_emoji="💎",
+        ),
+        badges=["MAXIMUM_ACCURACY", "EXPERIMENTAL", "FLAGSHIP"],
+        best_for=[
+            "Absolute maximum accuracy requirements",
+            "Offline processing and post-analysis",
+            "Research and benchmarking",
+            "High-end GPU infrastructure (24GB+ VRAM)",
+        ],
+        not_recommended_for=[
+            "Real-time applications with latency constraints",
+            "Limited GPU resources (<16GB VRAM)",
+            "Edge devices",
+            "High throughput scenarios",
+        ],
+        backbone="Ensemble (IQ Transformer + HybridNet + WaveNet)",
+        pretrained_weights=None,
+        input_shape=(None, 10, 2, 1024),
+        output_shape=(None, 2),
+        training_difficulty="hard",
+        convergence_epochs=100,
+        recommended_batch_size=4,
+        implementation_file="models/ensemble_flagship.py",
+    ),
+    
+    # ------------------------------------------------------------------------
     # FEATURE-BASED MODELS (🧮)
     # ------------------------------------------------------------------------
     "triangulation_model": ModelArchitectureInfo(
@@ -911,7 +1018,7 @@ def _map_data_type_to_frontend(data_type: DataType) -> str:
     """
     Map training data_type to frontend data_type.
     
-    Training types: spectrogram, iq_raw, features, hybrid
+    Training types: spectrogram, iq_raw, features, hybrid, multi_modal
     Frontend types: feature_based, iq_raw, both
     
     Args:
@@ -925,6 +1032,7 @@ def _map_data_type_to_frontend(data_type: DataType) -> str:
         "iq_raw": "iq_raw",
         "features": "feature_based",
         "hybrid": "both",  # Hybrid models work with both types
+        "multi_modal": "both",  # Multi-modal uses both IQ and features
     }
     return mapping.get(data_type, "both")
 
@@ -1033,7 +1141,7 @@ def list_architectures(data_type: Optional[str] = None) -> list[dict]:
     List all available architectures in frontend-compatible format.
     
     This is the main function used by the backend API to return architecture
-    metadata to the frontend. It converts all 11 architectures from the
+    metadata to the frontend. It converts all 13 architectures from the
     MODEL_REGISTRY into the format expected by the frontend.
     
     Args:

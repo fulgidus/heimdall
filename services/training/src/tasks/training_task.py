@@ -168,7 +168,7 @@ def start_training_job(self, job_id: str):
         early_stop_delta = config.get("early_stop_delta", 0.001)
         max_grad_norm = config.get("max_grad_norm", 1.0)
         max_gdop = config.get("max_gdop", 5.0)
-        max_receivers = config.get("max_receivers", 7)  # Italian WebSDR system uses 7 receivers
+        max_receivers = config.get("max_receivers", 10)  # Support up to 10 receivers (synthetic data + future expansion)
 
         logger.info(f"Training config: datasets={dataset_ids}, epochs={epochs}, batch={batch_size}, lr={learning_rate}, workers={num_workers}")
 
@@ -571,14 +571,21 @@ def start_training_job(self, job_id: str):
                         "best_val_loss": float(best_val_loss)
                     }
                 
-                receiver_features = batch["receiver_features"].to(device)
+                # Handle both IQ and feature-based batch structures
+                if use_iq_dataloader:
+                    # IQ models: use iq_spectrograms as input
+                    model_input = batch["iq_spectrograms"].to(device)
+                else:
+                    # Feature-based models: use receiver_features as input
+                    model_input = batch["receiver_features"].to(device)
+                
                 signal_mask = batch["signal_mask"].to(device)
                 target_position = batch["target_position"].to(device)
 
                 optimizer.zero_grad()
 
                 # Forward pass
-                position, log_variance = model(receiver_features, signal_mask)
+                position, log_variance = model(model_input, signal_mask)
 
                 # Calculate loss
                 loss = gaussian_nll_loss(position, log_variance, target_position)
@@ -667,12 +674,19 @@ def start_training_job(self, job_id: str):
 
             with torch.no_grad():
                 for batch in val_loader:
-                    receiver_features = batch["receiver_features"].to(device)
+                    # Handle both IQ and feature-based batch structures
+                    if use_iq_dataloader:
+                        # IQ models: use iq_spectrograms as input
+                        model_input = batch["iq_spectrograms"].to(device)
+                    else:
+                        # Feature-based models: use receiver_features as input
+                        model_input = batch["receiver_features"].to(device)
+                    
                     signal_mask = batch["signal_mask"].to(device)
                     target_position = batch["target_position"].to(device)
                     gdop = batch["metadata"]["gdop"]
 
-                    position, log_variance = model(receiver_features, signal_mask)
+                    position, log_variance = model(model_input, signal_mask)
                     loss = gaussian_nll_loss(position, log_variance, target_position)
                     
                     # Check for validation loss explosion

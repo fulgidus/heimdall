@@ -132,15 +132,15 @@ export const JobsTab: React.FC<JobsTabProps> = ({ onJobCreated }) => {
       console.log(`[JobsTab] Creating ${architectures.length} training jobs...`);
       const jobPromises = architectures.map(async (arch) => {
         const jobConfig = {
-          job_name: `bulk-${arch.id}-${Date.now()}`,
+          job_name: `Bulk ${arch.id} ${new Date().toISOString()}`,
           config: {
             dataset_ids: datasetIds, // Required array of dataset UUIDs
             model_architecture: arch.id,
-            batch_size: 32,
+            batch_size: 128, // Big default batch size
             learning_rate: 0.001,
             epochs: 500, // Note: 'epochs', not 'total_epochs'
             validation_split: 0.15,
-            early_stop_patience: 0, // No patience - train all 500 epochs
+            early_stop_patience: 50, // Very patient early stopping
           }
         };
         

@@ -1,0 +1,81 @@
+
+================================================================================
+BULK TRAINING TEST: All 13 Model Architectures
+================================================================================
+Testing 13 models with dataset 22a722a3-5508-48a9-8657-d75bbe5629bd
+================================================================================
+
+[1/13] Testing: triangulation_model... ✓ SUCCESS (status: completed)
+[2/13] Testing: localization_net_convnext_large... ✓ SUCCESS (status: running)
+[3/13] Testing: localization_net_vit... ✓ SUCCESS (status: running)
+[4/13] Testing: iq_resnet18... ✓ SUCCESS (status: running)
+[5/13] Testing: iq_resnet50... ✗ FAILED (status: failed)
+[6/13] Testing: iq_resnet101... ✗ FAILED (status: failed)
+[7/13] Testing: iq_vggnet... ✗ FAILED (status: failed)
+[8/13] Testing: iq_efficientnet_b4... ✗ FAILED (status: failed)
+[9/13] Testing: iq_transformer... ✗ FAILED (status: failed)
+[10/13] Testing: iq_wavenet... ✗ FAILED (status: failed)
+[11/13] Testing: iq_hybrid... ✗ FAILED (status: failed)
+[12/13] Testing: heimdall_net... ✗ FAILED (status: failed)
+[13/13] Testing: localization_ensemble_flagship... ✗ FAILED (status: failed)
+
+================================================================================
+SUMMARY
+================================================================================
+Total models: 13
+✓ Success: 4
+✗ Failed: 9
+✗ Errors: 0
+================================================================================
+
+FAILURES:
+
+  Model: iq_resnet50
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_resnet101
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_vggnet
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_efficientnet_b4
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_transformer
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_wavenet
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: iq_hybrid
+  Status: FAILED
+  Error: too many values to unpack (expected 4)
+  Job Status: failed
+
+  Model: heimdall_net
+  Status: FAILED
+  Error: HeimdallNet.forward() missing 2 required positional arguments: 'positions' and 'receiver_ids'
+  Job Status: failed
+
+  Model: localization_ensemble_flagship
+  Status: FAILED
+  Error: IQHybridNet.__init__() got an unexpected keyword argument 'iq_seq_len'
+  Job Status: failed
+
+================================================================================
+RESULT: 4/13 models working
+================================================================================
+

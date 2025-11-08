@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import Modal from './Modal';
-import Tabs from './Tabs';
 import type { 
   ModelArchitecture, 
   ModelCategory,
@@ -600,21 +599,6 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
     </div>
   );
 
-  const tabs = [
-    {
-      id: 'select',
-      label: 'Select Model',
-      icon: '🎯',
-      content: modelSelectionTab,
-    },
-    {
-      id: 'config',
-      label: 'Training Config',
-      icon: '⚙️',
-      content: trainingConfigTab,
-    },
-  ];
-
   const footer = (
     <>
       {activeTab === 'select' ? (
@@ -656,17 +640,38 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create Training Job" size="xl" footer={footer}>
-      <Tabs
-        tabs={tabs}
-        defaultTabId="select"
-        onChange={(tabId) => {
-          // Prevent navigating to config tab if no model is selected
-          if (tabId === 'config' && !selectedArchitecture) {
-            return;
-          }
-          setActiveTab(tabId as 'select' | 'config');
-        }}
-      />
+      {/* Bootstrap Tab Navigation */}
+      <ul className="nav nav-tabs mb-4">
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'select' ? 'active' : ''}`}
+            onClick={() => setActiveTab('select')}
+          >
+            🎯 Select Model
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'config' ? 'active' : ''}`}
+            onClick={() => {
+              // Prevent navigating to config tab if no model is selected
+              if (!selectedArchitecture) {
+                return;
+              }
+              setActiveTab('config');
+            }}
+            disabled={!selectedArchitecture}
+          >
+            ⚙️ Training Config
+          </button>
+        </li>
+      </ul>
+
+      {/* Tab Content */}
+      <div className="tab-content">
+        {activeTab === 'select' && modelSelectionTab}
+        {activeTab === 'config' && trainingConfigTab}
+      </div>
     </Modal>
   );
 };

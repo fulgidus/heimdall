@@ -1,0 +1,88 @@
+
+================================================================================
+BULK TRAINING TEST: All 13 Model Architectures
+================================================================================
+Testing 13 models with dataset 22a722a3-5508-48a9-8657-d75bbe5629bd
+================================================================================
+
+[1/13] Testing: triangulation_model... ✗ ERROR: 'job_id'
+[2/13] Testing: localization_net_convnext_large... ✗ ERROR: 'job_id'
+[3/13] Testing: localization_net_vit... ✗ ERROR: 'job_id'
+[4/13] Testing: iq_resnet18... ✗ ERROR: 'job_id'
+[5/13] Testing: iq_resnet50... ✗ ERROR: 'job_id'
+[6/13] Testing: iq_resnet101... ✗ ERROR: 'job_id'
+[7/13] Testing: iq_vggnet... ✗ ERROR: 'job_id'
+[8/13] Testing: iq_efficientnet_b4... ✗ ERROR: 'job_id'
+[9/13] Testing: iq_transformer... ✗ ERROR: 'job_id'
+[10/13] Testing: iq_wavenet... ✗ ERROR: 'job_id'
+[11/13] Testing: iq_hybrid... ✗ ERROR: 'job_id'
+[12/13] Testing: heimdall_net... ✗ ERROR: 'job_id'
+[13/13] Testing: localization_ensemble_flagship... ✗ ERROR: 'job_id'
+
+================================================================================
+SUMMARY
+================================================================================
+Total models: 13
+✓ Success: 0
+✗ Failed: 0
+✗ Errors: 13
+================================================================================
+
+FAILURES:
+
+  Model: triangulation_model
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: localization_net_convnext_large
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: localization_net_vit
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_resnet18
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_resnet50
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_resnet101
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_vggnet
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_efficientnet_b4
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_transformer
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_wavenet
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: iq_hybrid
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: heimdall_net
+  Status: ERROR
+  Error: 'job_id'
+
+  Model: localization_ensemble_flagship
+  Status: ERROR
+  Error: 'job_id'
+
+================================================================================
+RESULT: 0/13 models working
+================================================================================
+
