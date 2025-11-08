@@ -24,6 +24,7 @@ const ImportExport = lazy(() => import('./pages/ImportExport'));
 const Training = lazy(() => import('./pages/Training'));
 const TerrainManagement = lazy(() => import('./pages/TerrainManagement'));
 const AudioLibrary = lazy(() => import('./pages/AudioLibrary'));
+const Constellations = lazy(() => import('./pages/Constellations'));
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -162,6 +163,16 @@ function App() {
                   <ProtectedRoute>
                     <RequireRole role="operator">
                       <SourcesManagement />
+                    </RequireRole>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/constellations"
+                element={
+                  <ProtectedRoute>
+                    <RequireRole role="operator">
+                      <Constellations />
                     </RequireRole>
                   </ProtectedRoute>
                 }

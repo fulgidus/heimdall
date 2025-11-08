@@ -355,56 +355,81 @@ CREATE INDEX idx_recording_sessions_constellation ON recording_sessions(constell
 ### ✅ Phase 6: Frontend Authentication
 **Goal**: Create authentication hooks and utilities
 
-- [ ] **Task 16**: Update authStore
+- [x] **Task 16**: Update authStore
   - Fix role extraction from JWT (admin/operator/user)
   - Ensure role hierarchy (admin includes operator, operator includes user)
+  - Added `extractUserRole()` function implementing hierarchy
+  - Updated `User` interface with `'operator'` role type and `roles: string[]` array
   - **Files**: `frontend/src/store/authStore.ts`
-  - **Status**: ⏳ Pending
+  - **Status**: ✅ Complete (2025-11-08)
 
-- [ ] **Task 14**: Create useAuth hook
-  - `isAdmin: boolean`
-  - `isOperator: boolean`
-  - `isUser: boolean`
+- [x] **Task 14a**: Create useAuth hook
+  - `isAdmin: boolean` - true only for admin
+  - `isOperator: boolean` - true for operator OR admin
+  - `isUser: boolean` - true for all authenticated users
   - `user: User | null`
   - **Files**: `frontend/src/hooks/useAuth.ts`
-  - **Status**: ⏳ Pending
+  - **Status**: ✅ Complete (2025-11-08)
 
-- [ ] **Task 14**: Create usePermissions hook
-  - `canViewConstellation(id): Promise<boolean>`
-  - `canEditConstellation(id): Promise<boolean>`
-  - `canDeleteConstellation(id): Promise<boolean>`
-  - `canViewSource(id): Promise<boolean>`
-  - `canEditSource(id): Promise<boolean>`
+- [x] **Task 14b**: Create usePermissions hook
+  - Generic: `canView()`, `canEdit()`, `canDelete()`, `canShare()`, `canCreate()`
+  - Constellation: `canViewConstellation()`, `canEditConstellation()`, `canDeleteConstellation()`
+  - Source: `canViewSource()`, `canEditSource()`, `canDeleteSource()`
+  - Model: `canViewModel()`, `canEditModel()`, `canDeleteModel()`
+  - Special: `canAccessSystemSettings()`, `canStartTraining()`, `canGenerateSynthetic()`
+  - Admin bypass logic for all checks
   - **Files**: `frontend/src/hooks/usePermissions.ts`
-  - **Status**: ⏳ Pending
+  - **Status**: ✅ Complete (2025-11-08)
 
-- [ ] **Task 15**: Create RequireRole route guard
+- [x] **Task 15**: Create RequireRole route guard
   - HOC component to protect routes by role
-  - Redirects to login if not authenticated
-  - Redirects to unauthorized if insufficient role
+  - Shows "Access Denied" UI with role requirement message
+  - Redirects to /login if not authenticated
+  - Supports optional custom fallback components
   - **Files**: `frontend/src/components/auth/RequireRole.tsx`
-  - **Status**: ⏳ Pending
+  - **Status**: ✅ Complete (2025-11-08)
+
+- [x] **Task 16b**: Update App.tsx route guards
+  - Wrapped all routes with `<RequireRole role="...">` guards
+  - User+ routes: /dashboard, /localization, /analytics, /profile, /recording, /history, /system-status
+  - Operator+ routes: /websdrs, /sources, /import-export, /training, /terrain, /audio-library, /data-ingestion
+  - Admin-only routes: /settings
+  - **Files**: `frontend/src/App.tsx`
+  - **Status**: ✅ Complete (2025-11-08)
 
 ### ✅ Phase 7: Frontend UI
 **Goal**: Create user-facing pages and components
 
-- [ ] **Task 17**: Create Constellations management page
+- [x] **Task 17**: Create Constellations management page
   - List user's constellations (owned + shared)
   - Create new constellation (operator+)
   - Edit constellation (name, description)
   - Add/remove WebSDRs to constellation
   - Delete constellation (owner only)
-  - **Files**: `frontend/src/pages/Constellations.tsx`
-  - **Status**: ⏳ Pending
+  - Search and filter constellations
+  - Permission-based UI controls
+  - **Files**: `frontend/src/pages/Constellations.tsx`, `frontend/src/components/constellations/ConstellationCard.tsx`, `frontend/src/components/constellations/ConstellationForm.tsx`, `frontend/src/services/api/constellations.ts`
+  - **Status**: ✅ Complete (2025-11-08)
 
-- [ ] **Task 19**: Create sharing UI component
+- [x] **Task 19**: Create sharing UI component
   - Modal/drawer for sharing management
-  - Search users by email/username
+  - Search users by email/username (debounced, 300ms)
   - Set permission level (read/edit)
-  - List current shares
+  - List current shares with avatars
+  - Update permissions inline
   - Remove shares
-  - **Files**: `frontend/src/components/sharing/ShareModal.tsx`
-  - **Status**: ⏳ Pending
+  - Owner-only controls
+  - Real-time updates with toast notifications
+  - Generic design (reusable for sources/models)
+  - **Files**: `frontend/src/components/sharing/ShareModal.tsx`, `frontend/src/components/sharing/UserSearch.tsx`, `frontend/src/components/sharing/ShareList.tsx`, `frontend/src/components/sharing/index.ts`
+  - **Status**: ✅ Complete (2025-11-08)
+
+- [x] **Task 17b**: Integrate ShareModal into Constellations page
+  - Add share modal state management
+  - Implement share handlers (add/update/remove)
+  - Connect to constellation sharing APIs
+  - **Files**: `frontend/src/pages/Constellations.tsx`
+  - **Status**: ✅ Complete (2025-11-08)
 
 - [ ] **Task 18**: Update Dashboard
   - Filter displayed data by user's constellations
@@ -560,18 +585,22 @@ heimdall/
 - ✅ Task 10: Sessions router with RBAC (2025-11-08)
 - ✅ Task 11: Sources router with RBAC (2025-11-08)
 - ✅ Task 12: Models router with RBAC (2025-11-08)
+- ✅ Task 14a: useAuth hook (2025-11-08)
+- ✅ Task 14b: usePermissions hook (2025-11-08)
+- ✅ Task 15: RequireRole route guard (2025-11-08)
+- ✅ Task 16: authStore role extraction and App.tsx route guards (2025-11-08)
 
 ### In Progress
-- Phase 6: Frontend Authentication (Task 14, 15, 16)
+_None currently_
 
 ### Blocked
 _None currently_
 
 ### Next Up
-1. Task 16: Update authStore to fix role extraction
-2. Task 14: Create useAuth and usePermissions hooks
-3. Task 15: Create RequireRole route guard
-4. Task 17: Create Constellations management page
+1. Task 17: Create Constellations management page
+2. Task 19: Create sharing UI component
+3. Task 18: Update Dashboard with constellation filtering
+4. Task 20: Add component-level permission guards
 
 ---
 
