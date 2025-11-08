@@ -14,6 +14,9 @@ from .keycloak_auth import (
 )
 from .models import TokenData, User
 
+# RBAC utilities are imported on-demand to avoid circular dependencies
+# Use: from common.auth.rbac import can_view_constellation, etc.
+
 __all__ = [
     "KeycloakAuth",
     "get_current_user",

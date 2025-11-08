@@ -62,6 +62,7 @@ class RecordingSession(BaseModel):
 
     id: UUID
     known_source_id: UUID | None = None  # NULL when source is unknown
+    constellation_id: UUID | None = None  # NULL when not in a constellation
     session_name: str
     session_start: datetime
     session_end: datetime | None = None
@@ -85,6 +86,7 @@ class RecordingSessionCreate(BaseModel):
     """Create a new recording session"""
 
     known_source_id: UUID | None = None  # None for unknown sources
+    constellation_id: UUID | None = Field(None, description="Optional constellation for collaboration")
     session_name: str
     frequency_hz: int = Field(..., gt=0, description="Frequency in Hz")
     duration_seconds: float = Field(

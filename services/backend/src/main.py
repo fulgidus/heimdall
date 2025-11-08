@@ -28,13 +28,16 @@ from . import celery_worker  # noqa: F401
 from .routers.acquisition import router as acquisition_router
 from .routers.admin import router as admin_router
 from .routers.audio_library import router as audio_library_router
+from .routers.constellations import router as constellations_router
 from .routers.health import router as health_router
 from .routers.import_export import router as import_export_router
 from .routers.metrics import router as metrics_router
 from .routers.sessions import router as sessions_router
 from .routers.settings import router as settings_router
+from .routers.sources import router as sources_router
 from .routers.terrain import router as terrain_router
-from .routers.training import router as training_router, models_router, jobs_router
+from .routers.training import router as training_router, models_router as legacy_models_router, jobs_router
+from .routers.models import router as models_router  # RBAC-enabled models router
 from .routers.users import router as users_router
 from .routers.websocket import router as websocket_router
 
@@ -244,11 +247,13 @@ async def shutdown_event():
 app.include_router(acquisition_router)
 app.include_router(admin_router)
 app.include_router(audio_library_router)
+app.include_router(constellations_router)
 app.include_router(health_router)
 app.include_router(import_export_router)
 app.include_router(metrics_router)
 app.include_router(sessions_router)
 app.include_router(settings_router)
+app.include_router(sources_router)
 app.include_router(terrain_router)
 app.include_router(training_router)
 app.include_router(models_router)
