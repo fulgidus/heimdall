@@ -299,18 +299,6 @@ class IQWaveNet(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQWaveNet initialized",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            hidden_channels=hidden_channels,
-            num_layers=num_layers,
-            receptive_field=self._calculate_receptive_field(kernel_size, num_layers),
-            total_params=f"{sum(p.numel() for p in self.parameters())/1e6:.1f}M",
-            expected_accuracy="±20-28m",
-            inference_time="50-70ms",
-        )
     
     def _calculate_receptive_field(self, kernel_size: int, num_layers: int) -> int:
         """Calculate receptive field of the TCN."""

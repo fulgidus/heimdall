@@ -434,19 +434,6 @@ class IQTransformer(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(256, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQTransformer initialized",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            patch_size=patch_size,
-            embed_dim=embed_dim,
-            num_layers=num_layers,
-            num_heads=num_heads,
-            total_params=f"{sum(p.numel() for p in self.parameters())/1e6:.1f}M",
-            expected_accuracy="±10-18m (MAXIMUM ACCURACY)",
-            inference_time="100-200ms",
-        )
     
     def forward(
         self,

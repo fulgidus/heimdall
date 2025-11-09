@@ -350,18 +350,6 @@ class IQHybridNet(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQHybridNet initialized",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            embed_dim=embed_dim,
-            num_transformer_layers=num_transformer_layers,
-            total_params=f"{sum(p.numel() for p in self.parameters())/1e6:.1f}M",
-            expected_accuracy="±12-20m",
-            inference_time="120-180ms",
-            badge="RECOMMENDED",
-        )
     
     def forward(
         self,

@@ -376,16 +376,6 @@ class IQEfficientNetB4(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQEfficientNetB4 initialized",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            total_params=f"{sum(p.numel() for p in self.parameters())/1e6:.1f}M",
-            expected_accuracy="±22-30m",
-            inference_time="40-60ms",
-            badge="BEST_RATIO",
-        )
     
     def forward(
         self,

@@ -140,17 +140,6 @@ class LocalizationNet(nn.Module):
             nn.Linear(64, 2),  # [sigma_x, sigma_y]
         )
 
-        logger.info(
-            "localization_net_initialized",
-            backbone="ConvNeXt-Large",
-            backbone_size=backbone_size,
-            backbone_params=f"{sum(p.numel() for p in self.backbone.parameters())/1e6:.1f}M",
-            pretrained=pretrained,
-            freeze_backbone=freeze_backbone,
-            backbone_output_dim=backbone_output_dim,
-            expected_improvement_vs_resnet18="26% higher accuracy, ~2x better localization",
-        )
-
     def forward(self, x: torch.Tensor, signal_mask: torch.Tensor = None) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass through the network.

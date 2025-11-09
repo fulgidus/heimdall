@@ -29,9 +29,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple
 import math
-import structlog
-
-logger = structlog.get_logger(__name__)
 
 
 # ============================================================================
@@ -687,11 +684,6 @@ class SetAttentionAggregatorPro(nn.Module):
         # Post-normalization + residual
         self.post_norm = nn.LayerNorm(input_dim)
         self.dropout = nn.Dropout(dropout)
-        
-        logger.info(
-            f"SetAttentionAggregatorPro initialized: "
-            f"dim={input_dim}, heads={num_heads}, dropout={dropout}"
-        )
     
     def forward(
         self,
@@ -832,16 +824,6 @@ class HeimdallNetPro(nn.Module):
             nn.Linear(64, 2),  # (σ_x, σ_y)
             nn.Softplus()  # Ensure positive uncertainties
         )
-        
-        logger.info("=" * 80)
-        logger.info("🚀 HeimdallNetPro initialized (Performer attention variant)")
-        logger.info(f"  max_receivers={max_receivers}, num_heads={num_heads}")
-        logger.info(f"  use_calibration={use_calibration}, dropout={dropout}")
-        logger.info("=" * 80)
-        logger.info("🚀 HeimdallNetPro initialized (Performer attention variant)")
-        logger.info(f"  max_receivers={max_receivers}, num_heads={num_heads}")
-        logger.info(f"  use_calibration={use_calibration}, dropout={dropout}")
-        logger.info("=" * 80)
     
     def forward(self,
                 iq_data: torch.Tensor,

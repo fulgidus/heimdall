@@ -178,14 +178,6 @@ class LocalizationEnsembleFlagship(nn.Module):
         # Initialize the 3 flagship models
         # ====================================================================
         
-        logger.info(
-            "ensemble_flagship_init",
-            max_receivers=max_receivers,
-            iq_seq_len=iq_seq_len,
-            use_pretrained=use_pretrained,
-            freeze_base_models=freeze_base_models,
-        )
-        
         # Model 1: IQ Transformer (±10-18m, pure attention)
         self.iq_transformer = IQTransformer(
             max_receivers=max_receivers,
@@ -212,8 +204,6 @@ class LocalizationEnsembleFlagship(nn.Module):
                 param.requires_grad = False
             for param in self.iq_wavenet.parameters():
                 param.requires_grad = False
-            
-            logger.info("ensemble_base_models_frozen")
         
         # ====================================================================
         # Ensemble fusion module
@@ -367,14 +357,6 @@ def create_ensemble_flagship(
     # Count total parameters
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-    logger.info(
-        "ensemble_flagship_created",
-        total_params_millions=total_params / 1e6,
-        trainable_params_millions=trainable_params / 1e6,
-        max_receivers=max_receivers,
-        iq_seq_len=iq_seq_len,
-    )
     
     return model
 
