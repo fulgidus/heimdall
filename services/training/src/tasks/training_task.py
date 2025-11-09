@@ -15,6 +15,7 @@ import os
 import math
 import multiprocessing
 import datetime
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -412,6 +413,14 @@ def start_training_job(self, job_id: str):
         ).to(device)
 
         logger.info(f"✅ Model '{model_architecture}' initialized with {sum(p.numel() for p in model.parameters())} parameters")
+        
+        # CHECKPOINT 1: Model initialized successfully
+        try:
+            with open("/tmp/heimdall_trace.txt", "a") as f:
+                f.write(f"CHECKPOINT 1: Model initialized, params={sum(p.numel() for p in model.parameters())}\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write checkpoint 1: {e}")
 
         # Initialize optimizer and scheduler
         optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
@@ -425,6 +434,14 @@ def start_training_job(self, job_id: str):
             bucket_name="models"
         )
         minio_client.ensure_bucket_exists()
+        
+        # CHECKPOINT 2: MinIO ready
+        try:
+            with open("/tmp/heimdall_trace.txt", "a") as f:
+                f.write(f"CHECKPOINT 2: MinIO client initialized\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write checkpoint 2: {e}")
 
         # Training state
         best_val_loss = float('inf')
@@ -460,6 +477,14 @@ def start_training_job(self, job_id: str):
                         logger.warning(f"Parent model {parent_model_id} has no checkpoint, starting from scratch")
             except Exception as e:
                 logger.error(f"Failed to load parent model checkpoint: {e}. Starting from scratch.", exc_info=True)
+        
+        # CHECKPOINT 2A: Parent model loading complete
+        try:
+            with open("/tmp/heimdall_trace.txt", "a") as f:
+                f.write(f"CHECKPOINT 2A: Parent model check complete (parent_model_id={parent_model_id})\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write checkpoint 2A: {e}")
         
         # Check for pause checkpoint to resume from
         with db_manager.get_session() as session:
@@ -498,8 +523,32 @@ def start_training_job(self, job_id: str):
                 logger.warning(f"Failed to load pause checkpoint: {e}. Starting from scratch.")
                 resume_epoch = 0
         
+        # CHECKPOINT 2B: Pause checkpoint check complete
+        try:
+            with open("/tmp/heimdall_trace.txt", "a") as f:
+                f.write(f"CHECKPOINT 2B: Pause checkpoint check complete (resume_epoch={resume_epoch})\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write checkpoint 2B: {e}")
+        
+        # CHECKPOINT 3: Before training loop
+        try:
+            with open("/tmp/heimdall_trace.txt", "a") as f:
+                f.write(f"CHECKPOINT 3: Entering training loop, resume_epoch={resume_epoch}, epochs={epochs}\n")
+                f.flush()
+        except Exception as e:
+            logger.error(f"Failed to write checkpoint 3: {e}")
+        
         # Training loop
         for epoch in range(resume_epoch + 1, epochs + 1):
+            # CHECKPOINT 4: Inside epoch loop
+            try:
+                with open("/tmp/heimdall_trace.txt", "a") as f:
+                    f.write(f"CHECKPOINT 4: Epoch {epoch} started\n")
+                    f.flush()
+            except Exception as e:
+                logger.error(f"Failed to write checkpoint 4: {e}")
+            
             # Check for cancellation at start of each epoch
             if self.is_aborted():
                 logger.info(f"Training job {job_id} cancelled at epoch {epoch}. Stopping gracefully...")
@@ -540,8 +589,34 @@ def start_training_job(self, job_id: str):
             batch_update_interval = 1.0  # Send update every 1 second
             total_train_batches = len(train_loader)
 
+            # Write to file to verify execution (logger may be suppressed)
+            with open("/tmp/heimdall_execution_trace.txt", "a") as f:
+                f.write(f"PRE-BATCH: Epoch={epoch}, model_arch={model_architecture}, batches={total_train_batches}\n")
+            
+            logger.error(f"[PRE-BATCH DEBUG] About to enter training loop. Epoch={epoch}, model_architecture={model_architecture}, total_batches={total_train_batches}")
+            sys.stderr.write(f"[PRE-BATCH DEBUG] About to enter training loop. Epoch={epoch}, model_architecture={model_architecture}\n")
+            sys.stderr.flush()
+            
             # Training phase
             for batch_idx, batch in enumerate(train_loader, 1):
+                # Write to file to verify batch loop entry
+                with open("/tmp/heimdall_execution_trace.txt", "a") as f:
+                    f.write(f"BATCH {batch_idx}: Epoch={epoch}\n")
+                
+                logger.error(f"[BATCH DEBUG] Entering batch {batch_idx}/{total_train_batches} for epoch {epoch}")
+                print(f"[DEBUG] Entering batch {batch_idx} for epoch {epoch}", flush=True)
+                
+                # IMMEDIATE DEBUG - Check batch right after DataLoader yields it
+                logger.error(f"[BATCH RAW] Keys in batch: {batch.keys()}")
+                if "iq_samples" in batch:
+                    iq_raw = batch["iq_samples"]
+                    logger.error(f"[BATCH RAW] iq_samples shape: {iq_raw.shape}")
+                    logger.error(f"[BATCH RAW] iq_samples dtype: {iq_raw.dtype}")
+                    logger.error(f"[BATCH RAW] iq_samples device: {iq_raw.device}")
+                    logger.error(f"[BATCH RAW] iq_samples min/max BEFORE .to(device): {iq_raw.min():.6e} / {iq_raw.max():.6e}")
+                    logger.error(f"[BATCH RAW] iq_samples mean/std: {iq_raw.mean():.6e} / {iq_raw.std():.6e}")
+                    sys.stderr.write(f"[BATCH RAW] iq_samples stats: min={iq_raw.min():.6e}, max={iq_raw.max():.6e}\n")
+                    sys.stderr.flush()
                 # Check for cancellation every 10 batches for responsive cancellation
                 if batch_idx % 10 == 0 and self.is_aborted():
                     logger.info(f"Training job {job_id} cancelled during batch {batch_idx}. Stopping immediately...")
@@ -575,6 +650,14 @@ def start_training_job(self, job_id: str):
                 if use_iq_dataloader:
                     # IQ models: use iq_samples as input (raw IQ time-series)
                     model_input = batch["iq_samples"].to(device)
+                    
+                    # DEBUG AFTER .to(device)
+                    logger.error(f"[POST-DEVICE] model_input shape: {model_input.shape}")
+                    logger.error(f"[POST-DEVICE] model_input device: {model_input.device}")
+                    logger.error(f"[POST-DEVICE] model_input min/max AFTER .to(device): {model_input.min():.6e} / {model_input.max():.6e}")
+                    logger.error(f"[POST-DEVICE] model_input mean/std: {model_input.mean():.6e} / {model_input.std():.6e}")
+                    sys.stderr.write(f"[POST-DEVICE] model_input stats: min={model_input.min():.6e}, max={model_input.max():.6e}, device={model_input.device}\n")
+                    sys.stderr.flush()
                 else:
                     # Feature-based models: use receiver_features as input
                     model_input = batch["receiver_features"].to(device)
@@ -584,14 +667,129 @@ def start_training_job(self, job_id: str):
 
                 optimizer.zero_grad()
 
-                # Forward pass
-                position, log_variance = model(model_input, signal_mask)
+                # CRITICAL DEBUG: Check model_architecture value
+                sys.stderr.write(f"[CRITICAL] model_architecture='{model_architecture}', type={type(model_architecture)}, epoch={epoch}, batch={batch_idx}\n")
+                sys.stderr.flush()
+                logger.error(f"[CRITICAL] model_architecture='{model_architecture}', type={type(model_architecture)}, epoch={epoch}, batch={batch_idx}")
 
+                # Forward pass - handle HeimdallNet special case
+                if model_architecture == "heimdall_net":
+                    try:
+                        sys.stderr.write(f"[CRITICAL DEBUG] Entered HeimdallNet block for epoch {epoch}, batch {batch_idx}\n")
+                        sys.stderr.flush()
+                        logger.error(f"[CRITICAL DEBUG] Entered HeimdallNet block for epoch {epoch}, batch {batch_idx}")
+                        
+                        # HeimdallNet requires (iq_data, features, positions, receiver_ids, mask)
+                        # Extract from IQ dataloader batch
+                        # BUGFIX: Use model_input which was already transferred to GPU correctly
+                        # Calling .to(device) twice on the same tensor corrupts it!
+                        iq_data = model_input  # Already on device from line 652
+                        
+                        # IMMEDIATE CHECK: Verify iq_data right after assignment
+                        logger.error(f"[IMMEDIATE CHECK 1] iq_data right after assignment: min={iq_data.min():.6e}, max={iq_data.max():.6e}, shape={iq_data.shape}")
+                        logger.error(f"[IMMEDIATE CHECK 2] iq_data is model_input: {iq_data is model_input}")
+                        logger.error(f"[IMMEDIATE CHECK 3] model_input: min={model_input.min():.6e}, max={model_input.max():.6e}")
+                        
+                        receiver_positions_2d = batch["receiver_positions"].to(device)  # (B, N, 2) - lat, lon only
+                        
+                        # Check again after loading positions
+                        logger.error(f"[AFTER POSITIONS] iq_data: min={iq_data.min():.6e}, max={iq_data.max():.6e}")
+                        
+                        # Verify iq_data is correct after fix
+                        logger.error(f"[BUGFIX VERIFY] iq_data is model_input: {iq_data is model_input}")
+                        logger.error(f"[BUGFIX VERIFY] iq_data data_ptr: {iq_data.data_ptr()}, model_input data_ptr: {model_input.data_ptr()}")
+                        logger.error(f"[BUGFIX VERIFY] iq_data min/max after fix: {iq_data.min():.6e} / {iq_data.max():.6e}")
+                        logger.error(f"[DEBUG] Successfully moved iq_data and positions to device")
+                        logger.error(f"[DEBUG] IQ data shape: {iq_data.shape}")
+                        
+                        # Build features tensor: [SNR, PSD, freq_offset, lat, lon, alt]
+                        # For now, use dummy signal features + positions
+                        batch_size_curr, num_receivers_curr = iq_data.shape[0], iq_data.shape[1]
+                        features = torch.zeros(batch_size_curr, num_receivers_curr, 6, device=device)
+                        features[:, :, 0] = 20.0  # Dummy SNR (20 dB)
+                        features[:, :, 1] = -80.0  # Dummy PSD (-80 dBm)
+                        features[:, :, 2] = 0.0  # Dummy freq offset (0 Hz)
+                        features[:, :, 3:5] = receiver_positions_2d  # lat, lon
+                        features[:, :, 5] = 0.0  # Dummy altitude (0 m)
+                        
+                        logger.error(f"[DEBUG] Built features tensor")
+                        
+                        # Expand positions to 3D (add altitude) for HeimdallNet
+                        receiver_positions_3d = torch.zeros(batch_size_curr, num_receivers_curr, 3, device=device)
+                        receiver_positions_3d[:, :, :2] = receiver_positions_2d
+                        receiver_positions_3d[:, :, 2] = 0.0  # Dummy altitude
+                        
+                        # Receiver IDs: Sequential assignment (0, 1, 2, ..., N-1)
+                        receiver_ids = torch.arange(num_receivers_curr, device=device).unsqueeze(0).expand(batch_size_curr, -1)
+                        receiver_ids = torch.clamp(receiver_ids, 0, max_receivers - 1)
+                        
+                        logger.error(f"[DEBUG] Built receiver_ids and positions_3d")
+                        
+                        # Debug logging for first 3 batches to capture potential issues
+                        if epoch == 1 and batch_idx <= 3:
+                            debug_msg = f"\n[HeimdallNet Debug] Epoch {epoch}, Batch {batch_idx} BEFORE forward pass:\n"
+                            debug_msg += f"  iq_data: shape={iq_data.shape}, min={iq_data.min().item():.4f}, max={iq_data.max().item():.4f}, mean={iq_data.mean().item():.4f}, has_nan={torch.isnan(iq_data).any()}, has_inf={torch.isinf(iq_data).any()}\n"
+                            debug_msg += f"  features: shape={features.shape}, min={features.min().item():.4f}, max={features.max().item():.4f}, mean={features.mean().item():.4f}, has_nan={torch.isnan(features).any()}, has_inf={torch.isinf(features).any()}\n"
+                            debug_msg += f"  receiver_positions_3d: shape={receiver_positions_3d.shape}, min={receiver_positions_3d.min().item():.4f}, max={receiver_positions_3d.max().item():.4f}, has_nan={torch.isnan(receiver_positions_3d).any()}\n"
+                            debug_msg += f"  receiver_ids: shape={receiver_ids.shape}, min={receiver_ids.min().item()}, max={receiver_ids.max().item()}, unique_count={len(torch.unique(receiver_ids))}\n"
+                            debug_msg += f"  signal_mask: shape={signal_mask.shape}, true_count={signal_mask.sum().item()}, false_count={(~signal_mask).sum().item()}\n"
+                            debug_msg += f"  target_position: shape={target_position.shape}, min={target_position.min().item():.4f}, max={target_position.max().item():.4f}\n"
+                            
+                            # Write to both stdout and file
+                            logger.error(debug_msg)  # Use logger.error to ensure it appears
+                            with open("/tmp/heimdall_debug.log", "a") as f:
+                                f.write(debug_msg)
+                                f.flush()
+                        
+                        logger.error(f"[DEBUG] About to call model forward pass")
+                        
+                        # Forward pass with all 5 arguments
+                        # MASK SEMANTICS CLARIFICATION:
+                        # - DataLoader produces: True = padding, False = active
+                        # - HeimdallNet.forward() expects: True = active, False = padding (per docstring)
+                        # - GeometryEncoder expects: True = active (uses & operator on mask)
+                        # - SetAttentionAggregator internally converts to PyTorch format before calling MultiheadAttention
+                        # 
+                        # Therefore: INVERT the mask when passing to model
+                        model_mask = ~signal_mask  # Invert: True = active, False = padding
+                        position, log_variance = model(iq_data, features, receiver_positions_3d, receiver_ids, model_mask)
+                        
+                        logger.error(f"[DEBUG] Model forward pass completed successfully")
+                        
+                        # Debug logging for outputs
+                        if epoch == 1 and batch_idx <= 3:
+                            debug_msg = f"  Output position: shape={position.shape}, min={position.min().item():.4f}, max={position.max().item():.4f}, mean={position.mean().item():.4f}, has_nan={torch.isnan(position).any()}\n"
+                            debug_msg += f"  Output log_variance: shape={log_variance.shape}, min={log_variance.min().item():.4f}, max={log_variance.max().item():.4f}, mean={log_variance.mean().item():.4f}, has_nan={torch.isnan(log_variance).any()}\n"
+                            logger.error(debug_msg)
+                            with open("/tmp/heimdall_debug.log", "a") as f:
+                                f.write(debug_msg)
+                                f.flush()
+                    
+                    except Exception as e:
+                        logger.error(f"[EXCEPTION IN HEIMDALLNET BLOCK] {type(e).__name__}: {str(e)}")
+                        logger.error(f"[EXCEPTION] Epoch {epoch}, Batch {batch_idx}")
+                        import traceback
+                        logger.error(f"[TRACEBACK] {traceback.format_exc()}")
+                        raise  # Re-raise to maintain original behavior
+                else:
+                    # Standard models: (model_input, signal_mask)
+                    position, log_variance = model(model_input, signal_mask)
+
+                # Debug loss inputs for first 3 batches
+                if epoch == 1 and batch_idx <= 3:
+                    logger.error(f"[LOSS DEBUG] Batch {batch_idx}:")
+                    logger.error(f"  position: min={position.min().item():.6e}, max={position.max().item():.6e}, mean={position.mean().item():.6e}, has_nan={torch.isnan(position).any()}")
+                    logger.error(f"  log_variance: min={log_variance.min().item():.6e}, max={log_variance.max().item():.6e}, mean={log_variance.mean().item():.6e}, has_nan={torch.isnan(log_variance).any()}")
+                    logger.error(f"  target_position: min={target_position.min().item():.6e}, max={target_position.max().item():.6e}, mean={target_position.mean().item():.6e}, has_nan={torch.isnan(target_position).any()}")
+                
                 # Calculate loss
                 loss = gaussian_nll_loss(position, log_variance, target_position)
                 
                 # Check for loss explosion (NaN, Inf, or extremely high values)
                 loss_value = loss.item()
+                if epoch == 1 and batch_idx <= 3:
+                    logger.error(f"[LOSS DEBUG] Loss value for batch {batch_idx}: {loss_value:.6e}, is_nan={math.isnan(loss_value)}, is_inf={math.isinf(loss_value)}")
+                
                 if math.isnan(loss_value) or math.isinf(loss_value) or loss_value > 100000:
                     error_msg = (
                         f"Training failed: Loss explosion detected at epoch {epoch}, batch {batch_idx}. "
@@ -686,7 +884,35 @@ def start_training_job(self, job_id: str):
                     target_position = batch["target_position"].to(device)
                     gdop = batch["metadata"]["gdop"]
 
-                    position, log_variance = model(model_input, signal_mask)
+                    # Forward pass - handle HeimdallNet special case
+                    if model_architecture == "heimdall_net":
+                        # HeimdallNet requires (iq_data, features, positions, receiver_ids, mask)
+                        iq_data = batch["iq_samples"].to(device)
+                        receiver_positions_2d = batch["receiver_positions"].to(device)  # (B, N, 2) - lat, lon only
+                        
+                        # Build features tensor: [SNR, PSD, freq_offset, lat, lon, alt]
+                        batch_size_curr, num_receivers_curr = iq_data.shape[0], iq_data.shape[1]
+                        features = torch.zeros(batch_size_curr, num_receivers_curr, 6, device=device)
+                        features[:, :, 0] = 20.0  # Dummy SNR
+                        features[:, :, 1] = -80.0  # Dummy PSD
+                        features[:, :, 2] = 0.0  # Dummy freq offset
+                        features[:, :, 3:5] = receiver_positions_2d  # lat, lon
+                        features[:, :, 5] = 0.0  # Dummy altitude
+                        
+                        # Expand positions to 3D (add altitude) for HeimdallNet
+                        receiver_positions_3d = torch.zeros(batch_size_curr, num_receivers_curr, 3, device=device)
+                        receiver_positions_3d[:, :, :2] = receiver_positions_2d
+                        receiver_positions_3d[:, :, 2] = 0.0  # Dummy altitude
+                        
+                        # Receiver IDs
+                        receiver_ids = torch.arange(num_receivers_curr, device=device).unsqueeze(0).expand(batch_size_curr, -1)
+                        receiver_ids = torch.clamp(receiver_ids, 0, max_receivers - 1)
+                        
+                        position, log_variance = model(iq_data, features, receiver_positions_3d, receiver_ids, signal_mask)
+                    else:
+                        # Standard models
+                        position, log_variance = model(model_input, signal_mask)
+                    
                     loss = gaussian_nll_loss(position, log_variance, target_position)
                     
                     # Check for validation loss explosion

@@ -350,8 +350,17 @@ def gaussian_nll_loss(
     # Calculate squared error
     mse = torch.sum((predicted_position - true_position) ** 2, dim=1, keepdim=True)  # (batch_size, 1)
     
+    # Clamp log_variance to prevent exp() explosion (numerical stability)
+    # Range: [-10, 10] → variance range: [4.5e-5, 22026]
+    # This prevents NaN from exp(large_number) while allowing reasonable uncertainty range
+    log_variance = torch.clamp(log_variance, min=-10.0, max=10.0)
+    
     # Convert log_variance to variance
     variance = torch.exp(log_variance)  # (batch_size, 1)
+    
+    # Add epsilon to variance for numerical stability (prevent division by zero)
+    epsilon = 1e-6
+    variance = variance + epsilon
     
     # Gaussian NLL
     nll = 0.5 * (mse / variance + log_variance)

@@ -29,6 +29,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Tuple
 import math
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 # ============================================================================
@@ -151,7 +154,7 @@ class EfficientNetB2_1D(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: (batch, 2, 1024) - IQ samples
+            x: (batch, 2, L) - IQ samples (L = any length, e.g., 1024, 200000)
         Returns:
             features: (batch, out_dim)
         """
@@ -230,7 +233,7 @@ class PerReceiverEncoder(nn.Module):
     def forward(self, iq_raw, features, receiver_id):
         """
         Args:
-            iq_raw: (batch, 2, 1024) - IQ data
+            iq_raw: (batch, 2, L) - IQ data (L = any length, e.g., 1024, 200000)
             features: (batch, 6) - [SNR, PSD, freq_offset, lat, lon, alt]
             receiver_id: (batch,) - receiver ID (0 to max_receivers-1)
         Returns:
@@ -273,18 +276,20 @@ class SetAttentionAggregator(nn.Module):
         - Max pooling (captures strongest signal)
         - Mean pooling (average characteristics)
         - Quality-weighted pooling (SNR-aware attention)
-        - Self-attention (inter-receiver relationships)
+    
+    NOTE: Originally used MultiheadAttention but it was unstable with 
+    variable masking patterns (NaN issues). Simplified to pure pooling.
     """
     
     def __init__(self, dim=256, num_heads=8, dropout=0.1):
         super().__init__()
         
-        # Self-attention between receivers
-        self.self_attn = nn.MultiheadAttention(
-            embed_dim=dim,
-            num_heads=num_heads,
-            dropout=dropout,
-            batch_first=True
+        # Per-receiver transformation (replaces self-attention)
+        self.receiver_transform = nn.Sequential(
+            nn.Linear(dim, dim),
+            nn.LayerNorm(dim),
+            nn.GELU(),
+            nn.Dropout(dropout)
         )
         
         # Quality-weighted pooling network
@@ -310,44 +315,54 @@ class SetAttentionAggregator(nn.Module):
         Returns:
             aggregated: (batch, 256) - global representation
         """
-        # Self-attention between receivers (with masking)
-        attn_mask = ~mask if mask is not None else None
-        attn_out, _ = self.self_attn(
-            receiver_embeddings,
-            receiver_embeddings,
-            receiver_embeddings,
-            key_padding_mask=attn_mask
-        )
+        logger.error(f"[AGGREGATOR] Input embeddings: min={receiver_embeddings.min():.6e}, max={receiver_embeddings.max():.6e}, has_nan={torch.isnan(receiver_embeddings).any()}")
         
-        # Apply mask to embeddings if needed
+        # Transform each receiver embedding independently
+        transformed = self.receiver_transform(receiver_embeddings)  # (B, N, 256)
+        logger.error(f"[AGGREGATOR] After transform: min={transformed.min():.6e}, max={transformed.max():.6e}, has_nan={torch.isnan(transformed).any()}")
+        
+        # Apply mask to embeddings if provided
+        # MASK SEMANTICS: True = active receiver, False = padding
         if mask is not None:
-            mask_expanded = mask.unsqueeze(-1).float()
-            attn_out = attn_out * mask_expanded
+            mask_expanded = mask.unsqueeze(-1).float()  # (B, N, 1)
+            transformed = transformed * mask_expanded
+            logger.error(f"[AGGREGATOR] After masking: min={transformed.min():.6e}, max={transformed.max():.6e}, has_nan={torch.isnan(transformed).any()}")
         
-        # Max pooling (permutation-invariant)
-        max_pool = torch.max(attn_out, dim=1)[0]  # (B, D)
+        # Max pooling (captures strongest signal)
+        max_pool = torch.max(transformed, dim=1)[0]  # (B, 256)
+        logger.error(f"[AGGREGATOR] Max pool: min={max_pool.min():.6e}, max={max_pool.max():.6e}, has_nan={torch.isnan(max_pool).any()}")
         
-        # Mean pooling (permutation-invariant)
+        # Mean pooling (average characteristics)
         if mask is not None:
-            sum_pool = torch.sum(attn_out, dim=1)
-            count = mask.sum(dim=1, keepdim=True).clamp(min=1)
-            mean_pool = sum_pool / count
+            sum_pool = torch.sum(transformed, dim=1)  # (B, 256)
+            active_count = mask.sum(dim=1, keepdim=True).float().clamp(min=1.0)  # (B, 1)
+            mean_pool = sum_pool / active_count
         else:
-            mean_pool = torch.mean(attn_out, dim=1)
+            mean_pool = torch.mean(transformed, dim=1)
+        logger.error(f"[AGGREGATOR] Mean pool: min={mean_pool.min():.6e}, max={mean_pool.max():.6e}, has_nan={torch.isnan(mean_pool).any()}")
         
-        # Quality-weighted pooling (permutation-invariant after softmax)
-        quality_scores = self.quality_net(attn_out)  # (B, N, 1)
+        # Quality-weighted pooling
+        quality_scores = self.quality_net(transformed)  # (B, N, 1)
+        logger.error(f"[AGGREGATOR] Quality scores (raw): min={quality_scores.min():.6e}, max={quality_scores.max():.6e}, has_nan={torch.isnan(quality_scores).any()}")
         
         if mask is not None:
-            # Mask out padded receivers before softmax
-            quality_scores = quality_scores.masked_fill(~mask.unsqueeze(-1), float('-inf'))
+            # Mask out padding before softmax (True = active, False = padding)
+            quality_scores = quality_scores.masked_fill(~mask.unsqueeze(-1), -1e9)
         
         quality_weights = F.softmax(quality_scores, dim=1)  # (B, N, 1)
-        weighted_pool = torch.sum(attn_out * quality_weights, dim=1)  # (B, D)
+        logger.error(f"[AGGREGATOR] Quality weights: min={quality_weights.min():.6e}, max={quality_weights.max():.6e}, has_nan={torch.isnan(quality_weights).any()}")
         
-        # Combine all pooling strategies
-        combined = torch.cat([max_pool, mean_pool, weighted_pool], dim=-1)
-        return self.pool_combiner(combined)
+        weighted_pool = torch.sum(transformed * quality_weights, dim=1)  # (B, 256)
+        logger.error(f"[AGGREGATOR] Weighted pool: min={weighted_pool.min():.6e}, max={weighted_pool.max():.6e}, has_nan={torch.isnan(weighted_pool).any()}")
+        
+        # Combine all three pooling strategies
+        combined = torch.cat([max_pool, mean_pool, weighted_pool], dim=-1)  # (B, 768)
+        logger.error(f"[AGGREGATOR] Combined: min={combined.min():.6e}, max={combined.max():.6e}, has_nan={torch.isnan(combined).any()}")
+        
+        result = self.pool_combiner(combined)  # (B, 256)
+        logger.error(f"[AGGREGATOR] Final result: min={result.min():.6e}, max={result.max():.6e}, has_nan={torch.isnan(result).any()}")
+        
+        return result
 
 
 # ============================================================================
@@ -542,7 +557,7 @@ class HeimdallNet(nn.Module):
         Forward pass.
         
         Args:
-            iq_data: (batch, N_receivers, 2, 1024) - IQ samples
+            iq_data: (batch, N_receivers, 2, L) - IQ samples (L = any length)
             features: (batch, N_receivers, 6) - [SNR, PSD, freq, lat, lon, alt]
             positions: (batch, N_receivers, 3) - [lat, lon, alt]
             receiver_ids: (batch, N_receivers) - receiver IDs (0 to max_receivers-1)
@@ -554,32 +569,49 @@ class HeimdallNet(nn.Module):
         """
         B, N, _, _ = iq_data.shape
         
+        # DEBUG: Check inputs
+        logger.error(f"[FORWARD] Input iq_data: min={iq_data.min():.6e}, max={iq_data.max():.6e}, has_nan={torch.isnan(iq_data).any()}")
+        logger.error(f"[FORWARD] Input features: min={features.min():.6e}, max={features.max():.6e}, has_nan={torch.isnan(features).any()}")
+        logger.error(f"[FORWARD] Input positions: min={positions.min():.6e}, max={positions.max():.6e}, has_nan={torch.isnan(positions).any()}")
+        
         # Encode each receiver (shared weights + identity embeddings)
         receiver_embeddings = []
         for i in range(N):
             embed = self.receiver_encoder(
-                iq_data[:, i],      # (B, 2, 1024)
+                iq_data[:, i],      # (B, 2, L)
                 features[:, i],     # (B, 6)
                 receiver_ids[:, i]  # (B,)
             )
+            # DEBUG: Check each embedding
+            if torch.isnan(embed).any():
+                logger.error(f"[FORWARD] NaN detected in receiver {i} embedding!")
+                logger.error(f"[FORWARD] Receiver {i} iq_data: min={iq_data[:, i].min():.6e}, max={iq_data[:, i].max():.6e}")
+                logger.error(f"[FORWARD] Receiver {i} features: {features[:, i]}")
             receiver_embeddings.append(embed)
         
         receiver_embeddings = torch.stack(receiver_embeddings, dim=1)  # (B, N, 256)
+        logger.error(f"[FORWARD] Receiver embeddings: min={receiver_embeddings.min():.6e}, max={receiver_embeddings.max():.6e}, has_nan={torch.isnan(receiver_embeddings).any()}")
         
         # Aggregate receivers (permutation-invariant)
         aggregated = self.set_aggregator(receiver_embeddings, mask)  # (B, 256)
+        logger.error(f"[FORWARD] Aggregated: min={aggregated.min():.6e}, max={aggregated.max():.6e}, has_nan={torch.isnan(aggregated).any()}")
         
         # Encode geometry
         geometry = self.geometry_encoder(positions, mask)  # (B, 256)
+        logger.error(f"[FORWARD] Geometry: min={geometry.min():.6e}, max={geometry.max():.6e}, has_nan={torch.isnan(geometry).any()}")
         
         # Global fusion
         global_repr = self.global_fusion(
             torch.cat([aggregated, geometry], dim=-1)
         )  # (B, 256)
+        logger.error(f"[FORWARD] Global repr: min={global_repr.min():.6e}, max={global_repr.max():.6e}, has_nan={torch.isnan(global_repr).any()}")
         
         # Dual-head output
         pred_position = self.position_head(global_repr)
         pred_uncertainty = self.uncertainty_head(global_repr)
+        
+        logger.error(f"[FORWARD] Pred position: min={pred_position.min():.6e}, max={pred_position.max():.6e}, has_nan={torch.isnan(pred_position).any()}")
+        logger.error(f"[FORWARD] Pred uncertainty: min={pred_uncertainty.min():.6e}, max={pred_uncertainty.max():.6e}, has_nan={torch.isnan(pred_uncertainty).any()}")
         
         return pred_position, pred_uncertainty
 
@@ -606,8 +638,8 @@ def create_heimdall_net(
     
     Example:
         >>> model = create_heimdall_net(max_receivers=7)
-        >>> # Input shapes
-        >>> iq = torch.randn(4, 3, 2, 1024)      # batch=4, receivers=3
+        >>> # Input shapes (L = IQ sample length, flexible)
+        >>> iq = torch.randn(4, 3, 2, 200000)    # batch=4, receivers=3, 200k samples
         >>> feats = torch.randn(4, 3, 6)
         >>> pos = torch.randn(4, 3, 3)
         >>> ids = torch.tensor([[0, 2, 4]] * 4)   # SDR IDs: 0, 2, 4
