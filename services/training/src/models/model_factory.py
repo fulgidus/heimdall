@@ -25,7 +25,12 @@ from .iq_efficientnet import IQEfficientNetB4
 from .iq_transformer import IQTransformer
 from .iq_wavenet import IQWaveNet
 from .hybrid_models import IQHybridNet
-from .heimdall_net import HeimdallNet, create_heimdall_net
+from .heimdall_net import (
+    HeimdallNet,
+    create_heimdall_net,
+    HeimdallNetPro,
+    create_heimdall_net_pro,
+)
 from .triangulator import TriangulationModel
 # LocalizationEnsembleFlagship imported inline in factory to avoid circular imports
 
@@ -209,6 +214,13 @@ def create_model_from_registry(
     # ------------------------------------------------------------------------
     elif model_id == "heimdall_net":
         model = create_heimdall_net(
+            max_receivers=max_receivers,
+            use_calibration=kwargs.get("use_calibration", True),
+            dropout=dropout
+        )
+    
+    elif model_id == "heimdall_net_pro":
+        model = create_heimdall_net_pro(
             max_receivers=max_receivers,
             use_calibration=kwargs.get("use_calibration", True),
             dropout=dropout

@@ -44,7 +44,12 @@ from .iq_wavenet import IQWaveNet
 from .hybrid_models import IQHybridNet
 
 # Multi-modal models
-from .heimdall_net import HeimdallNet, create_heimdall_net
+from .heimdall_net import (
+    HeimdallNet,
+    create_heimdall_net,
+    HeimdallNetPro,
+    create_heimdall_net_pro,
+)
 
 # Model registry
 from .model_registry import (
@@ -90,6 +95,8 @@ __all__ = [
     # Multi-Modal
     "HeimdallNet",
     "create_heimdall_net",
+    "HeimdallNetPro",
+    "create_heimdall_net_pro",
     
     # Registry
     "MODEL_REGISTRY",

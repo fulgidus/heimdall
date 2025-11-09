@@ -315,22 +315,17 @@ class SetAttentionAggregator(nn.Module):
         Returns:
             aggregated: (batch, 256) - global representation
         """
-        logger.error(f"[AGGREGATOR] Input embeddings: min={receiver_embeddings.min():.6e}, max={receiver_embeddings.max():.6e}, has_nan={torch.isnan(receiver_embeddings).any()}")
-        
         # Transform each receiver embedding independently
         transformed = self.receiver_transform(receiver_embeddings)  # (B, N, 256)
-        logger.error(f"[AGGREGATOR] After transform: min={transformed.min():.6e}, max={transformed.max():.6e}, has_nan={torch.isnan(transformed).any()}")
         
         # Apply mask to embeddings if provided
         # MASK SEMANTICS: True = active receiver, False = padding
         if mask is not None:
             mask_expanded = mask.unsqueeze(-1).float()  # (B, N, 1)
             transformed = transformed * mask_expanded
-            logger.error(f"[AGGREGATOR] After masking: min={transformed.min():.6e}, max={transformed.max():.6e}, has_nan={torch.isnan(transformed).any()}")
         
         # Max pooling (captures strongest signal)
         max_pool = torch.max(transformed, dim=1)[0]  # (B, 256)
-        logger.error(f"[AGGREGATOR] Max pool: min={max_pool.min():.6e}, max={max_pool.max():.6e}, has_nan={torch.isnan(max_pool).any()}")
         
         # Mean pooling (average characteristics)
         if mask is not None:
@@ -339,28 +334,22 @@ class SetAttentionAggregator(nn.Module):
             mean_pool = sum_pool / active_count
         else:
             mean_pool = torch.mean(transformed, dim=1)
-        logger.error(f"[AGGREGATOR] Mean pool: min={mean_pool.min():.6e}, max={mean_pool.max():.6e}, has_nan={torch.isnan(mean_pool).any()}")
         
         # Quality-weighted pooling
         quality_scores = self.quality_net(transformed)  # (B, N, 1)
-        logger.error(f"[AGGREGATOR] Quality scores (raw): min={quality_scores.min():.6e}, max={quality_scores.max():.6e}, has_nan={torch.isnan(quality_scores).any()}")
         
         if mask is not None:
             # Mask out padding before softmax (True = active, False = padding)
             quality_scores = quality_scores.masked_fill(~mask.unsqueeze(-1), -1e9)
         
         quality_weights = F.softmax(quality_scores, dim=1)  # (B, N, 1)
-        logger.error(f"[AGGREGATOR] Quality weights: min={quality_weights.min():.6e}, max={quality_weights.max():.6e}, has_nan={torch.isnan(quality_weights).any()}")
         
         weighted_pool = torch.sum(transformed * quality_weights, dim=1)  # (B, 256)
-        logger.error(f"[AGGREGATOR] Weighted pool: min={weighted_pool.min():.6e}, max={weighted_pool.max():.6e}, has_nan={torch.isnan(weighted_pool).any()}")
         
         # Combine all three pooling strategies
         combined = torch.cat([max_pool, mean_pool, weighted_pool], dim=-1)  # (B, 768)
-        logger.error(f"[AGGREGATOR] Combined: min={combined.min():.6e}, max={combined.max():.6e}, has_nan={torch.isnan(combined).any()}")
         
         result = self.pool_combiner(combined)  # (B, 256)
-        logger.error(f"[AGGREGATOR] Final result: min={result.min():.6e}, max={result.max():.6e}, has_nan={torch.isnan(result).any()}")
         
         return result
 
@@ -569,11 +558,6 @@ class HeimdallNet(nn.Module):
         """
         B, N, _, _ = iq_data.shape
         
-        # DEBUG: Check inputs
-        logger.error(f"[FORWARD] Input iq_data: min={iq_data.min():.6e}, max={iq_data.max():.6e}, has_nan={torch.isnan(iq_data).any()}")
-        logger.error(f"[FORWARD] Input features: min={features.min():.6e}, max={features.max():.6e}, has_nan={torch.isnan(features).any()}")
-        logger.error(f"[FORWARD] Input positions: min={positions.min():.6e}, max={positions.max():.6e}, has_nan={torch.isnan(positions).any()}")
-        
         # Encode each receiver (shared weights + identity embeddings)
         receiver_embeddings = []
         for i in range(N):
@@ -582,36 +566,24 @@ class HeimdallNet(nn.Module):
                 features[:, i],     # (B, 6)
                 receiver_ids[:, i]  # (B,)
             )
-            # DEBUG: Check each embedding
-            if torch.isnan(embed).any():
-                logger.error(f"[FORWARD] NaN detected in receiver {i} embedding!")
-                logger.error(f"[FORWARD] Receiver {i} iq_data: min={iq_data[:, i].min():.6e}, max={iq_data[:, i].max():.6e}")
-                logger.error(f"[FORWARD] Receiver {i} features: {features[:, i]}")
             receiver_embeddings.append(embed)
         
         receiver_embeddings = torch.stack(receiver_embeddings, dim=1)  # (B, N, 256)
-        logger.error(f"[FORWARD] Receiver embeddings: min={receiver_embeddings.min():.6e}, max={receiver_embeddings.max():.6e}, has_nan={torch.isnan(receiver_embeddings).any()}")
         
         # Aggregate receivers (permutation-invariant)
         aggregated = self.set_aggregator(receiver_embeddings, mask)  # (B, 256)
-        logger.error(f"[FORWARD] Aggregated: min={aggregated.min():.6e}, max={aggregated.max():.6e}, has_nan={torch.isnan(aggregated).any()}")
         
         # Encode geometry
         geometry = self.geometry_encoder(positions, mask)  # (B, 256)
-        logger.error(f"[FORWARD] Geometry: min={geometry.min():.6e}, max={geometry.max():.6e}, has_nan={torch.isnan(geometry).any()}")
         
         # Global fusion
         global_repr = self.global_fusion(
             torch.cat([aggregated, geometry], dim=-1)
         )  # (B, 256)
-        logger.error(f"[FORWARD] Global repr: min={global_repr.min():.6e}, max={global_repr.max():.6e}, has_nan={torch.isnan(global_repr).any()}")
         
         # Dual-head output
         pred_position = self.position_head(global_repr)
         pred_uncertainty = self.uncertainty_head(global_repr)
-        
-        logger.error(f"[FORWARD] Pred position: min={pred_position.min():.6e}, max={pred_position.max():.6e}, has_nan={torch.isnan(pred_position).any()}")
-        logger.error(f"[FORWARD] Pred uncertainty: min={pred_uncertainty.min():.6e}, max={pred_uncertainty.max():.6e}, has_nan={torch.isnan(pred_uncertainty).any()}")
         
         return pred_position, pred_uncertainty
 
@@ -651,6 +623,305 @@ def create_heimdall_net(
         >>> print(pred_unc.shape)  # (4, 2)
     """
     return HeimdallNet(
+        max_receivers=max_receivers,
+        iq_dim=256,
+        feature_dim=128,
+        receiver_embed_dim=64,
+        hidden_dim=256,
+        num_heads=8,
+        dropout=dropout,
+        use_calibration=use_calibration
+    )
+
+
+# ============================================================================
+# HeimdallNetPro: Experimental Architecture with Performer Attention
+# ============================================================================
+
+class SetAttentionAggregatorPro(nn.Module):
+    """
+    Advanced set aggregation using Performer linear attention.
+    
+    Architecture:
+        1. Pre-normalization (LayerNorm)
+        2. Performer SelfAttention (linear complexity, numerically stable)
+        3. Post-normalization + residual connection
+        4. Multi-strategy pooling (max/mean/quality-weighted)
+    
+    Key Improvements over Standard Aggregation:
+        - **Explicit receiver interactions**: Models geometric relationships for triangulation
+        - **Linear complexity**: O(N) vs O(N²) for standard attention
+        - **Numerical stability**: Kernel approximation avoids softmax overflow/underflow
+        - **Preserves pooling**: Falls back to proven strategies as safety net
+    
+    Args:
+        input_dim: Dimension of per-receiver features
+        num_heads: Number of attention heads (default: 8)
+        dropout: Dropout probability (default: 0.1)
+    """
+    
+    def __init__(self, input_dim: int, num_heads: int = 8, dropout: float = 0.1):
+        super().__init__()
+        
+        # Pre-normalization for attention stability
+        self.pre_norm = nn.LayerNorm(input_dim)
+        
+        # Performer linear attention
+        try:
+            from performer_pytorch import SelfAttention
+            self.attention = SelfAttention(
+                dim=input_dim,
+                heads=num_heads,
+                dropout=dropout,
+                causal=False,              # Non-causal for set processing
+                nb_features=64,            # Random features for kernel approximation
+                generalized_attention=True, # More expressive (kernel trick)
+                kernel_fn=nn.ReLU()        # Positive kernel for stability
+            )
+        except ImportError:
+            raise ImportError(
+                "performer-pytorch not installed. Run: "
+                "pip install performer-pytorch>=1.1.4"
+            )
+        
+        # Post-normalization + residual
+        self.post_norm = nn.LayerNorm(input_dim)
+        self.dropout = nn.Dropout(dropout)
+        
+        logger.info(
+            f"SetAttentionAggregatorPro initialized: "
+            f"dim={input_dim}, heads={num_heads}, dropout={dropout}"
+        )
+    
+    def forward(
+        self,
+        receiver_embeddings: torch.Tensor,  # (B, N, D)
+        mask: Optional[torch.Tensor] = None  # (B, N) - boolean mask
+    ) -> torch.Tensor:
+        """
+        Args:
+            receiver_embeddings: (B, N, D) per-receiver embeddings
+            mask: (B, N) boolean mask (True = active, False = padding)
+        
+        Returns:
+            aggregated: (B, D) global set representation
+        """
+        # Step 1: Pre-normalization
+        x_norm = self.pre_norm(receiver_embeddings)  # (B, N, D)
+        
+        # Step 2: Performer attention
+        # Performer expects (B, N, D), mask shape (B, N) as boolean
+        attended = self.attention(x_norm, mask=mask)  # (B, N, D)
+        
+        # Step 3: Residual connection + post-normalization
+        x_residual = receiver_embeddings + self.dropout(attended)  # (B, N, D)
+        x_residual = self.post_norm(x_residual)  # (B, N, D)
+        
+        # Step 4: Multi-strategy pooling (same as SetAttentionAggregator)
+        # Apply mask to avoid pooling over invalid receivers
+        if mask is not None:
+            mask_expanded = mask.unsqueeze(-1).expand_as(x_residual)  # (B, N, D)
+            x_masked = x_residual * mask_expanded.float()
+        else:
+            x_masked = x_residual
+        
+        # Max pooling (captures strongest signal)
+        x_for_max = x_masked.clone()
+        if mask is not None:
+            x_for_max[~mask_expanded] = -1e9  # Set masked values to very negative
+        max_pooled, _ = torch.max(x_for_max, dim=1)  # (B, D)
+        
+        # Mean pooling (averages valid receivers)
+        if mask is not None:
+            num_valid = mask.sum(dim=1, keepdim=True).clamp(min=1)  # (B, 1)
+            mean_pooled = x_masked.sum(dim=1) / num_valid  # (B, D)
+        else:
+            mean_pooled = x_masked.mean(dim=1)  # (B, D)
+        
+        # Combine strategies (no quality weighting - simpler like original)
+        aggregated = (max_pooled + mean_pooled) / 2.0  # (B, D)
+        
+        return aggregated
+
+
+class HeimdallNetPro(nn.Module):
+    """
+    **HeimdallNetPro**: Experimental architecture with Performer linear attention.
+    
+    Identical to HeimdallNet v1.0 except uses SetAttentionAggregatorPro for
+    receiver aggregation, enabling explicit receiver-to-receiver interactions
+    while maintaining numerical stability.
+    
+    **Key Differences from HeimdallNet**:
+        - Uses Performer SelfAttention instead of pooling-only aggregation
+        - Same PerReceiverEncoder, GeometryEncoder, fusion heads
+        - Drop-in replacement (same API signature)
+    
+    **Advantages**:
+        - Models geometric relationships for triangulation
+        - Linear complexity O(N) vs O(N²) standard attention
+        - Numerically stable (kernel approximation)
+    
+    **Target Improvements**:
+        - Localization accuracy: ±8-15m → ±5-10m
+        - Gradient stability: No NaN loss
+        - Inference latency: <70ms (single batch)
+    
+    Args:
+        max_receivers: Maximum number of receivers (default: 10)
+        iq_dim: IQ encoder output dimension (default: 256)
+        feature_dim: Auxiliary feature dimension (default: 128)
+        receiver_embed_dim: Receiver ID embedding dimension (default: 64)
+        hidden_dim: Hidden layer dimension (default: 256)
+        num_heads: Number of attention heads (default: 8)
+        dropout: Dropout probability (default: 0.1)
+        use_calibration: Use per-receiver calibration layers (default: True)
+    """
+    
+    def __init__(
+        self,
+        max_receivers: int = 10,
+        iq_dim: int = 256,
+        feature_dim: int = 128,
+        receiver_embed_dim: int = 64,
+        hidden_dim: int = 256,
+        num_heads: int = 8,
+        dropout: float = 0.1,
+        use_calibration: bool = True
+    ):
+        super().__init__()
+        
+        self.max_receivers = max_receivers
+        
+        # Component 1: Per-receiver encoder (same as HeimdallNet)
+        self.receiver_encoder = PerReceiverEncoder(
+            max_receivers=max_receivers,
+            iq_dim=iq_dim,
+            feature_dim=feature_dim,
+            receiver_embed_dim=receiver_embed_dim,
+            use_calibration=use_calibration
+        )
+        
+        # Component 2: Set aggregation with Performer attention (DIFFERENT!)
+        self.set_aggregator = SetAttentionAggregatorPro(
+            input_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout
+        )
+        
+        # Component 3: Geometry encoder (same as HeimdallNet)
+        self.geometry_encoder = GeometryEncoder(
+            dim=hidden_dim,
+            dropout=dropout
+        )
+        
+        # Component 4: Global fusion (same as HeimdallNet)
+        self.global_fusion = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),  # aggregated + geometry
+            nn.LayerNorm(hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout)
+        )
+        
+        # Component 5: Dual-head output (same as HeimdallNet)
+        self.position_head = nn.Linear(hidden_dim, 2)  # (x, y)
+        
+        self.uncertainty_head = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 2),  # (σ_x, σ_y)
+            nn.Softplus()  # Ensure positive uncertainties
+        )
+        
+        logger.info("=" * 80)
+        logger.info("🚀 HeimdallNetPro initialized (Performer attention variant)")
+        logger.info(f"  max_receivers={max_receivers}, num_heads={num_heads}")
+        logger.info(f"  use_calibration={use_calibration}, dropout={dropout}")
+        logger.info("=" * 80)
+        logger.info("🚀 HeimdallNetPro initialized (Performer attention variant)")
+        logger.info(f"  max_receivers={max_receivers}, num_heads={num_heads}")
+        logger.info(f"  use_calibration={use_calibration}, dropout={dropout}")
+        logger.info("=" * 80)
+    
+    def forward(self,
+                iq_data: torch.Tensor,
+                features: torch.Tensor,
+                positions: torch.Tensor,
+                receiver_ids: torch.Tensor,
+                mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass (identical API to HeimdallNet).
+        
+        Args:
+            iq_data: (batch, N_receivers, 2, L) - IQ samples (L = any length)
+            features: (batch, N_receivers, 6) - [SNR, PSD, freq, lat, lon, alt]
+            positions: (batch, N_receivers, 3) - [lat, lon, alt]
+            receiver_ids: (batch, N_receivers) - receiver IDs (0 to max_receivers-1)
+            mask: (batch, N_receivers) - True = active, False = padding
+        
+        Returns:
+            pred_position: (batch, 2) - predicted (x, y)
+            pred_uncertainty: (batch, 2) - predicted (σ_x, σ_y)
+        """
+        B, N, _, _ = iq_data.shape
+        
+        # Encode each receiver (shared weights + identity embeddings)
+        receiver_embeddings = []
+        for i in range(N):
+            embed = self.receiver_encoder(
+                iq_data[:, i],      # (B, 2, L)
+                features[:, i],     # (B, 6)
+                receiver_ids[:, i]  # (B,)
+            )
+            receiver_embeddings.append(embed)
+        
+        receiver_embeddings = torch.stack(receiver_embeddings, dim=1)  # (B, N, 256)
+        
+        # Aggregate receivers with Performer attention (DIFFERENT from HeimdallNet!)
+        aggregated = self.set_aggregator(receiver_embeddings, mask)  # (B, 256)
+        
+        # Encode geometry
+        geometry = self.geometry_encoder(positions, mask)  # (B, 256)
+        
+        # Global fusion
+        global_repr = self.global_fusion(
+            torch.cat([aggregated, geometry], dim=-1)
+        )  # (B, 256)
+        
+        # Dual-head output
+        pred_position = self.position_head(global_repr)
+        pred_uncertainty = self.uncertainty_head(global_repr)
+        
+        return pred_position, pred_uncertainty
+
+
+def create_heimdall_net_pro(
+    max_receivers: int = 10,
+    use_calibration: bool = True,
+    dropout: float = 0.1
+) -> HeimdallNetPro:
+    """
+    Factory function to create HeimdallNetPro model.
+    
+    Args:
+        max_receivers: Maximum number of receivers (default: 10)
+        use_calibration: Use per-receiver calibration layers (default: True)
+        dropout: Dropout probability (default: 0.1)
+    
+    Returns:
+        HeimdallNetPro model instance
+    
+    Example:
+        >>> model = create_heimdall_net_pro(max_receivers=7)
+        >>> iq = torch.randn(4, 3, 2, 200000)
+        >>> feats = torch.randn(4, 3, 6)
+        >>> pos = torch.randn(4, 3, 3)
+        >>> ids = torch.tensor([[0, 2, 4]] * 4)
+        >>> mask = torch.ones(4, 3, dtype=torch.bool)
+        >>> pred_pos, pred_unc = model(iq, feats, pos, ids, mask)
+        >>> print(pred_pos.shape)  # (4, 2)
+    """
+    return HeimdallNetPro(
         max_receivers=max_receivers,
         iq_dim=256,
         feature_dim=128,

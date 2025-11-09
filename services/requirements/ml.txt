@@ -21,3 +21,6 @@ soundfile>=0.12.1
 
 # ML experiment tracking
 mlflow>=2.9.0
+
+# Linear attention for advanced architectures (HeimdallNetPro)
+performer-pytorch>=1.1.4

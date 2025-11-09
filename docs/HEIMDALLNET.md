@@ -184,13 +184,17 @@ if use_calibration:
 - Order shouldn't matter (permutation invariance)
 - Different receivers have different quality (SNR varies)
 
-**Architecture:**
-```
-Multi-Head Self-Attention:
-  Q, K, V = Linear(256 → 256) × 3
-  Attention(Q, K, V) with 8 heads
-  Output: (batch, N, 256)
+**Architecture (Current Implementation - Pooling-Based):**
 
+**⚠️ Note on Architecture Evolution:**
+
+The original HeimdallNet design included multi-head self-attention for modeling receiver-to-receiver interactions. However, during development, we encountered **numerical instability issues (NaN loss)** with standard `MultiheadAttention` at small batch sizes (1-2), which are common in real-time production scenarios.
+
+**Decision:** Rather than compromise stability, **HeimdallNet v1.0 uses pooling-based aggregation only**, removing the attention mechanism. This provides a **stable, production-ready baseline** while sacrificing explicit receiver interactions.
+
+**Future Direction:** See [HeimdallNetPro](HEIMDALLNETPRO.md) for an experimental architecture using **Performer linear attention**, which aims to recover receiver interactions with improved numerical stability.
+
+```
 Pooling Operations (parallel):
   1. Max Pooling: max_pool(embeddings, dim=1) → (batch, 256)
      → Captures best receiver signal
@@ -562,6 +566,55 @@ print(f"Uncertainty: ±{sigma_lat*111000:.1f}m (lat), ±{sigma_lon*111000:.1f}m 
 | IQ ResNet-50 | 26.1m | 30.5m | 38.7m | 51.2m |
 
 **Winner:** HeimdallNet (trained with dropout augmentation)
+
+---
+
+## ⚠️ Known Limitations
+
+### 1. Pooling-Based Aggregation
+
+**Limitation:** HeimdallNet v1.0 uses pooling operations (max/mean/quality-weighted) instead of self-attention for receiver aggregation.
+
+**Impact:**
+- ❌ No explicit modeling of receiver-to-receiver interactions
+- ❌ Cannot learn geometric relationships between receivers
+- ❌ Reduced effectiveness for triangulation scenarios
+
+**Reason:** Standard `MultiheadAttention` encountered **NaN loss issues** at batch sizes 1-2, which are critical for real-time production inference.
+
+**Mitigation:** The model still achieves ±8-15m accuracy through:
+- ✅ Learnable receiver embeddings (antenna characteristics)
+- ✅ Explicit geometry encoding (pairwise distances/bearings)
+- ✅ Multi-strategy pooling (redundancy)
+
+**Future Solution:** See [HeimdallNetPro](HEIMDALLNETPRO.md) for an experimental variant using **Performer linear attention**, which provides:
+- ✅ Explicit receiver interactions
+- ✅ Numerical stability (kernel approximation)
+- ✅ Linear complexity O(N) vs O(N²)
+
+### 2. Fixed Maximum Receivers
+
+**Limitation:** Model supports max 10 receivers (configurable at creation time).
+
+**Impact:**
+- Training/inference require padding to `max_receivers`
+- Memory overhead for unused receiver slots
+- Cannot dynamically expand beyond initial limit
+
+**Mitigation:** 
+- Choose `max_receivers` based on deployment needs (typical: 7-10)
+- Use masking to handle variable active receivers (1-N)
+
+### 3. Antenna-Specific Learning
+
+**Limitation:** Receiver embeddings are **identity-based**, not antenna-type-based.
+
+**Impact:**
+- Cannot transfer learned embeddings between receivers
+- If receiver IDs change, embeddings must be retrained
+- Limited generalization to new receiver networks
+
+**Future Improvement:** Condition embeddings on antenna metadata (type, gain, height, etc.)
 
 ---
 

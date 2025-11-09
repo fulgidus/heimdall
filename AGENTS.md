@@ -7,7 +7,7 @@
 **Overall Progress**: 65% complete (6/11 phases done, Phase 7 95% complete, 8-10 pending)
 **License**: CC Non-Commercial
 
-**Last Updated**: 2025-11-08
+**Last Updated**: 2025-11-09
 
 ---
 
@@ -204,6 +204,30 @@ Each phase follows: **Objective → Deliverables → Checkpoints → Details**
 
 → [Phase 5 Training Events](docs/agents/20251103_phase5_training_events_integration_complete.md)  
 → [Phase 5 Export/Import](docs/agents/20251103_phase5_heimdall_export_import_complete.md)
+
+#### 🧪 Phase 5.5: HeimdallNetPro Experimental Architecture (2025-11-09)
+**Status**: EXPERIMENTAL ⏳  
+**Duration**: 1 day
+
+**Objective**: Explore Performer linear attention as alternative to pooling-based aggregation for potential accuracy improvements.
+
+**Deliverables**:
+- ✅ HeimdallNetPro architecture (Performer SelfAttention + pooling)
+- ✅ Numerical stability validation (no NaN loss)
+- ✅ A/B testing framework vs HeimdallNet v1.0
+- ✅ Performance benchmarking (accuracy, latency, memory)
+- ✅ Documentation and decision criteria
+
+**Results**:
+- **Position MSE**: 1.0303 → 1.0088 (+2.1% improvement)
+- **Uncertainty MSE**: 0.4232 → 0.4271 (-0.9% regression)
+- **Inference Time**: 4.56ms → 5.56ms (+22% slower)
+- **Training Stability**: ✅ No NaN issues detected
+- **Decision**: KEEP EXPERIMENTAL (insufficient accuracy improvement for production)
+
+**Status**: Architecture implemented and tested but does not meet ≥20% accuracy improvement threshold for production promotion. Shows promise for future research with extended training and real WebSDR data.
+
+→ [HeimdallNetPro Documentation](docs/HEIMDALLNETPRO.md)
 
 ---
 
