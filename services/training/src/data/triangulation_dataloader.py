@@ -416,13 +416,25 @@ def collate_iq_fn(batch: List[Dict]) -> Dict[str, torch.Tensor]:
     signal_mask = torch.stack([sample["signal_mask"] for sample in batch])
     target_position = torch.stack([sample["target_position"] for sample in batch])
     
+    # Extract z-score standardization params from first sample (all samples in split have same params)
+    first_sample = batch[0]
+    coord_mean_lat_meters = first_sample["metadata"]["coord_mean_lat_meters"]
+    coord_mean_lon_meters = first_sample["metadata"]["coord_mean_lon_meters"]
+    coord_std_lat_meters = first_sample["metadata"]["coord_std_lat_meters"]
+    coord_std_lon_meters = first_sample["metadata"]["coord_std_lon_meters"]
+    
     # Collect metadata including centroids for coordinate reconstruction
     # Centroids are needed to convert predicted DELTA coordinates back to absolute lat/lon
     metadata = {
         "sample_ids": [sample["metadata"]["sample_id"] for sample in batch],
         "gdop": torch.tensor([sample["metadata"]["gdop"] for sample in batch], dtype=torch.float32),
         "num_receivers": torch.tensor([sample["metadata"]["num_receivers"] for sample in batch], dtype=torch.long),
-        "centroids": torch.tensor([sample["metadata"]["centroid"] for sample in batch], dtype=torch.float32)  # [batch, 2] (lat, lon)
+        "centroids": torch.tensor([sample["metadata"]["centroid"] for sample in batch], dtype=torch.float32),  # [batch, 2] (lat, lon)
+        # Z-score standardization parameters (same for all samples in split)
+        "coord_mean_lat_meters": coord_mean_lat_meters,
+        "coord_mean_lon_meters": coord_mean_lon_meters,
+        "coord_std_lat_meters": coord_std_lat_meters,
+        "coord_std_lon_meters": coord_std_lon_meters
     }
     
     return {
@@ -609,6 +621,104 @@ class TriangulationIQDataset(Dataset):
             if cached_count > 0:
                 cache_pct = (cached_count / len(self.sample_ids)) * 100
                 logger.info(f"⚡ IQ Cache hit: {cached_count}/{len(self.sample_ids)} samples ({cache_pct:.1f}%)")
+        
+        # =========================================================================
+        # COMPUTE Z-SCORE STANDARDIZATION PARAMETERS (two-pass)
+        # =========================================================================
+        # Same approach as GPUCachedDataset: compute mean/std of coordinate deltas
+        # in METERS for z-score normalization during training
+        # This is needed for coordinate denormalization in training_task.py
+        
+        logger.info(f"Computing z-score standardization parameters (pass 1/2: collecting coordinates)...")
+        
+        # Coordinate conversion constants (Italy ~45°N)
+        METERS_PER_DEG_LAT = 111320.0  # meters per degree latitude (constant)
+        METERS_PER_DEG_LON = 78850.0   # meters per degree longitude at 45°N
+        
+        # First pass: collect all coordinate deltas (in meters)
+        all_delta_lat_meters = []
+        all_delta_lon_meters = []
+        
+        for i in range(len(self.sample_ids)):
+            try:
+                sample_id = self.sample_ids[i]
+                
+                # Load sample metadata from database
+                from sqlalchemy import text
+                
+                query = text("""
+                    SELECT tx_lat, tx_lon, receivers_metadata
+                    FROM heimdall.synthetic_iq_samples
+                    WHERE id = :sample_id
+                """)
+                
+                result = db_session.execute(query, {"sample_id": sample_id}).fetchone()
+                
+                if result is None:
+                    continue
+                
+                tx_lat, tx_lon, receivers_metadata = result
+                
+                # Calculate centroid from valid receivers (same logic as __getitem__)
+                valid_positions = []
+                for rx_meta in receivers_metadata:
+                    if rx_meta.get('signal_present', True):
+                        valid_positions.append([rx_meta['lat'], rx_meta['lon']])
+                
+                if len(valid_positions) == 0:
+                    continue
+                
+                centroid_lat = np.mean([pos[0] for pos in valid_positions])
+                centroid_lon = np.mean([pos[1] for pos in valid_positions])
+                
+                # Calculate target delta (relative to centroid)
+                target_delta_lat = tx_lat - centroid_lat
+                target_delta_lon = tx_lon - centroid_lon
+                
+                # Convert to meters
+                target_delta_lat_meters = target_delta_lat * METERS_PER_DEG_LAT
+                target_delta_lon_meters = target_delta_lon * METERS_PER_DEG_LON
+                
+                all_delta_lat_meters.append(target_delta_lat_meters)
+                all_delta_lon_meters.append(target_delta_lon_meters)
+                
+            except Exception as e:
+                logger.warning(f"Failed to load sample {i} for standardization: {e}")
+                continue
+        
+        # Second pass: compute mean and std
+        logger.info(f"Computing z-score standardization parameters (pass 2/2: calculating statistics)...")
+        
+        if len(all_delta_lat_meters) > 0:
+            all_delta_lat_meters = np.array(all_delta_lat_meters)
+            all_delta_lon_meters = np.array(all_delta_lon_meters)
+            
+            self.coord_mean_lat_meters = float(np.mean(all_delta_lat_meters))
+            self.coord_mean_lon_meters = float(np.mean(all_delta_lon_meters))
+            self.coord_std_lat_meters = float(np.std(all_delta_lat_meters))
+            self.coord_std_lon_meters = float(np.std(all_delta_lon_meters))
+            
+            # Prevent division by zero
+            if self.coord_std_lat_meters < 1e-6:
+                logger.warning("coord_std_lat_meters too small, setting to 1.0")
+                self.coord_std_lat_meters = 1.0
+            if self.coord_std_lon_meters < 1e-6:
+                logger.warning("coord_std_lon_meters too small, setting to 1.0")
+                self.coord_std_lon_meters = 1.0
+            
+            logger.info(
+                "✅ Z-score standardization parameters computed",
+                coord_mean_lat_meters=self.coord_mean_lat_meters,
+                coord_mean_lon_meters=self.coord_mean_lon_meters,
+                coord_std_lat_meters=self.coord_std_lat_meters,
+                coord_std_lon_meters=self.coord_std_lon_meters
+            )
+        else:
+            logger.warning("No valid samples for standardization, using defaults")
+            self.coord_mean_lat_meters = 0.0
+            self.coord_mean_lon_meters = 0.0
+            self.coord_std_lat_meters = 1.0
+            self.coord_std_lon_meters = 1.0
         
         logger.info(
             "TriangulationIQDataset initialized",
@@ -849,7 +959,12 @@ class TriangulationIQDataset(Dataset):
                     "sample_id": sample_id,
                     "gdop": gdop if gdop else 50.0,
                     "num_receivers": num_receivers,
-                    "centroid": centroid.tolist()  # Store for reconstruction in training/inference
+                    "centroid": centroid.tolist(),  # Store for reconstruction in training/inference
+                    # Z-score standardization parameters (needed for coordinate denormalization)
+                    "coord_mean_lat_meters": self.coord_mean_lat_meters,
+                    "coord_mean_lon_meters": self.coord_mean_lon_meters,
+                    "coord_std_lat_meters": self.coord_std_lat_meters,
+                    "coord_std_lon_meters": self.coord_std_lon_meters
                 }
             }
             

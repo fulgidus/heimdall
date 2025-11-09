@@ -195,7 +195,17 @@ def start_training_job(self, job_id: str):
         else:
             device = torch.device("cpu")
         
-        logger.info(f"Using device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
+        # ========================================================================
+        # DEVICE INDICATOR: Show clear CPU/GPU training indicator
+        # ========================================================================
+        if device.type == "cuda":
+            gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "Unknown"
+            gpu_memory = torch.cuda.get_device_properties(0).total_memory / (1024**3) if torch.cuda.is_available() else 0
+            logger.info(f"🚀 Training on GPU: {gpu_name} ({gpu_memory:.1f} GB VRAM)")
+        else:
+            logger.info(f"⚠️  Training on CPU (no GPU available or requested)")
+        
+        logger.info(f"Device: {device} (accelerator={accelerator}, cuda_available={torch.cuda.is_available()})")
 
         # ===============================================================================
         # STEP 1: Determine Model Architecture and Data Requirements
@@ -820,23 +830,27 @@ def start_training_job(self, job_id: str):
                 optimizer.step()
 
                 # Calculate distance error for monitoring
-                # IMPORTANT: Model predicts NORMALIZED DELTA METERS (relative to centroid, range [0, 1])
-                # Must denormalize to meters, convert to degrees, then add centroid
+                # IMPORTANT: Model predicts STANDARDIZED DELTA METERS (z-score normalized)
+                # Must denormalize using z-score inverse, convert to degrees, then add centroid
                 with torch.no_grad():
                     centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
                     
                     # Import coordinate conversion constants from dataset
-                    from src.data.gpu_cached_dataset import (
-                        METERS_PER_DEG_LAT, METERS_PER_DEG_LON,
-                        DELTA_METERS_MIN, DELTA_METERS_MAX
-                    )
+                    from src.data.gpu_cached_dataset import METERS_PER_DEG_LAT, METERS_PER_DEG_LON
                     
-                    # Step 1: Denormalize from [0, 1] to meters [-100k, +100k]
-                    # position and target_position are normalized [0, 1] → denormalize to meters
-                    position_lat_meters = position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    position_lon_meters = position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    target_lat_meters = target_position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    target_lon_meters = target_position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    # Get standardization parameters from batch metadata (per-split)
+                    # These are computed during dataset initialization and passed through collate_fn
+                    coord_mean_lat_meters = batch["metadata"]["coord_mean_lat_meters"]
+                    coord_mean_lon_meters = batch["metadata"]["coord_mean_lon_meters"]
+                    coord_std_lat_meters = batch["metadata"]["coord_std_lat_meters"]
+                    coord_std_lon_meters = batch["metadata"]["coord_std_lon_meters"]
+                    
+                    # Step 1: Inverse z-score standardization to get meters
+                    # position and target_position are z-score standardized → denormalize: x_meters = z * std + mean
+                    position_lat_meters = position[:, 0] * coord_std_lat_meters + coord_mean_lat_meters
+                    position_lon_meters = position[:, 1] * coord_std_lon_meters + coord_mean_lon_meters
+                    target_lat_meters = target_position[:, 0] * coord_std_lat_meters + coord_mean_lat_meters
+                    target_lon_meters = target_position[:, 1] * coord_std_lon_meters + coord_mean_lon_meters
                     
                     # Step 2: Convert meters back to degrees
                     position_lat_deg = position_lat_meters / METERS_PER_DEG_LAT
@@ -949,21 +963,26 @@ def start_training_job(self, job_id: str):
                         raise RuntimeError(error_msg)
 
                     # Reconstruct absolute coordinates for distance calculation
-                    # Model predicts NORMALIZED DELTA METERS (relative to centroid, range [0, 1])
-                    # Must denormalize to meters, convert to degrees, then add centroid
+                    # Model predicts STANDARDIZED DELTA METERS (z-score normalized)
+                    # Must denormalize using z-score inverse, convert to degrees, then add centroid
                     centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
                     
                     # Import coordinate conversion constants from dataset
-                    from src.data.gpu_cached_dataset import (
-                        METERS_PER_DEG_LAT, METERS_PER_DEG_LON,
-                        DELTA_METERS_MIN, DELTA_METERS_MAX
-                    )
+                    from src.data.gpu_cached_dataset import METERS_PER_DEG_LAT, METERS_PER_DEG_LON
                     
-                    # Step 1: Denormalize from [0, 1] to meters [-100k, +100k]
-                    position_lat_meters = position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    position_lon_meters = position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    target_lat_meters = target_position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
-                    target_lon_meters = target_position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    # Get standardization parameters from batch metadata (per-split)
+                    # These are computed during dataset initialization and passed through collate_fn
+                    coord_mean_lat_meters = batch["metadata"]["coord_mean_lat_meters"]
+                    coord_mean_lon_meters = batch["metadata"]["coord_mean_lon_meters"]
+                    coord_std_lat_meters = batch["metadata"]["coord_std_lat_meters"]
+                    coord_std_lon_meters = batch["metadata"]["coord_std_lon_meters"]
+                    
+                    # Step 1: Inverse z-score standardization to get meters
+                    # position and target_position are z-score standardized → denormalize: x_meters = z * std + mean
+                    position_lat_meters = position[:, 0] * coord_std_lat_meters + coord_mean_lat_meters
+                    position_lon_meters = position[:, 1] * coord_std_lon_meters + coord_mean_lon_meters
+                    target_lat_meters = target_position[:, 0] * coord_std_lat_meters + coord_mean_lat_meters
+                    target_lon_meters = target_position[:, 1] * coord_std_lon_meters + coord_mean_lon_meters
                     
                     # Step 2: Convert meters back to degrees
                     position_lat_deg = position_lat_meters / METERS_PER_DEG_LAT

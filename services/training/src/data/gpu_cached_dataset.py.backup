@@ -20,11 +20,67 @@ METERS_PER_DEG_LAT = 111000.0  # meters per degree latitude (constant)
 METERS_PER_DEG_LON = 78000.0   # meters per degree longitude at ~45° (Italy average)
                                 # Note: cos(45°) ≈ 0.707, so 111km * 0.707 ≈ 78km
 
-# Standardization parameters (z-score normalization: (x - mean) / std)
-# These are computed dynamically from the actual dataset - NO HARDCODED RANGES!
-# Computed per-split (train/val) to avoid data leakage
-# NOTE: These are placeholder values. Actual values are computed as instance variables
-# (self.coord_mean_lat_meters, self.coord_std_lat_meters, etc.) during dataset initialization
+# Dynamic range calculation for delta coordinates
+# These will be computed at runtime from actual data to avoid hardcoded limits
+# Default values for initial reference (will be overwritten)
+DELTA_METERS_MIN = -200000.0  # -200km (safe default for Italy)
+DELTA_METERS_MAX = 200000.0   # +200km
+
+
+def calculate_normalization_range(results, max_receivers=10, safety_factor=2.5):
+    """
+    Calculate dynamic normalization range from actual receiver positions.
+    
+    Args:
+        results: Database query results with receiver_features
+        max_receivers: Maximum number of receivers to consider
+        safety_factor: Multiplier for safety margin (default 2.5x)
+        
+    Returns:
+        tuple: (DELTA_METERS_MIN, DELTA_METERS_MAX)
+    """
+    if len(results) == 0:
+        # Fallback to safe defaults if no data
+        return -200000.0, 200000.0
+    
+    # Extract all receiver positions
+    all_lats = []
+    all_lons = []
+    
+    for row in results:
+        receiver_features_jsonb = row[2]  # Index 2 is receiver_features
+        for rx in receiver_features_jsonb[:max_receivers]:
+            all_lats.append(rx['rx_lat'])
+            all_lons.append(rx['rx_lon'])
+    
+    if len(all_lats) == 0:
+        # Fallback if no valid positions
+        return -200000.0, 200000.0
+    
+    # Calculate centroid
+    centroid_lat = np.mean(all_lats)
+    centroid_lon = np.mean(all_lons)
+    
+    # Calculate maximum absolute delta in each direction
+    max_lat_delta = max(abs(max(all_lats) - centroid_lat), abs(min(all_lats) - centroid_lat))
+    max_lon_delta = max(abs(max(all_lons) - centroid_lon), abs(min(all_lons) - centroid_lon))
+    
+    # Convert to meters
+    max_lat_delta_meters = max_lat_delta * METERS_PER_DEG_LAT
+    max_lon_delta_meters = max_lon_delta * METERS_PER_DEG_LON
+    
+    # Take the maximum and apply safety factor
+    max_delta_meters = max(max_lat_delta_meters, max_lon_delta_meters) * safety_factor
+    
+    logger.info(
+        f"📊 Dynamic range calculation:",
+        max_lat_delta_km=f"{max_lat_delta_meters/1000:.1f}",
+        max_lon_delta_km=f"{max_lon_delta_meters/1000:.1f}",
+        safety_factor=safety_factor,
+        final_range_km=f"±{max_delta_meters/1000:.0f}"
+    )
+    
+    return -max_delta_meters, max_delta_meters
 
 
 class GPUCachedDataset(Dataset):
@@ -119,12 +175,11 @@ class GPUCachedDataset(Dataset):
         
         logger.info(f"Processing {len(results)} samples for {self.split} split...")
         
-        # FIRST PASS: Calculate standardization parameters (mean, std) from THIS split's data
-        # This ensures no data leakage between train/val
+        # FIRST PASS: Calculate mean and std for coordinate standardization
+        # Collect all deltas in meters to compute statistics
         all_delta_lat_meters = []
         all_delta_lon_meters = []
         
-        logger.info("First pass: calculating standardization parameters...")
         for row in results:
             tx_lat, tx_lon, receiver_features_jsonb, _, _ = row
             
@@ -152,25 +207,28 @@ class GPUCachedDataset(Dataset):
             all_delta_lon_meters.append(delta_target_lon_meters)
         
         # Compute standardization parameters
-        self.coord_mean_lat_meters = float(np.mean(all_delta_lat_meters))
-        self.coord_mean_lon_meters = float(np.mean(all_delta_lon_meters))
-        self.coord_std_lat_meters = float(np.std(all_delta_lat_meters))
-        self.coord_std_lon_meters = float(np.std(all_delta_lon_meters))
+        global COORD_MEAN_LAT_METERS, COORD_MEAN_LON_METERS
+        global COORD_STD_LAT_METERS, COORD_STD_LON_METERS
         
-        # Prevent division by zero (shouldn't happen with real data)
-        if self.coord_std_lat_meters < 1.0:
-            self.coord_std_lat_meters = 1.0
-        if self.coord_std_lon_meters < 1.0:
-            self.coord_std_lon_meters = 1.0
+        COORD_MEAN_LAT_METERS = float(np.mean(all_delta_lat_meters))
+        COORD_MEAN_LON_METERS = float(np.mean(all_delta_lon_meters))
+        COORD_STD_LAT_METERS = float(np.std(all_delta_lat_meters))
+        COORD_STD_LON_METERS = float(np.std(all_delta_lon_meters))
+        
+        # Prevent division by zero
+        if COORD_STD_LAT_METERS < 1.0:
+            COORD_STD_LAT_METERS = 1.0
+        if COORD_STD_LON_METERS < 1.0:
+            COORD_STD_LON_METERS = 1.0
         
         logger.info(
-            f"📊 Standardization params for {self.split} split:",
-            mean_lat_m=f"{self.coord_mean_lat_meters:.0f}",
-            mean_lon_m=f"{self.coord_mean_lon_meters:.0f}",
-            std_lat_m=f"{self.coord_std_lat_meters:.0f}",
-            std_lon_m=f"{self.coord_std_lon_meters:.0f}",
-            std_lat_km=f"{self.coord_std_lat_meters/1000:.1f}",
-            std_lon_km=f"{self.coord_std_lon_meters/1000:.1f}"
+            f"📊 Coordinate standardization params (z-score):",
+            mean_lat_m=f"{COORD_MEAN_LAT_METERS:.0f}",
+            mean_lon_m=f"{COORD_MEAN_LON_METERS:.0f}",
+            std_lat_m=f"{COORD_STD_LAT_METERS:.0f}",
+            std_lon_m=f"{COORD_STD_LON_METERS:.0f}",
+            std_lat_km=f"{COORD_STD_LAT_METERS/1000:.1f}",
+            std_lon_km=f"{COORD_STD_LON_METERS/1000:.1f}"
         )
         
         # Pre-allocate tensors on GPU
@@ -248,20 +306,28 @@ class GPUCachedDataset(Dataset):
                 delta_lat_meters = delta_lat_deg * METERS_PER_DEG_LAT
                 delta_lon_meters = delta_lon_deg * METERS_PER_DEG_LON
                 
-                # Standardize (z-score): (x - mean) / std (NO HARDCODED RANGE!)
-                self.receiver_features[i, j, 3] = (delta_lat_meters - self.coord_mean_lat_meters) / self.coord_std_lat_meters
-                self.receiver_features[i, j, 4] = (delta_lon_meters - self.coord_mean_lon_meters) / self.coord_std_lon_meters
+                # Normalize to [0, 1] range
+                self.receiver_features[i, j, 3] = normalize_feature(
+                    delta_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
+                self.receiver_features[i, j, 4] = normalize_feature(
+                    delta_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
                 self.receiver_features[i, j, 5] = float(signal_present)
             
-            # STEP 4: Transform target to DELTA in METERS and standardize
+            # STEP 4: Transform target to DELTA in METERS
             delta_target_lat_deg = tx_lat - centroid_lat
             delta_target_lon_deg = tx_lon - centroid_lon
             delta_target_lat_meters = delta_target_lat_deg * METERS_PER_DEG_LAT
             delta_target_lon_meters = delta_target_lon_deg * METERS_PER_DEG_LON
             
-            # Standardize (z-score): (x - mean) / std (NO HARDCODED RANGE!)
-            self.targets[i, 0] = (delta_target_lat_meters - self.coord_mean_lat_meters) / self.coord_std_lat_meters
-            self.targets[i, 1] = (delta_target_lon_meters - self.coord_mean_lon_meters) / self.coord_std_lon_meters
+            # Normalize to [0, 1] range
+            self.targets[i, 0] = normalize_feature(
+                delta_target_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
+            self.targets[i, 1] = normalize_feature(
+                delta_target_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
             
             if (i + 1) % 1000 == 0:
                 logger.info(f"Loaded {i+1}/{num_samples} to GPU...")
@@ -308,62 +374,6 @@ class GPUCachedDataset(Dataset):
             results = results[:split_idx]
         else:
             results = results[split_idx:]
-        
-        logger.info(f"Processing {len(results)} samples for {self.split} split...")
-        
-        # FIRST PASS: Calculate standardization parameters (mean, std) from THIS split's data
-        # This ensures no data leakage between train/val
-        all_delta_lat_meters = []
-        all_delta_lon_meters = []
-        
-        logger.info("First pass: calculating standardization parameters...")
-        for row in results:
-            tx_lat, tx_lon, receiver_features_jsonb, _, _ = row
-            
-            # Calculate centroid for this sample
-            receiver_positions = []
-            for rx in receiver_features_jsonb[:self.max_receivers]:
-                if rx.get('signal_present', True):
-                    receiver_positions.append([rx['rx_lat'], rx['rx_lon']])
-            
-            if len(receiver_positions) > 0:
-                centroid_lat = np.mean([pos[0] for pos in receiver_positions])
-                centroid_lon = np.mean([pos[1] for pos in receiver_positions])
-            else:
-                # Fallback: use all receivers
-                centroid_lat = np.mean([rx['rx_lat'] for rx in receiver_features_jsonb[:self.max_receivers]])
-                centroid_lon = np.mean([rx['rx_lon'] for rx in receiver_features_jsonb[:self.max_receivers]])
-            
-            # Target delta in meters
-            delta_target_lat_deg = tx_lat - centroid_lat
-            delta_target_lon_deg = tx_lon - centroid_lon
-            delta_target_lat_meters = delta_target_lat_deg * METERS_PER_DEG_LAT
-            delta_target_lon_meters = delta_target_lon_deg * METERS_PER_DEG_LON
-            
-            all_delta_lat_meters.append(delta_target_lat_meters)
-            all_delta_lon_meters.append(delta_target_lon_meters)
-        
-        # Compute standardization parameters
-        self.coord_mean_lat_meters = float(np.mean(all_delta_lat_meters))
-        self.coord_mean_lon_meters = float(np.mean(all_delta_lon_meters))
-        self.coord_std_lat_meters = float(np.std(all_delta_lat_meters))
-        self.coord_std_lon_meters = float(np.std(all_delta_lon_meters))
-        
-        # Prevent division by zero (shouldn't happen with real data)
-        if self.coord_std_lat_meters < 1.0:
-            self.coord_std_lat_meters = 1.0
-        if self.coord_std_lon_meters < 1.0:
-            self.coord_std_lon_meters = 1.0
-        
-        logger.info(
-            f"📊 Standardization params for {self.split} split:",
-            mean_lat_m=f"{self.coord_mean_lat_meters:.0f}",
-            mean_lon_m=f"{self.coord_mean_lon_meters:.0f}",
-            std_lat_m=f"{self.coord_std_lat_meters:.0f}",
-            std_lon_m=f"{self.coord_std_lon_meters:.0f}",
-            std_lat_km=f"{self.coord_std_lat_meters/1000:.1f}",
-            std_lon_km=f"{self.coord_std_lon_meters/1000:.1f}"
-        )
         
         # Pre-allocate tensors in RAM
         num_samples = len(results)
@@ -428,20 +438,28 @@ class GPUCachedDataset(Dataset):
                 delta_lat_meters = delta_lat_deg * METERS_PER_DEG_LAT
                 delta_lon_meters = delta_lon_deg * METERS_PER_DEG_LON
                 
-                # Standardize (z-score): (x - mean) / std (NO HARDCODED RANGE!)
-                self.receiver_features[i, j, 3] = (delta_lat_meters - self.coord_mean_lat_meters) / self.coord_std_lat_meters
-                self.receiver_features[i, j, 4] = (delta_lon_meters - self.coord_mean_lon_meters) / self.coord_std_lon_meters
+                # Normalize to [0, 1] range
+                self.receiver_features[i, j, 3] = normalize_feature(
+                    delta_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
+                self.receiver_features[i, j, 4] = normalize_feature(
+                    delta_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
                 self.receiver_features[i, j, 5] = float(signal_present)
             
-            # STEP 4: Transform target to DELTA in METERS and standardize
+            # STEP 4: Transform target to DELTA in METERS
             delta_target_lat_deg = tx_lat - centroid_lat
             delta_target_lon_deg = tx_lon - centroid_lon
             delta_target_lat_meters = delta_target_lat_deg * METERS_PER_DEG_LAT
             delta_target_lon_meters = delta_target_lon_deg * METERS_PER_DEG_LON
             
-            # Standardize (z-score): (x - mean) / std (NO HARDCODED RANGE!)
-            self.targets[i, 0] = (delta_target_lat_meters - self.coord_mean_lat_meters) / self.coord_std_lat_meters
-            self.targets[i, 1] = (delta_target_lon_meters - self.coord_mean_lon_meters) / self.coord_std_lon_meters
+            # Normalize to [0, 1] range
+            self.targets[i, 0] = normalize_feature(
+                delta_target_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
+            self.targets[i, 1] = normalize_feature(
+                delta_target_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
     
     def __len__(self):
         return len(self.targets)
@@ -461,12 +479,7 @@ class GPUCachedDataset(Dataset):
                 "metadata": {
                     "gdop": self.gdops[idx].item(),
                     "num_receivers": (~self.signal_masks[idx]).sum().item(),
-                    "centroid": self.centroids[idx],  # Already on GPU
-                    # Z-score standardization parameters (per-split)
-                    "coord_mean_lat_meters": self.coord_mean_lat_meters,
-                    "coord_mean_lon_meters": self.coord_mean_lon_meters,
-                    "coord_std_lat_meters": self.coord_std_lat_meters,
-                    "coord_std_lon_meters": self.coord_std_lon_meters
+                    "centroid": self.centroids[idx]  # Already on GPU
                 }
             }
         else:
@@ -478,12 +491,7 @@ class GPUCachedDataset(Dataset):
                 "metadata": {
                     "gdop": self.gdops[idx].item(),
                     "num_receivers": (~self.signal_masks[idx]).sum().item(),
-                    "centroid": self.centroids[idx].to(self.device),
-                    # Z-score standardization parameters (per-split)
-                    "coord_mean_lat_meters": self.coord_mean_lat_meters,
-                    "coord_mean_lon_meters": self.coord_mean_lon_meters,
-                    "coord_std_lat_meters": self.coord_std_lat_meters,
-                    "coord_std_lon_meters": self.coord_std_lon_meters
+                    "centroid": self.centroids[idx].to(self.device)
                 }
             }
 
@@ -505,24 +513,11 @@ def collate_gpu_cached(batch: List[Dict]) -> Dict:
     num_receivers_list = [sample["metadata"]["num_receivers"] for sample in batch]
     centroids_list = [sample["metadata"]["centroid"] for sample in batch]
     
-    # Get z-score standardization parameters (same for all samples in a split)
-    # These are needed for denormalization during training
-    first_sample_meta = batch[0]["metadata"]
-    coord_mean_lat_meters = first_sample_meta["coord_mean_lat_meters"]
-    coord_mean_lon_meters = first_sample_meta["coord_mean_lon_meters"]
-    coord_std_lat_meters = first_sample_meta["coord_std_lat_meters"]
-    coord_std_lon_meters = first_sample_meta["coord_std_lon_meters"]
-    
     # Convert metadata to tensors
     metadata = {
         "gdop": torch.tensor(gdop_list, dtype=torch.float32),
         "num_receivers": torch.tensor(num_receivers_list, dtype=torch.long),
-        "centroids": torch.stack(centroids_list),  # [batch, 2] (lat, lon)
-        # Z-score standardization parameters (scalars, same for entire split)
-        "coord_mean_lat_meters": coord_mean_lat_meters,
-        "coord_mean_lon_meters": coord_mean_lon_meters,
-        "coord_std_lat_meters": coord_std_lat_meters,
-        "coord_std_lon_meters": coord_std_lon_meters
+        "centroids": torch.stack(centroids_list)  # [batch, 2] (lat, lon)
     }
     
     return {
