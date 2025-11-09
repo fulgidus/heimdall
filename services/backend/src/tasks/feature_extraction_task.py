@@ -55,7 +55,7 @@ def extract_recording_features(self, recording_session_id: str) -> dict:
         import asyncio
         
         async def run_extraction():
-            pool = await get_pool()
+            pool = get_pool()
 
             # Get recording session details
             session = await _get_session_details(pool, recording_session_id)

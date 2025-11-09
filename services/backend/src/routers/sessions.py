@@ -198,7 +198,7 @@ async def update_session(
 ):
     """Update recording session metadata (session_name, notes, approval_status)"""
     UUID(session_id)
-    pool = await get_pool()
+    pool = get_pool()
 
     # Build dynamic update query based on provided fields
     update_fields = []

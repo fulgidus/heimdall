@@ -380,7 +380,7 @@ async def reprocess_audio_file(
             )
         
         # Reset status to PENDING with total_chunks=0
-        pool = await get_pool()
+        pool = get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
                 """

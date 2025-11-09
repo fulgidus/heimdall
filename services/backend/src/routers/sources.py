@@ -109,7 +109,7 @@ async def list_sources(
     - Operators see owned, shared, and public sources
     - Users see public sources and sources shared with them
     """
-    pool = await get_pool()
+    pool = get_pool()
     offset = (page - 1) * per_page
     
     async with pool.acquire() as conn:
@@ -220,7 +220,7 @@ async def create_source(
     Create a new known source (operator+ only).
     The creating user becomes the owner.
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         try:
@@ -265,7 +265,7 @@ async def get_source(
     user: User = Depends(get_current_user),
 ):
     """Get a specific known source by ID (checks permissions)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check view permission
@@ -327,7 +327,7 @@ async def update_source(
     user: User = Depends(get_current_user),
 ):
     """Update a known source (requires edit permission)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check edit permission
@@ -439,7 +439,7 @@ async def delete_source(
     user: User = Depends(get_current_user),
 ):
     """Delete a known source (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check delete permission (only owner or admin)
@@ -491,7 +491,7 @@ async def list_source_shares(
     user: User = Depends(get_current_user),
 ):
     """List all shares for a source (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if user is owner or admin
@@ -533,7 +533,7 @@ async def create_source_share(
     user: User = Depends(get_current_user),
 ):
     """Share a source with another user (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if user is owner or admin
@@ -598,7 +598,7 @@ async def update_source_share(
     user: User = Depends(get_current_user),
 ):
     """Update a source share's permission level (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if user is owner or admin
@@ -651,7 +651,7 @@ async def delete_source_share(
     user: User = Depends(get_current_user),
 ):
     """Remove a source share (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if user is owner or admin
@@ -702,7 +702,7 @@ async def update_source_visibility(
     user: User = Depends(get_current_user),
 ):
     """Toggle source public visibility (owner or admin only)"""
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if user is owner or admin

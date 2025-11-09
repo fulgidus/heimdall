@@ -34,9 +34,10 @@ def batch_feature_extraction_task(
     try:
         # Get database pool and run async operations
         import asyncio
+        from ..celery_worker import get_worker_loop
 
         async def run_batch():
-            pool = await get_pool()
+            pool = get_pool()
 
             # Find recordings without features
             recordings_without_features = await _find_recordings_without_features(
@@ -76,8 +77,14 @@ def batch_feature_extraction_task(
                 "task_ids": task_ids[:10],  # Return first 10 task IDs
             }
 
-        # Use asyncio.run() for proper event loop management
-        return asyncio.run(run_batch())
+        # Use the worker's event loop instead of creating a new one
+        try:
+            loop = get_worker_loop()
+        except RuntimeError:
+            # Fallback to asyncio.run() if not in worker context (e.g., testing)
+            return asyncio.run(run_batch())
+        
+        return loop.run_until_complete(run_batch())
 
     except Exception as e:
         logger.exception(f"Error in batch feature extraction: {e}")

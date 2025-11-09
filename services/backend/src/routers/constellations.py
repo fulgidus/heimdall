@@ -126,7 +126,7 @@ async def list_constellations(
     - **Admins**: See all constellations
     - **Others**: See owned + shared constellations
     """
-    pool = await get_pool()
+    pool = get_pool()
     offset = (page - 1) * per_page
     
     async with pool.acquire() as conn:
@@ -213,7 +213,7 @@ async def create_constellation(
     - **Ownership**: Creator becomes owner
     - **WebSDRs**: Optional list of initial WebSDR stations
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -282,7 +282,7 @@ async def get_constellation(
     
     - **Permission**: View access required (owner, shared user, or admin)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     # Check permission (using raw SQL approach since we're using asyncpg)
     # For async RBAC checks, we'd need to adapt them to asyncpg
@@ -373,7 +373,7 @@ async def update_constellation(
     
     - **Permission**: Edit access required (owner, shared with 'edit', or admin)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -470,7 +470,7 @@ async def delete_constellation(
     - **Permission**: Owner or Admin only (shared users cannot delete)
     - **Cascade**: Removes all members and shares automatically
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission (only owner or admin)
@@ -517,7 +517,7 @@ async def add_constellation_member(
     
     - **Permission**: Edit access required (owner, shared with 'edit', or admin)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -597,7 +597,7 @@ async def remove_constellation_member(
     
     - **Permission**: Edit access required (owner, shared with 'edit', or admin)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -653,7 +653,7 @@ async def list_constellation_shares(
     
     - **Permission**: Owner or Admin only
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission (only owner or admin can view shares)
@@ -706,7 +706,7 @@ async def create_constellation_share(
     - **Permission**: Owner or Admin only
     - **Permission levels**: 'read' (view only) or 'edit' (modify)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission (only owner or admin can share)
@@ -788,7 +788,7 @@ async def update_constellation_share(
     
     - **Permission**: Owner or Admin only
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission (only owner or admin can update shares)
@@ -847,7 +847,7 @@ async def delete_constellation_share(
     
     - **Permission**: Owner or Admin only
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission (only owner or admin can delete shares)

@@ -128,7 +128,7 @@ async def list_models(
     Returns:
         Paginated list of models with ownership info
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     offset = (page - 1) * per_page
     
@@ -164,6 +164,8 @@ async def list_models(
         """
         
         # Data query with ownership info
+        # Parameter positions: $1=limit, $2=offset, $3=accessible_ids (optional), $4/$3=user_id
+        user_param_idx = "$4" if accessible_ids is not None else "$3"
         data_query = f"""
             SELECT 
                 m.id, m.model_name, m.version, m.model_type, m.synthetic_dataset_id,
@@ -174,7 +176,7 @@ async def list_models(
                 m.parent_model_id, m.owner_id,
                 ms.permission as share_permission
             FROM heimdall.models m
-            LEFT JOIN heimdall.model_shares ms ON ms.model_id = m.id AND ms.user_id = $4
+            LEFT JOIN heimdall.model_shares ms ON ms.model_id = m.id AND ms.user_id = {user_param_idx}
             {where_sql}
             ORDER BY m.created_at DESC
             LIMIT $1 OFFSET $2
@@ -193,6 +195,19 @@ async def list_models(
             is_owner = row['owner_id'] == current_user.id if row['owner_id'] else False
             permission = row['share_permission'] if not is_owner else None
             
+            # Parse JSON fields if they are strings (asyncpg returns jsonb as strings in some cases)
+            hyperparameters = row['hyperparameters']
+            if isinstance(hyperparameters, str):
+                hyperparameters = json.loads(hyperparameters) if hyperparameters else None
+            
+            training_metrics = row['training_metrics']
+            if isinstance(training_metrics, str):
+                training_metrics = json.loads(training_metrics) if training_metrics else None
+            
+            test_metrics = row['test_metrics']
+            if isinstance(test_metrics, str):
+                test_metrics = json.loads(test_metrics) if test_metrics else None
+            
             models.append(ModelMetadataResponse(
                 id=row['id'],
                 model_name=row['model_name'],
@@ -209,9 +224,9 @@ async def list_models(
                 epoch=row['epoch'],
                 is_active=row['is_active'],
                 is_production=row['is_production'],
-                hyperparameters=row['hyperparameters'],
-                training_metrics=row['training_metrics'],
-                test_metrics=row['test_metrics'],
+                hyperparameters=hyperparameters,
+                training_metrics=training_metrics,
+                test_metrics=test_metrics,
                 created_at=row['created_at'],
                 trained_by_job_id=row['trained_by_job_id'],
                 parent_model_id=row['parent_model_id'],
@@ -243,7 +258,7 @@ async def get_model(
     Returns:
         Model metadata with ownership info
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -281,6 +296,19 @@ async def get_model(
         is_owner = row['owner_id'] == current_user.id if row['owner_id'] else False
         permission = row['share_permission'] if not is_owner else None
         
+        # Parse JSON fields if they are strings (asyncpg returns jsonb as strings in some cases)
+        hyperparameters = row['hyperparameters']
+        if isinstance(hyperparameters, str):
+            hyperparameters = json.loads(hyperparameters) if hyperparameters else None
+        
+        training_metrics = row['training_metrics']
+        if isinstance(training_metrics, str):
+            training_metrics = json.loads(training_metrics) if training_metrics else None
+        
+        test_metrics = row['test_metrics']
+        if isinstance(test_metrics, str):
+            test_metrics = json.loads(test_metrics) if test_metrics else None
+        
         return ModelMetadataResponse(
             id=row['id'],
             model_name=row['model_name'],
@@ -297,9 +325,9 @@ async def get_model(
             epoch=row['epoch'],
             is_active=row['is_active'],
             is_production=row['is_production'],
-            hyperparameters=row['hyperparameters'],
-            training_metrics=row['training_metrics'],
-            test_metrics=row['test_metrics'],
+            hyperparameters=hyperparameters,
+            training_metrics=training_metrics,
+            test_metrics=test_metrics,
             created_at=row['created_at'],
             trained_by_job_id=row['trained_by_job_id'],
             parent_model_id=row['parent_model_id'],
@@ -332,7 +360,7 @@ async def update_model(
     Returns:
         Updated model metadata
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -400,7 +428,7 @@ async def deploy_model(
     Returns:
         Deployment status
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -473,7 +501,7 @@ async def delete_model(
         model_id: Model UUID
         current_user: Current authenticated user (must be operator or higher)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check permission
@@ -542,7 +570,7 @@ async def list_model_shares(
     Returns:
         List of model shares
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if model exists and get owner
@@ -607,7 +635,7 @@ async def create_model_share(
     Returns:
         Created share
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if model exists and get owner
@@ -687,7 +715,7 @@ async def update_model_share(
     Returns:
         Updated share
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if model exists and get owner
@@ -757,7 +785,7 @@ async def delete_model_share(
         user_id: User ID to revoke access from
         current_user: Current authenticated user (must be operator or higher)
     """
-    pool = await get_pool()
+    pool = get_pool()
     
     async with pool.acquire() as conn:
         # Check if model exists and get owner

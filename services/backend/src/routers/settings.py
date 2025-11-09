@@ -35,7 +35,7 @@ async def get_user_settings(user: User = Depends(get_current_user)) -> UserSetti
 
     Creates default settings if none exist.
     """
-    pool = await get_pool()
+    pool = get_pool()
 
     async with pool.acquire() as conn:
         # Try to fetch existing settings
@@ -72,7 +72,7 @@ async def update_user_settings(
 
     Only provided fields will be updated.
     """
-    pool = await get_pool()
+    pool = get_pool()
 
     # Build dynamic update query based on provided fields
     update_fields = []
@@ -123,7 +123,7 @@ async def reset_user_settings(user: User = Depends(get_current_user)) -> None:
 
     Deletes current settings; they will be recreated with defaults on next GET.
     """
-    pool = await get_pool()
+    pool = get_pool()
 
     async with pool.acquire() as conn:
         await conn.execute(
