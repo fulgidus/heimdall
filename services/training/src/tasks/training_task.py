@@ -820,18 +820,40 @@ def start_training_job(self, job_id: str):
                 optimizer.step()
 
                 # Calculate distance error for monitoring
-                # IMPORTANT: Model predicts DELTA coordinates (relative to centroid)
-                # Must reconstruct absolute coordinates before Haversine distance calculation
+                # IMPORTANT: Model predicts NORMALIZED DELTA METERS (relative to centroid, range [0, 1])
+                # Must denormalize to meters, convert to degrees, then add centroid
                 with torch.no_grad():
                     centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
                     
-                    # Reconstruct absolute coordinates: absolute = delta + centroid
-                    position_absolute = position + centroids  # [batch, 2]
-                    target_absolute = target_position + centroids  # [batch, 2]
+                    # Import coordinate conversion constants from dataset
+                    from src.data.gpu_cached_dataset import (
+                        METERS_PER_DEG_LAT, METERS_PER_DEG_LON,
+                        DELTA_METERS_MIN, DELTA_METERS_MAX
+                    )
                     
+                    # Step 1: Denormalize from [0, 1] to meters [-100k, +100k]
+                    # position and target_position are normalized [0, 1] → denormalize to meters
+                    position_lat_meters = position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    position_lon_meters = position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    target_lat_meters = target_position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    target_lon_meters = target_position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    
+                    # Step 2: Convert meters back to degrees
+                    position_lat_deg = position_lat_meters / METERS_PER_DEG_LAT
+                    position_lon_deg = position_lon_meters / METERS_PER_DEG_LON
+                    target_lat_deg = target_lat_meters / METERS_PER_DEG_LAT
+                    target_lon_deg = target_lon_meters / METERS_PER_DEG_LON
+                    
+                    # Step 3: Reconstruct absolute coordinates: absolute = delta_degrees + centroid
+                    position_absolute_lat = position_lat_deg + centroids[:, 0]
+                    position_absolute_lon = position_lon_deg + centroids[:, 1]
+                    target_absolute_lat = target_lat_deg + centroids[:, 0]
+                    target_absolute_lon = target_lon_deg + centroids[:, 1]
+                    
+                    # Step 4: Calculate haversine distance
                     distances = haversine_distance_torch(
-                        position_absolute[:, 0], position_absolute[:, 1],
-                        target_absolute[:, 0], target_absolute[:, 1]
+                        position_absolute_lat, position_absolute_lon,
+                        target_absolute_lat, target_absolute_lon
                     )
                     train_distance_sum += distances.mean().item()
 
@@ -927,14 +949,38 @@ def start_training_job(self, job_id: str):
                         raise RuntimeError(error_msg)
 
                     # Reconstruct absolute coordinates for distance calculation
-                    # Model predicts DELTA coordinates (relative to centroid)
+                    # Model predicts NORMALIZED DELTA METERS (relative to centroid, range [0, 1])
+                    # Must denormalize to meters, convert to degrees, then add centroid
                     centroids = batch["metadata"]["centroids"].to(device)  # [batch, 2] (lat, lon)
-                    position_absolute = position + centroids  # [batch, 2]
-                    target_absolute = target_position + centroids  # [batch, 2]
                     
+                    # Import coordinate conversion constants from dataset
+                    from src.data.gpu_cached_dataset import (
+                        METERS_PER_DEG_LAT, METERS_PER_DEG_LON,
+                        DELTA_METERS_MIN, DELTA_METERS_MAX
+                    )
+                    
+                    # Step 1: Denormalize from [0, 1] to meters [-100k, +100k]
+                    position_lat_meters = position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    position_lon_meters = position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    target_lat_meters = target_position[:, 0] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    target_lon_meters = target_position[:, 1] * (DELTA_METERS_MAX - DELTA_METERS_MIN) + DELTA_METERS_MIN
+                    
+                    # Step 2: Convert meters back to degrees
+                    position_lat_deg = position_lat_meters / METERS_PER_DEG_LAT
+                    position_lon_deg = position_lon_meters / METERS_PER_DEG_LON
+                    target_lat_deg = target_lat_meters / METERS_PER_DEG_LAT
+                    target_lon_deg = target_lon_meters / METERS_PER_DEG_LON
+                    
+                    # Step 3: Reconstruct absolute coordinates: absolute = delta_degrees + centroid
+                    position_absolute_lat = position_lat_deg + centroids[:, 0]
+                    position_absolute_lon = position_lon_deg + centroids[:, 1]
+                    target_absolute_lat = target_lat_deg + centroids[:, 0]
+                    target_absolute_lon = target_lon_deg + centroids[:, 1]
+                    
+                    # Step 4: Calculate haversine distance
                     distances = haversine_distance_torch(
-                        position_absolute[:, 0], position_absolute[:, 1],
-                        target_absolute[:, 0], target_absolute[:, 1]
+                        position_absolute_lat, position_absolute_lon,
+                        target_absolute_lat, target_absolute_lon
                     )
                     
                     # Calculate predicted uncertainty (standard deviation from log_variance)

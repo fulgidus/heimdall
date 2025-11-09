@@ -78,15 +78,17 @@ class ONNXExporter:
         self,
         model: nn.Module,
         output_path: Path,
+        model_type: str = "spectrogram",
         opset_version: int = 14,
         do_constant_folding: bool = True,
     ) -> Path:
         """
-        Export PyTorch model to ONNX format.
+        Export PyTorch model to ONNX format (supports both spectrogram and multi-modal).
 
         Args:
-            model (nn.Module): LocalizationNet instance (eval mode)
+            model (nn.Module): Model instance (eval mode)
             output_path (Path): Where to save ONNX file
+            model_type (str): "spectrogram" (LocalizationNet) or "multi_modal" (HeimdallNet)
             opset_version (int): ONNX opset version (14 = good CPU support, 18 = latest GPU)
             do_constant_folding (bool): Optimize constant computations
 
@@ -98,6 +100,12 @@ class ONNXExporter:
         """
         model.eval()
 
+        if model_type == "multi_modal":
+            return self._export_multimodal_to_onnx(
+                model, output_path, opset_version, do_constant_folding
+            )
+
+        # SPECTROGRAM-BASED EXPORT (LocalizationNet)
         # Create dummy input matching expected shape
         # (batch_size=1, channels=3, height=128, width=32)
         dummy_input = torch.randn(1, 3, 128, 32, device=self.device)
@@ -116,6 +124,7 @@ class ONNXExporter:
         try:
             logger.info(
                 "exporting_to_onnx",
+                model_type=model_type,
                 opset_version=opset_version,
                 output_path=str(output_path),
             )
@@ -129,12 +138,14 @@ class ONNXExporter:
                 dynamic_axes=dynamic_axes,
                 opset_version=opset_version,
                 do_constant_folding=do_constant_folding,
+                dynamo=False,  # Use legacy JIT-based exporter (more robust than torch.export)
                 verbose=False,
             )
 
             file_size_mb = output_path.stat().st_size / (1024 * 1024)
             logger.info(
                 "onnx_export_successful",
+                model_type=model_type,
                 output_path=str(output_path),
                 file_size_mb=f"{file_size_mb:.2f}",
             )
@@ -148,6 +159,114 @@ class ONNXExporter:
                 output_path=str(output_path),
             )
             raise RuntimeError(f"ONNX export failed: {e}") from e
+
+    def _export_multimodal_to_onnx(
+        self,
+        model: nn.Module,
+        output_path: Path,
+        opset_version: int = 14,
+        do_constant_folding: bool = True,
+    ) -> Path:
+        """
+        Export multi-modal model (HeimdallNet/HeimdallNetPro) to ONNX.
+
+        Args:
+            model (nn.Module): HeimdallNet instance (eval mode)
+            output_path (Path): Where to save ONNX file
+            opset_version (int): ONNX opset version
+            do_constant_folding (bool): Optimize constant computations
+
+        Returns:
+            Path to exported ONNX file
+
+        Raises:
+            RuntimeError: If export fails
+        """
+        model.eval()
+
+        # Create dummy inputs matching HeimdallNet signature:
+        # forward(iq_data, features, positions, receiver_ids, mask)
+        batch_size = 1
+        max_receivers = getattr(model, "max_receivers", 10)
+        seq_len = 1024  # Default IQ sequence length
+
+        dummy_iq_data = torch.randn(
+            batch_size, max_receivers, 2, seq_len, device=self.device
+        )
+        dummy_features = torch.randn(
+            batch_size, max_receivers, 6, device=self.device
+        )  # [SNR, PSD, freq, lat, lon, alt]
+        dummy_positions = torch.randn(
+            batch_size, max_receivers, 3, device=self.device
+        )  # [lat, lon, alt]
+        dummy_receiver_ids = torch.randint(
+            0, max_receivers, (batch_size, max_receivers), device=self.device
+        )
+        dummy_mask = torch.ones(
+            batch_size, max_receivers, dtype=torch.bool, device=self.device
+        )
+
+        dummy_inputs = (
+            dummy_iq_data,
+            dummy_features,
+            dummy_positions,
+            dummy_receiver_ids,
+            dummy_mask,
+        )
+
+        # Input/output names
+        input_names = ["iq_data", "features", "positions", "receiver_ids", "mask"]
+        output_names = ["positions", "uncertainties"]
+
+        # Dynamic axes for variable batch size and number of receivers
+        dynamic_axes = {
+            "iq_data": {0: "batch_size", 1: "num_receivers"},
+            "features": {0: "batch_size", 1: "num_receivers"},
+            "positions": {0: "batch_size", 1: "num_receivers"},
+            "receiver_ids": {0: "batch_size", 1: "num_receivers"},
+            "mask": {0: "batch_size", 1: "num_receivers"},
+            "positions": {0: "batch_size"},
+            "uncertainties": {0: "batch_size"},
+        }
+
+        try:
+            logger.info(
+                "exporting_multimodal_to_onnx",
+                max_receivers=max_receivers,
+                seq_len=seq_len,
+                opset_version=opset_version,
+                output_path=str(output_path),
+            )
+
+            torch.onnx.export(
+                model,
+                dummy_inputs,
+                str(output_path),
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+                do_constant_folding=do_constant_folding,
+                dynamo=False,  # Use legacy JIT-based exporter (more robust than torch.export)
+                verbose=False,
+            )
+
+            file_size_mb = output_path.stat().st_size / (1024 * 1024)
+            logger.info(
+                "multimodal_onnx_export_successful",
+                output_path=str(output_path),
+                file_size_mb=f"{file_size_mb:.2f}",
+            )
+
+            return output_path
+
+        except Exception as e:
+            logger.error(
+                "multimodal_onnx_export_failed",
+                error=str(e),
+                output_path=str(output_path),
+            )
+            raise RuntimeError(f"Multi-modal ONNX export failed: {e}") from e
 
     def validate_onnx_model(self, onnx_path: Path) -> dict[str, any]:
         """
@@ -420,10 +539,23 @@ class ONNXExporter:
             for chunk in iter(lambda: f.read(4096), b""):
                 file_hash.update(chunk)
 
+        # Detect model architecture
+        model_class = pytorch_model.__class__.__name__
+        is_multimodal = "Heimdall" in model_class
+
+        if is_multimodal:
+            max_receivers = getattr(pytorch_model, "max_receivers", 10)
+            input_shape = f"[batch, {max_receivers}, 2, 1024] (IQ) + features + positions"
+            backbone = "EfficientNet-B2 1D + Set Attention"
+        else:
+            input_shape = [1, 3, 128, 32]
+            backbone = "ConvNeXt-Large"
+
         metadata = {
-            "model_type": "LocalizationNet",
-            "backbone": "ConvNeXt-Large",
-            "input_shape": [1, 3, 128, 32],
+            "model_class": model_class,
+            "architecture_type": "multi_modal" if is_multimodal else "spectrogram",
+            "backbone": backbone,
+            "input_shape": input_shape,
             "output_names": ["positions", "uncertainties"],
             "output_shapes": {
                 "positions": [1, 2],
@@ -434,7 +566,11 @@ class ONNXExporter:
             "onnx_file_size_mb": file_size / (1024 * 1024),
             "onnx_file_sha256": file_hash.hexdigest(),
             "mlflow_run_id": run_id,
-            "pytorch_params": pytorch_model.get_params_count(),
+            "pytorch_params": (
+                pytorch_model.get_params_count()
+                if hasattr(pytorch_model, "get_params_count")
+                else sum(p.numel() for p in pytorch_model.parameters())
+            ),
             "inference_metrics": inference_metrics or {},
         }
 
@@ -518,42 +654,57 @@ def export_and_register_model(
     mlflow_tracker,
     output_dir: Path = Path("/tmp/onnx_exports"),
     model_name: str = "heimdall-localization-onnx",
+    model_type: str = None,
 ) -> dict:
     """
     Complete workflow: export PyTorch → ONNX → validate → upload → register.
 
     Args:
-        pytorch_model (nn.Module): Trained LocalizationNet model
+        pytorch_model (nn.Module): Trained model (LocalizationNet or HeimdallNet)
         run_id (str): MLflow run ID (for tracking)
         s3_client: boto3 S3 client
         mlflow_tracker: MLflowTracker instance
         output_dir (Path): Directory for temporary ONNX files
         model_name (str): MLflow model registry name
+        model_type (str): "spectrogram" or "multi_modal" (auto-detected if None)
 
     Returns:
         Dict with complete export and registration details
 
     Workflow:
-    1. Export to ONNX
-    2. Validate ONNX structure
-    3. Test inference accuracy
-    4. Upload to MinIO
-    5. Register with MLflow
-    6. Log metadata
+    1. Detect model type (if not provided)
+    2. Export to ONNX
+    3. Validate ONNX structure
+    4. Test inference accuracy (skipped for multi-modal due to complexity)
+    5. Upload to MinIO
+    6. Register with MLflow
+    7. Log metadata
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     exporter = ONNXExporter(s3_client, mlflow_tracker)
 
+    # Auto-detect model type if not provided
+    if model_type is None:
+        model_type = _detect_model_type(pytorch_model)
+        logger.info("auto_detected_model_type", model_type=model_type)
+
     try:
         # Step 1: Export to ONNX
         onnx_path = output_dir / f"{model_name}_v{run_id[:8]}.onnx"
-        exporter.export_to_onnx(pytorch_model, onnx_path)
+        exporter.export_to_onnx(pytorch_model, onnx_path, model_type=model_type)
 
         # Step 2: Validate ONNX
         model_info = exporter.validate_onnx_model(onnx_path)
 
-        # Step 3: Test inference
-        inference_metrics = exporter.test_onnx_inference(onnx_path, pytorch_model)
+        # Step 3: Test inference (only for spectrogram models)
+        inference_metrics = {}
+        if model_type == "spectrogram":
+            inference_metrics = exporter.test_onnx_inference(onnx_path, pytorch_model)
+        else:
+            logger.info(
+                "skipping_inference_test",
+                reason="Multi-modal inference testing requires specialized test harness",
+            )
 
         # Step 4: Upload to MinIO
         s3_uri = exporter.upload_to_minio(onnx_path)
@@ -565,6 +716,7 @@ def export_and_register_model(
             run_id,
             inference_metrics,
         )
+        metadata["model_type"] = model_type
 
         # Step 6: Register with MLflow
         registration = exporter.register_with_mlflow(
@@ -574,18 +726,25 @@ def export_and_register_model(
             stage="Staging",
         )
 
+        speedup_msg = (
+            f"{inference_metrics['speedup']:.2f}x"
+            if inference_metrics
+            else "N/A (not tested)"
+        )
         logger.info(
             "onnx_export_complete",
             model_name=model_name,
+            model_type=model_type,
             onnx_file_size_mb=f"{metadata['onnx_file_size_mb']:.2f}",
             s3_uri=s3_uri,
             mlflow_version=registration["model_version"],
-            speedup=f"{inference_metrics['speedup']:.2f}x",
+            speedup=speedup_msg,
         )
 
         return {
             "success": True,
             "model_name": model_name,
+            "model_type": model_type,
             "run_id": run_id,
             "onnx_path": str(onnx_path),
             "s3_uri": s3_uri,
@@ -600,11 +759,36 @@ def export_and_register_model(
             "onnx_export_workflow_failed",
             error=str(e),
             model_name=model_name,
+            model_type=model_type,
         )
         return {
             "success": False,
             "error": str(e),
         }
+
+
+def _detect_model_type(model: nn.Module) -> str:
+    """
+    Auto-detect model type based on model class name and attributes.
+
+    Args:
+        model (nn.Module): PyTorch model
+
+    Returns:
+        str: "spectrogram" or "multi_modal"
+    """
+    model_class_name = model.__class__.__name__.lower()
+
+    # Check for multi-modal models
+    if "heimdall" in model_class_name:
+        return "multi_modal"
+
+    # Check for multi-modal attributes
+    if hasattr(model, "receiver_encoder") or hasattr(model, "geometry_encoder"):
+        return "multi_modal"
+
+    # Default to spectrogram
+    return "spectrogram"
 
 
 if __name__ == "__main__":

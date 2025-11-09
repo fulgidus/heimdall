@@ -104,14 +104,14 @@ class LocalizationNet(nn.Module):
                 param.requires_grad = False
 
         # Get output dimension from backbone
-        # ConvNeXt-Large outputs 2048-dim features (vs ResNet-18: 512)
+        # ConvNeXt-Large outputs 1536-dim features (vs ResNet-18: 512)
         # This increased dimensionality allows better feature representation
         backbone_output_dim = {
             "tiny": 768,  # ConvNeXt-Tiny
             "small": 768,  # ConvNeXt-Small
             "medium": 1024,  # ConvNeXt-Base
-            "large": 2048,  # ConvNeXt-Large (RECOMMENDED)
-        }.get(backbone_size.lower(), 2048)
+            "large": 1536,  # ConvNeXt-Large (RECOMMENDED) - corrected from 2048
+        }.get(backbone_size.lower(), 1536)
 
         # Position head: predicts [latitude, longitude]
         self.position_head = nn.Sequential(
@@ -169,10 +169,10 @@ class LocalizationNet(nn.Module):
             - Well under 500ms requirement for real-time inference
         """
         # Backbone forward pass with global average pooling
-        # Output shape: (batch_size, 512, 1, 1)
+        # Output shape: (batch_size, backbone_output_dim, 1, 1)
         backbone_out = self.backbone(x)
 
-        # Flatten to (batch_size, 512)
+        # Flatten to (batch_size, backbone_output_dim)
         features = torch.flatten(backbone_out, 1)
 
         # Position prediction: unbounded, can be negative (geographic coordinates)

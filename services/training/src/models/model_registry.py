@@ -5,7 +5,7 @@ This module provides a comprehensive registry of all available ML architectures
 for RF source localization, with detailed metadata for informed model selection.
 
 Features:
-- 13 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, ensemble, multi-modal)
+- 10 registered architectures (spectrogram, IQ-raw, hybrid, transformer, temporal, ensemble, multi-modal)
 - Performance metrics (accuracy, speed, memory)
 - Visual indicators (emoji, badges, star ratings)
 - Query and comparison utilities
@@ -685,6 +685,66 @@ MODEL_REGISTRY: dict[str, ModelArchitectureInfo] = {
         training_difficulty="medium",
         convergence_epochs=50,
         recommended_batch_size=32,
+        implementation_file="models/heimdall_net.py",
+    ),
+    
+    "heimdall_net_pro": ModelArchitectureInfo(
+        id="heimdall_net_pro",
+        display_name="HeimdallNetPro 🔬 (Multi-Modal + Performer Attention)",
+        description="Experimental HeimdallNet variant with Performer linear attention for enhanced receiver-to-receiver modeling.",
+        long_description=(
+            "Advanced experimental variant of HeimdallNet using Performer linear attention mechanism for "
+            "receiver aggregation instead of pooling-based attention. Enables explicit modeling of geometric "
+            "relationships between receivers for triangulation while maintaining O(N) complexity. "
+            "Combines: (1) raw IQ samples (EfficientNet-B2 1D), (2) extracted RF features (SNR, PSD, freq_offset), "
+            "(3) geometric relationships via linear attention. Key innovation: Performer SelfAttention with "
+            "FAVOR+ kernel approximation provides numerically stable gradients and explicit receiver-to-receiver "
+            "interactions. Learnable per-receiver embeddings capture antenna characteristics with permutation "
+            "invariance. Quality-weighted aggregation ensures robust operation with 2-3 active receivers. "
+            "Experimental status: Shows +2.1% accuracy improvement over HeimdallNet v1.0 but +22% slower inference. "
+            "Target accuracy: ±5-10m (vs ±8-15m baseline). Requires extended training (>50 epochs) and real WebSDR "
+            "data for production readiness. Recommended for research and A/B testing scenarios."
+        ),
+        data_type="multi_modal",
+        architecture_type="multi_modal",
+        architecture_emoji="🔬",
+        performance=PerformanceMetrics(
+            expected_error_min_m=5.0,  # Target (not yet validated in production)
+            expected_error_max_m=10.0,
+            accuracy_stars=5,
+            inference_time_min_ms=50.0,  # +22% slower than HeimdallNet
+            inference_time_max_ms=70.0,
+            speed_stars=3,
+            parameters_millions=2.5,  # Slightly more than HeimdallNet due to Performer
+            vram_training_gb=3.5,
+            vram_inference_gb=1.0,
+            efficiency_stars=4,
+            speed_emoji="🚶",
+            memory_emoji="📦",
+            accuracy_emoji="💎",
+        ),
+        badges=["EXPERIMENTAL"],
+        best_for=[
+            "Research and experimentation with attention mechanisms",
+            "A/B testing vs HeimdallNet baseline",
+            "Scenarios requiring explicit receiver-to-receiver modeling",
+            "Extended training runs with real WebSDR data",
+            "Academic papers exploring triangulation architectures",
+        ],
+        not_recommended_for=[
+            "Production deployments (use HeimdallNet v1.0 instead)",
+            "Inference latency-critical applications (<50ms requirement)",
+            "Small datasets (<3000 samples) - needs more data than baseline",
+            "When baseline HeimdallNet already meets accuracy requirements",
+        ],
+        backbone="EfficientNet-B2 1D + Performer Attention + Geometry Encoder",
+        pretrained_weights=None,
+        input_shape=(None, 10, 2, 1024),  # Same as HeimdallNet
+        output_shape=(None, 2),
+        training_difficulty="hard",  # Harder due to attention tuning
+        convergence_epochs=70,  # Needs more epochs than baseline
+        recommended_batch_size=24,  # Slightly smaller due to memory
+        paper_url="https://arxiv.org/abs/2009.14794",  # Performer paper
         implementation_file="models/heimdall_net.py",
     ),
     

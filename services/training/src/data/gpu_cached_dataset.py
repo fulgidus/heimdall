@@ -14,6 +14,17 @@ logger = structlog.get_logger(__name__)
 # Import normalization utilities from triangulation_dataloader
 from .triangulation_dataloader import normalize_feature, NORMALIZATION_PARAMS
 
+# Coordinate conversion constants for Italy (approx 45° latitude)
+# These convert delta degrees to meters for proper neural network scaling
+METERS_PER_DEG_LAT = 111000.0  # meters per degree latitude (constant)
+METERS_PER_DEG_LON = 78000.0   # meters per degree longitude at ~45° (Italy average)
+                                # Note: cos(45°) ≈ 0.707, so 111km * 0.707 ≈ 78km
+
+# Expected range for delta coordinates in meters (Italy bounds)
+# Max distance between any two points in Italy: ~1000km, but typical receiver spacing: 50-200km
+DELTA_METERS_MIN = -100000.0  # -100km (allows for full Italy coverage)
+DELTA_METERS_MAX = 100000.0   # +100km
+
 
 class GPUCachedDataset(Dataset):
     """
@@ -170,18 +181,40 @@ class GPUCachedDataset(Dataset):
             self.centroids[i, 0] = centroid_lat
             self.centroids[i, 1] = centroid_lon
             
-            # STEP 3: Transform coordinates to DELTAS (relative to centroid)
+            # STEP 3: Transform coordinates to DELTAS in METERS (relative to centroid)
             for j, (snr, psd, freq_offset, rx_lat, rx_lon, signal_present) in enumerate(receiver_data):
                 self.receiver_features[i, j, 0] = snr
                 self.receiver_features[i, j, 1] = psd
                 self.receiver_features[i, j, 2] = freq_offset
-                self.receiver_features[i, j, 3] = rx_lat - centroid_lat  # DELTA lat
-                self.receiver_features[i, j, 4] = rx_lon - centroid_lon  # DELTA lon
+                
+                # Convert delta degrees to meters
+                delta_lat_deg = rx_lat - centroid_lat
+                delta_lon_deg = rx_lon - centroid_lon
+                delta_lat_meters = delta_lat_deg * METERS_PER_DEG_LAT
+                delta_lon_meters = delta_lon_deg * METERS_PER_DEG_LON
+                
+                # Normalize to [0, 1] range
+                self.receiver_features[i, j, 3] = normalize_feature(
+                    delta_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
+                self.receiver_features[i, j, 4] = normalize_feature(
+                    delta_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
                 self.receiver_features[i, j, 5] = float(signal_present)
             
-            # STEP 4: Transform target to DELTA coordinates
-            self.targets[i, 0] = tx_lat - centroid_lat  # DELTA target_lat
-            self.targets[i, 1] = tx_lon - centroid_lon  # DELTA target_lon
+            # STEP 4: Transform target to DELTA in METERS
+            delta_target_lat_deg = tx_lat - centroid_lat
+            delta_target_lon_deg = tx_lon - centroid_lon
+            delta_target_lat_meters = delta_target_lat_deg * METERS_PER_DEG_LAT
+            delta_target_lon_meters = delta_target_lon_deg * METERS_PER_DEG_LON
+            
+            # Normalize to [0, 1] range
+            self.targets[i, 0] = normalize_feature(
+                delta_target_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
+            self.targets[i, 1] = normalize_feature(
+                delta_target_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
             
             if (i + 1) % 1000 == 0:
                 logger.info(f"Loaded {i+1}/{num_samples} to GPU...")
@@ -280,18 +313,40 @@ class GPUCachedDataset(Dataset):
             self.centroids[i, 0] = centroid_lat
             self.centroids[i, 1] = centroid_lon
             
-            # STEP 3: Transform coordinates to DELTAS (relative to centroid)
+            # STEP 3: Transform coordinates to DELTAS in METERS (relative to centroid)
             for j, (snr, psd, freq_offset, rx_lat, rx_lon, signal_present) in enumerate(receiver_data):
                 self.receiver_features[i, j, 0] = snr
                 self.receiver_features[i, j, 1] = psd
                 self.receiver_features[i, j, 2] = freq_offset
-                self.receiver_features[i, j, 3] = rx_lat - centroid_lat  # DELTA lat
-                self.receiver_features[i, j, 4] = rx_lon - centroid_lon  # DELTA lon
+                
+                # Convert delta degrees to meters
+                delta_lat_deg = rx_lat - centroid_lat
+                delta_lon_deg = rx_lon - centroid_lon
+                delta_lat_meters = delta_lat_deg * METERS_PER_DEG_LAT
+                delta_lon_meters = delta_lon_deg * METERS_PER_DEG_LON
+                
+                # Normalize to [0, 1] range
+                self.receiver_features[i, j, 3] = normalize_feature(
+                    delta_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
+                self.receiver_features[i, j, 4] = normalize_feature(
+                    delta_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+                )
                 self.receiver_features[i, j, 5] = float(signal_present)
             
-            # STEP 4: Transform target to DELTA coordinates
-            self.targets[i, 0] = tx_lat - centroid_lat  # DELTA target_lat
-            self.targets[i, 1] = tx_lon - centroid_lon  # DELTA target_lon
+            # STEP 4: Transform target to DELTA in METERS
+            delta_target_lat_deg = tx_lat - centroid_lat
+            delta_target_lon_deg = tx_lon - centroid_lon
+            delta_target_lat_meters = delta_target_lat_deg * METERS_PER_DEG_LAT
+            delta_target_lon_meters = delta_target_lon_deg * METERS_PER_DEG_LON
+            
+            # Normalize to [0, 1] range
+            self.targets[i, 0] = normalize_feature(
+                delta_target_lat_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
+            self.targets[i, 1] = normalize_feature(
+                delta_target_lon_meters, DELTA_METERS_MIN, DELTA_METERS_MAX
+            )
     
     def __len__(self):
         return len(self.targets)
