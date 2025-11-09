@@ -110,7 +110,16 @@ class GPUCachedDataset(Dataset):
         total_loaded = len(results)
         logger.info(f"Loaded {total_loaded} samples from database (after quality filtering)")
         
-        # Split train/val
+        # 🔀 CRITICAL FIX: Shuffle before split to avoid overfitting from sequential data
+        # Without shuffling, train/val splits can have completely different distributions
+        # (e.g., train gets dataset A, val gets dataset B) leading to poor generalization
+        import random
+        results = list(results)
+        random.seed(42)  # Reproducibility: same split across runs
+        random.shuffle(results)
+        logger.info(f"✅ Shuffled {len(results)} samples with seed=42 for uniform train/val distribution")
+        
+        # Split train/val (now properly mixed)
         split_idx = int(len(results) * 0.8)
         if self.split == 'train':
             results = results[:split_idx]
@@ -302,7 +311,16 @@ class GPUCachedDataset(Dataset):
         total_loaded = len(results)
         logger.info(f"Loaded {total_loaded} samples from database (after quality filtering)")
         
-        # Split train/val
+        # 🔀 CRITICAL FIX: Shuffle before split to avoid overfitting from sequential data
+        # Without shuffling, train/val splits can have completely different distributions
+        # (e.g., train gets dataset A, val gets dataset B) leading to poor generalization
+        import random
+        results = list(results)
+        random.seed(42)  # Reproducibility: same split across runs
+        random.shuffle(results)
+        logger.info(f"✅ Shuffled {len(results)} samples with seed=42 for uniform train/val distribution")
+        
+        # Split train/val (now properly mixed)
         split_idx = int(len(results) * 0.8)
         if self.split == 'train':
             results = results[:split_idx]

@@ -50,7 +50,7 @@ def mock_config():
     config.validation_split = 0.2
     config.num_workers = 2
     config.device = "cpu"
-    config.sample_rate = 192000
+    config.sample_rate = 48000
     config.n_mels = 128
     config.n_fft = 2048
     config.hop_length = 512
@@ -61,8 +61,8 @@ def mock_config():
 def sample_iq_data():
     """Create sample IQ data (complex valued)."""
     # Simulate WebSDR IQ data: 1 second at 192kHz = 192,000 samples
-    real_part = np.random.randn(192000)
-    imag_part = np.random.randn(192000)
+    real_part = np.random.randn(48000)
+    imag_part = np.random.randn(48000)
     iq_data = real_part + 1j * imag_part
     return iq_data
 

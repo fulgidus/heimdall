@@ -51,6 +51,14 @@ export const MetricsTab: React.FC = () => {
   }, [selectedJobId]); // Only re-run when job selection changes, not on every jobs update
 
   const selectedMetrics = selectedJobId ? metrics.get(selectedJobId) || [] : [];
+  
+  console.log('📊 MetricsTab - State:', {
+    selectedJobId,
+    metricsMapSize: metrics.size,
+    metricsMapKeys: Array.from(metrics.keys()),
+    selectedMetricsLength: selectedMetrics.length,
+    selectedMetricsFirstItem: selectedMetrics[0]
+  });
 
   return (
     <div>

@@ -148,7 +148,7 @@ class AudioLibraryLoader:
     def __init__(
         self,
         backend_url: Optional[str] = None,
-        target_sample_rate: int = 50000,
+        target_sample_rate: int = 200000,
         rng: Optional[np.random.Generator] = None,
     ):
         """
@@ -156,7 +156,7 @@ class AudioLibraryLoader:
 
         Args:
             backend_url: Backend API base URL (defaults to env var BACKEND_URL)
-            target_sample_rate: Expected sample rate (should be 50000 Hz for preprocessed chunks)
+            target_sample_rate: Expected sample rate (should be 200000 Hz for preprocessed chunks)
             rng: NumPy random generator for reproducible sampling (if None, uses default)
         """
         self.backend_url = backend_url if backend_url is not None else os.getenv(
@@ -460,7 +460,7 @@ _loader_instance: Optional[AudioLibraryLoader] = None
 
 def get_audio_loader(
     backend_url: Optional[str] = None,
-    target_sample_rate: int = 50000,
+    target_sample_rate: int = 200000,
     rng: Optional[np.random.Generator] = None,
     force_new: bool = False,
 ) -> AudioLibraryLoader:

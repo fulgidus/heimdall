@@ -24,7 +24,7 @@ def MEL_SPECTROGRAM_SHAPE(n_mels: int = 128, n_frames: int = 2048) -> tuple[int,
 
 def iq_to_mel_spectrogram(
     iq_data: np.ndarray,
-    sample_rate: float = 48000.0,
+    sample_rate: float = 192000.0,
     n_mels: int = 128,
     n_fft: int = 2048,
     hop_length: int = 512,
@@ -40,7 +40,7 @@ def iq_to_mel_spectrogram(
 
     Args:
         iq_data (np.ndarray): Complex IQ samples, shape (n_samples,) or (n_receivers, n_samples)
-        sample_rate (float): Sampling rate in Hz (default: 48 kHz, optimized for FM)
+        sample_rate (float): Sampling rate in Hz (default WebSDR: 192 kHz)
         n_mels (int): Number of mel-scale frequency bins (default: 128)
         n_fft (int): FFT size for STFT (default: 2048)
         hop_length (int): Number of samples between successive frames (default: 512)
@@ -326,8 +326,8 @@ def verify_feature_extraction():
 
     logger.info("Starting feature extraction verification...")
 
-    # Create synthetic IQ data (1 second at 48 kHz)
-    sample_rate = 48000
+    # Create synthetic IQ data (1 second at 192 kHz)
+    sample_rate = 192000
     duration_sec = 1.0
     n_samples = int(sample_rate * duration_sec)
 

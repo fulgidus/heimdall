@@ -192,6 +192,7 @@ export interface SyntheticDataRequest {
   max_gdop?: number;
   use_srtm_terrain?: boolean;  // Backend expects 'use_srtm_terrain', not 'use_srtm'
   use_random_receivers?: boolean;
+  receiver_placement_strategy?: 'hexagonal' | 'random';  // Receiver placement: hexagonal (optimal GDOP) or random (challenging)
   use_gpu?: boolean | null;  // null = auto-detect, true = force GPU, false = force CPU
   seed?: number;
   tx_antenna_dist?: {
@@ -213,6 +214,8 @@ export interface SyntheticDataRequest {
   // Audio library flags
   use_audio_library?: boolean;      // Use real audio from library instead of formant synthesis
   audio_library_fallback?: boolean; // Fallback to formant synthesis if audio library fails
+  // Safety controls
+  disable_safety_checks?: boolean;  // Allow generation past 50 consecutive failed batches (use with caution)
 }
 
 export interface SyntheticSample {
@@ -347,4 +350,5 @@ export interface ExpandDatasetRequest {
   dataset_id: string;
   num_additional_samples: number;
   use_gpu?: boolean | null;  // null = auto-detect, true = force GPU, false = force CPU
+  disable_safety_checks?: boolean;  // Allow generation past 50 consecutive failed batches (use with caution)
 }

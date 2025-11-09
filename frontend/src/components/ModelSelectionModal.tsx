@@ -31,18 +31,28 @@ interface TrainingConfig {
   train_ratio: number;
   val_ratio: number;
   test_ratio: number;
+  // New hyperparameters for overfitting control
+  weight_decay: number;
+  dropout_rate: number;
+  max_gdop: number;
+  lr_scheduler: string;
 }
 
 const DEFAULT_TRAINING_CONFIG: TrainingConfig = {
   job_name: '',  // Will be generated if empty
-  epochs: 100,
+  epochs: 50,  // Reduced from 100 to avoid overtraining
   batch_size: 32,
-  learning_rate: 0.001,
-  early_stopping_patience: 10,
+  learning_rate: 0.0005,  // Reduced from 0.001 for more stable training
+  early_stopping_patience: 15,  // Increased from 10 to give model more time
   dataset_ids: [],  // Changed to empty array
   train_ratio: 0.7,
   val_ratio: 0.15,
   test_ratio: 0.15,
+  // New defaults (updated for better regularization)
+  weight_decay: 0.001,  // Reduced from 0.01 but still strong regularization
+  dropout_rate: 0.2,  // Kept at 0.2 (good balance)
+  max_gdop: 150.0,  // Based on current dataset avg ~56
+  lr_scheduler: 'cosine',
 };
 
 // Category emoji mapping
@@ -227,6 +237,9 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<ModelCategory | 'all'>('all');
   const [complexityFilter, setComplexityFilter] = useState<ComplexityLevel | 'all'>('all');
+  
+  // UI state
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -457,7 +470,7 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
                     setTrainingConfig({ ...trainingConfig, dataset_ids: newIds });
                   }}
                 />
-                <label className="form-check-label" htmlFor={`dataset-${dataset.id}`} style={{ cursor: 'pointer' }}>
+                <label className="form-check-label text-dark" htmlFor={`dataset-${dataset.id}`} style={{ cursor: 'pointer' }}>
                   <strong>{dataset.name}</strong>
                   <span className="text-muted ms-2">({dataset.num_samples.toLocaleString()} samples)</span>
                   {dataset.description && (
@@ -537,6 +550,51 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
         </div>
       </div>
 
+      {/* Regularization Parameters */}
+      <div className="mb-3">
+        <h6 className="text-body mb-3">🛡️ Regularization</h6>
+        <div className="row g-3">
+          <div className="col-md-6">
+            <label className="form-label text-body">
+              Weight Decay (L2)
+              <i 
+                className="bi bi-info-circle ms-1 text-muted" 
+                title="L2 regularization to prevent overfitting. Higher values = stronger regularization. Recommended: 0.01-0.1 for small datasets"
+              ></i>
+            </label>
+            <input
+              type="number"
+              value={trainingConfig.weight_decay}
+              onChange={(e) => setTrainingConfig({ ...trainingConfig, weight_decay: parseFloat(e.target.value) })}
+              step={0.001}
+              min={0}
+              max={1}
+              className="form-control"
+            />
+            <small className="text-muted">Current: {trainingConfig.weight_decay}</small>
+          </div>
+          <div className="col-md-6">
+            <label className="form-label text-body">
+              Dropout Rate
+              <i 
+                className="bi bi-info-circle ms-1 text-muted" 
+                title="Randomly drops neurons during training to prevent overfitting. Recommended: 0.2-0.5 for small datasets"
+              ></i>
+            </label>
+            <input
+              type="number"
+              value={trainingConfig.dropout_rate}
+              onChange={(e) => setTrainingConfig({ ...trainingConfig, dropout_rate: parseFloat(e.target.value) })}
+              step={0.05}
+              min={0}
+              max={0.9}
+              className="form-control"
+            />
+            <small className="text-muted">Current: {trainingConfig.dropout_rate}</small>
+          </div>
+        </div>
+      </div>
+
       {/* Data Split Ratios */}
       <div className="mb-3">
         <label className="form-label">Data Split Ratios</label>
@@ -584,6 +642,59 @@ const ModelSelectionModal: React.FC<ModelSelectionModalProps> = ({ isOpen, onClo
             <span className="text-danger ms-2">⚠️ Must sum to 1.0</span>
           )}
         </small>
+      </div>
+
+      {/* Advanced Options */}
+      <div className="mb-3">
+        <button 
+          className="btn btn-link text-body p-0 text-decoration-none"
+          type="button"
+          onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+        >
+          <i className={`bi bi-chevron-${showAdvancedOptions ? 'down' : 'right'} me-2`}></i>
+          ⚙️ Advanced Options
+        </button>
+        {showAdvancedOptions && (
+          <div className="row g-3 mt-2">
+            <div className="col-md-6">
+              <label className="form-label text-body">
+                Max GDOP
+                <i 
+                  className="bi bi-info-circle ms-1 text-muted" 
+                  title="Geometric Dilution of Precision filter. Lower values = stricter geometry requirements. Your dataset avg: ~56"
+                ></i>
+              </label>
+              <input
+                type="number"
+                value={trainingConfig.max_gdop}
+                onChange={(e) => setTrainingConfig({ ...trainingConfig, max_gdop: parseFloat(e.target.value) })}
+                step={10}
+                min={10}
+                max={500}
+                className="form-control"
+              />
+              <small className="text-muted">Dataset avg GDOP: ~56</small>
+            </div>
+            <div className="col-md-6">
+              <label className="form-label text-body">
+                LR Scheduler
+                <i 
+                  className="bi bi-info-circle ms-1 text-muted" 
+                  title="Learning rate scheduling strategy. Cosine recommended for most cases"
+                ></i>
+              </label>
+              <select
+                value={trainingConfig.lr_scheduler}
+                onChange={(e) => setTrainingConfig({ ...trainingConfig, lr_scheduler: e.target.value as 'cosine' | 'step' | 'plateau' })}
+                className="form-select"
+              >
+                <option value="cosine">Cosine Annealing</option>
+                <option value="step">Step Decay</option>
+                <option value="plateau">Reduce on Plateau</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Selected Model Summary */}

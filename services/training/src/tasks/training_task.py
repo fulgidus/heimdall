@@ -682,8 +682,8 @@ def start_training_job(self, job_id: str):
                 sys.stderr.flush()
                 logger.error(f"[CRITICAL] model_architecture='{model_architecture}', type={type(model_architecture)}, epoch={epoch}, batch={batch_idx}")
 
-                # Forward pass - handle HeimdallNet special case
-                if model_architecture == "heimdall_net":
+                # Forward pass - handle HeimdallNet/HeimdallNetPro special case
+                if model_architecture == "heimdall_net" or model_architecture == "heimdall_net_pro":
                     try:
                         sys.stderr.write(f"[CRITICAL DEBUG] Entered HeimdallNet block for epoch {epoch}, batch {batch_idx}\n")
                         sys.stderr.flush()
@@ -713,14 +713,26 @@ def start_training_job(self, job_id: str):
                         logger.error(f"[DEBUG] IQ data shape: {iq_data.shape}")
                         
                         # Build features tensor: [SNR, PSD, freq_offset, lat, lon, alt]
-                        # For now, use dummy signal features + positions
+                        # Use REAL RF features from dataloader (fixes 69km RMSE bug!)
                         batch_size_curr, num_receivers_curr = iq_data.shape[0], iq_data.shape[1]
                         features = torch.zeros(batch_size_curr, num_receivers_curr, 6, device=device)
-                        features[:, :, 0] = 20.0  # Dummy SNR (20 dB)
-                        features[:, :, 1] = -80.0  # Dummy PSD (-80 dBm)
-                        features[:, :, 2] = 0.0  # Dummy freq offset (0 Hz)
-                        features[:, :, 3:5] = receiver_positions_2d  # lat, lon
-                        features[:, :, 5] = 0.0  # Dummy altitude (0 m)
+                        
+                        # Extract real RF features from batch
+                        receiver_snr = batch["receiver_snr"].to(device)  # (batch, num_receivers)
+                        receiver_psd = batch["receiver_psd"].to(device)  # (batch, num_receivers)
+                        receiver_freq_offset = batch["receiver_freq_offset"].to(device)  # (batch, num_receivers)
+                        
+                        # Log first sample's RF features for debugging
+                        if batch_idx == 0 and current_epoch % 5 == 0:
+                            logger.error(f"[RF FEATURES DEBUG] Sample 0 SNR: {receiver_snr[0, :5].cpu().numpy()}")
+                            logger.error(f"[RF FEATURES DEBUG] Sample 0 PSD: {receiver_psd[0, :5].cpu().numpy()}")
+                            logger.error(f"[RF FEATURES DEBUG] Sample 0 Freq Offset: {receiver_freq_offset[0, :5].cpu().numpy()}")
+                        
+                        features[:, :, 0] = receiver_snr  # Real SNR from WebSDR metadata
+                        features[:, :, 1] = receiver_psd  # Real PSD from WebSDR metadata
+                        features[:, :, 2] = receiver_freq_offset  # Real freq offset from WebSDR metadata
+                        features[:, :, 3:5] = receiver_positions_2d  # lat, lon (delta coordinates)
+                        features[:, :, 5] = 0.0  # Dummy altitude (0 m) - TODO: add real altitude later
                         
                         logger.error(f"[DEBUG] Built features tensor")
                         
@@ -920,8 +932,8 @@ def start_training_job(self, job_id: str):
                     target_position = batch["target_position"].to(device)
                     gdop = batch["metadata"]["gdop"]
 
-                    # Forward pass - handle HeimdallNet special case
-                    if model_architecture == "heimdall_net":
+                    # Forward pass - handle HeimdallNet/HeimdallNetPro special case
+                    if model_architecture == "heimdall_net" or model_architecture == "heimdall_net_pro":
                         # HeimdallNet requires (iq_data, features, positions, receiver_ids, mask)
                         iq_data = batch["iq_samples"].to(device)
                         receiver_positions_2d = batch["receiver_positions"].to(device)  # (B, N, 2) - lat, lon only
@@ -1403,32 +1415,60 @@ def start_training_job(self, job_id: str):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_onnx_path = Path(tmp_dir) / f"{job_name}.onnx"
                 
-                # Create dummy input for ONNX export
-                # TriangulationModel expects (batch, num_receivers, 6) features:
-                # [snr, psd, freq_offset, rx_lat, rx_lon, signal_present]
-                dummy_receiver_features = torch.randn(1, max_receivers, 6, device=device)
-                # Signal mask must be boolean for ONNX masked_fill compatibility
-                dummy_signal_mask = torch.zeros(1, max_receivers, dtype=torch.bool, device=device)
-                
-                # Export model using legacy exporter (more compatible with dynamic shapes)
-                torch.onnx.export(
-                    model,
-                    (dummy_receiver_features, dummy_signal_mask),
-                    str(tmp_onnx_path),
-                    export_params=True,
-                    input_names=['receiver_features', 'signal_mask'],
-                    output_names=['position', 'log_variance'],
-                    dynamic_axes={
-                        'receiver_features': {0: 'batch_size'},
-                        'signal_mask': {0: 'batch_size'},
-                        'position': {0: 'batch_size'},
-                        'log_variance': {0: 'batch_size'}
-                    },
-                    opset_version=14,
-                    do_constant_folding=True,
-                    verbose=False,
-                    dynamo=False  # Use legacy TorchScript-based exporter
-                )
+                # Create dummy inputs based on model architecture
+                if model_architecture == "heimdall_net" or model_architecture == "heimdall_net_pro":
+                    # HeimdallNet expects 5 inputs: (iq_data, features, positions, receiver_ids, mask)
+                    seq_len = 200000  # Default 200kHz @ 1 second
+                    dummy_iq_data = torch.randn(1, max_receivers, 2, seq_len, device=device)
+                    dummy_features = torch.randn(1, max_receivers, 6, device=device)
+                    dummy_positions = torch.randn(1, max_receivers, 3, device=device)
+                    dummy_receiver_ids = torch.arange(max_receivers, device=device).unsqueeze(0)
+                    dummy_mask = torch.zeros(1, max_receivers, dtype=torch.bool, device=device)
+                    
+                    torch.onnx.export(
+                        model,
+                        (dummy_iq_data, dummy_features, dummy_positions, dummy_receiver_ids, dummy_mask),
+                        str(tmp_onnx_path),
+                        export_params=True,
+                        input_names=['iq_data', 'features', 'positions', 'receiver_ids', 'mask'],
+                        output_names=['position', 'uncertainty'],
+                        dynamic_axes={
+                            'iq_data': {0: 'batch_size', 3: 'seq_len'},
+                            'features': {0: 'batch_size'},
+                            'positions': {0: 'batch_size'},
+                            'receiver_ids': {0: 'batch_size'},
+                            'mask': {0: 'batch_size'},
+                            'position': {0: 'batch_size'},
+                            'uncertainty': {0: 'batch_size'}
+                        },
+                        opset_version=14,
+                        do_constant_folding=True,
+                        verbose=False,
+                        dynamo=False
+                    )
+                else:
+                    # TriangulationModel expects 2 inputs: (receiver_features, signal_mask)
+                    dummy_receiver_features = torch.randn(1, max_receivers, 6, device=device)
+                    dummy_signal_mask = torch.zeros(1, max_receivers, dtype=torch.bool, device=device)
+                    
+                    torch.onnx.export(
+                        model,
+                        (dummy_receiver_features, dummy_signal_mask),
+                        str(tmp_onnx_path),
+                        export_params=True,
+                        input_names=['receiver_features', 'signal_mask'],
+                        output_names=['position', 'log_variance'],
+                        dynamic_axes={
+                            'receiver_features': {0: 'batch_size'},
+                            'signal_mask': {0: 'batch_size'},
+                            'position': {0: 'batch_size'},
+                            'log_variance': {0: 'batch_size'}
+                        },
+                        opset_version=14,
+                        do_constant_folding=True,
+                        verbose=False,
+                        dynamo=False
+                    )
                 
                 # Upload ONNX to MinIO
                 onnx_minio_path = f"onnx/{job_id}/{job_name}.onnx"
@@ -1938,7 +1978,8 @@ def generate_synthetic_data_task(self, job_id: str):
                         dataset_type=config.get('dataset_type', 'feature_based'),  # Pass dataset type (iq_raw or feature_based)
                         use_gpu=config.get('use_gpu', False),  # DEFAULT: CPU-only (False). Set use_gpu=True in config to enable GPU
                         shutdown_requested=shutdown_requested,  # Pass signal handler flag for fast cancellation
-                        samples_offset=samples_offset  # Pass offset for dataset expansion
+                        samples_offset=samples_offset,  # Pass offset for dataset expansion
+                        disable_safety_checks=config.get('disable_safety_checks', False)  # Allow bypassing consecutive failure check
                     )
                     # Final commit after all batches
                     await conn.commit()

@@ -24,6 +24,7 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
   const { expandDataset } = useTrainingStore();
   const [numSamples, setNumSamples] = useState(10000);
   const [accelerationMode, setAccelerationMode] = useState<'auto' | 'cpu' | 'gpu'>('cpu');
+  const [disableSafetyChecks, setDisableSafetyChecks] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -43,12 +44,14 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
         dataset_id: dataset.id,
         num_additional_samples: numSamples,
         use_gpu,
+        disable_safety_checks: disableSafetyChecks,
       });
       
       // Success - close dialog
       onClose();
       setNumSamples(10000); // Reset
       setAccelerationMode('cpu'); // Reset to cpu
+      setDisableSafetyChecks(false); // Reset
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to expand dataset');
     } finally {
@@ -173,15 +176,46 @@ export const ExpandDatasetDialog: React.FC<ExpandDatasetDialogProps> = ({
                     GPU
                   </button>
                 </div>
-                <div className="form-text">
-                  {accelerationMode === 'auto' && 'Automatically detect and use GPU if available, fallback to CPU'}
-                  {accelerationMode === 'cpu' && 'Force CPU-only processing (multi-threaded, uses all 24 cores)'}
-                  {accelerationMode === 'gpu' && 'Force GPU acceleration (10-30x faster if GPU available)'}
-                </div>
+              <div className="form-text">
+                {accelerationMode === 'auto' && 'Automatically detect and use GPU if available, fallback to CPU'}
+                {accelerationMode === 'cpu' && 'Force CPU-only processing (multi-threaded, uses all 24 cores)'}
+                {accelerationMode === 'gpu' && 'Force GPU acceleration (10-30x faster if GPU available)'}
               </div>
+            </div>
 
-              {/* Preview */}
-              <div className="bg-light text-dark p-3 rounded">
+            {/* Safety Checks Override */}
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="disableSafetyChecks"
+                  checked={disableSafetyChecks}
+                  onChange={(e) => setDisableSafetyChecks(e.target.checked)}
+                  disabled={isSubmitting}
+                />
+                <label className="form-check-label text-dark" htmlFor="disableSafetyChecks">
+                  <i className="ph ph-warning me-2 text-warning"></i>
+                  Disable safety checks (allow generation past 50 consecutive failures)
+                </label>
+              </div>
+              <div className="form-text">
+                By default, generation stops after 50 consecutive batches with zero valid samples. 
+                Enable this for experimental configurations with strict constraints.
+              </div>
+              {disableSafetyChecks && (
+                <div className="alert alert-warning mt-2 mb-0">
+                  <small>
+                    <i className="ph ph-warning-circle me-1"></i>
+                    <strong>Warning:</strong> With safety checks disabled, generation may continue for extended periods with strict parameters. 
+                    Monitor the job and cancel if needed.
+                  </small>
+                </div>
+              )}
+            </div>
+
+            {/* Preview */}
+            <div className="bg-light text-dark p-3 rounded">
                 <div className="d-flex justify-content-between mb-2">
                   <span className="text-muted">Current samples:</span>
                   <strong>{dataset.num_samples.toLocaleString()}</strong>

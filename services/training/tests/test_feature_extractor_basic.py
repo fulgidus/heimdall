@@ -12,14 +12,14 @@ from src.data.rf_feature_extractor import (
 
 def test_feature_extractor_initialization():
     """Test feature extractor initialization."""
-    extractor = RFFeatureExtractor(sample_rate_hz=200000)
+    extractor = RFFeatureExtractor(sample_rate_hz=50000)
     assert extractor.sample_rate_hz == 200000
 
 
 def test_extract_features_from_clean_signal():
     """Test feature extraction from signal with controlled SNR."""
     # Generate signal with known SNR
-    sample_rate = 200000
+    sample_rate = 50000
     duration_sec = 0.2  # 200ms
     num_samples = int(sample_rate * duration_sec)
 
@@ -62,7 +62,7 @@ def test_extract_features_from_clean_signal():
 def test_extract_features_chunked():
     """Test chunked feature extraction with aggregation."""
     # Generate 1s signal
-    sample_rate = 200000
+    sample_rate = 50000
     duration_sec = 1.0
     num_samples = int(sample_rate * duration_sec)
 

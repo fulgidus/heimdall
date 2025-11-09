@@ -71,6 +71,10 @@ class SyntheticDataGenerationRequest(BaseModel):
     receiver_seed: Optional[int] = Field(
         default=None, description="Random seed for receiver generation (reproducibility)"
     )
+    receiver_placement_strategy: str = Field(
+        default="hexagonal",
+        description="Receiver placement strategy: 'hexagonal' (optimal GDOP) or 'random' (challenging datasets)"
+    )
     area_lat_min: float = Field(
         default=44.0, ge=-90.0, le=90.0, description="Minimum latitude for receiver area"
     )
@@ -98,6 +102,12 @@ class SyntheticDataGenerationRequest(BaseModel):
     audio_library_fallback: bool = Field(
         default=True,
         description="Fallback to formant synthesis if audio library fails or is empty"
+    )
+    
+    # Safety controls
+    disable_safety_checks: bool = Field(
+        default=False,
+        description="Disable safety checks that stop jobs after consecutive failures. WARNING: May cause infinite loops with impossible parameters."
     )
 
 

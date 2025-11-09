@@ -24,7 +24,15 @@ interface DistanceErrorChartProps {
 }
 
 export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics }) => {
+  console.log('📈 DistanceErrorChart - metrics received:', { 
+    isArray: Array.isArray(metrics), 
+    length: metrics?.length,
+    firstItem: metrics?.[0],
+    hasTrainRmse: metrics?.[0]?.train_rmse_m !== undefined
+  });
+
   if (!metrics || metrics.length === 0) {
+    console.log('⚠️ DistanceErrorChart - No metrics array');
     return (
       <div className="card text-center py-5">
         <div className="card-body">
@@ -36,6 +44,10 @@ export const DistanceErrorChart: React.FC<DistanceErrorChartProps> = ({ metrics 
 
   // Filter metrics that have the new distance fields
   const metricsWithDistance = metrics.filter(m => m.train_rmse_m !== undefined);
+  console.log('🔍 DistanceErrorChart - filtered metrics:', { 
+    original: metrics.length, 
+    filtered: metricsWithDistance.length 
+  });
 
   if (metricsWithDistance.length === 0) {
     return (

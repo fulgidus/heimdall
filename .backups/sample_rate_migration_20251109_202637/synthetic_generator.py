@@ -472,7 +472,7 @@ def _generate_single_sample_no_features(args):
     
     if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
-            sample_rate_hz=50_000,  # 50 kHz (optimized for FM)
+            sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu,
@@ -671,7 +671,7 @@ def _generate_single_sample_no_features(args):
         # Create SyntheticIQSample object (for storage/metadata)
         iq_sample = SyntheticIQSample(
             samples=iq_data,
-            sample_rate_hz=50_000.0,
+            sample_rate_hz=200_000.0,
             duration_ms=1000.0,  # Fixed 1 second duration
             center_frequency_hz=frequency_mhz * 1e6,
             rx_id=rx_id,
@@ -703,8 +703,8 @@ def _generate_single_sample_no_features(args):
         'frequency_mhz': frequency_mhz,
         'tx_power_dbm': tx_power_dbm,
         'sample_rate_hz': 200_000,
-        'iq_duration_ms': 200.0,
-        'num_chunks': 1,
+        'iq_duration_ms': 1000.0,
+        'num_chunks': 5,
         'chunk_duration_ms': 200.0,
         'generated_at': sample_idx,
         'propagation_snr_values': propagation_snr_values,
@@ -822,7 +822,7 @@ def _generate_single_sample(args):
     
     if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
-            sample_rate_hz=50_000,  # 50 kHz (optimized for FM)
+            sample_rate_hz=200_000,  # 200 kHz
             duration_ms=1000.0,       # 1 second
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu,
@@ -834,7 +834,7 @@ def _generate_single_sample(args):
     if needs_new_extractor:
         # Create feature extractor with GPU acceleration (reusable)
         _thread_local.feature_extractor = RFFeatureExtractor(
-            sample_rate_hz=50_000,
+            sample_rate_hz=200_000,
             use_gpu=use_gpu
         )
         logger.info(f"Thread {threading.current_thread().name}: Initialized feature extractor (GPU={use_gpu})")
@@ -1028,7 +1028,7 @@ def _generate_single_sample(args):
         # Create SyntheticIQSample object (for storage/metadata)
         iq_sample = SyntheticIQSample(
             samples=iq_data,
-            sample_rate_hz=50_000.0,
+            sample_rate_hz=200_000.0,
             duration_ms=1000.0,  # Fixed 1 second duration
             center_frequency_hz=frequency_mhz * 1e6,
             rx_id=rx_id,
@@ -1058,7 +1058,7 @@ def _generate_single_sample(args):
     features_dicts = feature_extractor.extract_features_batch_conservative(
         iq_samples_list=iq_samples_for_extraction,
         chunk_duration_ms=200.0,
-        num_chunks=1
+        num_chunks=5
     )
     
     # Step 6: Add receiver metadata to each feature dict
@@ -1105,9 +1105,9 @@ def _generate_single_sample(args):
 
     extraction_metadata = {
         'extraction_method': 'synthetic',
-        'iq_duration_ms': 200.0,
+        'iq_duration_ms': 1000.0,
         'sample_rate_hz': 200_000,
-        'num_chunks': 1,
+        'num_chunks': 5,
         'chunk_duration_ms': 200.0,
         'generated_at': sample_idx,
         'frequency_mhz': frequency_mhz,
@@ -1834,7 +1834,7 @@ async def generate_synthetic_data_with_iq(
         
         if needs_new_extractor:
             _thread_local.feature_extractor = RFFeatureExtractor(
-                sample_rate_hz=50_000,
+                sample_rate_hz=200_000,
                 use_gpu=use_gpu
             )
             logger.info(f"Initialized batch feature extractor (GPU={use_gpu}, forced by user)")
@@ -1847,7 +1847,7 @@ async def generate_synthetic_data_with_iq(
         all_features_dicts = feature_extractor.extract_features_batch_conservative(
             iq_samples_list=all_iq_samples,
             chunk_duration_ms=200.0,
-            num_chunks=1
+            num_chunks=5
         )
         
         logger.info(f"Batch feature extraction complete: {len(all_features_dicts)} feature dicts extracted")

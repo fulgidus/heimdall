@@ -1,0 +1,9 @@
+🚀 Submitting training job: triangulation_no_gdop_filter_test
+   Model: triangulation_model
+   Dataset: fb242aa2-e605-4529-8118-088c55862efc
+   Epochs: 10
+   GDOP filter: DISABLED (max=999.0)
+
+❌ Failed to submit job: 201
+{"id":"1d911996-6068-48df-80e1-22bc90de961d","job_name":"triangulation_no_gdop_filter_test","job_type":"training","status":"queued","created_at":"2025-11-09T12:13:14.716907Z","started_at":null,"completed_at":null,"config":{"dataset_ids":["fb242aa2-e605-4529-8118-088c55862efc"],"parent_model_id":null,"model_architecture":"triangulation_model","pretrained":false,"freeze_backbone":false,"batch_size":16,"num_workers":0,"validation_split":0.2,"preload_to_gpu":true,"n_mels":128,"n_fft":2048,"hop_length":512,"epochs":10,"learning_rate":0.001,"weight_decay":0.0001,"dropout_rate":0.2,"lr_scheduler":"cosine","warmup_epochs":5,"early_stop_patience":5,"early_stop_delta":0.001,"max_grad_norm":1.0,"accelerator":"gpu","devices":1,"min_snr_db":-999.0,"max_gdop":999.0,"only_approved":true},"current_epoch":0,"total_epochs":10,"progress_percent":0.0,"current":null,"total":null,"message":null,"train_loss":null,"val_loss":null,"train_accuracy":null,"val_accuracy":null,"learning_rate":null,"best_epoch":null,"best_val_loss":null,"checkpoint_path":null,"onnx_model_path":null,"mlflow_run_id":null,"error_message":null,"dataset_size":null,"train_samples":null,"val_samples":null,"model_architecture":"triangulation_model","celery_task_id":"f57d6fe9-12c8-4794-a9d4-8cf30c630170","dataset_id":null}
+❌ Failed to submit training job

@@ -75,8 +75,8 @@ class SyntheticIQGenerator:
 
     def __init__(
         self,
-        sample_rate_hz: float = 50_000,
-        duration_ms: float = 200.0,
+        sample_rate_hz: float = 200_000,
+        duration_ms: float = 1000.0,
         seed: Optional[int] = None,
         use_gpu: bool = True,
         use_audio_library: bool = True,
@@ -86,7 +86,7 @@ class SyntheticIQGenerator:
         Initialize IQ generator.
 
         Args:
-            sample_rate_hz: Sampling rate (default: 50 kHz, optimal for NBFM/WBFM)
+            sample_rate_hz: Sampling rate (default: 200 kHz for 2x oversampling)
             duration_ms: Signal duration in milliseconds
             seed: Random seed for reproducibility
             use_gpu: Use GPU acceleration if available (default: True)
@@ -102,13 +102,10 @@ class SyntheticIQGenerator:
         self.use_gpu = use_gpu and GPU_AVAILABLE
         if self.use_gpu:
             self.xp = cp  # Use CuPy (GPU arrays)
-            # NOTE: We do NOT set CuPy's global seed here because:
-            # 1. Window selection uses dedicated CPU RNG (self.cpu_rng) for reproducibility
-            # 2. Global seed calls interfere with reproducibility when creating multiple
-            #    generator instances with the same seed
-            # 3. GPU acceleration is used only for heavy numerical operations (FFT, etc.),
-            #    not for RNG-based operations that need reproducibility
-            logger.info(f"IQ Generator: GPU acceleration ENABLED (CuPy arrays, CPU RNG for reproducibility)")
+            # Use CuPy's random state for GPU acceleration
+            if seed is not None:
+                self.xp.random.seed(seed)
+            logger.info(f"IQ Generator: GPU acceleration ENABLED (CuPy with GPU RNG)")
         else:
             self.xp = np  # Use NumPy (CPU arrays)
             if use_gpu and not GPU_AVAILABLE:
@@ -120,31 +117,43 @@ class SyntheticIQGenerator:
             # CuPy uses global random state
             self.rng_normal = lambda loc, scale, size: self.xp.random.normal(loc, scale, size)
             self.rng_uniform = lambda low, high, size=None: self.xp.random.uniform(low, high, size)
-            # IMPORTANT: Use CPU RNG for window selection even in GPU mode
-            # This enables reproducibility while keeping GPU acceleration for heavy ops
-            # Window selection is cheap (1 random int), so CPU overhead is negligible
-            self.cpu_rng = np.random.default_rng(seed)
-            self.rng_integers = self.cpu_rng.integers
+            self.rng_integers = lambda low, high: int(self.xp.random.randint(low, high))
             # Store the RNG object for audio library (GPU mode uses global state)
             self.rng = None  # GPU doesn't have a dedicated RNG object
         else:
-            # NumPy uses Generator API (use single RNG for everything)
-            self.cpu_rng = np.random.default_rng(seed)
-            self.rng_normal = self.cpu_rng.normal
-            self.rng_uniform = self.cpu_rng.uniform
-            self.rng_integers = self.cpu_rng.integers
-            # Store the RNG object for audio library (same as cpu_rng)
-            self.rng = self.cpu_rng
+            # NumPy uses Generator API
+            cpu_rng = np.random.default_rng(seed)
+            self.rng_normal = cpu_rng.normal
+            self.rng_uniform = cpu_rng.uniform
+            self.rng_integers = cpu_rng.integers
+            # Store the RNG object for audio library
+            self.rng = cpu_rng
 
         # Calculate number of samples
         self.num_samples = int(sample_rate_hz * duration_ms / 1000.0)
         self.time_axis = self.xp.arange(self.num_samples) / sample_rate_hz
         
-        # Lazy initialization of audio loader (initialized on first use)
-        # This ensures RNG state isn't consumed during __init__, which is critical
-        # for reproducibility when creating multiple generators with the same seed
-        self.audio_loader = None
-        self._audio_loader_initialized = False
+        # Initialize audio loader ONCE (reuse same instance for all batches)
+        # This ensures audio consistency: all batches use the same loader with
+        # predictable RNG state progression
+        self.audio_loader = None  # Lazy initialization on first use
+        if self.use_audio_library:
+            # Create audio loader with seeded RNG for reproducibility
+            # Use CPU RNG even in GPU mode (audio loading happens on CPU)
+            audio_rng = np.random.default_rng(seed) if seed is not None else None
+            # Audio chunks are pre-processed and stored in MinIO at 200kHz
+            # No disk cache or resampling needed - instant loading!
+            self.audio_loader = get_audio_loader(
+                target_sample_rate=int(self.sample_rate_hz),
+                rng=audio_rng,
+                force_new=True,  # Don't use singleton (each generator has its own loader)
+            )
+            logger.info(
+                "audio_loader_initialized",
+                use_library=True,
+                rng_seeded=seed is not None,
+                note="Loading preprocessed chunks from database (instant, no resampling)",
+            )
 
     def generate_iq_sample(
         self,
@@ -321,45 +330,23 @@ class SyntheticIQGenerator:
         """
         Generate voice audio using audio library or formant synthesis fallback.
         
-        Uses lazy-initialized audio loader to ensure reproducibility. The loader
-        is created on first use (not in __init__) to avoid consuming RNG state
-        during construction, which would break seeded reproducibility.
+        Uses the pre-initialized audio loader (created in __init__) to ensure
+        consistent audio selection across batch generations. The loader's RNG
+        state advances predictably, ensuring reproducibility.
         
         Returns:
             Audio signal array normalized to [-1, 1]
         """
         # If audio library disabled, use formant synthesis
-        if not self.use_audio_library:
+        if not self.use_audio_library or self.audio_loader is None:
             return self._generate_formant_voice_audio()
         
-        # Lazy initialization: create audio loader on first use
-        if not self._audio_loader_initialized:
-            audio_rng = self.cpu_rng if hasattr(self, 'cpu_rng') else None
-            self.audio_loader = get_audio_loader(
-                target_sample_rate=int(self.sample_rate_hz),
-                rng=audio_rng,
-                force_new=True,  # Don't use singleton (each generator has its own loader)
-            )
-            self._audio_loader_initialized = True
-            logger.info(
-                "audio_loader_lazy_initialized",
-                use_library=True,
-                rng_seeded=audio_rng is not None,
-                note="Lazy initialization preserves RNG state for reproducibility",
-            )
-        
-        # Load from audio library using the lazy-initialized loader
+        # Load from audio library using the pre-initialized loader
         try:
-            # Load 1-second audio chunk from database
             audio_samples, sample_rate = self.audio_loader.get_random_sample(
                 category=None,  # Use weighted random selection based on category weights
-                duration_ms=1000.0  # Always load 1s chunks (stored format)
+                duration_ms=self.duration_ms
             )
-            
-            # Extract random 200ms window from the 1s chunk
-            # This provides 5x training diversity without reprocessing
-            if self.duration_ms == 200.0:
-                audio_samples = self._extract_random_200ms_window(audio_samples)
             
             # Convert to GPU array if using GPU
             if self.use_gpu:
@@ -370,7 +357,6 @@ class SyntheticIQGenerator:
                 duration_ms=self.duration_ms,
                 sample_rate=sample_rate,
                 audio_shape=audio_samples.shape if hasattr(audio_samples, 'shape') else len(audio_samples),
-                windowing_applied=self.duration_ms == 200.0
             )
             
             return audio_samples
@@ -387,41 +373,6 @@ class SyntheticIQGenerator:
             else:
                 # Re-raise if no fallback configured
                 raise
-
-    def _extract_random_200ms_window(self, audio_samples: np.ndarray) -> np.ndarray:
-        """
-        Extract random 200ms window from 1s audio chunk.
-        
-        Returns one of 5 non-overlapping windows from a 1-second audio chunk:
-        - Window 0: [0-200ms]
-        - Window 1: [200-400ms]
-        - Window 2: [400-600ms]
-        - Window 3: [600-800ms]
-        - Window 4: [800-1000ms]
-        
-        This enables 5x training diversity by extracting different portions
-        of each pre-processed audio chunk without requiring reprocessing.
-        
-        Args:
-            audio_samples: Audio samples from 1-second chunk (50,000 samples @ 50kHz)
-            
-        Returns:
-            200ms window (10,000 samples @ 50kHz)
-        """
-        window_size = int(self.sample_rate_hz * 0.2)  # 200ms = 10,000 samples @ 50kHz
-        window_idx = self.rng_integers(0, 5)  # Random window [0,1,2,3,4]
-        start_idx = window_idx * window_size
-        end_idx = start_idx + window_size
-        
-        logger.debug(
-            "extracting_random_window",
-            window_idx=window_idx,
-            start_idx=start_idx,
-            end_idx=end_idx,
-            window_size=window_size
-        )
-        
-        return audio_samples[start_idx:end_idx]
 
     def _generate_formant_voice_audio(self) -> np.ndarray:
         """

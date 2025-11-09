@@ -27,6 +27,7 @@ from .models.health import HealthResponse
 from . import celery_worker  # noqa: F401
 from .routers.acquisition import router as acquisition_router
 from .routers.admin import router as admin_router
+from .routers.analytics import router as analytics_router
 from .routers.audio_library import router as audio_library_router
 from .routers.constellations import router as constellations_router
 from .routers.health import router as health_router
@@ -246,6 +247,7 @@ async def shutdown_event():
 # Include routers
 app.include_router(acquisition_router)
 app.include_router(admin_router)
+app.include_router(analytics_router)
 app.include_router(audio_library_router)
 app.include_router(constellations_router)
 app.include_router(health_router)

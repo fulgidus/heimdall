@@ -857,9 +857,9 @@ class TriangulationIQDataset(Dataset):
             
             # Determine expected sequence length from IQ metadata BEFORE loading samples
             # This ensures all fallback/padding tensors match the real data length
-            sample_rate_hz = iq_metadata.get('sample_rate_hz', 50000)  # Default: 50kHz (optimized for FM)
+            sample_rate_hz = iq_metadata.get('sample_rate_hz', 200000)  # Default: 200kHz
             duration_ms = iq_metadata.get('duration_ms', 1000.0)  # Default: 1 second
-            expected_seq_len = int(sample_rate_hz * duration_ms / 1000.0)  # e.g., 50000 samples for 50kHz @ 1s
+            expected_seq_len = int(sample_rate_hz * duration_ms / 1000.0)  # e.g., 200000 samples for 200kHz @ 1s
             
             # Load RAW IQ data from MinIO (no spectrogram computation!)
             iq_samples_list = []

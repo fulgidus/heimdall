@@ -384,7 +384,7 @@ async def reprocess_audio_file(
         async with pool.acquire() as conn:
             await conn.execute(
                 """
-                UPDATE audio_library 
+                UPDATE heimdall.audio_library 
                 SET processing_status = 'PENDING', 
                     total_chunks = 0,
                     updated_at = NOW()

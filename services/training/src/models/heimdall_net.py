@@ -154,7 +154,7 @@ class EfficientNetB2_1D(nn.Module):
     def forward(self, x):
         """
         Args:
-            x: (batch, 2, L) - IQ samples (L = any length, e.g., 1024, 200000)
+            x: (batch, 2, L) - IQ samples (L = any length, e.g., 1024, 50000)
         Returns:
             features: (batch, out_dim)
         """
@@ -233,7 +233,7 @@ class PerReceiverEncoder(nn.Module):
     def forward(self, iq_raw, features, receiver_id):
         """
         Args:
-            iq_raw: (batch, 2, L) - IQ data (L = any length, e.g., 1024, 200000)
+            iq_raw: (batch, 2, L) - IQ data (L = any length, e.g., 1024, 50000)
             features: (batch, 6) - [SNR, PSD, freq_offset, lat, lon, alt]
             receiver_id: (batch,) - receiver ID (0 to max_receivers-1)
         Returns:
@@ -611,7 +611,7 @@ def create_heimdall_net(
     Example:
         >>> model = create_heimdall_net(max_receivers=7)
         >>> # Input shapes (L = IQ sample length, flexible)
-        >>> iq = torch.randn(4, 3, 2, 200000)    # batch=4, receivers=3, 200k samples
+        >>> iq = torch.randn(4, 3, 2, 50000)    # batch=4, receivers=3, 50k samples
         >>> feats = torch.randn(4, 3, 6)
         >>> pos = torch.randn(4, 3, 3)
         >>> ids = torch.tensor([[0, 2, 4]] * 4)   # SDR IDs: 0, 2, 4
@@ -913,7 +913,7 @@ def create_heimdall_net_pro(
     
     Example:
         >>> model = create_heimdall_net_pro(max_receivers=7)
-        >>> iq = torch.randn(4, 3, 2, 200000)
+        >>> iq = torch.randn(4, 3, 2, 50000)
         >>> feats = torch.randn(4, 3, 6)
         >>> pos = torch.randn(4, 3, 3)
         >>> ids = torch.tensor([[0, 2, 4]] * 4)

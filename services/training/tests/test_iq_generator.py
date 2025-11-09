@@ -304,3 +304,133 @@ def test_audio_consistency_with_audio_library():
         )
     
     print(f"✓ Audio library consistency test passed - all {batch_size} receivers have same audio")
+
+
+def test_extract_random_200ms_window_shape():
+    """Test _extract_random_200ms_window returns correct shape."""
+    generator = SyntheticIQGenerator(
+        sample_rate_hz=50_000,  # 50 kHz audio rate
+        duration_ms=200.0,
+        seed=42
+    )
+    
+    # Simulate 1-second audio chunk (50,000 samples @ 50kHz)
+    audio_1s = np.random.randn(50_000).astype(np.float32)
+    
+    # Extract random 200ms window
+    window = generator._extract_random_200ms_window(audio_1s)
+    
+    # Should return 200ms worth of samples (10,000 @ 50kHz)
+    assert len(window) == 10_000, f"Expected 10,000 samples, got {len(window)}"
+    assert window.dtype == np.float32
+
+
+def test_extract_random_200ms_window_all_windows_accessible():
+    """Test all 5 non-overlapping windows can be extracted."""
+    generator = SyntheticIQGenerator(
+        sample_rate_hz=50_000,
+        duration_ms=200.0,
+        seed=42
+    )
+    
+    # Create audio with distinct values per window
+    audio_1s = np.zeros(50_000, dtype=np.float32)
+    audio_1s[0:10_000] = 1.0      # Window 0
+    audio_1s[10_000:20_000] = 2.0  # Window 1
+    audio_1s[20_000:30_000] = 3.0  # Window 2
+    audio_1s[30_000:40_000] = 4.0  # Window 3
+    audio_1s[40_000:50_000] = 5.0  # Window 4
+    
+    # Extract many windows and verify all 5 windows appear
+    windows_seen = set()
+    for _ in range(100):
+        window = generator._extract_random_200ms_window(audio_1s)
+        mean_value = np.mean(window)
+        windows_seen.add(int(mean_value))
+    
+    # All 5 windows should be seen
+    assert windows_seen == {1, 2, 3, 4, 5}, f"Not all windows extracted: {windows_seen}"
+
+
+def test_extract_random_200ms_window_correct_indices():
+    """Test window extraction uses correct sample indices."""
+    generator = SyntheticIQGenerator(
+        sample_rate_hz=50_000,
+        duration_ms=200.0,
+        seed=123  # Fixed seed for reproducibility
+    )
+    
+    # Create audio with sample indices as values
+    audio_1s = np.arange(50_000, dtype=np.float32)
+    
+    # Extract window with fixed seed
+    window = generator._extract_random_200ms_window(audio_1s)
+    
+    # Verify window contains consecutive indices
+    assert len(window) == 10_000
+    
+    # Check window is one of the 5 valid windows
+    start_idx = int(window[0])
+    assert start_idx in [0, 10_000, 20_000, 30_000, 40_000], \
+        f"Window starts at invalid index {start_idx}"
+    
+    # Verify consecutive samples
+    expected_window = audio_1s[start_idx:start_idx + 10_000]
+    assert np.allclose(window, expected_window)
+
+
+def test_extract_random_200ms_window_seeded_reproducibility():
+    """Test random window extraction is reproducible with seed."""
+    audio_1s = np.random.randn(50_000).astype(np.float32)
+    
+    # Two generators with same seed should extract same window
+    generator1 = SyntheticIQGenerator(
+        sample_rate_hz=50_000,
+        duration_ms=200.0,
+        seed=999
+    )
+    generator2 = SyntheticIQGenerator(
+        sample_rate_hz=50_000,
+        duration_ms=200.0,
+        seed=999
+    )
+    
+    window1 = generator1._extract_random_200ms_window(audio_1s)
+    window2 = generator2._extract_random_200ms_window(audio_1s)
+    
+    assert np.allclose(window1, window2), "Same seed should produce same window"
+
+
+def test_extract_random_200ms_window_distribution():
+    """Test random window selection is approximately uniform."""
+    generator = SyntheticIQGenerator(
+        sample_rate_hz=50_000,
+        duration_ms=200.0,
+        seed=42
+    )
+    
+    # Create audio with distinct values per window
+    audio_1s = np.zeros(50_000, dtype=np.float32)
+    audio_1s[0:10_000] = 0.0
+    audio_1s[10_000:20_000] = 1.0
+    audio_1s[20_000:30_000] = 2.0
+    audio_1s[30_000:40_000] = 3.0
+    audio_1s[40_000:50_000] = 4.0
+    
+    # Extract 1000 windows and count occurrences
+    window_counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+    n_samples = 1000
+    
+    for _ in range(n_samples):
+        window = generator._extract_random_200ms_window(audio_1s)
+        window_idx = int(np.mean(window))
+        window_counts[window_idx] += 1
+    
+    # Each window should appear roughly 20% of the time (200 ± 50)
+    for idx, count in window_counts.items():
+        expected = n_samples / 5  # 200
+        # Allow 25% deviation (150-250 acceptable)
+        assert abs(count - expected) < expected * 0.25, \
+            f"Window {idx} appeared {count} times (expected ~{expected})"
+    
+    print(f"✓ Window distribution test passed: {window_counts}")

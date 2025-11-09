@@ -4,7 +4,7 @@ Celery task for preprocessing audio library files.
 Preprocessing pipeline:
 1. Download original audio file from MinIO (heimdall-audio-library bucket)
 2. Extract 1-second chunks sequentially
-3. Resample each chunk to 200kHz (training sample rate)
+3. Resample each chunk to 50kHz (training sample rate)
 4. Save chunks as .npy files to MinIO (heimdall-audio-chunks bucket)
 5. Create database records in audio_chunks table
 6. Update audio_library status (PENDING → PROCESSING → READY/FAILED)
@@ -18,6 +18,7 @@ import uuid
 from datetime import datetime
 from io import BytesIO
 from typing import Optional
+from urllib.parse import urlparse
 
 import numpy as np
 from celery import shared_task
@@ -31,7 +32,7 @@ from ..storage.minio_client import MinIOClient
 logger = logging.getLogger(__name__)
 
 # Constants
-TARGET_SAMPLE_RATE_HZ = 200_000  # 200 kHz for training
+TARGET_SAMPLE_RATE_HZ = 50_000  # 50 kHz for training (optimal for NBFM/WBFM signals)
 CHUNK_DURATION_SECONDS = 1.0  # 1-second chunks
 CHUNKS_BUCKET = "heimdall-audio-chunks"
 LIBRARY_BUCKET = "heimdall-audio-library"
@@ -55,17 +56,25 @@ def preprocess_audio_file(self, audio_id: str) -> dict:
         import asyncio
         
         async def run_preprocessing():
-            # Initialize pool if not already initialized (worker process doesn't inherit pool)
-            try:
-                pool = get_pool()
-            except RuntimeError:
-                logger.info("Database pool not initialized in worker, initializing now...")
-                pool = await init_pool()
+            # Create a new pool for this task to avoid event loop conflicts with concurrent workers
+            import asyncpg
             
-            # Update status to PROCESSING
-            await _update_audio_status(pool, audio_id, "PROCESSING")
+            # Parse database_url to get connection parameters
+            db_url = urlparse(settings.database_url)
+            
+            pool = await asyncpg.create_pool(
+                user=db_url.username,
+                password=db_url.password,
+                database=db_url.path.lstrip("/"),
+                host=db_url.hostname,
+                port=db_url.port or 5432,
+                min_size=1,
+                max_size=2
+            )
             
             try:
+                # Update status to PROCESSING
+                await _update_audio_status(pool, audio_id, "PROCESSING")
                 # Get audio metadata from database
                 audio_metadata = await _get_audio_metadata(pool, audio_id)
                 
@@ -253,6 +262,9 @@ def preprocess_audio_file(self, audio_id: str) -> dict:
                     'audio_id': audio_id,
                     'error': str(e)
                 }
+            finally:
+                # Close the pool to avoid resource leaks
+                await pool.close()
         
         # Get or create event loop for Celery worker
         try:

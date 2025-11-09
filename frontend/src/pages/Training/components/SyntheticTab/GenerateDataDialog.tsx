@@ -58,6 +58,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
     max_gdop: 150.0,       // Acceptable geometry (150 for clustered receivers)
     use_srtm_terrain: true, // Use SRTM terrain data (production baseline)
     use_random_receivers: false,
+    receiver_placement_strategy: 'hexagonal',  // Default to optimal hexagonal placement
     seed: undefined,
     tx_antenna_dist: undefined,
     rx_antenna_dist: undefined,
@@ -130,6 +131,7 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
         max_gdop: 150.0,
         use_srtm_terrain: true,
         use_random_receivers: false,
+        receiver_placement_strategy: 'hexagonal',
         seed: undefined,
         tx_antenna_dist: undefined,
         rx_antenna_dist: undefined,
@@ -608,8 +610,40 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         Use Random Receiver Placement
                       </label>
                       <div className="form-text">
-                        Generate random receiver positions instead of using fixed Italian WebSDRs
+                        Generate random receiver positions instead of using hexagonal grid placement (more challenging, better for robust training)
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Receiver Placement Strategy (only shown when use_random_receivers is true) */}
+                {formData.use_random_receivers && (
+                  <div className="mb-3">
+                    <label className="form-label text-dark fw-semibold">
+                      Receiver Placement Strategy
+                    </label>
+                    <div className="btn-group w-100" role="group">
+                      <button
+                        type="button"
+                        className={`btn ${formData.receiver_placement_strategy === 'hexagonal' ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => handleInputChange('receiver_placement_strategy', 'hexagonal')}
+                        disabled={isLoading}
+                      >
+                        <i className="ph ph-hexagon me-2"></i>
+                        Hexagonal (Optimal GDOP)
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${formData.receiver_placement_strategy === 'random' ? 'btn-primary' : 'btn-outline-primary'}`}
+                        onClick={() => handleInputChange('receiver_placement_strategy', 'random')}
+                        disabled={isLoading}
+                      >
+                        <i className="ph ph-dice-three me-2"></i>
+                        Random (Challenging)
+                      </button>
+                    </div>
+                    <div className="form-text">
+                      <strong>Hexagonal:</strong> Uniform grid for optimal geometry (GDOP 8-15). <strong>Random:</strong> Unpredictable placement for robust training (GDOP 50-150).
                     </div>
                   </div>
                 )}
@@ -645,6 +679,34 @@ export const GenerateDataDialog: React.FC<GenerateDataDialogProps> = ({
                         <div className="form-text">
                           Set a fixed seed for reproducible datasets (optional)
                         </div>
+                      </div>
+
+                      {/* Disable Safety Checks */}
+                      <div className="mb-3">
+                        <div className="form-check form-switch">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="disable_safety_checks"
+                            checked={formData.disable_safety_checks ?? false}
+                            onChange={(e) => handleInputChange('disable_safety_checks', e.target.checked)}
+                            disabled={isLoading}
+                          />
+                          <label className="form-check-label text-dark" htmlFor="disable_safety_checks">
+                            <strong>Disable Safety Checks</strong>
+                          </label>
+                          <div className="form-text">
+                            Allow generation to continue past 50 consecutive failed batches (use with caution for experimental parameters)
+                          </div>
+                        </div>
+                        {formData.disable_safety_checks && (
+                          <div className="alert alert-warning d-flex align-items-start mt-2 mb-0" role="alert">
+                            <i className="ph ph-warning me-2 mt-1"></i>
+                            <div className="small">
+                              <strong>Warning:</strong> Disabling safety checks may result in very long generation times if parameters are too strict. Monitor job progress closely.
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* TX Antenna Distribution */}

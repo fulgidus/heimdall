@@ -293,8 +293,20 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     fetchMetrics: async (jobId: string) => {
         set({ error: null });
         try {
-            const response = await api.get(`/v1/jobs/training/${jobId}/metrics`);
+            console.log('🔍 Fetching metrics for job:', jobId);
+            const response = await api.get(`/v1/training/jobs/${jobId}/metrics`);
+            console.log('📊 Metrics response:', { 
+                status: response.status,
+                dataType: Array.isArray(response.data) ? 'array' : typeof response.data,
+                length: Array.isArray(response.data) ? response.data.length : 'N/A',
+                hasMetricsKey: 'metrics' in (response.data || {}),
+                firstItem: Array.isArray(response.data) ? response.data[0] : null
+            });
             const metrics = response.data.metrics || response.data;
+            console.log('✅ Processed metrics:', { 
+                isArray: Array.isArray(metrics), 
+                length: Array.isArray(metrics) ? metrics.length : 'N/A' 
+            });
 
             set(state => {
                 const newMetrics = new Map(state.metrics);
@@ -304,7 +316,7 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch training metrics';
             set({ error: errorMessage });
-            console.error('Training metrics fetch error:', error);
+            console.error('❌ Training metrics fetch error:', error);
         }
     },
 
@@ -429,10 +441,9 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
     updateModelName: async (modelId: string, newName: string) => {
         set({ error: null });
         try {
-            const params = new URLSearchParams();
-            params.append('model_name', newName);
-
-            await api.patch(`/v1/models/${modelId}?${params.toString()}`);
+            await api.patch(`/v1/models/${modelId}`, {
+                model_name: newName
+            });
 
             // Update model in local state
             set(state => ({
