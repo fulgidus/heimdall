@@ -12,6 +12,13 @@
  * - Auto-scaling of dB range based on signal statistics
  * - Progress indicator during STFT computation
  * - LocalStorage persistence of settings
+ * - Time axis labels showing sample duration (supports 200ms IQ chunks post-migration)
+ * 
+ * MIGRATION NOTE (2025-11-09):
+ * - Audio chunks migrated from 1000ms to 200ms for real-time localization
+ * - IQ samples now contain 10,000 samples @ 50kHz = 200ms duration
+ * - Waterfall auto-scales to available frames (data-driven, no hardcoded assumptions)
+ * - Time labels display actual duration: totalDurationMs = (sampleCount / sampleRate) * 1000
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -320,7 +327,7 @@ export const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
 
         ctx.putImageData(imageData, 0, 0);
 
-        // Draw frequency axis labels
+        // Draw frequency axis labels (horizontal, bottom)
         ctx.fillStyle = '#ffffff';
         ctx.font = '10px monospace';
         ctx.textAlign = 'center';
@@ -334,7 +341,21 @@ export const WaterfallVisualization: React.FC<WaterfallVisualizationProps> = ({
         ctx.fillText(`${(centerFrequency / 1e6).toFixed(3)} MHz`, width / 2, canvas.height - 5);
         // Right frequency label
         ctx.fillText(`${(freqEnd / 1e6).toFixed(3)} MHz`, width - 50, canvas.height - 5);
-    }, [fftSize, colormap, sampleRate, centerFrequency, height]);
+
+        // Draw time axis labels (vertical, left side)
+        // Calculate total time duration from IQ sample length
+        const totalDurationMs = (iqData.i_samples.length / sampleRate) * 1000;
+        ctx.textAlign = 'left';
+        
+        // Top time label (oldest frames)
+        ctx.fillText('0 ms', 5, 15);
+        
+        // Middle time label
+        ctx.fillText(`${(totalDurationMs / 2).toFixed(0)} ms`, 5, canvas.height / 2);
+        
+        // Bottom time label (newest frames)
+        ctx.fillText(`${totalDurationMs.toFixed(0)} ms`, 5, canvas.height - 5);
+    }, [iqData, fftSize, colormap, sampleRate, centerFrequency, height]);
 
     // Compute STFT and render
     useEffect(() => {

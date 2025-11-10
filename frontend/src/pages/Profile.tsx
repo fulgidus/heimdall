@@ -63,7 +63,7 @@ const Profile: React.FC = () => {
           email: userProfile.email || user?.email || '',
           phone: userProfile.phone || '',
           organization: userProfile.organization || '',
-          role: (userProfile.roles?.[0] || user?.role || 'user') as 'admin' | 'user' | 'viewer',
+          role: (userProfile.roles?.[0] || user?.role || 'user') as 'admin' | 'operator' | 'user',
           location: userProfile.location || '',
           bio: userProfile.bio || '',
         });

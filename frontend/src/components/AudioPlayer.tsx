@@ -15,6 +15,13 @@
  * 1. IQ samples → Demodulator → Audio samples
  * 2. Audio samples → AGC → RF Gain → AF Gain → Web Audio API
  * 3. Visualization: Real-time waveform display
+ * 
+ * MIGRATION NOTE (2025-11-09):
+ * - Audio chunks migrated from 1000ms to 200ms for real-time localization
+ * - IQ samples: 10,000 samples @ 50kHz = 200ms duration
+ * - Resampling (50kHz → 48kHz) preserves time duration correctly
+ * - Example: 10,000 @ 50kHz → 9,600 @ 48kHz (both = 200ms)
+ * - Audio playback timing is handled correctly by Web Audio API
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -350,6 +357,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ iqData, sampleRate, ce
             audioSamples = bandpassFilter(audioSamples, sampleRate);
             
             // Step 5: Resample to audio rate (48 kHz)
+            // NOTE: This preserves time duration (e.g., 10,000 samples @ 50kHz = 200ms → 9,600 samples @ 48kHz = 200ms)
             console.log('[AudioPlayer] Resampling from', sampleRate, 'Hz to', audioRate, 'Hz');
             audioSamples = resampleAudio(audioSamples, sampleRate, audioRate);
             

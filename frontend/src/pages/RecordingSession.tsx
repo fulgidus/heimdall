@@ -44,7 +44,7 @@ const RecordingSession: React.FC = () => {
     setCurrentSessionId(data.session_id);
     setSessionState('acquiring');
     setTotalChunks(data.chunks || 0);
-    setStatusMessage(`Session created! Acquiring ${data.chunks} 1-second samples...`);
+    setStatusMessage(`Session created! Acquiring ${data.chunks} samples (200ms each)...`);
   }, []);
 
   const handleSessionProgress = useCallback((data: any) => {

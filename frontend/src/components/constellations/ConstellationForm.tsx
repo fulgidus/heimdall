@@ -237,7 +237,7 @@ export const ConstellationForm: React.FC<ConstellationFormProps> = ({
                     />
                     <label className="form-check-label d-flex justify-content-between align-items-center" htmlFor={`websdr-${websdr.id}`}>
                       <span>
-                        <strong>{websdr.station_name}</strong>
+                        <strong>{websdr.name}</strong>
                         {websdr.location_description && (
                           <span className="text-muted ms-2">
                             ({websdr.location_description})

@@ -473,7 +473,7 @@ def _generate_single_sample_no_features(args):
     if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
             sample_rate_hz=50_000,  # 50 kHz (optimized for FM)
-            duration_ms=1000.0,       # 1 second
+            duration_ms=200.0,       # 200ms (optimal for real-time localization)
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu,
             use_audio_library=use_audio_library,
@@ -672,7 +672,7 @@ def _generate_single_sample_no_features(args):
         iq_sample = SyntheticIQSample(
             samples=iq_data,
             sample_rate_hz=50_000.0,
-            duration_ms=1000.0,  # Fixed 1 second duration
+            duration_ms=200.0,  # 200ms for real-time localization
             center_frequency_hz=frequency_mhz * 1e6,
             rx_id=rx_id,
             rx_lat=rx_lat,
@@ -702,7 +702,7 @@ def _generate_single_sample_no_features(args):
     propagation_metadata = {
         'frequency_mhz': frequency_mhz,
         'tx_power_dbm': tx_power_dbm,
-        'sample_rate_hz': 200_000,
+        'sample_rate_hz': 50_000,  # Match IQGenerator sample rate (50 kHz for FM optimization)
         'iq_duration_ms': 200.0,
         'num_chunks': 1,
         'chunk_duration_ms': 200.0,
@@ -823,7 +823,7 @@ def _generate_single_sample(args):
     if needs_new_generator:
         _thread_local.iq_generator = SyntheticIQGenerator(
             sample_rate_hz=50_000,  # 50 kHz (optimized for FM)
-            duration_ms=1000.0,       # 1 second
+            duration_ms=200.0,       # 200ms (optimal for real-time localization)
             seed=None,  # Will be reset per sample below
             use_gpu=use_gpu,
             use_audio_library=use_audio_library,
@@ -1029,7 +1029,7 @@ def _generate_single_sample(args):
         iq_sample = SyntheticIQSample(
             samples=iq_data,
             sample_rate_hz=50_000.0,
-            duration_ms=1000.0,  # Fixed 1 second duration
+            duration_ms=200.0,  # 200ms for real-time localization
             center_frequency_hz=frequency_mhz * 1e6,
             rx_id=rx_id,
             rx_lat=rx_lat,
@@ -1106,7 +1106,7 @@ def _generate_single_sample(args):
     extraction_metadata = {
         'extraction_method': 'synthetic',
         'iq_duration_ms': 200.0,
-        'sample_rate_hz': 200_000,
+        'sample_rate_hz': 50_000,  # Match IQGenerator sample rate (50 kHz for FM optimization)
         'num_chunks': 1,
         'chunk_duration_ms': 200.0,
         'generated_at': sample_idx,
@@ -2376,7 +2376,7 @@ async def save_iq_metadata_to_db(
         
         # Build IQ metadata from extraction metadata
         iq_metadata = {
-            'sample_rate_hz': sample['extraction_metadata'].get('sample_rate_hz', 200000),
+            'sample_rate_hz': sample['extraction_metadata'].get('sample_rate_hz', 50000),
             'duration_ms': sample['extraction_metadata'].get('iq_duration_ms', 1000.0),
             'center_frequency_hz': int(sample['extraction_metadata'].get('frequency_mhz', 145.0) * 1e6)
         }

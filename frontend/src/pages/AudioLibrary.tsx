@@ -824,8 +824,8 @@ const AudioLibrary: React.FC = () => {
                               const isProcessing = sample.processing_status === 'PENDING' || sample.processing_status === 'PROCESSING';
                               
                               // Calculate progress percentage for PROCESSING state
-                              // Expected chunks = floor(duration_seconds) since each chunk is 1 second
-                              const expectedChunks = Math.floor(sample.duration_seconds);
+                              // Expected chunks = floor(duration_seconds / 0.2) since each chunk is 200ms (0.2 seconds)
+                              const expectedChunks = Math.floor(sample.duration_seconds / 0.2);
                               const currentChunks = sample.total_chunks || 0;
                               const progressPercent = expectedChunks > 0 
                                 ? Math.min(100, Math.round((currentChunks / expectedChunks) * 100))

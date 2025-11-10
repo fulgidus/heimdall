@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 TARGET_SAMPLE_RATE_HZ = 50_000  # 50 kHz for training (optimal for NBFM/WBFM signals)
-CHUNK_DURATION_SECONDS = 1.0  # 1-second chunks
+CHUNK_DURATION_SECONDS = 0.2  # 200ms chunks (optimal for real-time localization)
 CHUNKS_BUCKET = "heimdall-audio-chunks"
 LIBRARY_BUCKET = "heimdall-audio-library"
 
@@ -41,7 +41,7 @@ LIBRARY_BUCKET = "heimdall-audio-library"
 @shared_task(bind=True, name='backend.tasks.preprocess_audio_file')
 def preprocess_audio_file(self, audio_id: str) -> dict:
     """
-    Preprocess audio file by extracting and resampling 1-second chunks.
+    Preprocess audio file by extracting and resampling 200ms chunks.
     
     Args:
         audio_id: UUID of audio file in audio_library table

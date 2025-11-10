@@ -19,6 +19,7 @@ import Modal from '../Modal';
 import { UserSearch } from './UserSearch';
 import { ShareList } from './ShareList';
 import type { UserProfile } from '../../services/api/users';
+import type { ConstellationShare } from '../../services/api/constellations';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -28,13 +29,7 @@ interface ShareModalProps {
   resourceName: string;
   ownerId: string;
   currentUserId: string;
-  shares: Array<{
-    id: string;
-    user_id: string;
-    permission: 'read' | 'edit';
-    shared_by: string;
-    shared_at: string;
-  }>;
+  shares: ConstellationShare[];
   onAddShare: (userId: string, permission: 'read' | 'edit') => Promise<void>;
   onUpdatePermission: (shareId: string, permission: 'read' | 'edit') => Promise<void>;
   onRemoveShare: (shareId: string) => Promise<void>;

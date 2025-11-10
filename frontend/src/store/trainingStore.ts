@@ -762,17 +762,15 @@ export const useTrainingStore = create<TrainingStore>((set, get) => ({
 
     // Update dataset health status (called from WebSocket events)
     updateDatasetHealth: (datasetId: string, healthData: {
-        health_status: 'unknown' | 'healthy' | 'warning' | 'critical';
+        health_status: 'healthy' | 'warning' | 'critical' | 'unknown';
         last_validated_at?: string;
-        num_samples?: number;
-        storage_size_bytes?: number;
         validation_issues?: {
             orphaned_iq_files: number;
             orphaned_features: number;
             total_issues: number;
-            total_samples?: number;
-            total_iq_files?: number;
-            orphan_percentage?: number;
+            total_samples: number;
+            total_iq_files: number;
+            orphan_percentage: number;
         };
     }) => {
         set(state => ({

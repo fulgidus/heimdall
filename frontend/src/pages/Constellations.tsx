@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react';
 import { ConstellationCard } from '../components/constellations/ConstellationCard';
 import { ConstellationForm } from '../components/constellations/ConstellationForm';
 import Modal from '../components/Modal';
-import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { ShareModal } from '../components/sharing';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -465,25 +464,56 @@ const Constellations: React.FC = () => {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      {selectedConstellation && (
-        <DeleteConfirmModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => !isSubmitting && setIsDeleteModalOpen(false)}
-          onConfirm={handleDelete}
-          title="Delete Constellation"
-          message={
-            <>
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => !isSubmitting && setIsDeleteModalOpen(false)}
+        title="Delete Constellation"
+        size="md"
+      >
+        {selectedConstellation && (
+          <div className="modal-body">
+            <div className="alert alert-warning">
+              <i className="ph ph-warning-circle me-2"></i>
+              <strong>Warning:</strong> This action cannot be undone!
+            </div>
+            <p>
               Are you sure you want to delete the constellation{' '}
               <strong>"{selectedConstellation.name}"</strong>?
-              <br />
-              <br />
-              This action cannot be undone. All constellation members will be removed, but the
-              WebSDR receivers themselves will not be affected.
-            </>
-          }
-          isDeleting={isSubmitting}
-        />
-      )}
+            </p>
+            <p className="mb-0">
+              All constellation members will be removed, but the WebSDR receivers themselves will not be affected.
+            </p>
+          </div>
+        )}
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={() => !isSubmitting && setIsDeleteModalOpen(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={handleDelete}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2"></span>
+                Deleting...
+              </>
+            ) : (
+              <>
+                <i className="ph ph-trash me-2"></i>
+                Delete
+              </>
+            )}
+          </button>
+        </div>
+      </Modal>
 
       {/* Share Modal */}
       {selectedConstellation && user && (
