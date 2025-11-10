@@ -49,14 +49,6 @@ class ReceiverEncoder(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim)
         )
-        
-        logger.info(
-            "ReceiverEncoder initialized",
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            output_dim=output_dim,
-            dropout=dropout
-        )
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -111,13 +103,6 @@ class AttentionAggregator(nn.Module):
         )
         
         self.layer_norm = nn.LayerNorm(embed_dim)
-        
-        logger.info(
-            "AttentionAggregator initialized",
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            dropout=dropout
-        )
     
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
@@ -209,14 +194,6 @@ class TriangulationHead(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, 3)  # [lat, lon, log_variance]
         )
-        
-        logger.info(
-            "TriangulationHead initialized",
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            output_dim=3,
-            dropout=dropout
-        )
     
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -287,14 +264,6 @@ class TriangulationModel(nn.Module):
             input_dim=encoder_output_dim * 4,  # mean + max + std + num_valid
             hidden_dim=head_hidden_dim,
             dropout=dropout
-        )
-        
-        logger.info(
-            "TriangulationModel initialized",
-            total_params=f"{sum(p.numel() for p in self.parameters())/1e6:.2f}M",
-            encoder_params=f"{sum(p.numel() for p in self.encoder.parameters())/1e3:.1f}K",
-            aggregator_params=f"{sum(p.numel() for p in self.aggregator.parameters())/1e3:.1f}K",
-            head_params=f"{sum(p.numel() for p in self.head.parameters())/1e3:.1f}K"
         )
     
     def forward(self, receiver_features: torch.Tensor, signal_mask: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:

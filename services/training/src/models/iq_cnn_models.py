@@ -98,14 +98,6 @@ class IQResNet18(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(128, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQResNet18 initialized (IQ only)",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            embedding_dim=embedding_dim,
-            data_type="iq_raw"
-        )
     
     def _make_residual_block(self, in_channels, out_channels, stride):
         """Create a residual block."""
@@ -243,14 +235,6 @@ class IQResNet50(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(256, 2)  # [sigma_x, sigma_y]
-        )
-        
-        logger.info(
-            "IQResNet50 initialized (IQ only)",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            embedding_dim=embedding_dim,
-            data_type="iq_raw"
         )
     
     def _make_bottleneck_layer(self, in_channels, mid_channels, out_channels, blocks, stride):
@@ -401,14 +385,6 @@ class IQResNet101(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(256, 2)  # [sigma_x, sigma_y]
         )
-        
-        logger.info(
-            "IQResNet101 initialized (IQ only)",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            embedding_dim=embedding_dim,
-            data_type="iq_raw"
-        )
     
     def _make_bottleneck_layer(self, in_channels, mid_channels, out_channels, blocks, stride):
         """Create a bottleneck layer with multiple blocks."""
@@ -557,13 +533,6 @@ class IQVGGNet(nn.Module):
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(128, 2)
-        )
-        
-        logger.info(
-            "IQVGGNet initialized (IQ only)",
-            max_receivers=max_receivers,
-            iq_sequence_length=iq_sequence_length,
-            data_type="iq_raw"
         )
     
     def forward(self, iq_samples: torch.Tensor, receiver_mask: torch.Tensor) -> tuple:
